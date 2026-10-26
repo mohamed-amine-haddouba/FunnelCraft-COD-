@@ -68,7 +68,7 @@ import cors from 'cors';
 import rateLimit from 'express-rate-limit';
 import { scrapeProductFromUrl, validateProductUrl, ScrapedProduct } from './server/urlScraper';
 import { scrapeProductData } from './server/scraper';
-import { sendOtpEmail, sendPasswordResetEmail } from './server/mailer';
+import { sendOtpEmail, sendPasswordResetEmail, sendAdminNotificationEmail } from './server/mailer';
 import { verifyGoogleCredential, isGoogleAuthConfigured } from './server/googleAuth';
 import { verifyCaptchaToken, verifyTurnstileToken, extractClientIp } from './server/captcha';
 import {
@@ -314,7 +314,7 @@ async function startServer() {
     }
 
     try {
-      // Registration strictly assigns role: 'merchant' through createUser
+      // Registration strictly assigns role: 'merchant' through createUser (auto-activated)
       const newUser = createUser(
         email,
         password,
@@ -323,6 +323,21 @@ async function startServer() {
         phone,
         two_factor_enabled ?? false
       );
+
+      // Notify Admin of new merchant registration (non-blocking)
+      void sendAdminNotificationEmail(
+        `🎉 تسجيل تاجر جديد: ${newUser.full_name}`,
+        `
+        <h3 style="margin: 0 0 14px 0; color: #10b981; font-size: 18px;">انضم تاجر جديد إلى منصة CodWorth!</h3>
+        <div style="background-color: #020617; border: 1px solid #1e293b; border-radius: 16px; padding: 18px;">
+          <p style="margin: 6px 0;"><strong>👤 الاسم الكامل:</strong> ${newUser.full_name}</p>
+          <p style="margin: 6px 0;"><strong>📧 البريد الإلكتروني:</strong> <span dir="ltr">${newUser.email}</span></p>
+          <p style="margin: 6px 0;"><strong>🏪 اسم المتجر:</strong> ${newUser.store_name || 'متجر COD الجديد'}</p>
+          <p style="margin: 6px 0;"><strong>📱 رقم الهاتف:</strong> <span dir="ltr">${newUser.phone || 'غير محدد'}</span></p>
+          <p style="margin: 6px 0;"><strong>✅ حالة الحساب:</strong> مفعل تلقائياً (Active)</p>
+        </div>
+        `
+      ).catch((err) => console.error('Admin notification error (register):', err));
 
       // If merchant enabled 2FA, trigger verification step via email
       if (newUser.two_factor_enabled) {
@@ -606,11 +621,27 @@ async function startServer() {
 
     try {
       const verifiedUser = await verifyGoogleCredential(credential);
+      const existingBeforeGoogle = findUserByEmail(verifiedUser.email);
       const user = findOrCreateGoogleUser({
         email: verifiedUser.email,
         name: verifiedUser.fullName,
         picture: verifiedUser.picture,
       });
+
+      if (!existingBeforeGoogle) {
+        void sendAdminNotificationEmail(
+          `🌐 تسجيل تاجر جديد عبر Google: ${user.full_name}`,
+          `
+          <h3 style="margin: 0 0 14px 0; color: #10b981; font-size: 18px;">انضم تاجر جديد عبر حساب Google!</h3>
+          <div style="background-color: #020617; border: 1px solid #1e293b; border-radius: 16px; padding: 18px;">
+            <p style="margin: 6px 0;"><strong>👤 الاسم الكامل:</strong> ${user.full_name}</p>
+            <p style="margin: 6px 0;"><strong>📧 البريد الإلكتروني:</strong> <span dir="ltr">${user.email}</span></p>
+            <p style="margin: 6px 0;"><strong>🏪 اسم المتجر:</strong> ${user.store_name || 'Merchant COD Store'}</p>
+            <p style="margin: 6px 0;"><strong>✅ حالة الحساب:</strong> مفعل تلقائياً (Active)</p>
+          </div>
+          `
+        ).catch((err) => console.error('Admin notification error (google register):', err));
+      }
 
       if (user.two_factor_enabled) {
         const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
@@ -894,6 +925,18 @@ async function startServer() {
       new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
     );
 
+    void sendAdminNotificationEmail(
+      `💎 ترقية اشتراك Pro جديدة: ${updatedUser.full_name}`,
+      `
+      <h3 style="margin: 0 0 14px 0; color: #10b981; font-size: 18px;">تمت ترقية حساب تاجر إلى باقة Pro!</h3>
+      <div style="background-color: #020617; border: 1px solid #1e293b; border-radius: 16px; padding: 18px;">
+        <p style="margin: 6px 0;"><strong>👤 التاجر:</strong> ${updatedUser.full_name}</p>
+        <p style="margin: 6px 0;"><strong>📧 البريد الإلكتروني:</strong> <span dir="ltr">${updatedUser.email}</span></p>
+        <p style="margin: 6px 0;"><strong>💳 الباقة:</strong> Pro Monthly ($10/mo)</p>
+      </div>
+      `
+    ).catch((err) => console.error('Admin notification error (checkout upgrade):', err));
+
     return res.json({
       success: true,
       simulated: true,
@@ -912,6 +955,18 @@ async function startServer() {
       'sub_test_' + Date.now(),
       new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
     );
+
+    void sendAdminNotificationEmail(
+      `💎 ترقية اشتراك Pro: ${updatedUser.full_name}`,
+      `
+      <h3 style="margin: 0 0 14px 0; color: #10b981; font-size: 18px;">تم تفعيل اشتراك Pro لتاجر!</h3>
+      <div style="background-color: #020617; border: 1px solid #1e293b; border-radius: 16px; padding: 18px;">
+        <p style="margin: 6px 0;"><strong>👤 التاجر:</strong> ${updatedUser.full_name}</p>
+        <p style="margin: 6px 0;"><strong>📧 البريد الإلكتروني:</strong> <span dir="ltr">${updatedUser.email}</span></p>
+        <p style="margin: 6px 0;"><strong>💳 الباقة:</strong> Pro Monthly ($10/mo)</p>
+      </div>
+      `
+    ).catch((err) => console.error('Admin notification error (simulate upgrade):', err));
 
     return res.json({
       success: true,
@@ -1083,6 +1138,21 @@ async function startServer() {
         proofImageUrl,
         notes
       );
+
+      void sendAdminNotificationEmail(
+        `💰 طلب تفعيل دفع محلي جديد (${method}) - ${req.user!.full_name}`,
+        `
+        <h3 style="margin: 0 0 14px 0; color: #fbbf24; font-size: 18px;">وصل إشعار تحويل بنكي جديد بانتظار المراجعة!</h3>
+        <div style="background-color: #020617; border: 1px solid #1e293b; border-radius: 16px; padding: 18px;">
+          <p style="margin: 6px 0;"><strong>👤 التاجر:</strong> ${req.user!.full_name}</p>
+          <p style="margin: 6px 0;"><strong>📧 البريد الإلكتروني:</strong> <span dir="ltr">${req.user!.email}</span></p>
+          <p style="margin: 6px 0;"><strong>🏦 وسيلة الدفع:</strong> ${method}</p>
+          <p style="margin: 6px 0;"><strong>💵 المبلغ:</strong> ${Number(amount) || 100} MAD</p>
+          <p style="margin: 6px 0;"><strong>🔢 رقم المعاملة (Reference):</strong> <span dir="ltr">${transactionReference}</span></p>
+          ${notes ? `<p style="margin: 6px 0;"><strong>📝 ملاحظات:</strong> ${sanitizeInput(notes, 300)}</p>` : ''}
+        </div>
+        `
+      ).catch((err) => console.error('Admin notification error (manual payment):', err));
 
       return res.json({
         success: true,
@@ -1655,6 +1725,19 @@ async function startServer() {
       const protocol = req.protocol === 'https' || req.get('x-forwarded-proto') === 'https' ? 'https' : 'http';
       const liveUrl = `${protocol}://${host}/p/${published.slug}`;
 
+      void sendAdminNotificationEmail(
+        `🚀 نشر صفحة هبوط جديدة: ${published.title}`,
+        `
+        <h3 style="margin: 0 0 14px 0; color: #10b981; font-size: 18px;">قام تاجر بنشر صفحة هبوط مباشرة على المنصة!</h3>
+        <div style="background-color: #020617; border: 1px solid #1e293b; border-radius: 16px; padding: 18px;">
+          <p style="margin: 6px 0;"><strong>👤 التاجر:</strong> ${user.full_name} (<span dir="ltr">${user.email}</span>)</p>
+          <p style="margin: 6px 0;"><strong>📄 عنوان الصفحة:</strong> ${published.title}</p>
+          <p style="margin: 6px 0;"><strong>🔗 الرابط المباشر:</strong> <a href="${liveUrl}" style="color: #10b981;" dir="ltr">${liveUrl}</a></p>
+          ${published.customDomain ? `<p style="margin: 6px 0;"><strong>🌐 الدومين المخصص:</strong> <span dir="ltr">${published.customDomain}</span></p>` : ''}
+        </div>
+        `
+      ).catch((err) => console.error('Admin notification error (publish page):', err));
+
       return res.json({
         success: true,
         page: published,
@@ -1823,6 +1906,23 @@ async function startServer() {
         currency: typeof currency === 'string' && currency.trim() ? currency.trim().toUpperCase() : 'MAD',
         paypalOrderId: typeof paypalOrderId === 'string' ? sanitizeInput(paypalOrderId, 80) : undefined,
       });
+
+      void sendAdminNotificationEmail(
+        `🛒 طلب جديد (${order.id}) - ${order.productName}`,
+        `
+        <h3 style="margin: 0 0 14px 0; color: #10b981; font-size: 18px;">تم تسجيل طلب جديد عبر صفحات CodWorth!</h3>
+        <div style="background-color: #020617; border: 1px solid #1e293b; border-radius: 16px; padding: 18px;">
+          <p style="margin: 6px 0;"><strong>🆔 رقم الطلب:</strong> <span dir="ltr">${order.id}</span></p>
+          <p style="margin: 6px 0;"><strong>📦 المنتج:</strong> ${order.productName} (الكمية: ${order.quantity})</p>
+          <p style="margin: 6px 0;"><strong>💵 السعر الإجمالي:</strong> ${order.price} ${order.currency}</p>
+          <p style="margin: 6px 0;"><strong>💳 طريقة الدفع:</strong> ${order.paymentMethod === 'paypal' ? 'PayPal (مدفوع)' : 'الدفع عند الاستلام (COD)'}</p>
+          <p style="margin: 6px 0;"><strong>👤 اسم الزبون:</strong> ${order.customerName}</p>
+          <p style="margin: 6px 0;"><strong>📱 هاتف الزبون:</strong> <span dir="ltr">${order.customerPhone}</span></p>
+          <p style="margin: 6px 0;"><strong>🏙️ المدينة / العنوان:</strong> ${order.customerCity}${order.customerAddress ? ` - ${order.customerAddress}` : ''}</p>
+          ${order.storeName || order.userEmail ? `<p style="margin: 6px 0;"><strong>🏪 المتجر / التاجر:</strong> ${order.storeName || ''} ${order.userEmail ? `(${order.userEmail})` : ''}</p>` : ''}
+        </div>
+        `
+      ).catch((err) => console.error('Admin notification error (new order):', err));
 
       return res.json({
         success: true,
@@ -2117,10 +2217,63 @@ async function startServer() {
         bundlePrice,
       });
 
+      void sendAdminNotificationEmail(
+        `🛒 طلب COD جديد (${result.orderId}) - ${pageTitle || bundleName || 'منتج'}`,
+        `
+        <h3 style="margin: 0 0 14px 0; color: #10b981; font-size: 18px;">تم تسجيل طلب دفع عند الاستلام جديد!</h3>
+        <div style="background-color: #020617; border: 1px solid #1e293b; border-radius: 16px; padding: 18px;">
+          <p style="margin: 6px 0;"><strong>🆔 رقم الطلب:</strong> <span dir="ltr">${result.orderId}</span></p>
+          <p style="margin: 6px 0;"><strong>📦 العرض / المنتج:</strong> ${bundleName || pageTitle || 'منتج CodWorth'}</p>
+          <p style="margin: 6px 0;"><strong>💵 السعر:</strong> ${bundlePrice || 299} MAD</p>
+          <p style="margin: 6px 0;"><strong>👤 الزبون:</strong> ${(customerName || 'Customer').trim()}</p>
+          <p style="margin: 6px 0;"><strong>📱 الهاتف:</strong> <span dir="ltr">${customerPhone.trim()}</span></p>
+          <p style="margin: 6px 0;"><strong>🏙️ المدينة:</strong> ${customerCity || 'غير محدد'}</p>
+        </div>
+        `
+      ).catch((err) => console.error('Admin notification error (submit order):', err));
+
       return res.json({
         success: true,
         orderId: result.orderId,
         message: 'Order received! Confirmation sent to seller.',
+      });
+    } catch (err: any) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  // Public Contact Form Submission -> Sends Admin Notification Email
+  app.post('/api/contact', async (req: Request, res: Response) => {
+    try {
+      const fullName = sanitizeInput(req.body?.fullName, 120);
+      const email = sanitizeInput(req.body?.email, 160);
+      const subject = sanitizeInput(req.body?.subject || 'استفسار عام', 120);
+      const message = sanitizeInput(req.body?.message, 2000);
+
+      if (!fullName || !email || !message) {
+        return res.status(400).json({
+          success: false,
+          error: 'يرجى ملء جميع الحقول المطلوبة.',
+        });
+      }
+
+      void sendAdminNotificationEmail(
+        `📩 رسالة دعم فني جديدة من: ${fullName}`,
+        `
+        <h3 style="margin: 0 0 14px 0; color: #10b981; font-size: 18px;">رسالة جديدة من صفحة "تواصل معنا"</h3>
+        <div style="background-color: #020617; border: 1px solid #1e293b; border-radius: 16px; padding: 18px;">
+          <p style="margin: 6px 0;"><strong>👤 المرسل:</strong> ${fullName}</p>
+          <p style="margin: 6px 0;"><strong>📧 البريد الإلكتروني:</strong> <span dir="ltr">${email}</span></p>
+          <p style="margin: 6px 0;"><strong>📌 الموضوع:</strong> ${subject}</p>
+          <p style="margin: 10px 0 4px 0;"><strong>💬 نص الرسالة:</strong></p>
+          <div style="background-color: #0f172a; border: 1px solid #1e293b; border-radius: 12px; padding: 14px; color: #cbd5e1; white-space: pre-wrap;">${message}</div>
+        </div>
+        `
+      ).catch((err) => console.error('Admin notification error (contact):', err));
+
+      return res.json({
+        success: true,
+        message: 'تم إرسال رسالتك بنجاح! سيتواصل معك فريق الدعم خلال 24 ساعة.',
       });
     } catch (err: any) {
       return res.status(500).json({ success: false, error: err.message });

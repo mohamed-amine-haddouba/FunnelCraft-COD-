@@ -43,7 +43,7 @@ export const ContactPage: React.FC<ContactPageProps> = ({
   // FAQ Accordion State
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
 
@@ -59,15 +59,21 @@ export const ContactPage: React.FC<ContactPageProps> = ({
 
     setIsSubmitting(true);
 
-    // Simulate sending contact request
-    setTimeout(() => {
-      console.log('Contact form submitted:', {
-        fullName: fullName.trim(),
-        email: email.trim(),
-        subject,
-        message: message.trim(),
-        timestamp: new Date().toISOString(),
+    try {
+      const res = await fetch('/api/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fullName: fullName.trim(),
+          email: email.trim(),
+          subject,
+          message: message.trim(),
+        }),
       });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data.success === false) {
+        throw new Error(data.error || 'تعذر إرسال الرسالة، يرجى المحاولة لاحقاً.');
+      }
 
       setIsSubmitting(false);
       setIsSubmitted(true);
@@ -75,7 +81,10 @@ export const ContactPage: React.FC<ContactPageProps> = ({
       setEmail('');
       setMessage('');
       setSubject('technical');
-    }, 700);
+    } catch (err: any) {
+      setIsSubmitting(false);
+      setErrorMessage(err.message || 'حدث خطأ أثناء إرسال الرسالة.');
+    }
   };
 
   const faqItems = [

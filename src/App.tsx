@@ -1060,39 +1060,28 @@ function BuilderWorkspace() {
     );
   }
 
-  // Task 1: Frontend Gate for Pending Users
-  if (user.status === 'pending' && !isImpersonating) {
+  // Frontend Gate for Suspended Users only (New merchants are auto-activated)
+  if (user.status === 'suspended' && !isImpersonating) {
     return (
       <div
         dir="rtl"
         className="min-h-screen w-screen bg-slate-950 text-slate-100 font-sans flex items-center justify-center p-4"
       >
-        <div className="max-w-md w-full bg-slate-900 border border-amber-500/30 rounded-3xl p-8 text-center shadow-2xl space-y-6">
-          <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-400 flex items-center justify-center mx-auto shadow-inner">
-            <Clock className="w-8 h-8 animate-pulse" />
+        <div className="max-w-md w-full bg-slate-900 border border-rose-500/30 rounded-3xl p-8 text-center shadow-2xl space-y-6">
+          <div className="w-16 h-16 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-400 flex items-center justify-center mx-auto shadow-inner">
+            <AlertCircle className="w-8 h-8" />
           </div>
 
           <div className="space-y-2">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-500/10 text-amber-300 border border-amber-500/20">
-              ⏳ بانتظار موافقة الإدارة
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-rose-500/10 text-rose-300 border border-rose-500/20">
+              ⚠️ الحساب موقوف مؤقتاً
             </span>
             <h1 className="text-xl sm:text-2xl font-black text-white">
               مرحباً بك، {user.full_name}
             </h1>
             <p className="text-sm text-slate-300 leading-relaxed pt-1">
-              حسابك قيد المراجعة. يرجى الانتظار حتى يتم تفعيل حسابك من قبل الإدارة.
+              تم إيقاف حسابك مؤقتاً من قبل الإدارة. يرجى التواصل مع فريق الدعم للمزيد من المعلومات.
             </p>
-          </div>
-
-          <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-4 text-xs text-slate-400 space-y-1.5 text-right">
-            <div className="flex items-center justify-between">
-              <span>البريد الإلكتروني:</span>
-              <span className="font-mono text-slate-200">{user.email}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span>حالة الحساب:</span>
-              <span className="text-amber-400 font-bold">قيد المراجعة (Pending)</span>
-            </div>
           </div>
 
           <button

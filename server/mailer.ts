@@ -263,3 +263,98 @@ export async function sendPasswordResetEmail(
   }
 }
 
+/**
+ * Sends a real-time platform event notification email to the Super Admin.
+ * Template is rendered in RTL Arabic dark theme with CodWorth branding.
+ */
+export async function sendAdminNotificationEmail(
+  subject: string,
+  htmlContent: string
+): Promise<boolean> {
+  const config = getSmtpConfig();
+  const adminRecipient =
+    process.env.ADMIN_EMAIL ||
+    process.env.ADMIN_NOTIFICATION_EMAIL ||
+    process.env.SMTP_USER ||
+    'naadianajah2020@gmail.com';
+
+  if (!process.env.SMTP_HOST && !process.env.SMTP_USER) {
+    console.warn(
+      `[Admin Mailer] SMTP credentials not configured. Skipping admin notification: "${subject}"`
+    );
+    return false;
+  }
+
+  const transporter = createMailerTransport();
+  const isFullHtmlDoc =
+    htmlContent.trim().toLowerCase().startsWith('<!doctype html') ||
+    htmlContent.trim().toLowerCase().startsWith('<html');
+
+  const wrappedHtml = isFullHtmlDoc
+    ? htmlContent
+    : `
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${subject} - CodWorth Admin</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #0b1120; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; direction: rtl; text-align: right; color: #f8fafc;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color: #0b1120; padding: 36px 15px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" style="max-width: 580px; background-color: #0f172a; border-radius: 24px; border: 1px solid #1e293b; overflow: hidden; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);" cellspacing="0" cellpadding="0" border="0">
+          <!-- Header Banner -->
+          <tr>
+            <td style="background: linear-gradient(135deg, #059669 0%, #0d9488 100%); padding: 26px 30px; text-align: center;">
+              <div style="font-size: 24px; font-weight: 900; color: #ffffff; letter-spacing: -0.5px;">
+                ⚡ CodWorth • إشعار الإدارة الفوري
+              </div>
+              <div style="font-size: 12px; color: #e6fffa; margin-top: 6px; font-weight: 600;">
+                ${subject}
+              </div>
+            </td>
+          </tr>
+
+          <!-- Main Body -->
+          <tr>
+            <td style="padding: 32px 28px; font-size: 14px; line-height: 1.8; color: #e2e8f0;">
+              ${htmlContent}
+              <div style="margin-top: 28px; padding-top: 18px; border-top: 1px solid #1e293b; text-align: center;">
+                <a href="https://codworth.me" target="_blank" style="display: inline-block; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #020617; font-size: 13px; font-weight: 800; text-decoration: none; padding: 12px 26px; border-radius: 12px;">
+                  فتح لوحة تحكم الإدارة (Admin Panel) ➔
+                </a>
+              </div>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="background-color: #090d16; padding: 18px 28px; border-top: 1px solid #1e293b; text-align: center; font-size: 11px; color: #64748b;">
+              ⏰ توقيت الحدث: ${new Date().toLocaleString('ar-MA', { timeZone: 'Africa/Casablanca' })} • © ${new Date().getFullYear()} CodWorth HQ
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  `.trim();
+
+  try {
+    await transporter.sendMail({
+      from: config.from,
+      to: adminRecipient,
+      subject: `[CodWorth Admin] ${subject}`,
+      html: wrappedHtml,
+    });
+    return true;
+  } catch (error) {
+    console.error('[Mailer Error] Failed to send admin notification email:', error);
+    return false;
+  }
+}
+
+

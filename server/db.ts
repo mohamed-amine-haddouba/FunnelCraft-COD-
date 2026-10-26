@@ -356,7 +356,7 @@ export function createUser(
   const id = crypto.randomUUID();
 
   // Super Admin account is uniquely pre-provisioned to naadianajah2020@gmail.com (active)
-  // All newly registered merchants default to role: 'merchant' and status: 'pending'
+  // All newly registered merchants are auto-activated with status: 'active'
   const isSuperAdminEmail = normalized === 'naadianajah2020@gmail.com';
 
   const newUser: StoredUser = {
@@ -368,7 +368,7 @@ export function createUser(
     avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&auto=format&fit=crop&q=80',
     two_factor_enabled: twoFactorEnabled ?? false,
     role: isSuperAdminEmail ? 'admin' : 'merchant',
-    status: isSuperAdminEmail ? 'active' : 'pending',
+    status: 'active',
     plan_id: isSuperAdminEmail ? 'enterprise' : 'free',
     created_at: new Date().toISOString(),
     pages_created_count: 0,
@@ -454,8 +454,16 @@ export function findOrCreateGoogleUser(payload: { email: string; name: string; p
   const normalized = payload.email.trim().toLowerCase();
   const existing = findUserByEmail(normalized);
   if (existing) {
+    let updated = false;
     if (payload.picture && !existing.avatar) {
       existing.avatar = payload.picture;
+      updated = true;
+    }
+    if (existing.status === 'pending') {
+      existing.status = 'active';
+      updated = true;
+    }
+    if (updated) {
       users.set(existing.id, existing);
       saveUsersToDisk(users);
     }
@@ -477,7 +485,7 @@ export function findOrCreateGoogleUser(payload: { email: string; name: string; p
     avatar: payload.picture || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&auto=format&fit=crop&q=80',
     two_factor_enabled: false,
     role: isSuperAdminEmail ? 'admin' : 'merchant',
-    status: isSuperAdminEmail ? 'active' : 'pending',
+    status: 'active',
     plan_id: isSuperAdminEmail ? 'enterprise' : 'free',
     created_at: new Date().toISOString(),
     pages_created_count: 0,
