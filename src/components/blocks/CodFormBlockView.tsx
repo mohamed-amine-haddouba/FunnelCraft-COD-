@@ -3,8 +3,7 @@ import { CodFormBlock, PageTheme, BundleOption } from '../../types/landingPage';
 import { ShieldCheck, Truck, Banknote, ArrowRight, ArrowLeft, AlertCircle } from 'lucide-react';
 import { Turnstile, type TurnstileInstance } from '@marsidev/react-turnstile';
 
-const TURNSTILE_SITE_KEY =
-  (import.meta as unknown as { env?: Record<string, string> }).env?.VITE_TURNSTILE_SITE_KEY || '';
+const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY || '';
 
 interface OrderSubmitPayload {
   customerName: string;

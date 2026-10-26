@@ -27,8 +27,7 @@ import {
 import { PayPalScriptProvider, PayPalButtons } from '@paypal/react-paypal-js';
 import { Turnstile, type TurnstileInstance } from '@marsidev/react-turnstile';
 
-const TURNSTILE_SITE_KEY =
-  (import.meta as unknown as { env?: Record<string, string> }).env?.VITE_TURNSTILE_SITE_KEY || '';
+const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY || '';
 import {
   DEFAULT_EXCHANGE_RATES,
   SUPPORTED_DISPLAY_CURRENCIES,
