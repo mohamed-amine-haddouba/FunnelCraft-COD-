@@ -1,9 +1,18 @@
 import React from 'react';
+import '@fontsource/cairo/400.css';
+import '@fontsource/cairo/700.css';
+import '@fontsource/tajawal/400.css';
+import '@fontsource/tajawal/700.css';
+import '@fontsource/inter/400.css';
+import '@fontsource/inter/700.css';
+import '@fontsource/poppins/400.css';
+import '@fontsource/poppins/700.css';
 import {
   LandingPageData,
   LandingPageBlock,
   ViewportMode,
   BundleOption,
+  PageTheme,
 } from '../types/landingPage';
 import { PromoBarBlockView } from './blocks/PromoBarBlockView';
 import { HeroBlockView } from './blocks/HeroBlockView';
@@ -14,7 +23,7 @@ import { CodFormBlockView } from './blocks/CodFormBlockView';
 import { FaqBlockView } from './blocks/FaqBlockView';
 import { FloatingCtaBlockView } from './blocks/FloatingCtaBlockView';
 import { TrustBadgesBlockView } from './blocks/TrustBadgesBlockView';
-import { ArrowUp, ArrowDown, Copy, Trash2, Smartphone, Tablet, Monitor } from 'lucide-react';
+import { ArrowUp, ArrowDown, Copy, Trash2 } from 'lucide-react';
 import { OrderConfirmationData } from './OrderSuccessModal';
 
 interface Props {
@@ -29,6 +38,69 @@ interface Props {
   onOrderConfirmed: (data: OrderConfirmationData) => void;
 }
 
+function resolveFontFamilyCss(fontFamily?: PageTheme['fontFamily']): string {
+  switch (fontFamily) {
+    case 'Cairo':
+      return "'Cairo', sans-serif";
+    case 'Tajawal':
+      return "'Tajawal', sans-serif";
+    case 'Inter':
+      return "'Inter', sans-serif";
+    case 'Poppins':
+      return "'Poppins', sans-serif";
+    case 'System':
+      return "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+    default:
+      return "'Cairo', sans-serif";
+  }
+}
+
+function resolveFontSizeScale(fontSize?: PageTheme['fontSize']): {
+  baseSize: string;
+  zoomScale: number;
+} {
+  switch (fontSize) {
+    case 'sm':
+      return { baseSize: '14px', zoomScale: 0.92 };
+    case 'lg':
+      return { baseSize: '17px', zoomScale: 1.06 };
+    case 'xl':
+      return { baseSize: '19px', zoomScale: 1.12 };
+    case 'base':
+    default:
+      return { baseSize: '16px', zoomScale: 1 };
+  }
+}
+
+function resolveBorderRadiusPx(borderRadius?: PageTheme['borderRadius']): string {
+  switch (borderRadius) {
+    case 'none':
+      return '0px';
+    case 'sm':
+      return '6px';
+    case 'md':
+      return '12px';
+    case 'lg':
+      return '20px';
+    case 'full':
+      return '32px';
+    default:
+      return '16px';
+  }
+}
+
+function resolveSectionSpacingRem(sectionSpacing?: PageTheme['sectionSpacing']): string {
+  switch (sectionSpacing) {
+    case 'compact':
+      return '0.75rem';
+    case 'spacious':
+      return '3rem';
+    case 'normal':
+    default:
+      return '1.75rem';
+  }
+}
+
 export const CanvasRenderer: React.FC<Props> = ({
   pageData,
   viewport,
@@ -41,12 +113,12 @@ export const CanvasRenderer: React.FC<Props> = ({
   onOrderConfirmed,
 }) => {
   const isRtl = pageData.direction === 'rtl' || pageData.language === 'ar';
-  const fontFamilyStyle =
-    pageData.theme.fontFamily === 'Cairo'
-      ? { fontFamily: 'Cairo, sans-serif' }
-      : pageData.theme.fontFamily === 'Plus Jakarta Sans'
-      ? { fontFamily: 'Plus Jakarta Sans, sans-serif' }
-      : { fontFamily: 'Inter, sans-serif' };
+  const fontFamilyCss = resolveFontFamilyCss(pageData.theme.fontFamily);
+  const { baseSize, zoomScale } = resolveFontSizeScale(pageData.theme.fontSize);
+  const radiusPx = resolveBorderRadiusPx(pageData.theme.borderRadius);
+  const sectionGapRem = resolveSectionSpacingRem(pageData.theme.sectionSpacing);
+  const themeBgColor = pageData.theme.backgroundColor || '#ffffff';
+  const themeTextColor = pageData.theme.textColor || '#0f172a';
 
   // Scroll to checkout form helper
   const handleScrollToCheckout = () => {
@@ -140,26 +212,42 @@ export const CanvasRenderer: React.FC<Props> = ({
   const getBlockFriendlyName = (type: string) => {
     switch (type) {
       case 'promo-bar':
-        return 'Sticky Promo Bar';
+        return 'شريط الإعلان العلوي';
       case 'hero':
-        return 'Hero Section';
+        return 'القسم الرئيسي (Hero)';
       case 'problem-solution':
-        return 'Problem vs Solution';
+        return 'المشكلة والحل';
       case 'features':
-        return 'Feature Highlights';
+        return 'مميزات المنتج';
       case 'social-proof':
-        return 'Social Proof / Reviews';
+        return 'تقييمات الزبناء';
       case 'cod-form':
-        return 'Native COD Checkout Form';
+        return 'استمارة الدفع عند الاستلام';
       case 'faq':
-        return 'FAQ Accordion';
+        return 'الأسئلة الشائعة';
       case 'floating-cta':
-        return 'Floating Mobile CTA';
+        return 'زر الشراء العائم';
       case 'trust-badges':
-        return 'Trust Badges & Guarantees';
+        return 'شارات الثقة والضمان';
       default:
-        return 'Section Block';
+        return 'قسم الصفحة';
     }
+  };
+
+  const canvasCssVariables: React.CSSProperties = {
+    fontFamily: fontFamilyCss,
+    fontSize: baseSize,
+    backgroundColor: themeBgColor,
+    color: themeTextColor,
+    ['--cw-font-family' as string]: fontFamilyCss,
+    ['--cw-font-size' as string]: baseSize,
+    ['--cw-font-scale' as string]: String(zoomScale),
+    ['--cw-radius' as string]: radiusPx,
+    ['--cw-section-spacing' as string]: sectionGapRem,
+    ['--cw-bg-color' as string]: themeBgColor,
+    ['--cw-text-color' as string]: themeTextColor,
+    ['--cw-primary-color' as string]: pageData.theme.primaryColor,
+    ['--cw-secondary-color' as string]: pageData.theme.secondaryColor,
   };
 
   return (
@@ -172,10 +260,37 @@ export const CanvasRenderer: React.FC<Props> = ({
         }
       }}
     >
+      {/* Dynamic real-time design system overrides scoped to the canvas */}
+      <style>{`
+        .cw-canvas-theme {
+          font-family: var(--cw-font-family) !important;
+          font-size: var(--cw-font-size);
+          color: var(--cw-text-color);
+          background-color: var(--cw-bg-color);
+        }
+        .cw-canvas-theme * {
+          font-family: inherit;
+        }
+        .cw-canvas-theme button,
+        .cw-canvas-theme input,
+        .cw-canvas-theme select,
+        .cw-canvas-theme textarea,
+        .cw-canvas-theme .rounded-xl,
+        .cw-canvas-theme .rounded-2xl,
+        .cw-canvas-theme .rounded-3xl,
+        .cw-canvas-theme .rounded-lg {
+          border-radius: var(--cw-radius) !important;
+        }
+        .cw-canvas-block-overrides section,
+        .cw-canvas-block-overrides > div {
+          background-color: inherit !important;
+        }
+      `}</style>
+
       {/* Device wrapper */}
       <div
-        className={getViewportWrapperStyle()}
-        style={{ ...fontFamilyStyle, backgroundColor: pageData.theme.backgroundColor || '#ffffff' }}
+        className={`${getViewportWrapperStyle()} cw-canvas-theme`}
+        style={canvasCssVariables}
         dir={isRtl ? 'rtl' : 'ltr'}
       >
         {/* Mobile Notch Bar */}
@@ -193,9 +308,23 @@ export const CanvasRenderer: React.FC<Props> = ({
         )}
 
         {/* Blocks container */}
-        <div className="relative">
+        <div
+          className="relative flex flex-col"
+          style={{
+            gap: sectionGapRem,
+            zoom: zoomScale,
+          }}
+        >
           {pageData.blocks.map((block, idx) => {
             const isSelected = selectedBlockId === block.id && !isPreviewMode;
+            const hasBlockBg = Boolean(block.blockBgColor);
+            const hasCustomPadding = typeof block.blockPadding === 'number';
+            const blockWrapperStyle: React.CSSProperties = {
+              backgroundColor: block.blockBgColor || undefined,
+              textAlign: block.textAlign || undefined,
+              paddingTop: hasCustomPadding ? `${(block.blockPadding ?? 0) * 4}px` : undefined,
+              paddingBottom: hasCustomPadding ? `${(block.blockPadding ?? 0) * 4}px` : undefined,
+            };
 
             return (
               <div
@@ -206,9 +335,10 @@ export const CanvasRenderer: React.FC<Props> = ({
                     onSelectBlock(block.id);
                   }
                 }}
+                style={blockWrapperStyle}
                 className={`relative group transition-all duration-150 ${
-                  !isPreviewMode ? 'cursor-pointer' : ''
-                } ${
+                  hasBlockBg ? 'cw-canvas-block-overrides' : ''
+                } ${!isPreviewMode ? 'cursor-pointer' : ''} ${
                   isSelected
                     ? 'ring-2 ring-emerald-500 ring-offset-2 z-20'
                     : !isPreviewMode

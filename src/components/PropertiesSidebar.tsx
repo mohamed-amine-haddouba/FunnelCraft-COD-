@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { HexColorPicker } from 'react-colorful';
 import {
   LandingPageData,
   LandingPageBlock,
@@ -22,7 +23,13 @@ import {
   Image as ImageIcon,
   PanelRightClose,
   Crown,
-  Lock,
+  AlignRight,
+  AlignCenter,
+  AlignLeft,
+  Type,
+  Maximize2,
+  CornerUpRight,
+  RotateCcw,
 } from 'lucide-react';
 import { PRO_BLOCK_TYPES } from './BlocksToolbar';
 
@@ -39,12 +46,41 @@ interface Props {
 }
 
 const COLOR_PRESETS = [
-  { name: 'Emerald', primary: '#059669', secondary: '#a7f3d0' },
-  { name: 'Rose', primary: '#e11d48', secondary: '#fda4af' },
-  { name: 'Sky', primary: '#0284c7', secondary: '#bae6fd' },
-  { name: 'Amber', primary: '#d97706', secondary: '#fde68a' },
-  { name: 'Indigo', primary: '#4f46e5', secondary: '#c7d2fe' },
-  { name: 'Dark Slate', primary: '#0f172a', secondary: '#cbd5e1' },
+  { name: 'Emerald', label: 'زمردي', primary: '#059669', secondary: '#a7f3d0' },
+  { name: 'Blue', label: 'أزرق', primary: '#2563eb', secondary: '#bfdbfe' },
+  { name: 'Rose', label: 'وردي', primary: '#e11d48', secondary: '#fda4af' },
+  { name: 'Amber', label: 'ذهبي', primary: '#d97706', secondary: '#fde68a' },
+  { name: 'Indigo', label: 'نيلي', primary: '#4f46e5', secondary: '#c7d2fe' },
+  { name: 'Slate', label: 'داكن', primary: '#0f172a', secondary: '#cbd5e1' },
+];
+
+const FONT_FAMILY_OPTIONS: { value: PageTheme['fontFamily']; label: string }[] = [
+  { value: 'Cairo', label: 'Cairo — خط كايرو (عربي عصري)' },
+  { value: 'Tajawal', label: 'Tajawal — خط تجول (ناعم وأنيق)' },
+  { value: 'Inter', label: 'Inter — خط إنتر (عالمي واضح)' },
+  { value: 'Poppins', label: 'Poppins — خط بوبينز (متاجر حديثة)' },
+  { value: 'System', label: 'System — خط النظام الافتراضي' },
+];
+
+const FONT_SIZE_OPTIONS: { value: PageTheme['fontSize']; label: string }[] = [
+  { value: 'sm', label: 'صغير (S)' },
+  { value: 'base', label: 'متوسط (M)' },
+  { value: 'lg', label: 'كبير (L)' },
+  { value: 'xl', label: 'ضخم (XL)' },
+];
+
+const BORDER_RADIUS_OPTIONS: { value: PageTheme['borderRadius']; label: string }[] = [
+  { value: 'none', label: 'حاد' },
+  { value: 'sm', label: 'خفيف' },
+  { value: 'md', label: 'متوسط' },
+  { value: 'lg', label: 'كبير' },
+  { value: 'full', label: 'دائري' },
+];
+
+const SECTION_SPACING_OPTIONS: { value: PageTheme['sectionSpacing']; label: string }[] = [
+  { value: 'compact', label: 'مدمج (Compact)' },
+  { value: 'normal', label: 'متوازن (Normal)' },
+  { value: 'spacious', label: 'واسع (Spacious)' },
 ];
 
 const ProFeatureLockOverlay: React.FC<{
@@ -74,6 +110,137 @@ const ProFeatureLockOverlay: React.FC<{
   );
 };
 
+/* --- Block Style Section (Top of every selected block) --- */
+const BlockStyleSection: React.FC<{
+  block: LandingPageBlock;
+  onUpdate: (b: LandingPageBlock) => void;
+}> = ({ block, onUpdate }) => {
+  const currentAlign = block.textAlign || 'right';
+  const currentPadding = typeof block.blockPadding === 'number' ? block.blockPadding : 6;
+  const currentBg = block.blockBgColor || '#ffffff';
+
+  return (
+    <div
+      dir="rtl"
+      className="p-3 rounded-xl bg-slate-50 border border-slate-200/90 space-y-3 shadow-2xs"
+    >
+      <div className="flex items-center justify-between border-b border-slate-200/80 pb-2">
+        <div className="flex items-center gap-1.5">
+          <Palette className="w-3.5 h-3.5 text-emerald-600" />
+          <span className="text-[11px] font-black text-slate-800">
+            تنسيق القسم (Block Style)
+          </span>
+        </div>
+        {(block.blockBgColor || block.textAlign || block.blockPadding !== undefined) && (
+          <button
+            type="button"
+            onClick={() =>
+              onUpdate({
+                ...block,
+                blockBgColor: undefined,
+                textAlign: undefined,
+                blockPadding: undefined,
+              })
+            }
+            className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-500 hover:text-emerald-600 transition cursor-pointer"
+            title="إعادة الضبط للوضع الافتراضي"
+          >
+            <RotateCcw className="w-3 h-3" />
+            <span>افتراضي</span>
+          </button>
+        )}
+      </div>
+
+      {/* Background Color */}
+      <div>
+        <label className="block text-[11px] font-bold text-slate-700 mb-1">
+          لون خلفية القسم (Background Color)
+        </label>
+        <div className="flex items-center gap-2">
+          <input
+            type="color"
+            value={currentBg}
+            onChange={(e) => onUpdate({ ...block, blockBgColor: e.target.value })}
+            className="w-9 h-8 rounded-lg border border-slate-200 cursor-pointer p-0.5 bg-white shrink-0"
+          />
+          <input
+            type="text"
+            dir="ltr"
+            value={block.blockBgColor || 'افتراضي (شفاف)'}
+            onChange={(e) => {
+              const val = e.target.value.trim();
+              if (val.startsWith('#') || val === '') {
+                onUpdate({ ...block, blockBgColor: val || undefined });
+              }
+            }}
+            className="flex-1 h-8 px-2.5 rounded-lg border border-slate-200 bg-white text-[11px] font-mono text-slate-700 outline-none focus:border-emerald-500"
+          />
+        </div>
+      </div>
+
+      {/* Text Alignment Pills */}
+      <div>
+        <label className="block text-[11px] font-bold text-slate-700 mb-1">
+          محاذاة النص (Text Alignment)
+        </label>
+        <div className="grid grid-cols-3 gap-1.5">
+          {[
+            { value: 'right' as const, label: 'يمين', icon: AlignRight },
+            { value: 'center' as const, label: 'وسط', icon: AlignCenter },
+            { value: 'left' as const, label: 'يسار', icon: AlignLeft },
+          ].map((opt) => {
+            const Icon = opt.icon;
+            const active = currentAlign === opt.value;
+            return (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => onUpdate({ ...block, textAlign: opt.value })}
+                className={`h-8 px-2 rounded-lg border text-[11px] font-bold flex items-center justify-center gap-1 transition cursor-pointer ${
+                  active
+                    ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
+                    : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
+                }`}
+              >
+                <Icon className="w-3.5 h-3.5" />
+                <span>{opt.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Padding Slider (0 to 12) */}
+      <div>
+        <div className="flex items-center justify-between mb-1">
+          <label className="text-[11px] font-bold text-slate-700">
+            الهوامش الداخلية (Padding)
+          </label>
+          <span className="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-mono text-[10px] font-bold">
+            {currentPadding} ({currentPadding * 4}px)
+          </span>
+        </div>
+        <input
+          type="range"
+          min={0}
+          max={12}
+          step={1}
+          value={currentPadding}
+          onChange={(e) => onUpdate({ ...block, blockPadding: Number(e.target.value) })}
+          className="w-full accent-emerald-600 cursor-pointer h-1.5 bg-slate-200 rounded-lg"
+        />
+        <div className="flex justify-between text-[9px] text-slate-400 font-mono mt-0.5" dir="ltr">
+          <span>0</span>
+          <span>3</span>
+          <span>6</span>
+          <span>9</span>
+          <span>12</span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export const PropertiesSidebar: React.FC<Props> = ({
   pageData,
   selectedBlockId,
@@ -85,17 +252,41 @@ export const PropertiesSidebar: React.FC<Props> = ({
   onClose,
   onCollapse,
 }) => {
+  const [openColorPicker, setOpenColorPicker] = useState<'primary' | 'background' | 'text' | null>(
+    null
+  );
+
   const selectedBlock = pageData.blocks.find((b) => b.id === selectedBlockId);
+
+  const currentFontFamily: PageTheme['fontFamily'] =
+    pageData.theme.fontFamily &&
+    ['Cairo', 'Tajawal', 'Inter', 'Poppins', 'System'].includes(pageData.theme.fontFamily)
+      ? pageData.theme.fontFamily
+      : 'Cairo';
+
+  const currentFontSize: PageTheme['fontSize'] = pageData.theme.fontSize || 'base';
+  const currentBorderRadius: PageTheme['borderRadius'] =
+    pageData.theme.borderRadius &&
+    ['none', 'sm', 'md', 'lg', 'full'].includes(pageData.theme.borderRadius)
+      ? pageData.theme.borderRadius
+      : 'lg';
+  const currentSectionSpacing: PageTheme['sectionSpacing'] =
+    pageData.theme.sectionSpacing || 'normal';
+  const currentTextColor = pageData.theme.textColor || '#0f172a';
+  const currentBgColor = pageData.theme.backgroundColor || '#ffffff';
 
   // If no block selected, display Global Page & Styling inspector
   if (!selectedBlock) {
     return (
-      <aside className="w-[280px] shrink-0 bg-white border-l border-gray-200 flex flex-col h-full min-h-0 select-none overflow-y-auto overflow-x-hidden">
-        <div className="px-3 py-2.5 border-b border-gray-200 flex items-center justify-between bg-gray-50/80 sticky top-0 z-10 backdrop-blur-sm">
-          <div className="flex items-center gap-1.5 min-w-0">
-            <Palette className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-            <h3 className="text-xs font-bold uppercase tracking-wider text-gray-900 truncate">
-              Page & Theme Settings
+      <aside
+        dir="rtl"
+        className="w-[300px] shrink-0 bg-white border-l border-gray-200 flex flex-col h-full min-h-0 select-none overflow-y-auto overflow-x-hidden"
+      >
+        <div className="px-3.5 py-3 border-b border-gray-200 flex items-center justify-between bg-gray-50/90 sticky top-0 z-20 backdrop-blur-sm">
+          <div className="flex items-center gap-2 min-w-0">
+            <Palette className="w-4 h-4 text-emerald-600 shrink-0" />
+            <h3 className="text-xs font-black text-gray-900 truncate">
+              إعدادات التصميم والهوية البصرية
             </h3>
           </div>
           {onCollapse && (
@@ -105,22 +296,22 @@ export const PropertiesSidebar: React.FC<Props> = ({
               className="p-1 text-gray-400 hover:text-gray-700 rounded-md hover:bg-gray-100 transition cursor-pointer shrink-0"
               title="إخفاء القائمة الجانبية"
             >
-              <PanelRightClose className="w-3.5 h-3.5" />
+              <PanelRightClose className="w-4 h-4" />
             </button>
           )}
         </div>
 
-        <div className="p-3 space-y-3.5 text-xs">
+        <div className="p-3.5 space-y-4 text-xs">
           {/* Landing Page Title */}
           <div>
             <label className="block text-[11px] font-bold text-gray-700 mb-1">
-              Landing Page Title
+              عنوان صفحة الهبوط (Page Title)
             </label>
             <input
               type="text"
               value={pageData.title}
               onChange={(e) => onUpdatePageMeta({ title: e.target.value })}
-              className="w-full h-8 px-2 py-1 rounded-lg border border-gray-200 focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 outline-none text-xs bg-white"
+              className="w-full h-8 px-2.5 py-1 rounded-lg border border-gray-200 focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 outline-none text-xs bg-white font-semibold"
             />
           </div>
 
@@ -128,7 +319,7 @@ export const PropertiesSidebar: React.FC<Props> = ({
           <div className="grid grid-cols-2 gap-2">
             <div className="min-w-0">
               <label className="block text-[11px] font-bold text-gray-700 mb-1 truncate">
-                Language
+                لغة الصفحة
               </label>
               <select
                 value={pageData.language}
@@ -141,15 +332,15 @@ export const PropertiesSidebar: React.FC<Props> = ({
                 }}
                 className="w-full h-8 px-2 py-1 rounded-lg border border-gray-200 focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 outline-none text-xs bg-white"
               >
-                <option value="en">English (LTR)</option>
-                <option value="fr">Français (LTR)</option>
                 <option value="ar">العربية (RTL)</option>
+                <option value="fr">Français (LTR)</option>
+                <option value="en">English (LTR)</option>
               </select>
             </div>
 
             <div className="min-w-0">
               <label className="block text-[11px] font-bold text-gray-700 mb-1 truncate">
-                Text Direction
+                اتجاه النص
               </label>
               <select
                 value={pageData.direction}
@@ -158,20 +349,25 @@ export const PropertiesSidebar: React.FC<Props> = ({
                 }
                 className="w-full h-8 px-2 py-1 rounded-lg border border-gray-200 focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 outline-none text-xs bg-white"
               >
-                <option value="ltr">LTR (Left-Right)</option>
-                <option value="rtl">RTL (Right-Left)</option>
+                <option value="rtl">من اليمين لليسار (RTL)</option>
+                <option value="ltr">من اليسار لليمين (LTR)</option>
               </select>
             </div>
           </div>
 
-          {/* Brand Color Presets */}
-          <div>
-            <label className="block text-[11px] font-bold text-gray-700 mb-1.5">
-              Primary Brand Palette
-            </label>
-            <div className="grid grid-cols-3 gap-1.5 mb-2">
+          {/* 1 & 2: Color Presets + HexColorPicker Popovers */}
+          <div className="p-3 rounded-xl border border-gray-200 bg-gray-50/60 space-y-3">
+            <div className="flex items-center justify-between">
+              <label className="text-[11px] font-black text-gray-800 flex items-center gap-1.5">
+                <Palette className="w-3.5 h-3.5 text-emerald-600" />
+                <span>قوالب الألوان الجاهزة (6 Palettes)</span>
+              </label>
+            </div>
+
+            <div className="grid grid-cols-3 gap-1.5">
               {COLOR_PRESETS.map((p) => {
-                const isActive = pageData.theme.primaryColor === p.primary;
+                const isActive =
+                  pageData.theme.primaryColor.toLowerCase() === p.primary.toLowerCase();
                 return (
                   <button
                     key={p.name}
@@ -183,70 +379,289 @@ export const PropertiesSidebar: React.FC<Props> = ({
                         secondaryColor: p.secondary,
                       })
                     }
-                    className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg border text-start transition cursor-pointer min-w-0 ${
+                    className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg border text-right transition cursor-pointer min-w-0 ${
                       isActive
-                        ? 'border-emerald-600 bg-emerald-50/50 ring-1 ring-emerald-600'
-                        : 'border-gray-200 hover:border-gray-300'
+                        ? 'border-emerald-600 bg-emerald-50/80 ring-1 ring-emerald-600'
+                        : 'border-gray-200 bg-white hover:border-gray-300'
                     }`}
                   >
-                    <div
-                      className="w-3 h-3 rounded-full shrink-0 shadow-xs"
-                      style={{ backgroundColor: p.primary }}
-                    />
-                    <span className="text-[10px] font-bold text-gray-800 truncate">{p.name}</span>
+                    <div className="flex items-center -space-x-1 space-x-reverse shrink-0">
+                      <span
+                        className="w-3.5 h-3.5 rounded-full border border-white shadow-2xs"
+                        style={{ backgroundColor: p.primary }}
+                      />
+                      <span
+                        className="w-2.5 h-2.5 rounded-full border border-white"
+                        style={{ backgroundColor: p.secondary }}
+                      />
+                    </div>
+                    <span className="text-[10px] font-bold text-gray-800 truncate">
+                      {p.label}
+                    </span>
                   </button>
                 );
               })}
             </div>
 
-            <div className="flex items-center gap-2">
-              <input
-                type="color"
-                value={pageData.theme.primaryColor}
-                onChange={(e) =>
-                  onUpdateTheme({ ...pageData.theme, primaryColor: e.target.value })
-                }
-                className="w-8 h-8 rounded-lg cursor-pointer border border-gray-200 p-0"
-              />
-              <span className="font-mono text-gray-600 uppercase text-[11px]">
-                {pageData.theme.primaryColor}
-              </span>
+            {/* Primary & Background Color Pickers with HexColorPicker Popovers */}
+            <div className="grid grid-cols-2 gap-2 pt-1">
+              {/* Primary Color */}
+              <div className="relative">
+                <label className="block text-[10px] font-bold text-gray-600 mb-1">
+                  اللون الأساسي (Primary)
+                </label>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setOpenColorPicker(openColorPicker === 'primary' ? null : 'primary')
+                  }
+                  className="w-full h-8 px-2 rounded-lg border border-gray-200 bg-white flex items-center justify-between gap-1.5 hover:border-emerald-500 transition cursor-pointer"
+                >
+                  <span
+                    className="w-4 h-4 rounded-md border border-gray-200 shrink-0"
+                    style={{ backgroundColor: pageData.theme.primaryColor }}
+                  />
+                  <span className="font-mono text-[11px] text-gray-700 uppercase" dir="ltr">
+                    {pageData.theme.primaryColor}
+                  </span>
+                </button>
+
+                {openColorPicker === 'primary' && (
+                  <div className="absolute right-0 top-16 z-30 p-2.5 bg-white rounded-xl shadow-xl border border-gray-200 space-y-2">
+                    <div className="flex items-center justify-between pb-1 border-b border-gray-100">
+                      <span className="text-[10px] font-bold text-gray-700">
+                        اختر اللون الأساسي
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setOpenColorPicker(null)}
+                        className="text-gray-400 hover:text-gray-700 cursor-pointer"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                    <HexColorPicker
+                      color={pageData.theme.primaryColor}
+                      onChange={(color) =>
+                        onUpdateTheme({ ...pageData.theme, primaryColor: color })
+                      }
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Background Color */}
+              <div className="relative">
+                <label className="block text-[10px] font-bold text-gray-600 mb-1">
+                  لون الخلفية (Background)
+                </label>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setOpenColorPicker(openColorPicker === 'background' ? null : 'background')
+                  }
+                  className="w-full h-8 px-2 rounded-lg border border-gray-200 bg-white flex items-center justify-between gap-1.5 hover:border-emerald-500 transition cursor-pointer"
+                >
+                  <span
+                    className="w-4 h-4 rounded-md border border-gray-300 shrink-0"
+                    style={{ backgroundColor: currentBgColor }}
+                  />
+                  <span className="font-mono text-[11px] text-gray-700 uppercase" dir="ltr">
+                    {currentBgColor}
+                  </span>
+                </button>
+
+                {openColorPicker === 'background' && (
+                  <div className="absolute left-0 top-16 z-30 p-2.5 bg-white rounded-xl shadow-xl border border-gray-200 space-y-2">
+                    <div className="flex items-center justify-between pb-1 border-b border-gray-100">
+                      <span className="text-[10px] font-bold text-gray-700">
+                        اختر لون الخلفية
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setOpenColorPicker(null)}
+                        className="text-gray-400 hover:text-gray-700 cursor-pointer"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                    <HexColorPicker
+                      color={currentBgColor}
+                      onChange={(color) =>
+                        onUpdateTheme({ ...pageData.theme, backgroundColor: color })
+                      }
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Text Color */}
+            <div className="relative pt-1">
+              <label className="block text-[10px] font-bold text-gray-600 mb-1">
+                لون النصوص العام (Text Color)
+              </label>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setOpenColorPicker(openColorPicker === 'text' ? null : 'text')
+                  }
+                  className="flex-1 h-8 px-2.5 rounded-lg border border-gray-200 bg-white flex items-center justify-between gap-2 hover:border-emerald-500 transition cursor-pointer"
+                >
+                  <div className="flex items-center gap-2">
+                    <span
+                      className="w-4 h-4 rounded-md border border-gray-300 shrink-0"
+                      style={{ backgroundColor: currentTextColor }}
+                    />
+                    <span className="text-[11px] font-bold text-gray-700">لون الخط</span>
+                  </div>
+                  <span className="font-mono text-[11px] text-gray-600 uppercase" dir="ltr">
+                    {currentTextColor}
+                  </span>
+                </button>
+              </div>
+
+              {openColorPicker === 'text' && (
+                <div className="absolute right-0 top-16 z-30 p-2.5 bg-white rounded-xl shadow-xl border border-gray-200 space-y-2">
+                  <div className="flex items-center justify-between pb-1 border-b border-gray-100">
+                    <span className="text-[10px] font-bold text-gray-700">اختر لون النص</span>
+                    <button
+                      type="button"
+                      onClick={() => setOpenColorPicker(null)}
+                      className="text-gray-400 hover:text-gray-700 cursor-pointer"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                  <HexColorPicker
+                    color={currentTextColor}
+                    onChange={(color) =>
+                      onUpdateTheme({ ...pageData.theme, textColor: color })
+                    }
+                  />
+                </div>
+              )}
             </div>
           </div>
 
-          {/* Typography Font (Pro Feature Lock for Free Users) */}
-          <div className="relative rounded-xl p-2 border border-gray-200 bg-gray-50/50">
-            <div className="flex items-center justify-between mb-1">
-              <label className="text-[11px] font-bold text-gray-700">
-                Custom Font Family
-              </label>
-              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-slate-900 text-amber-400 text-[9px] font-black">
-                <Crown className="w-2.5 h-2.5 text-amber-400" />
-                <span>PRO</span>
-              </span>
-            </div>
+          {/* 3. Font Family Dropdown */}
+          <div className="p-3 rounded-xl border border-gray-200 bg-gray-50/60 space-y-2.5">
+            <label className="text-[11px] font-black text-gray-800 flex items-center gap-1.5">
+              <Type className="w-3.5 h-3.5 text-emerald-600" />
+              <span>نوع الخط (Font Family)</span>
+            </label>
             <select
-              disabled={!isPro}
-              value={pageData.theme.fontFamily}
+              value={currentFontFamily}
               onChange={(e) =>
                 onUpdateTheme({
                   ...pageData.theme,
-                  fontFamily: e.target.value as 'Inter' | 'Cairo' | 'Plus Jakarta Sans',
+                  fontFamily: e.target.value as PageTheme['fontFamily'],
                 })
               }
-              className="w-full h-8 px-2 py-1 rounded-lg border border-gray-200 focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 outline-none text-xs bg-white"
+              className="w-full h-8.5 px-2.5 py-1 rounded-lg border border-gray-200 focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 outline-none text-xs bg-white font-bold text-gray-800 cursor-pointer"
             >
-              <option value="Plus Jakarta Sans">Plus Jakarta Sans (Modern SaaS)</option>
-              <option value="Inter">Inter (Clean & Crisp)</option>
-              <option value="Cairo">Cairo (Arabic / RTL Best)</option>
+              {FONT_FAMILY_OPTIONS.map((font) => (
+                <option key={font.value} value={font.value}>
+                  {font.label}
+                </option>
+              ))}
             </select>
-            {!isPro && (
-              <ProFeatureLockOverlay
-                compact
-                onUpgradeClick={onUpgradeClick}
-                reason="تخصيص الخطوط الاحترافية متاح في باقة Pro."
-              />
-            )}
+
+            {/* 4. Font Size Selector (Pills) */}
+            <div className="pt-1">
+              <label className="block text-[10px] font-bold text-gray-600 mb-1.5">
+                حجم الخط العام (Font Size)
+              </label>
+              <div className="grid grid-cols-4 gap-1">
+                {FONT_SIZE_OPTIONS.map((size) => {
+                  const active = currentFontSize === size.value;
+                  return (
+                    <button
+                      key={size.value}
+                      type="button"
+                      onClick={() =>
+                        onUpdateTheme({
+                          ...pageData.theme,
+                          fontSize: size.value,
+                        })
+                      }
+                      className={`h-7.5 px-1.5 rounded-lg border text-[10px] font-bold transition cursor-pointer ${
+                        active
+                          ? 'bg-emerald-600 text-white border-emerald-600 shadow-2xs'
+                          : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-100'
+                      }`}
+                    >
+                      {size.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          {/* 5. Border Radius Selector (Pills) */}
+          <div className="p-3 rounded-xl border border-gray-200 bg-gray-50/60 space-y-2">
+            <label className="text-[11px] font-black text-gray-800 flex items-center gap-1.5">
+              <CornerUpRight className="w-3.5 h-3.5 text-emerald-600" />
+              <span>استدارة الحواف والأزرار (Border Radius)</span>
+            </label>
+            <div className="grid grid-cols-5 gap-1">
+              {BORDER_RADIUS_OPTIONS.map((rad) => {
+                const active = currentBorderRadius === rad.value;
+                return (
+                  <button
+                    key={rad.value}
+                    type="button"
+                    onClick={() =>
+                      onUpdateTheme({
+                        ...pageData.theme,
+                        borderRadius: rad.value,
+                      })
+                    }
+                    className={`h-7.5 px-1 rounded-lg border text-[10px] font-bold transition cursor-pointer ${
+                      active
+                        ? 'bg-emerald-600 text-white border-emerald-600 shadow-2xs'
+                        : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-100'
+                    }`}
+                  >
+                    {rad.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* 6. Section Spacing Selector (Pills) */}
+          <div className="p-3 rounded-xl border border-gray-200 bg-gray-50/60 space-y-2">
+            <label className="text-[11px] font-black text-gray-800 flex items-center gap-1.5">
+              <Maximize2 className="w-3.5 h-3.5 text-emerald-600" />
+              <span>تباعد الأقسام (Section Spacing)</span>
+            </label>
+            <div className="grid grid-cols-3 gap-1.5">
+              {SECTION_SPACING_OPTIONS.map((sp) => {
+                const active = currentSectionSpacing === sp.value;
+                return (
+                  <button
+                    key={sp.value}
+                    type="button"
+                    onClick={() =>
+                      onUpdateTheme({
+                        ...pageData.theme,
+                        sectionSpacing: sp.value,
+                      })
+                    }
+                    className={`h-8 px-1.5 rounded-lg border text-[10px] font-bold transition cursor-pointer ${
+                      active
+                        ? 'bg-emerald-600 text-white border-emerald-600 shadow-2xs'
+                        : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-100'
+                    }`}
+                  >
+                    {sp.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           {/* Remove Platform Watermark (Pro Feature Lock for Free Users) */}
@@ -277,30 +692,8 @@ export const PropertiesSidebar: React.FC<Props> = ({
             )}
           </div>
 
-          {/* Border Radius */}
-          <div>
-            <label className="block text-[11px] font-bold text-gray-700 mb-1">
-              Component Corner Radius
-            </label>
-            <select
-              value={pageData.theme.borderRadius}
-              onChange={(e) =>
-                onUpdateTheme({
-                  ...pageData.theme,
-                  borderRadius: e.target.value as PageTheme['borderRadius'],
-                })
-              }
-              className="w-full h-8 px-2 py-1 rounded-lg border border-gray-200 focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 outline-none text-xs bg-white"
-            >
-              <option value="rounded-md">Subtle (rounded-md)</option>
-              <option value="rounded-xl">Standard (rounded-xl)</option>
-              <option value="rounded-2xl">Modern Soft (rounded-2xl)</option>
-              <option value="rounded-none">Sharp Modern (none)</option>
-            </select>
-          </div>
-
-          <div className="p-2.5 bg-gray-50 border border-gray-200 rounded-lg text-gray-500 text-[11px] leading-relaxed">
-            💡 Tip: Click any block on the canvas to inspect and edit its texts, offer bundles, images, and discounts.
+          <div className="p-2.5 bg-emerald-50/60 border border-emerald-200/80 rounded-lg text-emerald-900 text-[11px] leading-relaxed">
+            💡 نصيحة: اضغط على أي قسم داخل الصفحة لتخصيص ألوانه، محاذاة نصوصه، الهوامش، والصور والعروض الخاصة به.
           </div>
         </div>
       </aside>
@@ -311,13 +704,16 @@ export const PropertiesSidebar: React.FC<Props> = ({
 
   // Active Block Inspector
   return (
-    <aside className="w-[280px] shrink-0 bg-white border-l border-gray-200 flex flex-col h-full min-h-0 select-none overflow-y-auto overflow-x-hidden">
-      <div className="px-3 py-2.5 border-b border-gray-200 flex items-center justify-between bg-gray-50/80 sticky top-0 z-10 backdrop-blur-sm">
+    <aside
+      dir="rtl"
+      className="w-[300px] shrink-0 bg-white border-l border-gray-200 flex flex-col h-full min-h-0 select-none overflow-y-auto overflow-x-hidden"
+    >
+      <div className="px-3.5 py-2.5 border-b border-gray-200 flex items-center justify-between bg-gray-50/90 sticky top-0 z-10 backdrop-blur-sm">
         <div className="flex items-center gap-1.5 min-w-0">
           <Sliders className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
           <div className="min-w-0">
             <div className="flex items-center gap-1">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-gray-900 truncate">
+              <h3 className="text-xs font-black uppercase tracking-wider text-gray-900 truncate">
                 {selectedBlock.type.replace('-', ' ')}
               </h3>
               {isSelectedBlockPro && (
@@ -336,7 +732,7 @@ export const PropertiesSidebar: React.FC<Props> = ({
             type="button"
             onClick={onClose}
             className="p-1 text-gray-400 hover:text-gray-700 rounded-md hover:bg-gray-100 transition cursor-pointer"
-            title="Deselect block"
+            title="إلغاء تحديد القسم"
           >
             <X className="w-3.5 h-3.5" />
           </button>
@@ -353,7 +749,7 @@ export const PropertiesSidebar: React.FC<Props> = ({
         </div>
       </div>
 
-      <div className="p-3 space-y-3.5 text-xs relative">
+      <div className="p-3.5 space-y-4 text-xs relative">
         {/* If a Free user selects a Pro-only block, overlay translucent lock */}
         {isSelectedBlockPro && !isPro && (
           <ProFeatureLockOverlay
@@ -361,6 +757,9 @@ export const PropertiesSidebar: React.FC<Props> = ({
             reason={`تعديل إعدادات قسم "${selectedBlock.type}" ميزة احترافية تتطلب الترقية إلى باقة Pro.`}
           />
         )}
+
+        {/* Step 4: Block Style Section at the top for each block type */}
+        <BlockStyleSection block={selectedBlock} onUpdate={onUpdateBlock} />
 
         {/* Render Form Inputs specific to each Block Type */}
         {selectedBlock.type === 'promo-bar' && (
@@ -417,7 +816,9 @@ const PromoBarEditor: React.FC<{
   return (
     <div className="space-y-3">
       <div>
-        <label className="block text-[11px] font-bold text-gray-700 mb-1">Banner Text</label>
+        <label className="block text-[11px] font-bold text-gray-700 mb-1">
+          نص الشريط الإعلاني
+        </label>
         <textarea
           rows={2}
           value={block.text}
@@ -429,7 +830,7 @@ const PromoBarEditor: React.FC<{
       <div className="grid grid-cols-2 gap-2">
         <div className="min-w-0">
           <label className="block text-[11px] font-bold text-gray-700 mb-1 truncate">
-            Timer (Min)
+            المؤقت (دقائق)
           </label>
           <input
             type="number"
@@ -443,7 +844,7 @@ const PromoBarEditor: React.FC<{
 
         <div className="min-w-0">
           <label className="block text-[11px] font-bold text-gray-700 mb-1 truncate">
-            Show Timer
+            إظهار العداد
           </label>
           <button
             type="button"
@@ -454,28 +855,28 @@ const PromoBarEditor: React.FC<{
                 : 'bg-gray-50 border-gray-200 text-gray-500'
             }`}
           >
-            {block.showTimer ? 'Enabled' : 'Disabled'}
+            {block.showTimer ? 'مفعّل' : 'مخفي'}
           </button>
         </div>
       </div>
 
       <div>
         <label className="block text-[11px] font-bold text-gray-700 mb-1">
-          Scarcity Stock Alert
+          تنبيه ندرة المخزون
         </label>
         <input
           type="text"
           value={block.stockWarning}
           onChange={(e) => onUpdate({ ...block, stockWarning: e.target.value })}
           className="w-full h-8 px-2 py-1 rounded-lg border border-gray-200 focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 outline-none text-xs bg-white"
-          placeholder="e.g. Only 7 left in stock"
+          placeholder="مثال: متبقي 7 قطع فقط"
         />
       </div>
 
       <div className="grid grid-cols-2 gap-2">
         <div className="min-w-0">
           <label className="block text-[11px] font-bold text-gray-700 mb-1 truncate">
-            Background
+            لون الشريط
           </label>
           <input
             type="color"
@@ -486,7 +887,7 @@ const PromoBarEditor: React.FC<{
         </div>
         <div className="min-w-0">
           <label className="block text-[11px] font-bold text-gray-700 mb-1 truncate">
-            Text Color
+            لون النص
           </label>
           <input
             type="color"
@@ -509,7 +910,7 @@ const HeroEditor: React.FC<{
   return (
     <div className="space-y-3">
       <div>
-        <label className="block text-[11px] font-bold text-gray-700 mb-1">Top Hook Badge</label>
+        <label className="block text-[11px] font-bold text-gray-700 mb-1">شارة العرض العلوية</label>
         <input
           type="text"
           value={block.badge}
@@ -519,7 +920,7 @@ const HeroEditor: React.FC<{
       </div>
 
       <div>
-        <label className="block text-[11px] font-bold text-gray-700 mb-1">Headline</label>
+        <label className="block text-[11px] font-bold text-gray-700 mb-1">العنوان الرئيسي</label>
         <textarea
           rows={2}
           value={block.headline}
@@ -529,7 +930,7 @@ const HeroEditor: React.FC<{
       </div>
 
       <div>
-        <label className="block text-[11px] font-bold text-gray-700 mb-1">Subheadline</label>
+        <label className="block text-[11px] font-bold text-gray-700 mb-1">الوصف الفرعي</label>
         <textarea
           rows={3}
           value={block.subheadline}
@@ -541,8 +942,8 @@ const HeroEditor: React.FC<{
       {/* Compact 3-Column Row: Discount Price, Original Price, Currency */}
       <div className="grid grid-cols-3 gap-1.5 items-end">
         <div className="min-w-0">
-          <label className="block text-[10px] font-bold text-gray-700 mb-1 truncate" title="Discount Price">
-            Discount Price
+          <label className="block text-[10px] font-bold text-gray-700 mb-1 truncate">
+            سعر التخفيض
           </label>
           <input
             type="number"
@@ -555,8 +956,8 @@ const HeroEditor: React.FC<{
         </div>
 
         <div className="min-w-0">
-          <label className="block text-[10px] font-bold text-gray-700 mb-1 truncate" title="Original Price">
-            Original Price
+          <label className="block text-[10px] font-bold text-gray-700 mb-1 truncate">
+            السعر الأصلي
           </label>
           <input
             type="number"
@@ -569,8 +970,8 @@ const HeroEditor: React.FC<{
         </div>
 
         <div className="min-w-0">
-          <label className="block text-[10px] font-bold text-gray-700 mb-1 truncate" title="Currency">
-            Currency
+          <label className="block text-[10px] font-bold text-gray-700 mb-1 truncate">
+            العملة
           </label>
           <input
             type="text"
@@ -582,7 +983,7 @@ const HeroEditor: React.FC<{
       </div>
 
       <div>
-        <label className="block text-[11px] font-bold text-gray-700 mb-1">CTA Button Text</label>
+        <label className="block text-[11px] font-bold text-gray-700 mb-1">نص زر الشراء (CTA)</label>
         <input
           type="text"
           value={block.ctaText}
@@ -593,7 +994,7 @@ const HeroEditor: React.FC<{
 
       <div>
         <label className="block text-[11px] font-bold text-gray-700 mb-1">
-          CTA Reassurance Subtext
+          نص الطمأنة أسفل الزر
         </label>
         <input
           type="text"
@@ -608,7 +1009,7 @@ const HeroEditor: React.FC<{
         <div className="flex items-center justify-between mb-1">
           <label className="text-[11px] font-bold text-gray-700 flex items-center gap-1">
             <ImageIcon className="w-3.5 h-3.5 text-gray-500" />
-            <span>Product Gallery Images</span>
+            <span>صور المنتج (Gallery)</span>
           </label>
           <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-slate-900 text-amber-400 text-[9px] font-black">
             <Crown className="w-2.5 h-2.5 text-amber-400" />
@@ -621,6 +1022,7 @@ const HeroEditor: React.FC<{
           <div className="flex gap-1 items-center">
             <input
               type="text"
+              dir="ltr"
               value={block.images[0]}
               onChange={(e) => {
                 const updated = [...block.images];
@@ -640,6 +1042,7 @@ const HeroEditor: React.FC<{
               <div key={realIdx} className="flex gap-1 items-center">
                 <input
                   type="text"
+                  dir="ltr"
                   disabled={!isPro}
                   value={img}
                   onChange={(e) => {
@@ -678,7 +1081,7 @@ const HeroEditor: React.FC<{
             }
             className="w-full h-8 py-1 px-2 border border-dashed border-gray-300 hover:border-gray-400 rounded-lg text-gray-500 hover:text-gray-800 text-xs font-bold flex items-center justify-center gap-1 cursor-pointer"
           >
-            <Plus className="w-3 h-3" /> Add Multiple Images (Gallery)
+            <Plus className="w-3 h-3" /> إضافة صور إضافية للمعرض
           </button>
 
           {!isPro && (
@@ -701,7 +1104,7 @@ const ProblemSolutionEditor: React.FC<{
   return (
     <div className="space-y-3">
       <div>
-        <label className="block text-[11px] font-bold text-gray-700 mb-1">Section Title</label>
+        <label className="block text-[11px] font-bold text-gray-700 mb-1">عنوان القسم</label>
         <input
           type="text"
           value={block.title}
@@ -711,7 +1114,7 @@ const ProblemSolutionEditor: React.FC<{
       </div>
 
       <div>
-        <label className="block text-[11px] font-bold text-gray-700 mb-1">Highlight Badge</label>
+        <label className="block text-[11px] font-bold text-gray-700 mb-1">شارة التميز</label>
         <input
           type="text"
           value={block.highlightBadge}
@@ -721,7 +1124,7 @@ const ProblemSolutionEditor: React.FC<{
       </div>
 
       <div>
-        <label className="block text-[11px] font-bold text-red-700 mb-1">Problem Card Title</label>
+        <label className="block text-[11px] font-bold text-red-700 mb-1">عنوان بطاقة المشكلة</label>
         <input
           type="text"
           value={block.problemTitle}
@@ -732,7 +1135,7 @@ const ProblemSolutionEditor: React.FC<{
 
       <div>
         <label className="block text-[11px] font-bold text-emerald-700 mb-1">
-          Solution Card Title
+          عنوان بطاقة الحل
         </label>
         <input
           type="text"
@@ -752,7 +1155,7 @@ const FeaturesEditor: React.FC<{
   return (
     <div className="space-y-3">
       <div>
-        <label className="block text-[11px] font-bold text-gray-700 mb-1">Title</label>
+        <label className="block text-[11px] font-bold text-gray-700 mb-1">العنوان</label>
         <input
           type="text"
           value={block.title}
@@ -762,7 +1165,7 @@ const FeaturesEditor: React.FC<{
       </div>
 
       <div>
-        <label className="block text-[11px] font-bold text-gray-700 mb-1">Subtitle</label>
+        <label className="block text-[11px] font-bold text-gray-700 mb-1">العنوان الفرعي</label>
         <input
           type="text"
           value={block.subtitle}
@@ -773,12 +1176,12 @@ const FeaturesEditor: React.FC<{
 
       <div className="space-y-2">
         <label className="block text-[11px] font-bold text-gray-700">
-          Feature Items ({block.items.length})
+          قائمة المميزات ({block.items.length})
         </label>
         {block.items.map((item, idx) => (
           <div key={idx} className="p-2.5 bg-gray-50 border border-gray-200 rounded-lg space-y-1.5">
             <div className="flex items-center justify-between">
-              <span className="font-bold text-[11px] text-gray-700">Feature #{idx + 1}</span>
+              <span className="font-bold text-[11px] text-gray-700">ميزة #{idx + 1}</span>
               <button
                 type="button"
                 onClick={() => {
@@ -798,7 +1201,7 @@ const FeaturesEditor: React.FC<{
                 items[idx] = { ...items[idx], title: e.target.value };
                 onUpdate({ ...block, items });
               }}
-              placeholder="Feature Title"
+              placeholder="عنوان الميزة"
               className="w-full h-8 px-2 py-1 bg-white rounded-lg border border-gray-200 text-xs font-bold outline-none focus:border-emerald-500"
             />
             <textarea
@@ -809,7 +1212,7 @@ const FeaturesEditor: React.FC<{
                 items[idx] = { ...items[idx], description: e.target.value };
                 onUpdate({ ...block, items });
               }}
-              placeholder="Description"
+              placeholder="وصف الميزة"
               className="w-full px-2 py-1 bg-white rounded-lg border border-gray-200 text-xs outline-none focus:border-emerald-500"
             />
           </div>
@@ -826,7 +1229,7 @@ const SocialProofEditor: React.FC<{
   return (
     <div className="space-y-3">
       <div>
-        <label className="block text-[11px] font-bold text-gray-700 mb-1">Headline</label>
+        <label className="block text-[11px] font-bold text-gray-700 mb-1">عنوان التقييمات</label>
         <input
           type="text"
           value={block.title}
@@ -838,7 +1241,7 @@ const SocialProofEditor: React.FC<{
       <div className="grid grid-cols-2 gap-2">
         <div className="min-w-0">
           <label className="block text-[11px] font-bold text-gray-700 mb-1 truncate">
-            Rating (out of 5)
+            التقييم (من 5)
           </label>
           <input
             type="number"
@@ -852,7 +1255,7 @@ const SocialProofEditor: React.FC<{
         </div>
         <div className="min-w-0">
           <label className="block text-[11px] font-bold text-gray-700 mb-1 truncate">
-            Total Orders
+            إجمالي المراجعات
           </label>
           <input
             type="number"
@@ -875,7 +1278,7 @@ const CodFormEditor: React.FC<{
   return (
     <div className="space-y-3">
       <div>
-        <label className="block text-[11px] font-bold text-gray-700 mb-1">Form Header Title</label>
+        <label className="block text-[11px] font-bold text-gray-700 mb-1">عنوان استمارة الطلب</label>
         <input
           type="text"
           value={block.title}
@@ -885,7 +1288,7 @@ const CodFormEditor: React.FC<{
       </div>
 
       <div>
-        <label className="block text-[11px] font-bold text-gray-700 mb-1">Submit Button Text</label>
+        <label className="block text-[11px] font-bold text-gray-700 mb-1">نص زر تأكيد الطلب</label>
         <input
           type="text"
           value={block.buttonText}
@@ -896,7 +1299,7 @@ const CodFormEditor: React.FC<{
 
       <div>
         <label className="block text-[11px] font-bold text-gray-700 mb-1">
-          COD Guarantee Notice
+          رسالة ضمان الدفع عند الاستلام
         </label>
         <textarea
           rows={2}
@@ -910,7 +1313,7 @@ const CodFormEditor: React.FC<{
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <label className="text-[11px] font-bold text-gray-700">
-            Quantity / Bundles ({block.bundles.length})
+            عروض الكميات (Bundles) ({block.bundles.length})
           </label>
           <button
             type="button"
@@ -921,11 +1324,11 @@ const CodFormEditor: React.FC<{
                   ...block.bundles,
                   {
                     id: `bundle-${Date.now()}`,
-                    name: 'Extra Bundle Option',
+                    name: 'عرض إضافي مميز',
                     quantity: block.bundles.length + 1,
-                    price: 69.99,
-                    originalPrice: 139.99,
-                    badge: 'Special Deal',
+                    price: 299,
+                    originalPrice: 499,
+                    badge: 'توفير إضافي',
                     popular: false,
                   },
                 ],
@@ -933,14 +1336,14 @@ const CodFormEditor: React.FC<{
             }
             className="text-emerald-600 hover:text-emerald-700 text-[11px] font-bold flex items-center gap-0.5 cursor-pointer"
           >
-            <Plus className="w-3 h-3" /> Add Tier
+            <Plus className="w-3 h-3" /> إضافة عرض
           </button>
         </div>
 
         {block.bundles.map((bundle, idx) => (
           <div key={bundle.id} className="p-2.5 bg-gray-50 border border-gray-200 rounded-lg space-y-1.5">
             <div className="flex items-center justify-between">
-              <span className="font-bold text-[11px] text-gray-800">Tier #{idx + 1}</span>
+              <span className="font-bold text-[11px] text-gray-800">عرض #{idx + 1}</span>
               <button
                 type="button"
                 onClick={() => {
@@ -962,13 +1365,13 @@ const CodFormEditor: React.FC<{
                 onUpdate({ ...block, bundles });
               }}
               className="w-full h-8 px-2 py-1 bg-white rounded-lg border border-gray-200 text-xs font-bold outline-none focus:border-emerald-500"
-              placeholder="Bundle Name"
+              placeholder="اسم العرض"
             />
 
             <div className="grid grid-cols-2 gap-1.5">
               <div className="min-w-0">
                 <label className="block text-[10px] text-gray-500 font-bold truncate mb-0.5">
-                  Price ({block.currency})
+                  السعر ({block.currency})
                 </label>
                 <input
                   type="number"
@@ -984,7 +1387,7 @@ const CodFormEditor: React.FC<{
 
               <div className="min-w-0">
                 <label className="block text-[10px] text-gray-500 font-bold truncate mb-0.5">
-                  Original Price
+                  السعر قبل الخصم
                 </label>
                 <input
                   type="number"
@@ -1011,7 +1414,7 @@ const CodFormEditor: React.FC<{
                   bundles[idx] = { ...bundles[idx], badge: e.target.value };
                   onUpdate({ ...block, bundles });
                 }}
-                placeholder="Badge (e.g. 50% Off)"
+                placeholder="شارة (مثال: خصم 50%)"
                 className="flex-1 h-8 px-2 py-1 bg-white rounded-lg border border-gray-200 text-xs outline-none focus:border-emerald-500 min-w-0"
               />
 
@@ -1030,7 +1433,7 @@ const CodFormEditor: React.FC<{
                     : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                 }`}
               >
-                {bundle.popular ? '★ Popular' : 'Set Popular'}
+                {bundle.popular ? '★ الأكثر طلباً' : 'تعيين كأفضل عرض'}
               </button>
             </div>
           </div>
@@ -1047,7 +1450,7 @@ const FaqEditor: React.FC<{
   return (
     <div className="space-y-3">
       <div>
-        <label className="block text-[11px] font-bold text-gray-700 mb-1">Section Title</label>
+        <label className="block text-[11px] font-bold text-gray-700 mb-1">عنوان الأسئلة الشائعة</label>
         <input
           type="text"
           value={block.title}
@@ -1058,12 +1461,12 @@ const FaqEditor: React.FC<{
 
       <div className="space-y-2">
         <label className="block text-[11px] font-bold text-gray-700">
-          FAQ Questions ({block.items.length})
+          الأسئلة ({block.items.length})
         </label>
         {block.items.map((item, idx) => (
           <div key={item.id} className="p-2.5 bg-gray-50 border border-gray-200 rounded-lg space-y-1.5">
             <div className="flex items-center justify-between">
-              <span className="font-bold text-[11px] text-gray-700">Q#{idx + 1}</span>
+              <span className="font-bold text-[11px] text-gray-700">سؤال #{idx + 1}</span>
               <button
                 type="button"
                 onClick={() => {
@@ -1109,7 +1512,7 @@ const FloatingCtaEditor: React.FC<{
   return (
     <div className="space-y-3">
       <div>
-        <label className="block text-[11px] font-bold text-gray-700 mb-1">Product Title</label>
+        <label className="block text-[11px] font-bold text-gray-700 mb-1">اسم المنتج المختصر</label>
         <input
           type="text"
           value={block.title}
@@ -1119,7 +1522,7 @@ const FloatingCtaEditor: React.FC<{
       </div>
 
       <div>
-        <label className="block text-[11px] font-bold text-gray-700 mb-1">Price Tag Text</label>
+        <label className="block text-[11px] font-bold text-gray-700 mb-1">نص السعر</label>
         <input
           type="text"
           value={block.priceText}
@@ -1129,7 +1532,7 @@ const FloatingCtaEditor: React.FC<{
       </div>
 
       <div>
-        <label className="block text-[11px] font-bold text-gray-700 mb-1">Button Label</label>
+        <label className="block text-[11px] font-bold text-gray-700 mb-1">نص الزر العائم</label>
         <input
           type="text"
           value={block.buttonText}
@@ -1148,7 +1551,7 @@ const TrustBadgesEditor: React.FC<{
   return (
     <div className="space-y-3">
       <div>
-        <label className="block text-[11px] font-bold text-gray-700 mb-1">Section Title</label>
+        <label className="block text-[11px] font-bold text-gray-700 mb-1">عنوان شارات الثقة</label>
         <input
           type="text"
           value={block.title}
@@ -1159,7 +1562,7 @@ const TrustBadgesEditor: React.FC<{
 
       <div className="space-y-2">
         <label className="block text-[11px] font-bold text-gray-700">
-          Badges ({block.badges.length})
+          الشارات ({block.badges.length})
         </label>
         {block.badges.map((badge, idx) => (
           <div key={idx} className="p-2.5 bg-gray-50 border border-gray-200 rounded-lg space-y-1.5">
@@ -1171,7 +1574,7 @@ const TrustBadgesEditor: React.FC<{
                 badges[idx] = { ...badges[idx], title: e.target.value };
                 onUpdate({ ...block, badges });
               }}
-              placeholder="Badge Title"
+              placeholder="عنوان الشارة"
               className="w-full h-8 px-2 py-1 bg-white rounded-lg border border-gray-200 text-xs font-bold outline-none focus:border-emerald-500"
             />
             <input
@@ -1182,7 +1585,7 @@ const TrustBadgesEditor: React.FC<{
                 badges[idx] = { ...badges[idx], description: e.target.value };
                 onUpdate({ ...block, badges });
               }}
-              placeholder="Badge Description"
+              placeholder="وصف الشارة"
               className="w-full h-8 px-2 py-1 bg-white rounded-lg border border-gray-200 text-xs outline-none focus:border-emerald-500"
             />
           </div>

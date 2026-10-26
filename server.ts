@@ -2693,8 +2693,11 @@ function createDynamicFallback(
         secondaryColor: '#a7f3d0',
         accentColor: '#d97706',
         backgroundColor: '#ffffff',
+        textColor: '#0f172a',
         fontFamily: 'Cairo',
-        borderRadius: 'rounded-2xl',
+        fontSize: 'base',
+        borderRadius: 'lg',
+        sectionSpacing: 'normal',
       },
       blocks: [
         {
@@ -2810,8 +2813,11 @@ function createDynamicFallback(
         secondaryColor: '#bae6fd',
         accentColor: '#10b981',
         backgroundColor: '#ffffff',
+        textColor: '#0f172a',
         fontFamily: 'Inter',
-        borderRadius: 'rounded-xl',
+        fontSize: 'base',
+        borderRadius: 'md',
+        sectionSpacing: 'normal',
       },
       blocks: [
         {
@@ -2908,8 +2914,11 @@ function createDynamicFallback(
       secondaryColor: '#d1fae5',
       accentColor: '#f59e0b',
       backgroundColor: '#ffffff',
-      fontFamily: 'Plus Jakarta Sans',
-      borderRadius: 'rounded-xl',
+      textColor: '#0f172a',
+      fontFamily: 'Poppins',
+      fontSize: 'base',
+      borderRadius: 'md',
+      sectionSpacing: 'normal',
     },
     blocks: [
       {
@@ -3135,8 +3144,11 @@ export function mapAnalystToLandingPageData(
       secondaryColor: '#a7f3d0',
       accentColor: '#d97706',
       backgroundColor: '#ffffff',
+      textColor: '#0f172a',
       fontFamily: isRtl ? 'Cairo' : 'Inter',
-      borderRadius: 'rounded-2xl',
+      fontSize: 'base',
+      borderRadius: 'lg',
+      sectionSpacing: 'normal',
     },
     blocks: [
       {

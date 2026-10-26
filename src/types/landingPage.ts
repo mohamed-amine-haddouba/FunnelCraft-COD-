@@ -13,7 +13,13 @@ export type BlockType =
   | 'floating-cta'
   | 'trust-badges';
 
-export interface PromoBarBlock {
+export interface BlockStyleSettings {
+  blockBgColor?: string;
+  textAlign?: 'right' | 'center' | 'left';
+  blockPadding?: number;
+}
+
+export interface PromoBarBlock extends BlockStyleSettings {
   id: string;
   type: 'promo-bar';
   text: string;
@@ -25,7 +31,7 @@ export interface PromoBarBlock {
   isSticky: boolean;
 }
 
-export interface HeroBlock {
+export interface HeroBlock extends BlockStyleSettings {
   id: string;
   type: 'hero';
   badge: string;
@@ -42,7 +48,7 @@ export interface HeroBlock {
   trustPoints: string[];
 }
 
-export interface ProblemSolutionBlock {
+export interface ProblemSolutionBlock extends BlockStyleSettings {
   id: string;
   type: 'problem-solution';
   title: string;
@@ -61,7 +67,7 @@ export interface FeatureItem {
   badge?: string;
 }
 
-export interface FeaturesBlock {
+export interface FeaturesBlock extends BlockStyleSettings {
   id: string;
   type: 'features';
   title: string;
@@ -81,7 +87,7 @@ export interface ReviewItem {
   avatar?: string;
 }
 
-export interface SocialProofBlock {
+export interface SocialProofBlock extends BlockStyleSettings {
   id: string;
   type: 'social-proof';
   title: string;
@@ -101,7 +107,7 @@ export interface BundleOption {
   popular?: boolean;
 }
 
-export interface CodFormBlock {
+export interface CodFormBlock extends BlockStyleSettings {
   id: string;
   type: 'cod-form';
   title: string;
@@ -125,7 +131,7 @@ export interface FaqItem {
   answer: string;
 }
 
-export interface FaqBlock {
+export interface FaqBlock extends BlockStyleSettings {
   id: string;
   type: 'faq';
   title: string;
@@ -133,7 +139,7 @@ export interface FaqBlock {
   items: FaqItem[];
 }
 
-export interface FloatingCtaBlock {
+export interface FloatingCtaBlock extends BlockStyleSettings {
   id: string;
   type: 'floating-cta';
   title: string;
@@ -149,7 +155,7 @@ export interface TrustBadgeItem {
   description: string;
 }
 
-export interface TrustBadgesBlock {
+export interface TrustBadgesBlock extends BlockStyleSettings {
   id: string;
   type: 'trust-badges';
   title: string;
@@ -172,8 +178,11 @@ export interface PageTheme {
   secondaryColor: string;
   accentColor: string;
   backgroundColor: string;
-  fontFamily: 'Inter' | 'Cairo' | 'Plus Jakarta Sans';
-  borderRadius: 'rounded-none' | 'rounded-md' | 'rounded-xl' | 'rounded-2xl' | 'rounded-full';
+  textColor: string;
+  fontFamily: 'Cairo' | 'Tajawal' | 'Inter' | 'Poppins' | 'System';
+  fontSize: 'sm' | 'base' | 'lg' | 'xl';
+  borderRadius: 'none' | 'sm' | 'md' | 'lg' | 'full';
+  sectionSpacing: 'compact' | 'normal' | 'spacious';
 }
 
 export interface LandingPageData {
