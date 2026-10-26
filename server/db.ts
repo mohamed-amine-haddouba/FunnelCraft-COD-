@@ -57,7 +57,7 @@ function createDefaultOwnerUser(): StoredUser {
     email: superAdminEmail,
     full_name: 'Nadia Najah (Super Admin)',
     store_name: 'CodWorth HQ (المالك)',
-    phone: '+212 661-849201',
+    phone: '+212 722-256897',
     avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&auto=format&fit=crop&q=80',
     city: 'Casablanca',
     custom_domain: 'codworth.com',

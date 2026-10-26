@@ -9,7 +9,7 @@ interface PublicFooterProps {
 export const FloatingWhatsAppButton: React.FC = () => {
   return (
     <a
-      href="https://wa.me/212661849201?text=%D9%85%D8%B1%D8%AD%D8%A8%D8%A7%D9%8B%20%D9%81%D8%B1%D9%8A%D9%82%20CodWorth%D8%8C%20%D8%A3%D8%AD%D8%AA%D8%A7%D8%AC%20%D9%85%D8%B3%D8%A7%D8%B9%D8%AF%D8%A9%20%D8%A8%D8%AE%D8%B5%D9%88%D8%B5%20%D8%A7%D9%84%D9%85%D9%86%D8%B5%D8%A9"
+      href="https://wa.me/212722256897?text=%D9%85%D8%B1%D8%AD%D8%A8%D8%A7%D9%8B%20%D9%81%D8%B1%D9%8A%D9%82%20CodWorth%D8%8C%20%D8%A3%D8%AD%D8%AA%D8%A7%D8%AC%20%D9%85%D8%B3%D8%A7%D8%B9%D8%AF%D8%A9%20%D8%A8%D8%AE%D8%B5%D9%88%D8%B5%20%D8%A7%D9%84%D9%85%D9%86%D8%B5%D8%A9"
       target="_blank"
       rel="noopener noreferrer"
       aria-label="تواصل معنا عبر واتساب"
@@ -139,13 +139,13 @@ export const PublicFooter: React.FC<PublicFooterProps> = ({
               </li>
               <li>
                 <a
-                  href="https://wa.me/212661849201"
+                  href="https://wa.me/212722256897"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-2 text-slate-400 hover:text-emerald-400 transition"
                 >
                   <MessageCircle className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                  <span dir="ltr">+212 661-849201</span>
+                  <span dir="ltr">+212 722-256897</span>
                 </a>
               </li>
               <li className="inline-flex items-center gap-2 text-slate-400">

@@ -588,7 +588,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                         <span>WhatsApp</span>
                       </div>
                       <div className="text-[10px] text-slate-500 font-mono mt-0.5 truncate" dir="ltr">
-                        {twoFactorData.maskedPhone || '+212 6•• ••9201'}
+                        {twoFactorData.maskedPhone || '+212 7•• ••6897'}
                       </div>
                     </button>
 

@@ -215,13 +215,13 @@ export const ContactPage: React.FC<ContactPageProps> = ({
               دعم فوري للتجار المشتركين ومساعدتكم في إعداد الحملات والصفحات
             </p>
             <a
-              href="https://wa.me/212661849201"
+              href="https://wa.me/212722256897"
               target="_blank"
               rel="noopener noreferrer"
               dir="ltr"
               className="inline-flex items-center gap-2 text-sm font-bold text-emerald-400 hover:text-emerald-300 transition group-hover:underline"
             >
-              <span>+212 661-849201</span>
+              <span>+212 722-256897</span>
               <ExternalLink className="w-3.5 h-3.5" />
             </a>
           </div>
@@ -405,7 +405,7 @@ export const ContactPage: React.FC<ContactPageProps> = ({
                 عند الاستلام.
               </p>
               <a
-                href="https://wa.me/212661849201"
+                href="https://wa.me/212722256897"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1.5 text-emerald-400 hover:text-emerald-300 font-bold pt-1"

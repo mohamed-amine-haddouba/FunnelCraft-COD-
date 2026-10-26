@@ -445,13 +445,13 @@ export const TermsPage: React.FC<TermsPageProps> = ({
                 <div className="text-xs">
                   <div className="font-bold text-white mb-0.5">الهاتف والواتساب</div>
                   <a
-                    href="https://wa.me/212661849201"
+                    href="https://wa.me/212722256897"
                     target="_blank"
                     rel="noopener noreferrer"
                     dir="ltr"
                     className="text-emerald-400 hover:underline block"
                   >
-                    +212 661-849201
+                    +212 722-256897
                   </a>
                 </div>
               </div>

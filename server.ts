@@ -248,7 +248,7 @@ async function startServer() {
   const activeOtps = new Map<string, ActiveOtp>();
 
   // Masking helpers
-  const maskPhone = (phone: string = '+212 661-849201') => {
+  const maskPhone = (phone: string = '+212 722-256897') => {
     const clean = phone.trim();
     if (clean.length < 8) return '+212 6•• ••0000';
     return clean.slice(0, 7) + '•• ••' + clean.slice(-4);
@@ -348,7 +348,7 @@ async function startServer() {
           code: otpCode,
           userId: newUser.id,
           email: newUser.email,
-          phone: newUser.phone || phone || '+212 661-849201',
+          phone: newUser.phone || phone || '+212 722-256897',
           channel: 'email',
           expiresAt: Date.now() + 5 * 60 * 1000,
           attempts: 0,
@@ -431,7 +431,7 @@ async function startServer() {
         code: otpCode,
         userId: user.id,
         email: user.email,
-        phone: user.phone || '+212 661-849201',
+        phone: user.phone || '+212 722-256897',
         channel: chosenChannel,
         expiresAt: Date.now() + 5 * 60 * 1000,
         attempts: 0,
@@ -455,7 +455,7 @@ async function startServer() {
         requires2FA: true,
         userId: user.id,
         email: user.email,
-        phone: user.phone || '+212 661-849201',
+        phone: user.phone || '+212 722-256897',
         maskedPhone: maskPhone(user.phone),
         maskedEmail: maskEmail(user.email),
         channel: chosenChannel,
@@ -505,7 +505,7 @@ async function startServer() {
     const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
     const deviceInfo = extractDeviceInfo(req);
     const chosenChannel = channel === 'whatsapp' ? 'whatsapp' : 'email';
-    const targetPhone = user.phone || '+212 661-849201';
+    const targetPhone = user.phone || '+212 722-256897';
     const targetEmail = user.email || 'merchant@example.com';
 
     activeOtps.set(storeKey, {
@@ -652,7 +652,7 @@ async function startServer() {
           code: otpCode,
           userId: user.id,
           email: user.email,
-          phone: user.phone || '+212 661-849201',
+          phone: user.phone || '+212 722-256897',
           channel: chosenChannel,
           expiresAt: Date.now() + 5 * 60 * 1000,
           attempts: 0,
@@ -676,7 +676,7 @@ async function startServer() {
           requires2FA: true,
           userId: user.id,
           email: user.email,
-          phone: user.phone || '+212 661-849201',
+          phone: user.phone || '+212 722-256897',
           maskedPhone: maskPhone(user.phone),
           maskedEmail: maskEmail(user.email),
           channel: chosenChannel,
