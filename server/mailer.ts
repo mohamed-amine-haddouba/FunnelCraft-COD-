@@ -15,7 +15,7 @@ export function getSmtpConfig(): SmtpConfig {
   const secure = port === 465;
   const user = process.env.SMTP_USER;
   const pass = process.env.SMTP_PASS;
-  const from = process.env.SMTP_FROM || 'CodWorth <no-reply@codworth.com>';
+  const from = process.env.SMTP_USER || process.env.SMTP_FROM || 'CodWorth <no-reply@codworth.com>';
 
   return { host, port, secure, user, pass, from };
 }
@@ -46,10 +46,8 @@ export async function sendOtpEmail(
   otpCode: string,
   userName: string
 ): Promise<boolean> {
-  const config = getSmtpConfig();
-
   // If SMTP credentials are missing, fail gracefully and log clear warning
-  if (!process.env.SMTP_HOST && !process.env.SMTP_USER) {
+  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
     console.error(
       '[Mailer Error] SMTP credentials missing in environment variables (SMTP_HOST, SMTP_USER, SMTP_PASS).'
     );
@@ -137,7 +135,11 @@ export async function sendOtpEmail(
 
   try {
     await transporter.sendMail({
-      from: config.from,
+      from: process.env.SMTP_USER,
+      envelope: {
+        from: process.env.SMTP_USER,
+        to,
+      },
       to,
       subject: `رمز التحقق الخاص بك: ${otpCode} - CodWorth`,
       text: `مرحباً ${userName || 'تاجرنا'}، رمز التحقق الخاص بك هو: ${otpCode}. هذا الرمز صالح لمدة 5 دقائق فقط. لا تشاركه مع أي شخص.`,
@@ -160,9 +162,7 @@ export async function sendPasswordResetEmail(
   userName: string,
   resetUrl: string
 ): Promise<boolean> {
-  const config = getSmtpConfig();
-
-  if (!process.env.SMTP_HOST && !process.env.SMTP_USER) {
+  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
     console.error(
       '[Mailer Error] SMTP credentials missing in environment variables (SMTP_HOST, SMTP_USER, SMTP_PASS).'
     );
@@ -249,7 +249,11 @@ export async function sendPasswordResetEmail(
 
   try {
     await transporter.sendMail({
-      from: config.from,
+      from: process.env.SMTP_USER,
+      envelope: {
+        from: process.env.SMTP_USER,
+        to,
+      },
       to,
       subject: 'إعادة تعيين كلمة المرور - CodWorth',
       text: `مرحباً ${userName || 'تاجرنا'}، لإعادة تعيين كلمة المرور الخاصة بك، يرجى فتح الرابط التالي (صالح لمدة ساعة واحدة): ${resetUrl}`,
@@ -271,14 +275,13 @@ export async function sendAdminNotificationEmail(
   subject: string,
   htmlContent: string
 ): Promise<boolean> {
-  const config = getSmtpConfig();
-  const adminRecipient =
+  const to =
     process.env.ADMIN_EMAIL ||
     process.env.ADMIN_NOTIFICATION_EMAIL ||
     process.env.SMTP_USER ||
     'naadianajah2020@gmail.com';
 
-  if (!process.env.SMTP_HOST && !process.env.SMTP_USER) {
+  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
     console.warn(
       `[Admin Mailer] SMTP credentials not configured. Skipping admin notification: "${subject}"`
     );
@@ -345,9 +348,14 @@ export async function sendAdminNotificationEmail(
 
   try {
     await transporter.sendMail({
-      from: config.from,
-      to: adminRecipient,
+      from: process.env.SMTP_USER,
+      envelope: {
+        from: process.env.SMTP_USER,
+        to,
+      },
+      to,
       subject: `[CodWorth Admin] ${subject}`,
+      text: `${subject} - ${htmlContent.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()}`,
       html: wrappedHtml,
     });
     return true;
