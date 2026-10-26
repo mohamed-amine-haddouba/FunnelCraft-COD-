@@ -86,6 +86,18 @@ export function ensureDataFiles(): void {
       fs.writeFileSync(USERS_FILE, JSON.stringify([ownerUser], null, 2), 'utf-8');
     }
 
+    if (!fs.existsSync(PAYMENTS_FILE)) {
+      fs.writeFileSync(PAYMENTS_FILE, JSON.stringify([], null, 2), 'utf-8');
+    }
+
+    if (!fs.existsSync(PAGES_FILE)) {
+      fs.writeFileSync(PAGES_FILE, JSON.stringify([], null, 2), 'utf-8');
+    }
+
+    if (!fs.existsSync(ORDERS_FILE)) {
+      fs.writeFileSync(ORDERS_FILE, JSON.stringify([], null, 2), 'utf-8');
+    }
+
     if (!fs.existsSync(SETTINGS_FILE)) {
       const initialSettings: PlatformSettings = {
         bankAccounts: [],
@@ -94,7 +106,7 @@ export function ensureDataFiles(): void {
       fs.writeFileSync(SETTINGS_FILE, JSON.stringify(initialSettings, null, 2), 'utf-8');
     }
 
-    console.log('[BOOT] Data files verified.');
+    console.log('[BOOT] Data files verified (existing files preserved).');
   } catch (err) {
     console.error('[BOOT] Failed to verify or initialize data files:', err);
   }

@@ -7,5 +7,8 @@ coverage/
 .env*
 !.env.example
 .env
-data/settings.json
+data/
+data/*.json
+!data/.gitkeep
 .playwright-cli/
+
