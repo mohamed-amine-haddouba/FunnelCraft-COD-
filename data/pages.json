@@ -1,0 +1,765 @@
+[
+  {
+    "id": "page-demo-001",
+    "userId": "user-demo-free-001",
+    "title": "LuxeGlow™ 7-Color LED Facial Rejuvenation Mask",
+    "slug": "luxeglow-led-mask-demo",
+    "data": {
+      "id": "page-demo-001",
+      "title": "LuxeGlow™ 7-Color LED Facial Rejuvenation Mask",
+      "language": "en",
+      "direction": "ltr",
+      "theme": {
+        "primaryColor": "#e11d48",
+        "secondaryColor": "#fda4af",
+        "accentColor": "#fbbf24",
+        "backgroundColor": "#ffffff",
+        "fontFamily": "Plus Jakarta Sans",
+        "borderRadius": "rounded-xl"
+      },
+      "blocks": [
+        {
+          "id": "block-promo-1",
+          "type": "promo-bar",
+          "text": "🔥 FLASH SALE: 50% OFF + FREE CASH ON DELIVERY NATIONWIDE! ENDS IN:",
+          "countdownMinutes": 14,
+          "showTimer": true,
+          "stockWarning": "⚡ Only 11 units left in stock today",
+          "bgColor": "#111827",
+          "textColor": "#ffffff",
+          "isSticky": true
+        },
+        {
+          "id": "block-hero-1",
+          "type": "hero",
+          "badge": "✨ CLINICALLY TESTED • #1 DERMATOLOGIST RECOMMENDED AT-HOME SPA",
+          "headline": "Clear, Radiant, Youthful Skin in Just 15 Minutes a Day",
+          "subheadline": "Eliminate stubborn acne, smooth fine lines, and boost collagen naturally without expensive $300 clinic appointments. Pay in cash only when you receive your package!",
+          "priceOriginal": 119.99,
+          "priceDiscounted": 59.99,
+          "currency": "USD",
+          "ctaText": "Claim 50% Off & Pay on Delivery",
+          "ctaSubtext": "🚚 Free Express Shipping • 📦 Pay Cash on Arrival • 🛡️ 30-Day Money Back",
+          "images": [
+            "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?auto=format&fit=crop&w=1000&q=80",
+            "https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?auto=format&fit=crop&w=1000&q=80"
+          ],
+          "rating": 4.9,
+          "reviewCount": 3418,
+          "trustPoints": [
+            "100% Painless & FDA-cleared technology",
+            "Visible results in as little as 14 days",
+            "Cash on Delivery with zero upfront payment"
+          ]
+        }
+      ]
+    },
+    "createdAt": "2026-10-18T15:23:05.392Z",
+    "updatedAt": "2026-10-19T13:23:05.392Z"
+  },
+  {
+    "id": "template-beauty-en",
+    "userId": "user-demo-free-001",
+    "title": "LuxeGlow™ 7-Color LED Facial Rejuvenation Mask",
+    "slug": "luxeglow-7-color-led-facial-rejuvenation-mask-templa",
+    "data": {
+      "id": "template-beauty-en",
+      "title": "LuxeGlow™ 7-Color LED Facial Rejuvenation Mask",
+      "language": "en",
+      "direction": "ltr",
+      "theme": {
+        "primaryColor": "#e11d48",
+        "secondaryColor": "#fda4af",
+        "accentColor": "#fbbf24",
+        "backgroundColor": "#ffffff",
+        "fontFamily": "Plus Jakarta Sans",
+        "borderRadius": "rounded-xl"
+      },
+      "blocks": [
+        {
+          "id": "block-promo-1",
+          "type": "promo-bar",
+          "text": "🔥 FLASH SALE: 50% OFF + FREE CASH ON DELIVERY NATIONWIDE! ENDS IN:",
+          "countdownMinutes": 14,
+          "showTimer": true,
+          "stockWarning": "⚡ Only 11 units left in stock today",
+          "bgColor": "#111827",
+          "textColor": "#ffffff",
+          "isSticky": true
+        },
+        {
+          "id": "block-hero-1",
+          "type": "hero",
+          "badge": "✨ CLINICALLY TESTED • #1 DERMATOLOGIST RECOMMENDED AT-HOME SPA",
+          "headline": "Clear, Radiant, Youthful Skin in Just 15 Minutes a Day",
+          "subheadline": "Eliminate stubborn acne, smooth fine lines, and boost collagen naturally without expensive $300 clinic appointments. Pay in cash only when you receive your package!",
+          "priceOriginal": 119.99,
+          "priceDiscounted": 59.99,
+          "currency": "USD",
+          "ctaText": "Claim 50% Off & Pay on Delivery",
+          "ctaSubtext": "🚚 Free Express Shipping • 📦 Pay Cash on Arrival • 🛡️ 30-Day Money Back",
+          "images": [
+            "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?auto=format&fit=crop&w=1000&q=80",
+            "https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?auto=format&fit=crop&w=1000&q=80",
+            "https://images.unsplash.com/photo-1512290900672-1f413a1a3618?auto=format&fit=crop&w=1000&q=80"
+          ],
+          "rating": 4.9,
+          "reviewCount": 3418,
+          "trustPoints": [
+            "100% Painless & FDA-cleared technology",
+            "Visible results in as little as 14 days",
+            "Cash on Delivery with zero upfront payment"
+          ]
+        },
+        {
+          "id": "block-problem-solution-1",
+          "type": "problem-solution",
+          "title": "Tired of Expensive Treatments That Disappoint?",
+          "subtitle": "Compare traditional salon treatments with LuxeGlow™ at-home phototherapy",
+          "problemTitle": "Traditional Skin Care & Clinics",
+          "problemItems": [
+            "Costs $150 to $400 for a single clinic session",
+            "Harsh chemical peels cause redness and long downtime",
+            "Time-consuming bookings, commutes, and waiting rooms",
+            "Messy creams that sit on surface without deep cellular activation"
+          ],
+          "solutionTitle": "With LuxeGlow™ LED Rejuvenation",
+          "solutionItems": [
+            "One-time low investment for unlimited lifetime treatments",
+            "Safe, gentle wavelengths that stimulate deep collagen production",
+            "Use comfortably in bed while reading, relaxing, or watching TV",
+            "Instant natural glow, zero downtime, and visible wrinkle reduction"
+          ],
+          "highlightBadge": "Save over $1,800/year on clinic visits"
+        },
+        {
+          "id": "block-features-1",
+          "type": "features",
+          "title": "Engineered for Maximum Clinical Results",
+          "subtitle": "State-of-the-art medical grade phototherapy calibrated for all skin tones",
+          "items": [
+            {
+              "icon": "Sparkles",
+              "title": "7 Targeted Light Spectra",
+              "description": "Red for anti-aging, Blue for acne eradication, Green for pigmentation, and Amber for cellular recovery.",
+              "badge": "Clinical Grade"
+            },
+            {
+              "icon": "ShieldCheck",
+              "title": "100% Eye Safe & Certified",
+              "description": "Integrated silicone eye protection pads prevent glare and ensure complete safety while relaxing.",
+              "badge": "CE & RoHS Certified"
+            },
+            {
+              "icon": "Zap",
+              "title": "Wireless & USB Rechargeable",
+              "description": "Built-in high capacity lithium battery offers up to 8 full 15-minute sessions on a single fast charge."
+            },
+            {
+              "icon": "Truck",
+              "title": "Fast Delivery to Your Doorstep",
+              "description": "Dispatched from our local fulfillment center within 24 hours. Pay the delivery courier in cash.",
+              "badge": "Cash On Delivery"
+            }
+          ],
+          "layout": "grid-4"
+        },
+        {
+          "id": "block-social-proof-1",
+          "type": "social-proof",
+          "title": "Over 25,000+ Happy Customers Nationwide",
+          "subtitle": "Real unfiltered results from real people who switched to LuxeGlow™",
+          "overallRating": 4.9,
+          "totalReviews": 3418,
+          "reviews": [
+            {
+              "id": "rev-1",
+              "name": "Sarah M.",
+              "city": "Los Angeles, CA",
+              "rating": 5,
+              "date": "2 days ago",
+              "comment": "I was skeptical about ordering online with cash on delivery, but it arrived in 2 days! I checked the box with the courier before paying. After 10 days of the red light mode, my forehead lines are visibly softer. Truly amazed!",
+              "verified": true,
+              "avatar": "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=200&q=80"
+            },
+            {
+              "id": "rev-2",
+              "name": "David K.",
+              "city": "Austin, TX",
+              "rating": 5,
+              "date": "5 days ago",
+              "comment": "Bought this for my stubborn jawline acne. The blue light mode dried up breakouts in 72 hours without irritating my sensitive skin. Highly recommend the 2-pack bundle!",
+              "verified": true,
+              "avatar": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80"
+            },
+            {
+              "id": "rev-3",
+              "name": "Elena R.",
+              "city": "Miami, FL",
+              "rating": 5,
+              "date": "1 week ago",
+              "comment": "The convenience of paying on delivery gave me huge peace of mind. The mask feels premium, comfortable on the nose bridge, and the glow next morning is unbeatable.",
+              "verified": true,
+              "avatar": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80"
+            }
+          ]
+        },
+        {
+          "id": "block-cod-form-1",
+          "type": "cod-form",
+          "title": "Order Now & Pay Upon Delivery (Zero Risk)",
+          "subtitle": "Select your discounted package below. Enter your delivery information and our confirmation agent will dispatch your parcel today.",
+          "currency": "USD",
+          "shippingCost": 0,
+          "guaranteeText": "🔒 Cash on Delivery Guarantee: Inspect your package upon arrival before handing cash to courier.",
+          "buttonText": "CONFIRM MY ORDER (PAY ON ARRIVAL)",
+          "bundles": [
+            {
+              "id": "bundle-1",
+              "name": "1x LuxeGlow™ Mask",
+              "quantity": 1,
+              "price": 59.99,
+              "originalPrice": 119.99,
+              "badge": "50% OFF - Starter Kit",
+              "popular": false
+            },
+            {
+              "id": "bundle-2",
+              "name": "2x LuxeGlow™ Masks (His & Hers)",
+              "quantity": 2,
+              "price": 94.99,
+              "originalPrice": 239.98,
+              "badge": "BUY 1 GET 2ND AT 40% OFF - MOST POPULAR",
+              "popular": true
+            },
+            {
+              "id": "bundle-3",
+              "name": "3x LuxeGlow™ Masks (Ultimate Family Gift)",
+              "quantity": 3,
+              "price": 129.99,
+              "originalPrice": 359.97,
+              "badge": "BEST VALUE - SAVE $230",
+              "popular": false
+            }
+          ],
+          "fields": {
+            "requireAddress": true,
+            "requireCity": true,
+            "requireNote": true,
+            "defaultCities": [
+              "New York",
+              "Los Angeles",
+              "Chicago",
+              "Houston",
+              "Miami",
+              "Atlanta",
+              "Dallas"
+            ]
+          }
+        },
+        {
+          "id": "block-faq-1",
+          "type": "faq",
+          "title": "Frequently Asked Questions",
+          "subtitle": "Everything you need to know about delivery, payment, and results",
+          "items": [
+            {
+              "id": "faq-1",
+              "question": "How does Cash on Delivery (COD) work?",
+              "answer": "You do NOT need a credit card. Place your order on this page with your phone and address. Our courier will deliver your package to your doorstep within 24-48 hours. You pay the exact amount in cash directly to the driver upon receipt."
+            },
+            {
+              "id": "faq-2",
+              "question": "Can I open and inspect the package before paying?",
+              "answer": "Yes! You are entitled to verify the packaging and ensure the product is in pristine condition prior to completing payment with the courier."
+            },
+            {
+              "id": "faq-3",
+              "question": "How soon can I expect to see visible results?",
+              "answer": "Most customers notice increased hydration and immediate skin glow after just 1-2 sessions. Deeper structural improvements like reduction of acne and smoothing of fine lines typically show in 2 to 3 weeks of regular 15-minute use."
+            },
+            {
+              "id": "faq-4",
+              "question": "What if I am not satisfied with the product?",
+              "answer": "We offer a 30-day money-back guarantee. If you are not delighted with your results, simply contact our dedicated WhatsApp support team for an instant return and refund."
+            }
+          ]
+        },
+        {
+          "id": "block-floating-cta-1",
+          "type": "floating-cta",
+          "title": "LuxeGlow™ 7-Color LED Mask",
+          "priceText": "$59.99 (Save 50%)",
+          "buttonText": "Order Now (Pay on Delivery)",
+          "timerText": "14:22 Left",
+          "showOnMobileOnly": true
+        },
+        {
+          "id": "block-trust-badges-1",
+          "type": "trust-badges",
+          "title": "Our Iron-Clad Customer Promises",
+          "badges": [
+            {
+              "icon": "ShieldCheck",
+              "title": "Cash on Delivery Safe",
+              "description": "No prepayment needed. Pay safely in cash at your doorstep."
+            },
+            {
+              "icon": "Truck",
+              "title": "Express 24-48h Delivery",
+              "description": "Dispatched from domestic fulfillment with tracked local couriers."
+            },
+            {
+              "icon": "CheckCircle2",
+              "title": "30-Day Money Back",
+              "description": "Risk-free guarantee with fast local returns assistance."
+            },
+            {
+              "icon": "PhoneCall",
+              "title": "24/7 Dedicated Support",
+              "description": "Instant customer service via WhatsApp & phone call assistance."
+            }
+          ]
+        }
+      ]
+    },
+    "createdAt": "2026-10-19T15:24:07.743Z",
+    "updatedAt": "2026-10-19T15:24:07.743Z"
+  },
+  {
+    "id": "page-fd94af51-febf-42d1-903c-df223e679a8c",
+    "userId": "268f63fa-031d-46b4-89f8-9f9f44c6e0b6",
+    "title": "Smart Air Fryer Pro 8L",
+    "slug": "smart-air-fryer-pro",
+    "data": {
+      "id": "page-fd94af51-febf-42d1-903c-df223e679a8c",
+      "title": "Smart Air Fryer Pro 8L",
+      "language": "ar",
+      "direction": "rtl",
+      "theme": {
+        "primaryColor": "#10b981",
+        "fontFamily": "Cairo",
+        "borderRadius": "rounded-xl"
+      },
+      "blocks": [
+        {
+          "id": "hero-1",
+          "type": "hero",
+          "badge": "🔥 عرض خاص لفترة محدودة",
+          "headline": "المقلاة الهوائية الذكية سعة 8 لتر الأصلية",
+          "subheadline": "احصل على طعام صحي ومقرمش بنسبة دهون أقل 90%. الدفع عند الاستلام بعد المعاينة والتوصيل مجاني!",
+          "ctaText": "اطلب الآن - الدفع عند الاستلام",
+          "ctaSubtext": "توصيل سريع لكافة المدن",
+          "showFloatingBadge": true
+        },
+        {
+          "id": "cod-1",
+          "type": "cod-form",
+          "title": "استمارة تأكيد الطلب السريع",
+          "subtitle": "أدخل معلوماتك للشحن وسنتصل بك فوراً لتأكيد العنوان",
+          "currency": "درهم",
+          "shippingCost": 0,
+          "guaranteeText": "معاينة المنتج قبل الدفع",
+          "buttonText": "اضغط هنا لتأكيد طلبك الآن",
+          "bundles": [
+            {
+              "id": "b1",
+              "name": "قطعة واحدة (عرض التوفير)",
+              "quantity": 1,
+              "price": 399,
+              "originalPrice": 699,
+              "badge": "خصم 45%",
+              "popular": false
+            },
+            {
+              "id": "b2",
+              "name": "قطعتان (العرض الأكثر طلباً)",
+              "quantity": 2,
+              "price": 699,
+              "originalPrice": 1398,
+              "badge": "الأكثر توفيراً",
+              "popular": true
+            }
+          ],
+          "fields": {
+            "requireAddress": true,
+            "requireCity": true,
+            "requireNote": true,
+            "defaultCities": [
+              "الدار البيضاء",
+              "الرباط",
+              "مراكش",
+              "طنجة",
+              "فاس"
+            ]
+          }
+        }
+      ]
+    },
+    "isPublished": false,
+    "viewsCount": 0,
+    "ordersCount": 0,
+    "createdAt": "2026-10-19T15:44:24.921Z",
+    "updatedAt": "2026-10-19T15:44:24.921Z"
+  },
+  {
+    "id": "page-18e3b08e-ccd8-4ff2-85b4-fa313931ac8b",
+    "userId": "d7dfd888-1d40-4214-a596-3d07438c8fa6",
+    "title": "Smart Air Fryer Pro 8L",
+    "slug": "smart-air-fryer-pro",
+    "data": {
+      "title": "Smart Air Fryer Pro 8L",
+      "blocks": [],
+      "id": "page-18e3b08e-ccd8-4ff2-85b4-fa313931ac8b"
+    },
+    "isPublished": false,
+    "viewsCount": 0,
+    "ordersCount": 0,
+    "createdAt": "2026-10-19T15:44:31.980Z",
+    "updatedAt": "2026-10-19T15:44:31.980Z"
+  },
+  {
+    "id": "page-e9a24d4a-af6d-462e-b992-d090e46f80f5",
+    "userId": "4fb4dd7e-a4b7-47f6-b791-f80491f2f571",
+    "title": "Smart Air Fryer Pro 8L",
+    "slug": "smart-air-fryer-pro-4770",
+    "data": {
+      "title": "Smart Air Fryer Pro 8L",
+      "language": "ar",
+      "direction": "rtl",
+      "theme": {
+        "primaryColor": "#10b981",
+        "fontFamily": "Cairo",
+        "borderRadius": "rounded-xl"
+      },
+      "blocks": [
+        {
+          "id": "hero-1",
+          "type": "hero",
+          "badge": "🔥 عرض خاص لفترة محدودة",
+          "headline": "المقلاة الهوائية الذكية سعة 8 لتر الأصلية",
+          "subheadline": "احصل على طعام صحي ومقرمش بنسبة دهون أقل 90%. الدفع عند الاستلام بعد المعاينة والتوصيل مجاني!",
+          "ctaText": "اطلب الآن - الدفع عند الاستلام",
+          "ctaSubtext": "توصيل سريع لكافة المدن",
+          "showFloatingBadge": true
+        },
+        {
+          "id": "cod-1",
+          "type": "cod-form",
+          "title": "استمارة تأكيد الطلب السريع",
+          "subtitle": "أدخل معلوماتك للشحن وسنتصل بك فوراً لتأكيد العنوان",
+          "currency": "درهم",
+          "shippingCost": 0,
+          "guaranteeText": "معاينة المنتج قبل الدفع",
+          "buttonText": "اضغط هنا لتأكيد طلبك الآن",
+          "bundles": [
+            {
+              "id": "b1",
+              "name": "قطعة واحدة (عرض التوفير)",
+              "quantity": 1,
+              "price": 399,
+              "originalPrice": 699,
+              "badge": "خصم 45%",
+              "popular": false
+            },
+            {
+              "id": "b2",
+              "name": "قطعتان (العرض الأكثر طلباً)",
+              "quantity": 2,
+              "price": 699,
+              "originalPrice": 1398,
+              "badge": "الأكثر توفيراً",
+              "popular": true
+            }
+          ],
+          "fields": {
+            "requireAddress": true,
+            "requireCity": true,
+            "requireNote": true,
+            "defaultCities": [
+              "الدار البيضاء",
+              "الرباط",
+              "مراكش",
+              "طنجة",
+              "فاس"
+            ]
+          }
+        }
+      ],
+      "id": "page-e9a24d4a-af6d-462e-b992-d090e46f80f5"
+    },
+    "isPublished": false,
+    "viewsCount": 0,
+    "ordersCount": 0,
+    "createdAt": "2026-10-19T15:45:04.776Z",
+    "updatedAt": "2026-10-19T15:45:04.776Z"
+  },
+  {
+    "id": "page-72dc57ae-3b64-433a-9a20-b7b4440903bc",
+    "userId": "ba5c1afd-41e0-4cc9-9425-3199fe6780b8",
+    "title": "Air Fryer Test",
+    "slug": "air-fryer-unique-1792424719891",
+    "data": {
+      "title": "Air Fryer Test",
+      "blocks": [],
+      "id": "page-72dc57ae-3b64-433a-9a20-b7b4440903bc"
+    },
+    "compiledHtml": "<!DOCTYPE html>\n<html lang=\"en\" dir=\"ltr\" class=\"scroll-smooth\">\n<head>\n  <meta charset=\"UTF-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <title>Air Fryer Test</title>\n  <meta name=\"description\" content=\"Air Fryer Test - Cash on Delivery Fast Checkout\">\n  <!-- Tailwind CSS CDN -->\n  <script src=\"https://cdn.tailwindcss.com\"></script>\n  <!-- Google Fonts -->\n  <link rel=\"preconnect\" href=\"https://fonts.googleapis.com\">\n  <link rel=\"preconnect\" href=\"https://fonts.gstatic.com\" crossorigin>\n  <link href=\"https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap\" rel=\"stylesheet\">\n  <script>\n    tailwind.config = {\n      theme: {\n        extend: {\n          colors: {\n            brand: '#10b981',\n          },\n          fontFamily: {\n            sans: ['Inter, sans-serif'],\n          }\n        }\n      }\n    }\n  </script>\n  <style>\n    body {\n      font-family: Inter, sans-serif;\n      -webkit-font-smoothing: antialiased;\n    }\n    @keyframes pulse-fast {\n      0%, 100% { transform: scale(1); }\n      50% { transform: scale(1.02); }\n    }\n    .pulse-btn {\n      animation: pulse-fast 2.5s infinite ease-in-out;\n    }\n  </style>\n</head>\n<body class=\"bg-gray-50 text-gray-900 selection:bg-emerald-500 selection:text-white pb-20 md:pb-0\">\n\n  \n\n  <!-- Order Success Modal -->\n  <div id=\"order-success-modal\" class=\"fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm hidden opacity-0 transition-opacity duration-300\">\n    <div class=\"bg-white rounded-3xl max-w-md w-full p-6 md:p-8 text-center shadow-2xl transform scale-95 transition-transform duration-300\" id=\"order-modal-card\">\n      <div class=\"w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-5 text-4xl shadow-inner\">\n        ✓\n      </div>\n      <span class=\"inline-block px-3 py-1 bg-emerald-100 text-emerald-800 text-xs font-bold rounded-full mb-3 uppercase tracking-wider\">\n        Order Confirmed • Cash on Delivery\n      </span>\n      <h3 class=\"text-2xl font-black text-gray-900 mb-2\">\n        Thank you for your order!\n      </h3>\n      <p class=\"text-gray-600 text-sm mb-6 leading-relaxed\">\n        Our logistics agent will contact you shortly via phone to confirm your address and dispatch your package.\n      </p>\n\n      <div class=\"bg-gray-50 border border-gray-200 rounded-2xl p-4 text-left text-xs space-y-2 mb-6\" dir=\"ltr\">\n        <div class=\"flex justify-between font-medium\">\n          <span class=\"text-gray-500\">Order ID:</span>\n          <span class=\"font-bold text-gray-900\" id=\"modal-order-id\">#COD-89214</span>\n        </div>\n        <div class=\"flex justify-between\">\n          <span class=\"text-gray-500\">Recipient:</span>\n          <span class=\"font-semibold text-gray-900\" id=\"modal-customer-name\">-</span>\n        </div>\n        <div class=\"flex justify-between\">\n          <span class=\"text-gray-500\">Selected Bundle:</span>\n          <span class=\"font-semibold text-gray-900\" id=\"modal-bundle-name\">-</span>\n        </div>\n        <div class=\"flex justify-between border-t border-gray-200 pt-2 font-bold text-sm\">\n          <span>Total (Pay on Delivery):</span>\n          <span class=\"text-emerald-600\" id=\"modal-total-price\">-</span>\n        </div>\n      </div>\n\n      <button onclick=\"closeSuccessModal()\" class=\"w-full py-3.5 bg-gray-900 hover:bg-black text-white font-bold rounded-xl transition shadow-lg\">\n        Great, Done\n      </button>\n    </div>\n  </div>\n\n  <!-- Interactive Scripts -->\n  <script>\n    window.__FUNNELCRAFT_SLUG__ = \"air-fryer-unique-1792424719891\";\n\n    // Countdown Timer logic\n    function initCountdowns() {\n      const timerElements = document.querySelectorAll('[data-timer]');\n      timerElements.forEach(el => {\n        let minutes = parseInt(el.getAttribute('data-minutes') || '15', 10);\n        let seconds = 0;\n        \n        function updateDisplay() {\n          const m = String(minutes).padStart(2, '0');\n          const s = String(seconds).padStart(2, '0');\n          el.textContent = m + ':' + s;\n        }\n        \n        updateDisplay();\n        \n        const interval = setInterval(() => {\n          if (seconds === 0) {\n            if (minutes === 0) {\n              minutes = 14;\n              seconds = 59;\n            } else {\n              minutes--;\n              seconds = 59;\n            }\n          } else {\n            seconds--;\n          }\n          updateDisplay();\n        }, 1000);\n      });\n    }\n\n    // FAQ Accordion logic\n    function toggleFaq(btn) {\n      const answer = btn.nextElementSibling;\n      const icon = btn.querySelector('.faq-icon');\n      const isExpanded = !answer.classList.contains('hidden');\n      \n      if (isExpanded) {\n        answer.classList.add('hidden');\n        if (icon) icon.style.transform = 'rotate(0deg)';\n      } else {\n        answer.classList.remove('hidden');\n        if (icon) icon.style.transform = 'rotate(180deg)';\n      }\n    }\n\n    // COD Checkout Form Logic\n    let selectedBundlePrice = 0;\n    let selectedBundleName = '';\n\n    function selectBundle(element, price, name) {\n      document.querySelectorAll('.bundle-card').forEach(card => {\n        card.classList.remove('border-emerald-500', 'bg-emerald-50/50', 'ring-2', 'ring-emerald-500');\n        card.classList.add('border-gray-200');\n        const radio = card.querySelector('input[type=\"radio\"]');\n        if (radio) radio.checked = false;\n      });\n\n      element.classList.remove('border-gray-200');\n      element.classList.add('border-emerald-500', 'bg-emerald-50/50', 'ring-2', 'ring-emerald-500');\n      const radio = element.querySelector('input[type=\"radio\"]');\n      if (radio) radio.checked = true;\n\n      selectedBundlePrice = price;\n      selectedBundleName = name;\n\n      const summaryPriceEl = document.getElementById('checkout-total-price');\n      if (summaryPriceEl) {\n        summaryPriceEl.textContent = price;\n      }\n    }\n\n    async function handleCodSubmit(event) {\n      event.preventDefault();\n      const form = event.target;\n      const submitBtn = form.querySelector('button[type=\"submit\"]');\n      const originalBtnText = submitBtn ? submitBtn.innerHTML : '';\n\n      const name = form.customerName ? form.customerName.value.trim() : 'Customer';\n      const phone = form.customerPhone ? form.customerPhone.value.trim() : '';\n      const city = form.customerCity ? form.customerCity.value.trim() : '';\n      const address = form.customerAddress ? form.customerAddress.value.trim() : '';\n      const notes = form.customerNotes ? form.customerNotes.value.trim() : '';\n\n      if (!phone) {\n        alert('Please provide your phone number to receive confirmation.');\n        return;\n      }\n\n      if (submitBtn) {\n        submitBtn.disabled = true;\n        submitBtn.innerHTML = '<span>Confirming Order...</span>';\n      }\n\n      let generatedId = '#COD-' + Math.floor(10000 + Math.random() * 90000);\n\n      try {\n        const payload = {\n          pageSlug: window.__FUNNELCRAFT_SLUG__ || '',\n          pageTitle: document.title || '',\n          customerName: name,\n          customerPhone: phone,\n          customerCity: city,\n          customerAddress: address,\n          customerNotes: notes,\n          bundleName: selectedBundleName || 'Default Offer',\n          bundlePrice: selectedBundlePrice || 0,\n        };\n\n        const res = await fetch('/api/orders/submit', {\n          method: 'POST',\n          headers: { 'Content-Type': 'application/json' },\n          body: JSON.stringify(payload),\n        });\n\n        if (res.ok) {\n          const resData = await res.json();\n          if (resData.orderId) {\n            generatedId = resData.orderId;\n          }\n        }\n      } catch (err) {\n        console.warn('Network submit fallback:', err);\n      } finally {\n        if (submitBtn) {\n          submitBtn.disabled = false;\n          submitBtn.innerHTML = originalBtnText;\n        }\n      }\n\n      document.getElementById('modal-order-id').textContent = generatedId;\n      document.getElementById('modal-customer-name').textContent = name + (city ? ' (' + city + ')' : '');\n      document.getElementById('modal-bundle-name').textContent = selectedBundleName || 'Selected Offer';\n      document.getElementById('modal-total-price').textContent = selectedBundlePrice ? selectedBundlePrice : 'Confirmed';\n\n      const modal = document.getElementById('order-success-modal');\n      const card = document.getElementById('order-modal-card');\n      modal.classList.remove('hidden');\n      setTimeout(() => {\n        modal.classList.remove('opacity-0');\n        card.classList.remove('scale-95');\n        card.classList.add('scale-100');\n      }, 10);\n\n      form.reset();\n    }\n\n    function closeSuccessModal() {\n      const modal = document.getElementById('order-success-modal');\n      const card = document.getElementById('order-modal-card');\n      modal.classList.add('opacity-0');\n      card.classList.remove('scale-100');\n      card.classList.add('scale-95');\n      setTimeout(() => {\n        modal.classList.add('hidden');\n      }, 300);\n    }\n\n    function scrollToCheckout() {\n      const checkout = document.getElementById('cod-checkout-section');\n      if (checkout) {\n        checkout.scrollIntoView({ behavior: 'smooth' });\n      }\n    }\n\n    document.addEventListener('DOMContentLoaded', () => {\n      initCountdowns();\n      // Select first bundle by default if available\n      const firstBundle = document.querySelector('.bundle-card');\n      if (firstBundle) {\n        firstBundle.click();\n      }\n    });\n  </script>\n</body>\n</html>",
+    "isPublished": true,
+    "viewsCount": 0,
+    "ordersCount": 0,
+    "createdAt": "2026-10-19T15:45:19.889Z",
+    "updatedAt": "2026-10-19T15:45:19.894Z",
+    "publishedAt": "2026-10-19T15:45:19.894Z"
+  },
+  {
+    "id": "page-3b6735b6-4008-41ab-a4ea-484316c640cc",
+    "userId": "009885e1-9eb5-4726-9fea-9c92c3bba213",
+    "title": "Air Fryer Test",
+    "slug": "air-fryer-1792424732941",
+    "data": {
+      "id": "page-3b6735b6-4008-41ab-a4ea-484316c640cc",
+      "title": "Air Fryer Test",
+      "blocks": [
+        {
+          "id": "h1",
+          "type": "hero",
+          "badge": "NEW",
+          "headline": "Air Fryer 2026",
+          "subheadline": "Crispy and healthy"
+        }
+      ]
+    },
+    "isPublished": false,
+    "viewsCount": 0,
+    "ordersCount": 0,
+    "createdAt": "2026-10-19T15:45:32.946Z",
+    "updatedAt": "2026-10-19T15:45:32.946Z"
+  },
+  {
+    "id": "page-youssef-watch-01",
+    "userId": "user-merchant-youssef-002",
+    "title": "ساعة ذكية Ultra Pro الرياضية الأصلية",
+    "slug": "smart-watch-ultra",
+    "customDomain": "electromaroc.ma",
+    "isPublished": true,
+    "viewsCount": 1420,
+    "ordersCount": 14,
+    "publishedAt": "2026-09-22T15:29:17.037Z",
+    "createdAt": "2026-09-20T15:29:17.037Z",
+    "updatedAt": "2026-10-22T13:29:17.037Z",
+    "data": {
+      "id": "page-youssef-watch-01",
+      "title": "ساعة ذكية Ultra Pro الرياضية الأصلية",
+      "language": "ar",
+      "direction": "rtl",
+      "theme": {
+        "primaryColor": "#059669",
+        "secondaryColor": "#10b981",
+        "accentColor": "#f59e0b",
+        "backgroundColor": "#ffffff",
+        "fontFamily": "Cairo",
+        "borderRadius": "rounded-xl"
+      },
+      "blocks": [
+        {
+          "id": "b-promo-1",
+          "type": "promo-bar",
+          "text": "⚡ تخفيض 40% بمناسبة نهاية الأسبوع + توصيل سريع مجاني والدفع عند الاستلام!",
+          "countdownMinutes": 25,
+          "showTimer": true,
+          "stockWarning": "باقي فقط 9 قطع متوفرة بالمستودع",
+          "bgColor": "#064e3b",
+          "textColor": "#ffffff",
+          "isSticky": true
+        },
+        {
+          "id": "b-hero-1",
+          "type": "hero",
+          "badge": "🔥 الأكثر طلباً في المغرب • ضمان لمدة سنة",
+          "headline": "ساعة Ultra Pro الذكية لمتابعة لياقتك وصحتك بكل دقة",
+          "subheadline": "شاشة AMOLED فائقة الوضوح، بطارية تدوم 7 أيام، ومقاومة تامة للماء مع قياس دقات القلب والأكسجين.",
+          "priceOriginal": 499,
+          "priceDiscounted": 299,
+          "currency": "MAD",
+          "ctaText": "اطلب الآن وادفع نقداً عند الاستلام",
+          "ctaSubtext": "توصيل مجاني 24-48 ساعة • المعاينة قبل الدفع • ضمان استرجاع 30 يوماً",
+          "rating": 4.9,
+          "reviewCount": 382,
+          "images": [
+            "https://images.unsplash.com/photo-1579586337278-3befd40fd17a?auto=format&fit=crop&w=800&q=80",
+            "https://images.unsplash.com/photo-1508685096489-7aacd43bd3b1?auto=format&fit=crop&w=800&q=80"
+          ],
+          "trustPoints": [
+            "دفع آمن عند الاستلام مع المعاينة",
+            "متوافقة مع جميع هواتف iPhone و Android",
+            "بطارية فائقة القوة تدوم أسبوعاً كاملاً"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "page-youssef-projector-02",
+    "userId": "user-merchant-youssef-002",
+    "title": "بروجيكتور سينمائي مصغر 4K Ultra HD المحمول",
+    "slug": "mini-cinema-projector",
+    "isPublished": true,
+    "viewsCount": 890,
+    "ordersCount": 8,
+    "publishedAt": "2026-10-02T15:29:17.037Z",
+    "createdAt": "2026-09-30T15:29:17.037Z",
+    "updatedAt": "2026-10-22T10:29:17.037Z",
+    "data": {
+      "id": "page-youssef-projector-02",
+      "title": "بروجيكتور سينمائي مصغر 4K Ultra HD المحمول",
+      "language": "ar",
+      "direction": "rtl",
+      "theme": {
+        "primaryColor": "#4f46e5",
+        "secondaryColor": "#818cf8",
+        "accentColor": "#f59e0b",
+        "backgroundColor": "#ffffff",
+        "fontFamily": "Cairo",
+        "borderRadius": "rounded-xl"
+      },
+      "blocks": []
+    }
+  },
+  {
+    "id": "page-youssef-earbuds-03",
+    "userId": "user-merchant-youssef-002",
+    "title": "سماعات Pro عازلة للضوضاء ANC اللاسلكية",
+    "slug": "wireless-earbuds-pro",
+    "isPublished": false,
+    "viewsCount": 310,
+    "ordersCount": 3,
+    "createdAt": "2026-10-12T15:29:17.037Z",
+    "updatedAt": "2026-10-21T15:29:17.037Z",
+    "data": {
+      "id": "page-youssef-earbuds-03",
+      "title": "سماعات Pro عازلة للضوضاء ANC اللاسلكية",
+      "language": "ar",
+      "direction": "rtl",
+      "theme": {
+        "primaryColor": "#0284c7",
+        "secondaryColor": "#38bdf8",
+        "accentColor": "#fbbf24",
+        "backgroundColor": "#ffffff",
+        "fontFamily": "Cairo",
+        "borderRadius": "rounded-xl"
+      },
+      "blocks": []
+    }
+  },
+  {
+    "id": "page-salma-mask-01",
+    "userId": "user-merchant-salma-003",
+    "title": "قناع تجديد وتفتيح البشرة الضوئي LuxeGlow 7-Color",
+    "slug": "luxeglow-led-mask-demo",
+    "customDomain": "salmabeauty.shop",
+    "isPublished": true,
+    "viewsCount": 620,
+    "ordersCount": 5,
+    "publishedAt": "2026-10-10T15:29:17.037Z",
+    "createdAt": "2026-10-08T15:29:17.037Z",
+    "updatedAt": "2026-10-22T11:29:17.037Z",
+    "data": {
+      "id": "page-salma-mask-01",
+      "title": "قناع تجديد وتفتيح البشرة الضوئي LuxeGlow 7-Color",
+      "language": "ar",
+      "direction": "rtl",
+      "theme": {
+        "primaryColor": "#e11d48",
+        "secondaryColor": "#fda4af",
+        "accentColor": "#fbbf24",
+        "backgroundColor": "#ffffff",
+        "fontFamily": "Cairo",
+        "borderRadius": "rounded-xl"
+      },
+      "blocks": []
+    }
+  },
+  {
+    "id": "page-karim-holder-01",
+    "userId": "user-merchant-karim-004",
+    "title": "حامل الهاتف الذكي المغناطيسي للسيارة 360°",
+    "slug": "car-phone-holder-magnetic",
+    "isPublished": true,
+    "viewsCount": 180,
+    "ordersCount": 2,
+    "publishedAt": "2026-10-18T15:29:17.037Z",
+    "createdAt": "2026-10-17T15:29:17.037Z",
+    "updatedAt": "2026-10-22T14:29:17.037Z",
+    "data": {
+      "id": "page-karim-holder-01",
+      "title": "حامل الهاتف الذكي المغناطيسي للسيارة 360°",
+      "language": "ar",
+      "direction": "rtl",
+      "theme": {
+        "primaryColor": "#d97706",
+        "secondaryColor": "#f59e0b",
+        "accentColor": "#10b981",
+        "backgroundColor": "#ffffff",
+        "fontFamily": "Cairo",
+        "borderRadius": "rounded-xl"
+      },
+      "blocks": []
+    }
+  },
+  {
+    "id": "page-owner-laser-01",
+    "userId": "user-admin-owner-001",
+    "title": "جهاز إزالة الشعر بالليزر المنزلي IPL المعتمد",
+    "slug": "laser-hair-removal-handset",
+    "customDomain": "funnelcraft.ma",
+    "isPublished": true,
+    "viewsCount": 2150,
+    "ordersCount": 22,
+    "publishedAt": "2026-08-23T15:29:17.037Z",
+    "createdAt": "2026-08-18T15:29:17.037Z",
+    "updatedAt": "2026-10-22T03:29:17.037Z",
+    "data": {
+      "id": "page-owner-laser-01",
+      "title": "جهاز إزالة الشعر بالليزر المنزلي IPL المعتمد",
+      "language": "ar",
+      "direction": "rtl",
+      "theme": {
+        "primaryColor": "#7c3aed",
+        "secondaryColor": "#a78bfa",
+        "accentColor": "#ec4899",
+        "backgroundColor": "#ffffff",
+        "fontFamily": "Cairo",
+        "borderRadius": "rounded-xl"
+      },
+      "blocks": []
+    }
+  },
+  {
+    "id": "page-owner-trimmer-02",
+    "userId": "user-admin-owner-001",
+    "title": "ماكينة الحلاقة الذهبية الاحترافية Vintage T9",
+    "slug": "vintage-t9-trimmer",
+    "isPublished": true,
+    "viewsCount": 1540,
+    "ordersCount": 19,
+    "publishedAt": "2026-09-07T15:29:17.037Z",
+    "createdAt": "2026-09-02T15:29:17.037Z",
+    "updatedAt": "2026-10-21T21:29:17.037Z",
+    "data": {
+      "id": "page-owner-trimmer-02",
+      "title": "ماكينة الحلاقة الذهبية الاحترافية Vintage T9",
+      "language": "ar",
+      "direction": "rtl",
+      "theme": {
+        "primaryColor": "#b45309",
+        "secondaryColor": "#d97706",
+        "accentColor": "#10b981",
+        "backgroundColor": "#ffffff",
+        "fontFamily": "Cairo",
+        "borderRadius": "rounded-xl"
+      },
+      "blocks": []
+    }
+  }
+]

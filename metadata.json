@@ -1,0 +1,6 @@
+{
+  "name": "FunnelCraft COD",
+  "description": "Modern no-code landing page builder optimized for e-commerce and Cash on Delivery (COD) sales funnels with AI generation and instant HTML export.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

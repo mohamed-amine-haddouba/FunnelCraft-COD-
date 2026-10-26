@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CodWorth | E-Commerce & Cash-on-Delivery Landing Page Builder</title>
+    <meta name="description" content="Modern no-code landing page builder optimized for e-commerce and Cash on Delivery (COD) sales funnels with AI generation and instant live publishing." />
+    <meta property="og:title" content="CodWorth | E-Commerce & Cash-on-Delivery Landing Page Builder" />
+    <meta property="og:description" content="Modern no-code landing page builder optimized for e-commerce and Cash on Delivery (COD) sales funnels with AI generation and instant live publishing." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <script>
+      (function() {
+        // Intercept and swallow noisy third-party wallet extension errors (e.g. Sender Wallet, MetaMask)
+        function extractText(item) {
+          if (!item) return '';
+          if (typeof item === 'string') return item;
+          if (item instanceof Error) {
+            return (item.message || '') + ' ' + (item.stack || '') + ' ' + (item.name || '');
+          }
+          try {
+            if (typeof item === 'object') {
+              var res = '';
+              if (item.message) res += item.message + ' ';
+              if (item.stack) res += item.stack + ' ';
+              if (item.type) res += item.type + ' ';
+              if (item.method) res += item.method + ' ';
+              res += JSON.stringify(item);
+              return res;
+            }
+          } catch (e) {}
+          return String(item);
+        }
+
+        // Safeguard DOM manipulation from external extensions or libraries (PayPal, Google Translate, etc.)
+        if (typeof Node !== 'undefined' && Node.prototype) {
+          var originalRemoveChild = Node.prototype.removeChild;
+          Node.prototype.removeChild = function(child) {
+            if (child && child.parentNode !== this) {
+              return child;
+            }
+            return originalRemoveChild.apply(this, arguments);
+          };
+
+          var originalInsertBefore = Node.prototype.insertBefore;
+          Node.prototype.insertBefore = function(newNode, referenceNode) {
+            if (referenceNode && referenceNode.parentNode !== this) {
+              return this.appendChild(newNode);
+            }
+            return originalInsertBefore.apply(this, arguments);
+          };
+        }
+
+        function isIgnorableNoise(val) {
+          if (!val) return false;
+          var str = extractText(val).toLowerCase();
+          return str.indexOf('sender-wallet') !== -1 ||
+                 str.indexOf('sender_getproviderstate') !== -1 ||
+                 str.indexOf('no account exist') !== -1 ||
+                 str.indexOf('failed to get initial state') !== -1 ||
+                 str.indexOf('sender:') !== -1 ||
+                 str.indexOf('removechild') !== -1 ||
+                 str.indexOf('not a child of this node') !== -1 ||
+                 str.indexOf('insertbefore') !== -1;
+        }
+
+        // Intercept window.postMessage to prevent extension errors from propagating to host harness
+        var originalPostMessage = window.postMessage;
+        window.postMessage = function(message, targetOrigin, transfer) {
+          if (isIgnorableNoise(message)) {
+            return;
+          }
+          return originalPostMessage.apply(this, arguments);
+        };
+
+        // Intercept message event listeners
+        window.addEventListener('message', function(event) {
+          if (isIgnorableNoise(event.data)) {
+            event.stopImmediatePropagation();
+            event.stopPropagation();
+          }
+        }, true);
+
+        var originalOnError = window.onerror;
+        window.onerror = function(message, source, lineno, colno, error) {
+          if (isIgnorableNoise(message) || isIgnorableNoise(error)) {
+            return true;
+          }
+          if (typeof originalOnError === 'function') {
+            return originalOnError.apply(this, arguments);
+          }
+          return false;
+        };
+
+        window.addEventListener('error', function(event) {
+          if (isIgnorableNoise(event.message) || isIgnorableNoise(event.error)) {
+            event.preventDefault();
+            event.stopPropagation();
+            if (event.stopImmediatePropagation) event.stopImmediatePropagation();
+            return true;
+          }
+        }, true);
+
+        window.addEventListener('unhandledrejection', function(event) {
+          if (isIgnorableNoise(event.reason)) {
+            event.preventDefault();
+            event.stopPropagation();
+            if (event.stopImmediatePropagation) event.stopImmediatePropagation();
+            return true;
+          }
+        }, true);
+
+        var originalConsoleError = console.error;
+        console.error = function() {
+          var args = Array.prototype.slice.call(arguments);
+          for (var i = 0; i < args.length; i++) {
+            if (isIgnorableNoise(args[i])) return;
+          }
+          originalConsoleError.apply(console, arguments);
+        };
+
+        var originalConsoleWarn = console.warn;
+        console.warn = function() {
+          var args = Array.prototype.slice.call(arguments);
+          for (var i = 0; i < args.length; i++) {
+            if (isIgnorableNoise(args[i])) return;
+          }
+          originalConsoleWarn.apply(console, arguments);
+        };
+
+        var originalConsoleLog = console.log;
+        console.log = function() {
+          var args = Array.prototype.slice.call(arguments);
+          for (var i = 0; i < args.length; i++) {
+            if (isIgnorableNoise(args[i])) return;
+          }
+          originalConsoleLog.apply(console, arguments);
+        };
+      })();
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+

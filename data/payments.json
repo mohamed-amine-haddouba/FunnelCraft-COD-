@@ -1,0 +1,52 @@
+[
+  {
+    "id": "pay-cih-849201",
+    "userId": "user-demo-moroccan-004",
+    "userEmail": "yassine.elamrani@gmail.com",
+    "userName": "Yassine El Amrani",
+    "amount": 100,
+    "method": "CIH",
+    "transactionReference": "CIH-VIR-98234190",
+    "proofImageUrl": "https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=400&q=80",
+    "status": "pending",
+    "createdAt": "2026-10-19T12:34:29.269Z",
+    "notes": "Virement de 100 DH effectué via CIH Mobile vers votre compte."
+  },
+  {
+    "id": "pay-attijari-510294",
+    "userId": "user-demo-free-001",
+    "userEmail": "merchant@example.com",
+    "userName": "Alex Merchant",
+    "amount": 100,
+    "method": "Attijariwafa",
+    "transactionReference": "ATW-VIR-5819024",
+    "status": "approved",
+    "createdAt": "2026-10-19T13:01:29.269Z",
+    "notes": "Paiement effectué via Attijari Mobile."
+  },
+  {
+    "id": "pay-cih-salma-78901",
+    "userId": "user-merchant-salma-003",
+    "userEmail": "salma.boutique@gmail.com",
+    "userName": "Salma Bennani (Salma Beauty & Tech)",
+    "amount": 179,
+    "method": "CIH",
+    "transactionReference": "CIH-VIR-98234190",
+    "proofImageUrl": "https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=400&q=80",
+    "status": "pending",
+    "createdAt": "2026-10-22T14:55:58.498Z",
+    "notes": "طلب ترقية باقة المحترفين Pro (179 درهم) تم التحويل عبر تطبيق CIH Mobile"
+  },
+  {
+    "id": "pay-cashplus-90124",
+    "userId": "user-merchant-karim-004",
+    "userEmail": "karim.cod@gmail.com",
+    "userName": "Karim Tazi",
+    "amount": 99,
+    "method": "CashPlus",
+    "transactionReference": "CP-CAS-291048",
+    "status": "pending",
+    "createdAt": "2026-10-22T13:30:58.498Z",
+    "notes": "إيداع نقدي عبر وكالة كاش بلوس مراكش المنارة"
+  }
+]
