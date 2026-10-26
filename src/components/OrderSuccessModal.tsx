@@ -12,6 +12,7 @@ export interface OrderConfirmationData {
   bundle: BundleOption;
   totalPrice: number;
   currency: string;
+  recaptchaToken?: string;
   turnstileToken?: string;
 }
 

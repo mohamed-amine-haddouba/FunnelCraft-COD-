@@ -3,6 +3,7 @@ import { X, Lock, Mail, User as UserIcon, AlertCircle, ArrowRight, CheckCircle2,
 import { Turnstile, type TurnstileInstance } from '@marsidev/react-turnstile';
 import { GoogleLogin, type CredentialResponse } from '@react-oauth/google';
 import { useAuth } from '../context/AuthContext';
+import { executeRecaptcha, preloadRecaptchaScript } from '../utils/recaptcha';
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
 const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY || '';
@@ -36,6 +37,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   // Sync mode whenever initialMode changes while opened
   useEffect(() => {
     if (isOpen) {
+      void preloadRecaptchaScript();
       setMode(initialMode === 'login' || initialMode === 'signin' ? 'signin' : 'signup');
       setLocalError(null);
       setSuccessNotice(null);
@@ -80,12 +82,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setIsSubmitting(true);
 
     try {
+      const recaptchaToken = await executeRecaptcha(mode === 'signup' ? 'register' : 'login');
+
       if (mode === 'signup') {
         const res = await register(
           email.trim(),
           password,
           fullName.trim(),
-          turnstileToken || undefined
+          turnstileToken || undefined,
+          recaptchaToken
         );
         if (res && res.success) {
           onClose();
@@ -94,6 +99,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         }
       } else {
         const res = await login(email.trim(), password, {
+          recaptchaToken,
           turnstileToken: turnstileToken || undefined,
         });
         if (res && res.success) {

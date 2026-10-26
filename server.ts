@@ -70,7 +70,7 @@ import { scrapeProductFromUrl, validateProductUrl, ScrapedProduct } from './serv
 import { scrapeProductData } from './server/scraper';
 import { sendOtpEmail, sendPasswordResetEmail } from './server/mailer';
 import { verifyGoogleCredential, isGoogleAuthConfigured } from './server/googleAuth';
-import { verifyTurnstileToken, extractClientIp } from './server/captcha';
+import { verifyCaptchaToken, verifyTurnstileToken, extractClientIp } from './server/captcha';
 import {
   Client as PayPalClient,
   Environment as PayPalEnvironment,
@@ -287,13 +287,18 @@ async function startServer() {
       store_name,
       phone,
       two_factor_enabled,
+      recaptchaToken,
       turnstileToken,
       captchaToken,
     } = req.body;
 
-    const rawCaptcha =
-      turnstileToken || captchaToken || req.body['cf-turnstile-response'] || '';
-    const isCaptchaValid = await verifyTurnstileToken(rawCaptcha, extractClientIp(req));
+    const isCaptchaValid = await verifyCaptchaToken({
+      recaptchaToken: recaptchaToken || req.body['g-recaptcha-response'],
+      turnstileToken: turnstileToken || req.body['cf-turnstile-response'],
+      captchaToken,
+      remoteIp: extractClientIp(req),
+      expectedAction: 'register',
+    });
     if (!isCaptchaValid) {
       return res.status(400).json({
         success: false,
@@ -374,11 +379,15 @@ async function startServer() {
 
   // 2. Merchant & Super Admin Login (Protected by loginLimiter)
   app.post('/api/auth/login', loginLimiter, async (req: Request, res: Response) => {
-    const { email, password, simulate2fa, turnstileToken, captchaToken } = req.body;
+    const { email, password, simulate2fa, recaptchaToken, turnstileToken, captchaToken } = req.body;
 
-    const rawCaptcha =
-      turnstileToken || captchaToken || req.body['cf-turnstile-response'] || '';
-    const isCaptchaValid = await verifyTurnstileToken(rawCaptcha, extractClientIp(req));
+    const isCaptchaValid = await verifyCaptchaToken({
+      recaptchaToken: recaptchaToken || req.body['g-recaptcha-response'],
+      turnstileToken: turnstileToken || req.body['cf-turnstile-response'],
+      captchaToken,
+      remoteIp: extractClientIp(req),
+      expectedAction: 'login',
+    });
     if (!isCaptchaValid) {
       return res.status(400).json({
         success: false,
@@ -719,11 +728,15 @@ async function startServer() {
 
   // 10. Forgot Password (Protected by forgotPasswordLimiter)
   app.post('/api/auth/forgot-password', forgotPasswordLimiter, async (req: Request, res: Response) => {
-    const { email, turnstileToken, captchaToken } = req.body;
+    const { email, recaptchaToken, turnstileToken, captchaToken } = req.body;
 
-    const rawCaptcha =
-      turnstileToken || captchaToken || req.body['cf-turnstile-response'] || '';
-    const isCaptchaValid = await verifyTurnstileToken(rawCaptcha, extractClientIp(req));
+    const isCaptchaValid = await verifyCaptchaToken({
+      recaptchaToken: recaptchaToken || req.body['g-recaptcha-response'],
+      turnstileToken: turnstileToken || req.body['cf-turnstile-response'],
+      captchaToken,
+      remoteIp: extractClientIp(req),
+      expectedAction: 'forgot_password',
+    });
     if (!isCaptchaValid) {
       return res.status(400).json({
         success: false,
@@ -1763,17 +1776,22 @@ async function startServer() {
         status,
         currency,
         paypalOrderId,
+        recaptchaToken,
         turnstileToken,
         captchaToken,
       } = req.body;
 
       const isPayPal = paymentMethod === 'paypal';
 
-      // Verify Cloudflare Turnstile CAPTCHA for public COD checkout submissions
+      // Verify Google reCAPTCHA v3 / Cloudflare Turnstile CAPTCHA for public COD checkout submissions
       if (!isPayPal) {
-        const rawCaptcha =
-          turnstileToken || captchaToken || req.body['cf-turnstile-response'] || '';
-        const isCaptchaValid = await verifyTurnstileToken(rawCaptcha, extractClientIp(req));
+        const isCaptchaValid = await verifyCaptchaToken({
+          recaptchaToken: recaptchaToken || req.body['g-recaptcha-response'],
+          turnstileToken: turnstileToken || req.body['cf-turnstile-response'],
+          captchaToken,
+          remoteIp: extractClientIp(req),
+          expectedAction: 'cod_checkout',
+        });
         if (!isCaptchaValid) {
           return res.status(400).json({
             success: false,

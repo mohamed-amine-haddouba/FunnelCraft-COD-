@@ -1,7 +1,8 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { CodFormBlock, PageTheme, BundleOption } from '../../types/landingPage';
 import { ShieldCheck, Truck, Banknote, ArrowRight, ArrowLeft, AlertCircle } from 'lucide-react';
 import { Turnstile, type TurnstileInstance } from '@marsidev/react-turnstile';
+import { executeRecaptcha, preloadRecaptchaScript } from '../../utils/recaptcha';
 
 const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY || '';
 
@@ -14,6 +15,7 @@ interface OrderSubmitPayload {
   bundle: BundleOption;
   totalPrice: number;
   currency: string;
+  recaptchaToken?: string;
   turnstileToken?: string;
 }
 
@@ -44,7 +46,11 @@ export const CodFormBlockView: React.FC<Props> = ({ block, theme, isRtl, onOrder
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const turnstileRef = useRef<TurnstileInstance | undefined>(undefined);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    void preloadRecaptchaScript();
+  }, []);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
     if (!customerPhone) {
@@ -61,6 +67,8 @@ export const CodFormBlockView: React.FC<Props> = ({ block, theme, isRtl, onOrder
       return;
     }
 
+    const recaptchaToken = await executeRecaptcha('cod_checkout');
+
     if (onOrderSubmit) {
       onOrderSubmit({
         customerName: customerName || (isRtl ? 'عميل' : 'Valued Customer'),
@@ -71,6 +79,7 @@ export const CodFormBlockView: React.FC<Props> = ({ block, theme, isRtl, onOrder
         bundle: selectedBundle,
         totalPrice: selectedBundle.price,
         currency: block.currency,
+        recaptchaToken,
         turnstileToken: turnstileToken || undefined,
       });
     }

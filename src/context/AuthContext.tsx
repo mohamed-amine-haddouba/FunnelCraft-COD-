@@ -62,7 +62,13 @@ interface AuthContextType {
   login: (
     email: string,
     password: string,
-    options?: { simulate2fa?: boolean; trustDevice?: boolean; turnstileToken?: string; captchaToken?: string }
+    options?: {
+      simulate2fa?: boolean;
+      trustDevice?: boolean;
+      recaptchaToken?: string;
+      turnstileToken?: string;
+      captchaToken?: string;
+    }
   ) => Promise<{ success: boolean; requires2FA?: boolean; error?: string; devPreviewOtp?: string }>;
   register: (
     emailOrPayload:
@@ -74,12 +80,14 @@ interface AuthContextType {
           storeName?: string;
           phone?: string;
           twoFactorEnabled?: boolean;
+          recaptchaToken?: string;
           turnstileToken?: string;
           captchaToken?: string;
         },
     password?: string,
     fullName?: string,
-    turnstileToken?: string
+    turnstileToken?: string,
+    recaptchaToken?: string
   ) => Promise<{ success: boolean; requires2FA?: boolean; error?: string; devPreviewOtp?: string }>;
   loginWithGoogle: (
     credential: string
@@ -243,6 +251,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     options?: {
       simulate2fa?: boolean;
       trustDevice?: boolean;
+      recaptchaToken?: string;
       turnstileToken?: string;
       captchaToken?: string;
     }
@@ -256,6 +265,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           password,
           simulate2fa: options?.simulate2fa,
           trustDevice: options?.trustDevice,
+          recaptchaToken: options?.recaptchaToken,
           turnstileToken: options?.turnstileToken || options?.captchaToken,
         }),
       });
@@ -303,12 +313,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           storeName?: string;
           phone?: string;
           twoFactorEnabled?: boolean;
+          recaptchaToken?: string;
           turnstileToken?: string;
           captchaToken?: string;
         },
     passwordParam?: string,
     fullNameParam?: string,
-    turnstileTokenParam?: string
+    turnstileTokenParam?: string,
+    recaptchaTokenParam?: string
   ) => {
     const payload =
       typeof emailOrPayload === 'string'
@@ -319,6 +331,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             storeName: undefined,
             phone: undefined,
             twoFactorEnabled: false,
+            recaptchaToken: recaptchaTokenParam,
             turnstileToken: turnstileTokenParam,
             captchaToken: undefined,
           }
@@ -335,6 +348,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           store_name: payload.storeName,
           phone: payload.phone,
           two_factor_enabled: payload.twoFactorEnabled,
+          recaptchaToken: payload.recaptchaToken,
           turnstileToken: payload.turnstileToken || payload.captchaToken,
         }),
       });

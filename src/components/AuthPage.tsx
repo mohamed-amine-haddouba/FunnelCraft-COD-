@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { Turnstile, type TurnstileInstance } from '@marsidev/react-turnstile';
 import { GoogleLogin, type CredentialResponse } from '@react-oauth/google';
+import { executeRecaptcha, preloadRecaptchaScript } from '../utils/recaptcha';
 
 interface AuthPageProps {
   initialMode?: 'login' | 'register';
@@ -94,6 +95,11 @@ export const AuthPage: React.FC<AuthPageProps> = ({
   const otpInputsRef = useRef<(HTMLInputElement | null)[]>([]);
   const langDropdownRef = useRef<HTMLDivElement>(null);
   const turnstileRef = useRef<TurnstileInstance | undefined>(undefined);
+
+  // Preload Google reCAPTCHA v3 script if VITE_RECAPTCHA_SITE_KEY is configured
+  useEffect(() => {
+    void preloadRecaptchaScript();
+  }, []);
 
   // Reset Turnstile token when switching auth view modes
   useEffect(() => {
@@ -212,9 +218,12 @@ export const AuthPage: React.FC<AuthPageProps> = ({
     setIsLoading(true);
     setErrorMessage(null);
 
+    const recaptchaToken = await executeRecaptcha('login');
+
     const res = await login(email.trim(), password, {
       simulate2fa,
       trustDevice: rememberMe,
+      recaptchaToken,
       turnstileToken: turnstileToken || undefined,
     });
 
@@ -254,6 +263,8 @@ export const AuthPage: React.FC<AuthPageProps> = ({
     setIsLoading(true);
     setErrorMessage(null);
 
+    const recaptchaToken = await executeRecaptcha('register');
+
     const res = await register({
       email: email.trim(),
       password,
@@ -261,6 +272,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
       storeName: storeName.trim() || undefined,
       phone: phone.trim() || undefined,
       twoFactorEnabled: false,
+      recaptchaToken,
       turnstileToken: turnstileToken || undefined,
     });
 
@@ -296,11 +308,14 @@ export const AuthPage: React.FC<AuthPageProps> = ({
     setErrorMessage(null);
 
     try {
+      const recaptchaToken = await executeRecaptcha('forgot_password');
+
       const response = await fetch('/api/auth/forgot-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email: email.trim(),
+          recaptchaToken,
           turnstileToken: turnstileToken || undefined,
         }),
       });

@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import { PayPalScriptProvider, PayPalButtons } from '@paypal/react-paypal-js';
 import { Turnstile, type TurnstileInstance } from '@marsidev/react-turnstile';
+import { executeRecaptcha, preloadRecaptchaScript } from '../utils/recaptcha';
 
 const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY || '';
 import {
@@ -174,6 +175,10 @@ export const CustomerLandingPage: React.FC<CustomerLandingPageProps> = ({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const turnstileRef = useRef<TurnstileInstance | undefined>(undefined);
+
+  useEffect(() => {
+    void preloadRecaptchaScript();
+  }, []);
   const [orderSuccess, setOrderSuccess] = useState<{
     orderId: string;
     totalPrice: number;
@@ -299,6 +304,8 @@ export const CustomerLandingPage: React.FC<CustomerLandingPageProps> = ({
     setIsSubmitting(true);
 
     try {
+      const recaptchaToken = await executeRecaptcha('cod_checkout');
+
       const response = await fetch('/api/orders', {
         method: 'POST',
         headers: {
@@ -317,6 +324,7 @@ export const CustomerLandingPage: React.FC<CustomerLandingPageProps> = ({
           funnelId: funnelId || undefined,
           userId: userId || undefined,
           notes: `العرض المختار: ${activeBundle.label} | المواصفات: ${formattedVariantString}`,
+          recaptchaToken,
           turnstileToken: turnstileToken || undefined,
         }),
       });

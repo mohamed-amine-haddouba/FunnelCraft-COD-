@@ -401,6 +401,7 @@ function BuilderWorkspace() {
           funnelId: pageData.id,
           pageSlug: pageData.slug,
           notes: data.customerNote,
+          recaptchaToken: data.recaptchaToken,
           turnstileToken: data.turnstileToken,
         }),
       });
