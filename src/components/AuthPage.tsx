@@ -19,6 +19,7 @@ import {
 import { Turnstile, type TurnstileInstance } from '@marsidev/react-turnstile';
 import { GoogleLogin, type CredentialResponse } from '@react-oauth/google';
 import { executeRecaptcha, preloadRecaptchaScript } from '../utils/recaptcha';
+import { PublicFooter } from './PublicFooter';
 
 interface AuthPageProps {
   initialMode?: 'login' | 'register';
@@ -1229,12 +1230,6 @@ export const AuthPage: React.FC<AuthPageProps> = ({
             <div className="mt-6 pt-4 border-t border-slate-800/80 flex flex-wrap items-center justify-center gap-4 text-xs text-slate-400">
               <a
                 href="/terms"
-                onClick={(e) => {
-                  if (onNavigateToTerms) {
-                    e.preventDefault();
-                    onNavigateToTerms();
-                  }
-                }}
                 className="hover:text-emerald-400 transition cursor-pointer"
               >
                 شروط الاستخدام
@@ -1242,12 +1237,6 @@ export const AuthPage: React.FC<AuthPageProps> = ({
               <span className="text-slate-700">•</span>
               <a
                 href="/privacy"
-                onClick={(e) => {
-                  if (onNavigateToPrivacy) {
-                    e.preventDefault();
-                    onNavigateToPrivacy();
-                  }
-                }}
                 className="hover:text-emerald-400 transition cursor-pointer"
               >
                 سياسة الخصوصية
@@ -1255,12 +1244,6 @@ export const AuthPage: React.FC<AuthPageProps> = ({
               <span className="text-slate-700">•</span>
               <a
                 href="/contact"
-                onClick={(e) => {
-                  if (onNavigateToContact) {
-                    e.preventDefault();
-                    onNavigateToContact();
-                  }
-                }}
                 className="hover:text-emerald-400 transition cursor-pointer"
               >
                 تواصل معنا
@@ -1338,6 +1321,9 @@ export const AuthPage: React.FC<AuthPageProps> = ({
           </div>
         </div>
       </main>
+
+      {/* Public Footer & Floating WhatsApp Support Button */}
+      <PublicFooter />
     </div>
   );
 };

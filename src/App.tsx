@@ -1736,6 +1736,13 @@ function BuilderWorkspace() {
 const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
 
 export default function App() {
+  // 1. IMMEDIATE PUBLIC ROUTE CHECK (No Auth Required)
+  const path = window.location.pathname.replace(/\/$/, '');
+  if (path === '/contact') return <ContactPage />;
+  if (path === '/terms') return <TermsPage />;
+  if (path === '/privacy') return <PrivacyPolicyPage />;
+
+  // 2. Normal App Flow (Protected)
   return (
     <GoogleOAuthProvider clientId={googleClientId}>
       <LanguageProvider>
@@ -1746,3 +1753,4 @@ export default function App() {
     </GoogleOAuthProvider>
   );
 }
+

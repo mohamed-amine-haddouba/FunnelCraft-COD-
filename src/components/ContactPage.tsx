@@ -17,6 +17,7 @@ import {
   ExternalLink,
   Phone,
 } from 'lucide-react';
+import { PublicFooter } from './PublicFooter';
 
 interface ContactPageProps {
   onBackToHome?: () => void;
@@ -113,47 +114,54 @@ export const ContactPage: React.FC<ContactPageProps> = ({
       {/* Top Header Bar */}
       <header className="border-b border-slate-800/80 bg-slate-950/80 backdrop-blur-md sticky top-0 z-40 px-4 sm:px-8 py-3.5 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          {onBackToHome && (
-            <button
-              type="button"
-              onClick={onBackToHome}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-xs font-bold text-slate-300 hover:text-white transition cursor-pointer"
-            >
-              <ArrowRight className="w-3.5 h-3.5 text-emerald-400" />
-              <span>العودة للمنصة</span>
-            </button>
-          )}
+          <a
+            href="/"
+            onClick={(e) => {
+              if (onBackToHome) {
+                e.preventDefault();
+                onBackToHome();
+              }
+            }}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-xs font-bold text-slate-300 hover:text-white transition cursor-pointer"
+          >
+            <ArrowRight className="w-3.5 h-3.5 text-emerald-400" />
+            <span>العودة للمنصة</span>
+          </a>
 
           <div className="flex items-center gap-2">
             <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center shadow-sm shadow-emerald-500/20">
               <Sparkles className="w-3.5 h-3.5 text-slate-950" />
             </div>
             <span className="font-black text-sm tracking-tight text-white">CodWorth</span>
-            <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 rounded-md">
-              الدعم الفني
-            </span>
+            <span className="text-[10px] font-bold text-emerald-400">• الدعم الفني</span>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 text-xs">
-          {onNavigateToTerms && (
-            <button
-              type="button"
-              onClick={onNavigateToTerms}
-              className="text-slate-400 hover:text-slate-200 transition hidden sm:inline"
-            >
-              شروط الاستخدام
-            </button>
-          )}
-          {onNavigateToPrivacy && (
-            <button
-              type="button"
-              onClick={onNavigateToPrivacy}
-              className="text-slate-400 hover:text-slate-200 transition hidden sm:inline"
-            >
-              سياسة الخصوصية
-            </button>
-          )}
+        <div className="flex items-center gap-4 text-xs">
+          <a
+            href="/terms"
+            onClick={(e) => {
+              if (onNavigateToTerms) {
+                e.preventDefault();
+                onNavigateToTerms();
+              }
+            }}
+            className="text-slate-400 hover:text-slate-200 transition"
+          >
+            شروط الاستخدام
+          </a>
+          <a
+            href="/privacy"
+            onClick={(e) => {
+              if (onNavigateToPrivacy) {
+                e.preventDefault();
+                onNavigateToPrivacy();
+              }
+            }}
+            className="text-slate-400 hover:text-slate-200 transition"
+          >
+            سياسة الخصوصية
+          </a>
         </div>
       </header>
 
@@ -451,53 +459,15 @@ export const ContactPage: React.FC<ContactPageProps> = ({
         </section>
       </main>
 
-      {/* Footer */}
-      <footer className="border-t border-slate-800/80 bg-slate-950 py-8 px-4 sm:px-8 mt-16 text-xs text-slate-400">
-        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <span className="font-extrabold text-white">CodWorth</span>
-            <span>•</span>
-            <span>منصة بناء صفحات الهبوط ومضاعفة مبيعات COD بالمغرب</span>
-          </div>
-
-          <div className="flex items-center gap-4 text-xs">
-            {onBackToHome && (
-              <button
-                type="button"
-                onClick={onBackToHome}
-                className="hover:text-white transition cursor-pointer"
-              >
-                الرئيسية
-              </button>
-            )}
-            {onNavigateToPrivacy && (
-              <button
-                type="button"
-                onClick={onNavigateToPrivacy}
-                className="hover:text-white transition cursor-pointer"
-              >
-                سياسة الخصوصية
-              </button>
-            )}
-            {onNavigateToTerms && (
-              <button
-                type="button"
-                onClick={onNavigateToTerms}
-                className="hover:text-white transition cursor-pointer"
-              >
-                شروط الاستخدام
-              </button>
-            )}
-            <a href="mailto:codworth.me@gmail.com" className="hover:text-white transition">
-              الدعم الفني
-            </a>
-          </div>
-        </div>
-
-        <div className="max-w-6xl mx-auto mt-4 pt-4 border-t border-slate-900 text-center text-[11px] text-slate-400">
-          © {new Date().getFullYear()} CodWorth SARL. جميع الحقوق محفوظة. المملكة المغربية 🇲🇦
-        </div>
-      </footer>
+      {/* Professional Public Footer + Floating WhatsApp Button */}
+      <PublicFooter
+        onNavigate={(targetPath) => {
+          if (targetPath === '/' && onBackToHome) return onBackToHome();
+          if (targetPath === '/terms' && onNavigateToTerms) return onNavigateToTerms();
+          if (targetPath === '/privacy' && onNavigateToPrivacy) return onNavigateToPrivacy();
+          window.location.href = targetPath;
+        }}
+      />
     </div>
   );
 };
