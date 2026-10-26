@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Lock, Mail, User as UserIcon, AlertCircle, ArrowRight, CheckCircle2, ShieldCheck } from 'lucide-react';
 import { Turnstile, type TurnstileInstance } from '@marsidev/react-turnstile';
+import { GoogleLogin, type CredentialResponse } from '@react-oauth/google';
 import { useAuth } from '../context/AuthContext';
 
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
 const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY || '';
 
 export interface AuthModalProps {
@@ -16,7 +18,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   onClose,
   initialMode = 'signup',
 }) => {
-  const { login, register } = useAuth();
+  const { login, register, loginWithGoogle } = useAuth();
   
   // Normalize initial mode between signin/login and signup/register
   const normalizedInitialMode = initialMode === 'login' || initialMode === 'signin' ? 'signin' : 'signup';
@@ -281,6 +283,36 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               <ArrowRight className="w-4 h-4 rotate-180" />
             </button>
           </form>
+
+          {GOOGLE_CLIENT_ID && (
+            <div className="mt-4 pt-3 border-t border-slate-100 flex flex-col items-center gap-2">
+              <span className="text-[11px] text-slate-400 font-semibold">أو المتابعة عبر</span>
+              <div className="flex justify-center w-full" dir="ltr">
+                <GoogleLogin
+                  onSuccess={async (credentialResponse: CredentialResponse) => {
+                    if (!credentialResponse.credential) return;
+                    setIsSubmitting(true);
+                    setLocalError(null);
+                    const res = await loginWithGoogle(credentialResponse.credential);
+                    setIsSubmitting(false);
+                    if (res.success) {
+                      onClose();
+                    } else {
+                      setLocalError(res.error || 'فشل تسجيل الدخول عبر Google');
+                    }
+                  }}
+                  onError={() => {
+                    setLocalError('تعذر تسجيل الدخول عبر Google. يرجى المحاولة مرة أخرى.');
+                  }}
+                  theme="outline"
+                  size="large"
+                  shape="pill"
+                  width="300"
+                  text="continue_with"
+                />
+              </div>
+            </div>
+          )}
 
           {/* شارة الثقة والأمان */}
           <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-center gap-1.5 text-[11px] text-slate-400 font-medium">

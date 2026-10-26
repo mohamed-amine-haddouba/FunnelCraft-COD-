@@ -16,6 +16,7 @@
     "@marsidev/react-turnstile": "^1.6.3",
     "@paypal/paypal-server-sdk": "^2.5.0",
     "@paypal/react-paypal-js": "^10.6.1",
+    "@react-oauth/google": "^0.13.5",
     "@tailwindcss/vite": "^4.3.3",
     "@vitejs/plugin-react": "^6.1.1",
     "cors": "^2.8.6",

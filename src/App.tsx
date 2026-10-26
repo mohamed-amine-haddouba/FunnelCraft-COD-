@@ -7,6 +7,7 @@ import {
   PageTheme,
 } from './types/landingPage';
 import { TEMPLATE_BEAUTY_EN, TEMPLATE_ARABIC_COD } from './data/defaultTemplates';
+import { GoogleOAuthProvider } from '@react-oauth/google';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { HeaderNav, WorkspaceTab } from './components/HeaderNav';
 import { BlocksToolbar } from './components/BlocksToolbar';
@@ -1742,12 +1743,16 @@ function BuilderWorkspace() {
   );
 }
 
+const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
+
 export default function App() {
   return (
-    <LanguageProvider>
-      <AuthProvider>
-        <BuilderWorkspace />
-      </AuthProvider>
-    </LanguageProvider>
+    <GoogleOAuthProvider clientId={googleClientId}>
+      <LanguageProvider>
+        <AuthProvider>
+          <BuilderWorkspace />
+        </AuthProvider>
+      </LanguageProvider>
+    </GoogleOAuthProvider>
   );
 }

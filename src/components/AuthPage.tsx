@@ -17,6 +17,7 @@ import {
   KeyRound,
 } from 'lucide-react';
 import { Turnstile, type TurnstileInstance } from '@marsidev/react-turnstile';
+import { GoogleLogin, type CredentialResponse } from '@react-oauth/google';
 
 interface AuthPageProps {
   initialMode?: 'login' | 'register';
@@ -28,32 +29,6 @@ interface AuthPageProps {
 
 type AuthViewMode = 'login' | 'register' | 'forgot-password' | 'reset-password';
 
-interface GoogleGsiAccountsId {
-  initialize: (config: {
-    client_id: string;
-    callback: (response: { credential?: string }) => void;
-  }) => void;
-  renderButton: (
-    parent: HTMLElement,
-    options: {
-      theme: string;
-      size: string;
-      shape: string;
-      width: number;
-      text: string;
-    }
-  ) => void;
-}
-
-interface GoogleGsiWindow extends Window {
-  google?: {
-    accounts?: {
-      id?: GoogleGsiAccountsId;
-    };
-  };
-}
-
-let isGsiInitialized = false;
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
 const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY || '';
 
@@ -117,7 +92,6 @@ export const AuthPage: React.FC<AuthPageProps> = ({
   const [isVerifyingOtp, setIsVerifyingOtp] = useState<boolean>(false);
 
   const otpInputsRef = useRef<(HTMLInputElement | null)[]>([]);
-  const googleBtnContainerRef = useRef<HTMLDivElement>(null);
   const langDropdownRef = useRef<HTMLDivElement>(null);
   const turnstileRef = useRef<TurnstileInstance | undefined>(undefined);
 
@@ -171,80 +145,25 @@ export const AuthPage: React.FC<AuthPageProps> = ({
     }
   }, [twoFactorData?.isRequired, resendTimer]);
 
-  // Google Identity Services (Official OAuth 2.0 JWT Flow)
-  useEffect(() => {
-    if (
-      !GOOGLE_CLIENT_ID ||
-      twoFactorData?.isRequired ||
-      mode === 'forgot-password' ||
-      mode === 'reset-password'
-    ) {
+  const handleGoogleSuccess = async (credentialResponse: CredentialResponse) => {
+    if (!credentialResponse.credential) {
+      setErrorMessage('تعذر الحصول على رمز المصادقة من Google.');
       return;
     }
-
-    const gsiWindow = window as unknown as GoogleGsiWindow;
-    const scriptId = 'google-identity-client-script';
-    let script = document.getElementById(scriptId) as HTMLScriptElement | null;
-
-    if (!script) {
-      script = document.createElement('script');
-      script.id = scriptId;
-      script.src = 'https://accounts.google.com/gsi/client';
-      script.async = true;
-      script.defer = true;
-      document.body.appendChild(script);
-    }
-
-    const initGoogleGsi = () => {
-      const gsiId = gsiWindow.google?.accounts?.id;
-      if (gsiId && googleBtnContainerRef.current) {
-        try {
-          if (!isGsiInitialized) {
-            gsiId.initialize({
-              client_id: GOOGLE_CLIENT_ID,
-              callback: async (response: { credential?: string }) => {
-                if (response.credential) {
-                  setIsLoading(true);
-                  setErrorMessage(null);
-                  const res = await loginWithGoogle(response.credential);
-                  setIsLoading(false);
-                  if (res.success) {
-                    if (res.requires2FA) {
-                      showToast(t.tfaCodeSentToast);
-                    } else {
-                      onSuccess?.();
-                    }
-                  } else {
-                    setErrorMessage(res.error || 'فشل تسجيل الدخول عبر Google');
-                  }
-                }
-              },
-            });
-            isGsiInitialized = true;
-          }
-
-          if (googleBtnContainerRef.current) {
-            googleBtnContainerRef.current.innerHTML = '';
-            gsiId.renderButton(googleBtnContainerRef.current, {
-              theme: 'filled_black',
-              size: 'large',
-              shape: 'pill',
-              width: 320,
-              text: 'continue_with',
-            });
-          }
-        } catch (err) {
-          console.warn('Google GSI initialization notice:', err);
-        }
+    setIsLoading(true);
+    setErrorMessage(null);
+    const res = await loginWithGoogle(credentialResponse.credential);
+    setIsLoading(false);
+    if (res.success) {
+      if (res.requires2FA) {
+        showToast(t.tfaCodeSentToast);
+      } else {
+        onSuccess?.();
       }
-    };
-
-    if (gsiWindow.google?.accounts?.id) {
-      initGoogleGsi();
-    } else if (script) {
-      script.onload = initGoogleGsi;
+    } else {
+      setErrorMessage(res.error || 'فشل تسجيل الدخول عبر Google');
     }
-  }, [twoFactorData?.isRequired, mode, loginWithGoogle, onSuccess]);
+  };
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -1261,14 +1180,22 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                   </span>
                 </div>
 
-                {/* Official Google Sign-In Button (GSI) */}
+                {/* Official Google Sign-In Button (@react-oauth/google) */}
                 <div className="space-y-2">
                   {GOOGLE_CLIENT_ID ? (
-                    <div
-                      ref={googleBtnContainerRef}
-                      id="google-signin-container"
-                      className="flex justify-center w-full min-h-[42px]"
-                    />
+                    <div className="flex justify-center w-full min-h-[42px]" dir="ltr">
+                      <GoogleLogin
+                        onSuccess={handleGoogleSuccess}
+                        onError={() => {
+                          setErrorMessage('تعذر تسجيل الدخول عبر Google. يرجى المحاولة مرة أخرى.');
+                        }}
+                        theme="filled_black"
+                        size="large"
+                        shape="pill"
+                        width="320"
+                        text="continue_with"
+                      />
+                    </div>
                   ) : (
                     <div className="w-full py-2 px-3 rounded-xl bg-slate-950/60 border border-slate-800/80 text-slate-500 text-[11px] text-center">
                       تسجيل الدخول عبر Google يتطلب ضبط <code className="font-mono text-slate-400">VITE_GOOGLE_CLIENT_ID</code>
