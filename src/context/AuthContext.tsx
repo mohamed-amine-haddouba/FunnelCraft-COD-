@@ -62,7 +62,7 @@ interface AuthContextType {
   login: (
     email: string,
     password: string,
-    options?: { simulate2fa?: boolean; trustDevice?: boolean }
+    options?: { simulate2fa?: boolean; trustDevice?: boolean; turnstileToken?: string; captchaToken?: string }
   ) => Promise<{ success: boolean; requires2FA?: boolean; error?: string; devPreviewOtp?: string }>;
   register: (
     emailOrPayload:
@@ -74,9 +74,12 @@ interface AuthContextType {
           storeName?: string;
           phone?: string;
           twoFactorEnabled?: boolean;
+          turnstileToken?: string;
+          captchaToken?: string;
         },
     password?: string,
-    fullName?: string
+    fullName?: string,
+    turnstileToken?: string
   ) => Promise<{ success: boolean; requires2FA?: boolean; error?: string; devPreviewOtp?: string }>;
   loginWithGoogle: (
     credential: string
@@ -237,7 +240,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const login = async (
     email: string,
     password: string,
-    options?: { simulate2fa?: boolean; trustDevice?: boolean }
+    options?: {
+      simulate2fa?: boolean;
+      trustDevice?: boolean;
+      turnstileToken?: string;
+      captchaToken?: string;
+    }
   ) => {
     try {
       const res = await fetch('/api/auth/login', {
@@ -248,6 +256,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           password,
           simulate2fa: options?.simulate2fa,
           trustDevice: options?.trustDevice,
+          turnstileToken: options?.turnstileToken || options?.captchaToken,
         }),
       });
       const data = await res.json();
@@ -294,9 +303,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           storeName?: string;
           phone?: string;
           twoFactorEnabled?: boolean;
+          turnstileToken?: string;
+          captchaToken?: string;
         },
     passwordParam?: string,
-    fullNameParam?: string
+    fullNameParam?: string,
+    turnstileTokenParam?: string
   ) => {
     const payload =
       typeof emailOrPayload === 'string'
@@ -307,6 +319,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             storeName: undefined,
             phone: undefined,
             twoFactorEnabled: false,
+            turnstileToken: turnstileTokenParam,
+            captchaToken: undefined,
           }
         : emailOrPayload;
 
@@ -321,6 +335,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           store_name: payload.storeName,
           phone: payload.phone,
           two_factor_enabled: payload.twoFactorEnabled,
+          turnstileToken: payload.turnstileToken || payload.captchaToken,
         }),
       });
       const data = await res.json();

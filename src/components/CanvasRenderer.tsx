@@ -65,6 +65,7 @@ export const CanvasRenderer: React.FC<Props> = ({
     bundle: BundleOption;
     totalPrice: number;
     currency: string;
+    turnstileToken?: string;
   }) => {
     const orderId = `#COD-${Math.floor(10000 + Math.random() * 90000)}`;
     onOrderConfirmed({

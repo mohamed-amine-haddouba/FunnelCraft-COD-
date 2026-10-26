@@ -16,10 +16,14 @@ import {
   Check,
   KeyRound,
 } from 'lucide-react';
+import { Turnstile, type TurnstileInstance } from '@marsidev/react-turnstile';
 
 interface AuthPageProps {
   initialMode?: 'login' | 'register';
   onSuccess?: () => void;
+  onNavigateToContact?: () => void;
+  onNavigateToTerms?: () => void;
+  onNavigateToPrivacy?: () => void;
 }
 
 type AuthViewMode = 'login' | 'register' | 'forgot-password' | 'reset-password';
@@ -51,6 +55,7 @@ interface GoogleGsiWindow extends Window {
 
 let isGsiInitialized = false;
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
+const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY || '';
 
 const LANGUAGES: { code: Language; label: string; flag: string }[] = [
   { code: 'ar', label: 'العربية', flag: '🇲🇦' },
@@ -58,7 +63,13 @@ const LANGUAGES: { code: Language; label: string; flag: string }[] = [
   { code: 'en', label: 'English', flag: '🇺🇸' },
 ];
 
-export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'login', onSuccess }) => {
+export const AuthPage: React.FC<AuthPageProps> = ({
+  initialMode = 'login',
+  onSuccess,
+  onNavigateToContact,
+  onNavigateToTerms,
+  onNavigateToPrivacy,
+}) => {
   const {
     login,
     register,
@@ -97,6 +108,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'login', onSuc
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [showLangDropdown, setShowLangDropdown] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
 
   // 2FA OTP state
   const [otpDigits, setOtpDigits] = useState<string[]>(['', '', '', '', '', '']);
@@ -107,6 +119,13 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'login', onSuc
   const otpInputsRef = useRef<(HTMLInputElement | null)[]>([]);
   const googleBtnContainerRef = useRef<HTMLDivElement>(null);
   const langDropdownRef = useRef<HTMLDivElement>(null);
+  const turnstileRef = useRef<TurnstileInstance | undefined>(undefined);
+
+  // Reset Turnstile token when switching auth view modes
+  useEffect(() => {
+    setTurnstileToken(null);
+    turnstileRef.current?.reset();
+  }, [mode]);
 
   // Detect URL parameters (?token=...&email=...) on mount for Reset Password view
   useEffect(() => {
@@ -266,15 +285,23 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'login', onSuc
       return;
     }
 
+    if (TURNSTILE_SITE_KEY && !turnstileToken) {
+      setErrorMessage('يرجى إتمام التحقق الأمني (CAPTCHA) للمتابعة.');
+      return;
+    }
+
     setIsLoading(true);
     setErrorMessage(null);
 
     const res = await login(email.trim(), password, {
       simulate2fa,
       trustDevice: rememberMe,
+      turnstileToken: turnstileToken || undefined,
     });
 
     setIsLoading(false);
+    setTurnstileToken(null);
+    turnstileRef.current?.reset();
 
     if (res.success) {
       if (res.requires2FA) {
@@ -300,6 +327,11 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'login', onSuc
       return;
     }
 
+    if (TURNSTILE_SITE_KEY && !turnstileToken) {
+      setErrorMessage('يرجى إتمام التحقق الأمني (CAPTCHA) للمتابعة.');
+      return;
+    }
+
     setIsLoading(true);
     setErrorMessage(null);
 
@@ -310,9 +342,12 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'login', onSuc
       storeName: storeName.trim() || undefined,
       phone: phone.trim() || undefined,
       twoFactorEnabled: false,
+      turnstileToken: turnstileToken || undefined,
     });
 
     setIsLoading(false);
+    setTurnstileToken(null);
+    turnstileRef.current?.reset();
 
     if (res.success) {
       if (res.requires2FA) {
@@ -333,6 +368,11 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'login', onSuc
       return;
     }
 
+    if (TURNSTILE_SITE_KEY && !turnstileToken) {
+      setErrorMessage('يرجى إتمام التحقق الأمني (CAPTCHA) للمتابعة.');
+      return;
+    }
+
     setIsLoading(true);
     setErrorMessage(null);
 
@@ -340,7 +380,10 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'login', onSuc
       const response = await fetch('/api/auth/forgot-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.trim() }),
+        body: JSON.stringify({
+          email: email.trim(),
+          turnstileToken: turnstileToken || undefined,
+        }),
       });
 
       const data = await response.json();
@@ -353,6 +396,8 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'login', onSuc
       setErrorMessage('تعذر الاتصال بالخادم. يرجى التحقق من اتصالك بالإنترنت.');
     } finally {
       setIsLoading(false);
+      setTurnstileToken(null);
+      turnstileRef.current?.reset();
     }
   };
 
@@ -780,9 +825,23 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'login', onSuc
                       </div>
                     )}
 
+                    {/* Cloudflare Turnstile CAPTCHA */}
+                    {TURNSTILE_SITE_KEY && (
+                      <div className="flex justify-center py-1" dir="ltr">
+                        <Turnstile
+                          ref={turnstileRef}
+                          siteKey={TURNSTILE_SITE_KEY}
+                          onSuccess={(token) => setTurnstileToken(token)}
+                          onExpire={() => setTurnstileToken(null)}
+                          onError={() => setTurnstileToken(null)}
+                          options={{ theme: 'dark', size: 'normal' }}
+                        />
+                      </div>
+                    )}
+
                     <button
                       type="submit"
-                      disabled={isLoading}
+                      disabled={isLoading || (Boolean(TURNSTILE_SITE_KEY) && !turnstileToken)}
                       className="w-full py-2.5 rounded-xl text-xs font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-md shadow-emerald-500/20 transition cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
                     >
                       {isLoading ? (
@@ -1161,10 +1220,24 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'login', onSuc
                     </div>
                   )}
 
+                  {/* Cloudflare Turnstile CAPTCHA */}
+                  {TURNSTILE_SITE_KEY && (
+                    <div className="flex justify-center py-1" dir="ltr">
+                      <Turnstile
+                        ref={turnstileRef}
+                        siteKey={TURNSTILE_SITE_KEY}
+                        onSuccess={(token) => setTurnstileToken(token)}
+                        onExpire={() => setTurnstileToken(null)}
+                        onError={() => setTurnstileToken(null)}
+                        options={{ theme: 'dark', size: 'normal' }}
+                      />
+                    </div>
+                  )}
+
                   {/* Submit CTA */}
                   <button
                     type="submit"
-                    disabled={isLoading}
+                    disabled={isLoading || (Boolean(TURNSTILE_SITE_KEY) && !turnstileToken)}
                     className="w-full py-2.5 rounded-xl text-xs font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-md shadow-emerald-500/20 transition cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2 mt-2"
                   >
                     {isLoading ? (
@@ -1209,6 +1282,48 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'login', onSuc
                 </p>
               </div>
             )}
+
+            {/* Public Legal & Contact Links (Always Accessible Without Login) */}
+            <div className="mt-6 pt-4 border-t border-slate-800/80 flex flex-wrap items-center justify-center gap-4 text-xs text-slate-400">
+              <a
+                href="/terms"
+                onClick={(e) => {
+                  if (onNavigateToTerms) {
+                    e.preventDefault();
+                    onNavigateToTerms();
+                  }
+                }}
+                className="hover:text-emerald-400 transition cursor-pointer"
+              >
+                شروط الاستخدام
+              </a>
+              <span className="text-slate-700">•</span>
+              <a
+                href="/privacy"
+                onClick={(e) => {
+                  if (onNavigateToPrivacy) {
+                    e.preventDefault();
+                    onNavigateToPrivacy();
+                  }
+                }}
+                className="hover:text-emerald-400 transition cursor-pointer"
+              >
+                سياسة الخصوصية
+              </a>
+              <span className="text-slate-700">•</span>
+              <a
+                href="/contact"
+                onClick={(e) => {
+                  if (onNavigateToContact) {
+                    e.preventDefault();
+                    onNavigateToContact();
+                  }
+                }}
+                className="hover:text-emerald-400 transition cursor-pointer"
+              >
+                تواصل معنا
+              </a>
+            </div>
           </div>
         </div>
 

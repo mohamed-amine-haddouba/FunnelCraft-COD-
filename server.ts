@@ -70,6 +70,7 @@ import { scrapeProductFromUrl, validateProductUrl, ScrapedProduct } from './serv
 import { scrapeProductData } from './server/scraper';
 import { sendOtpEmail, sendPasswordResetEmail } from './server/mailer';
 import { verifyGoogleCredential, isGoogleAuthConfigured } from './server/googleAuth';
+import { verifyTurnstileToken, extractClientIp } from './server/captcha';
 import {
   Client as PayPalClient,
   Environment as PayPalEnvironment,
@@ -279,7 +280,27 @@ async function startServer() {
 
   // 1. Sign Up / Merchant Registration
   app.post('/api/auth/register', async (req: Request, res: Response) => {
-    const { email, password, full_name, store_name, phone, two_factor_enabled } = req.body;
+    const {
+      email,
+      password,
+      full_name,
+      store_name,
+      phone,
+      two_factor_enabled,
+      turnstileToken,
+      captchaToken,
+    } = req.body;
+
+    const rawCaptcha =
+      turnstileToken || captchaToken || req.body['cf-turnstile-response'] || '';
+    const isCaptchaValid = await verifyTurnstileToken(rawCaptcha, extractClientIp(req));
+    if (!isCaptchaValid) {
+      return res.status(400).json({
+        success: false,
+        error: 'فشل التحقق الأمني (CAPTCHA). يرجى المحاولة مرة أخرى.',
+      });
+    }
+
     if (!email || !password) {
       return res.status(400).json({ success: false, error: 'Email and password are required.' });
     }
@@ -353,7 +374,18 @@ async function startServer() {
 
   // 2. Merchant & Super Admin Login (Protected by loginLimiter)
   app.post('/api/auth/login', loginLimiter, async (req: Request, res: Response) => {
-    const { email, password, simulate2fa } = req.body;
+    const { email, password, simulate2fa, turnstileToken, captchaToken } = req.body;
+
+    const rawCaptcha =
+      turnstileToken || captchaToken || req.body['cf-turnstile-response'] || '';
+    const isCaptchaValid = await verifyTurnstileToken(rawCaptcha, extractClientIp(req));
+    if (!isCaptchaValid) {
+      return res.status(400).json({
+        success: false,
+        error: 'فشل التحقق الأمني (CAPTCHA). يرجى المحاولة مرة أخرى.',
+      });
+    }
+
     if (!email || !password) {
       return res.status(400).json({ success: false, error: 'Email and password are required.' });
     }
@@ -687,7 +719,18 @@ async function startServer() {
 
   // 10. Forgot Password (Protected by forgotPasswordLimiter)
   app.post('/api/auth/forgot-password', forgotPasswordLimiter, async (req: Request, res: Response) => {
-    const { email } = req.body;
+    const { email, turnstileToken, captchaToken } = req.body;
+
+    const rawCaptcha =
+      turnstileToken || captchaToken || req.body['cf-turnstile-response'] || '';
+    const isCaptchaValid = await verifyTurnstileToken(rawCaptcha, extractClientIp(req));
+    if (!isCaptchaValid) {
+      return res.status(400).json({
+        success: false,
+        error: 'فشل التحقق الأمني (CAPTCHA). يرجى المحاولة مرة أخرى.',
+      });
+    }
+
     if (!email || typeof email !== 'string') {
       return res.status(400).json({ success: false, error: 'البريد الإلكتروني مطلوب.' });
     }
@@ -1700,7 +1743,7 @@ async function startServer() {
   });
 
   // POST /api/orders: Receives new order submissions from COD forms or PayPal Checkout (Sanitized & owner-resolved via pageSlug/funnelId or req.user.id)
-  app.post('/api/orders', optionalAuthMiddleware, (req: AuthRequest, res: Response) => {
+  app.post('/api/orders', optionalAuthMiddleware, async (req: AuthRequest, res: Response) => {
     try {
       const {
         customerName,
@@ -1720,9 +1763,25 @@ async function startServer() {
         status,
         currency,
         paypalOrderId,
+        turnstileToken,
+        captchaToken,
       } = req.body;
 
       const isPayPal = paymentMethod === 'paypal';
+
+      // Verify Cloudflare Turnstile CAPTCHA for public COD checkout submissions
+      if (!isPayPal) {
+        const rawCaptcha =
+          turnstileToken || captchaToken || req.body['cf-turnstile-response'] || '';
+        const isCaptchaValid = await verifyTurnstileToken(rawCaptcha, extractClientIp(req));
+        if (!isCaptchaValid) {
+          return res.status(400).json({
+            success: false,
+            error: 'يرجى إتمام التحقق الأمني (CAPTCHA) قبل تأكيد الطلب.',
+          });
+        }
+      }
+
       const effectivePhone = sanitizeInput(phone || customerPhone || (isPayPal ? 'PayPal' : ''), 30);
       if (!effectivePhone && !isPayPal) {
         return res.status(400).json({ success: false, error: 'Phone number is required for Cash on Delivery.' });
@@ -2400,7 +2459,7 @@ Return ONLY a valid JSON object matching this exact schema (no markdown outside 
   // Custom Domain Routing Middleware (Checks mapped custom domains for live funnels)
   app.use((req: Request, res: Response, next: NextFunction) => {
     const rawHost = (req.headers.host || '').split(':')[0].toLowerCase();
-    const ignoredHosts = ['localhost', '127.0.0.1', '0.0.0.0', 'funnelcraft.ma'];
+    const ignoredHosts = ['localhost', '127.0.0.1', '0.0.0.0', 'funnelcraft.ma', 'codworth.me', 'www.codworth.me'];
     const isSpecialHost = ignoredHosts.includes(rawHost) || rawHost.includes('ais-') || rawHost.includes('.run.app');
 
     if (!isSpecialHost && req.path === '/') {

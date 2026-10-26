@@ -1,6 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, Lock, Mail, User as UserIcon, AlertCircle, ArrowRight, CheckCircle2, ShieldCheck } from 'lucide-react';
+import { Turnstile, type TurnstileInstance } from '@marsidev/react-turnstile';
 import { useAuth } from '../context/AuthContext';
+
+const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY || '';
 
 export interface AuthModalProps {
   isOpen: boolean;
@@ -25,6 +28,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
   const [successNotice, setSuccessNotice] = useState<string | null>(null);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const turnstileRef = useRef<TurnstileInstance | undefined>(undefined);
 
   // Sync mode whenever initialMode changes while opened
   useEffect(() => {
@@ -32,8 +37,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       setMode(initialMode === 'login' || initialMode === 'signin' ? 'signin' : 'signup');
       setLocalError(null);
       setSuccessNotice(null);
+      setTurnstileToken(null);
+      turnstileRef.current?.reset();
     }
   }, [isOpen, initialMode]);
+
+  useEffect(() => {
+    setTurnstileToken(null);
+    turnstileRef.current?.reset();
+  }, [mode]);
 
   if (!isOpen) return null;
 
@@ -58,18 +70,30 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       return;
     }
 
+    if (TURNSTILE_SITE_KEY && !turnstileToken) {
+      setLocalError('يرجى إتمام التحقق الأمني (CAPTCHA) للمتابعة');
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
       if (mode === 'signup') {
-        const res = await register(email.trim(), password, fullName.trim());
+        const res = await register(
+          email.trim(),
+          password,
+          fullName.trim(),
+          turnstileToken || undefined
+        );
         if (res && res.success) {
           onClose();
         } else {
           setLocalError(res?.error || 'تعذر إنشاء الحساب، قد يكون البريد الإلكتروني مستخدماً بالفعل');
         }
       } else {
-        const res = await login(email.trim(), password);
+        const res = await login(email.trim(), password, {
+          turnstileToken: turnstileToken || undefined,
+        });
         if (res && res.success) {
           onClose();
         } else {
@@ -86,6 +110,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       }
     } finally {
       setIsSubmitting(false);
+      setTurnstileToken(null);
+      turnstileRef.current?.reset();
     }
   };
 
@@ -227,9 +253,22 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               </div>
             </div>
 
+            {TURNSTILE_SITE_KEY && (
+              <div className="flex justify-center pt-1" dir="ltr">
+                <Turnstile
+                  ref={turnstileRef}
+                  siteKey={TURNSTILE_SITE_KEY}
+                  onSuccess={(token) => setTurnstileToken(token)}
+                  onExpire={() => setTurnstileToken(null)}
+                  onError={() => setTurnstileToken(null)}
+                  options={{ theme: 'light', size: 'normal' }}
+                />
+              </div>
+            )}
+
             <button
               type="submit"
-              disabled={isSubmitting}
+              disabled={isSubmitting || (Boolean(TURNSTILE_SITE_KEY) && !turnstileToken)}
               className="w-full py-3.5 px-4 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.99] text-white font-black text-xs rounded-xl shadow-lg shadow-emerald-600/20 transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed mt-3"
             >
               <span>

@@ -25,6 +25,10 @@ import {
   Globe,
 } from 'lucide-react';
 import { PayPalScriptProvider, PayPalButtons } from '@paypal/react-paypal-js';
+import { Turnstile, type TurnstileInstance } from '@marsidev/react-turnstile';
+
+const TURNSTILE_SITE_KEY =
+  (import.meta as unknown as { env?: Record<string, string> }).env?.VITE_TURNSTILE_SITE_KEY || '';
 import {
   DEFAULT_EXCHANGE_RATES,
   SUPPORTED_DISPLAY_CURRENCIES,
@@ -169,6 +173,8 @@ export const CustomerLandingPage: React.FC<CustomerLandingPageProps> = ({
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const turnstileRef = useRef<TurnstileInstance | undefined>(undefined);
   const [orderSuccess, setOrderSuccess] = useState<{
     orderId: string;
     totalPrice: number;
@@ -283,6 +289,11 @@ export const CustomerLandingPage: React.FC<CustomerLandingPageProps> = ({
       }
     }
 
+    if (TURNSTILE_SITE_KEY && !turnstileToken) {
+      setErrorMessage('المرجو إتمام التحقق الأمني (CAPTCHA) قبل تأكيد الطلب.');
+      return;
+    }
+
     const finalPrice = activeBundle ? activeBundle.price : product.price;
     const finalQuantity = activeBundle ? activeBundle.quantity : 1;
 
@@ -307,6 +318,7 @@ export const CustomerLandingPage: React.FC<CustomerLandingPageProps> = ({
           funnelId: funnelId || undefined,
           userId: userId || undefined,
           notes: `العرض المختار: ${activeBundle.label} | المواصفات: ${formattedVariantString}`,
+          turnstileToken: turnstileToken || undefined,
         }),
       });
 
@@ -334,6 +346,8 @@ export const CustomerLandingPage: React.FC<CustomerLandingPageProps> = ({
       setErrorMessage(msg);
     } finally {
       setIsSubmitting(false);
+      setTurnstileToken(null);
+      turnstileRef.current?.reset();
     }
   };
 
@@ -905,10 +919,24 @@ export const CustomerLandingPage: React.FC<CustomerLandingPageProps> = ({
                   </div>
                 </div>
 
+                {/* Cloudflare Turnstile CAPTCHA */}
+                {TURNSTILE_SITE_KEY && (
+                  <div className="flex justify-center py-1" dir="ltr">
+                    <Turnstile
+                      ref={turnstileRef}
+                      siteKey={TURNSTILE_SITE_KEY}
+                      onSuccess={(token) => setTurnstileToken(token)}
+                      onExpire={() => setTurnstileToken(null)}
+                      onError={() => setTurnstileToken(null)}
+                      options={{ theme: 'light', size: 'normal' }}
+                    />
+                  </div>
+                )}
+
                 {/* Submit Button */}
                 <button
                   type="submit"
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || (Boolean(TURNSTILE_SITE_KEY) && !turnstileToken)}
                   className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 disabled:opacity-60 text-white font-black text-base sm:text-lg shadow-xl shadow-emerald-600/25 flex items-center justify-center gap-2.5 transition transform active:scale-[0.99] cursor-pointer"
                 >
                   {isSubmitting ? (

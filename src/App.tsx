@@ -283,23 +283,76 @@ function BuilderWorkspace() {
     pageData.scrapedData ? 'scraped' : 'blocks'
   );
 
+  // Helper to resolve public view from URL pathname
+  const resolvePublicViewFromPathname = (rawPath: string): 'contact' | 'terms' | 'privacy' | null => {
+    const cleanPath = rawPath.replace(/\/$/, '');
+    if (cleanPath === '/contact') return 'contact';
+    if (cleanPath === '/terms') return 'terms';
+    if (cleanPath === '/privacy') return 'privacy';
+    return null;
+  };
+
   // Platform-wide SaaS View & Pro Plan Gating
-  const [activeView, setActiveView] = useState<WorkspaceTab>('builder');
+  const [activeView, setActiveView] = useState<WorkspaceTab>(() => {
+    if (typeof window !== 'undefined') {
+      const publicView = resolvePublicViewFromPathname(window.location.pathname);
+      if (publicView) return publicView;
+    }
+    return 'builder';
+  });
   const [isCustomerLiveView, setIsCustomerLiveView] = useState<boolean>(false);
   const [currentPlan, setCurrentPlan] = useState<SubscriptionPlanId>(() => {
     return (localStorage.getItem('funnelcraft_plan') as SubscriptionPlanId) || 'free';
   });
   const [pendingOrdersCount, setPendingOrdersCount] = useState<number>(0);
 
+  const handleViewChange = useCallback((nextView: WorkspaceTab) => {
+    if (typeof window !== 'undefined') {
+      if (nextView === 'contact' || nextView === 'terms' || nextView === 'privacy') {
+        const targetPath = `/${nextView}`;
+        if (window.location.pathname !== targetPath) {
+          window.history.pushState({}, '', targetPath);
+        }
+      } else {
+        const currentClean = window.location.pathname.replace(/\/$/, '');
+        if (currentClean === '/contact' || currentClean === '/terms' || currentClean === '/privacy') {
+          window.history.pushState({}, '', '/');
+        }
+      }
+    }
+    setActiveView(nextView);
+  }, []);
+
+  // Listen to browser back/forward navigation for public routes
+  useEffect(() => {
+    const handlePopState = () => {
+      const pubView = resolvePublicViewFromPathname(window.location.pathname);
+      if (pubView) {
+        setActiveView(pubView);
+      } else {
+        setActiveView((prev) =>
+          prev === 'contact' || prev === 'terms' || prev === 'privacy' ? 'builder' : prev
+        );
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
   const handleNavigateToPricing = useCallback((reason?: string) => {
     setUpgradeTriggerReason(reason || '');
-    setActiveView('pricing');
-  }, []);
+    handleViewChange('pricing');
+  }, [handleViewChange]);
 
   // Immediate Super Admin access: when naadianajah2020@gmail.com / admin logs in, grant immediate access to Admin Control Center
   useEffect(() => {
+    if (typeof window !== 'undefined' && resolvePublicViewFromPathname(window.location.pathname)) {
+      return;
+    }
     if (user && (user.email?.toLowerCase() === 'naadianajah2020@gmail.com' || user.role === 'admin')) {
-      setActiveView('admin');
+      setActiveView((prev) =>
+        prev === 'contact' || prev === 'terms' || prev === 'privacy' ? prev : 'admin'
+      );
     }
   }, [user?.id, user?.email, user?.role]);
 
@@ -347,6 +400,7 @@ function BuilderWorkspace() {
           funnelId: pageData.id,
           pageSlug: pageData.slug,
           notes: data.customerNote,
+          turnstileToken: data.turnstileToken,
         }),
       });
     } catch (err) {
@@ -923,6 +977,63 @@ function BuilderWorkspace() {
     setSelectedBlockId(null);
   };
 
+  // Detect public routes from window.location.pathname OR activeView BEFORE any authentication check
+  const pathname = typeof window !== 'undefined' ? window.location.pathname.replace(/\/$/, '') : ''; // remove trailing slash
+  const isPublicRoute =
+    pathname === '/contact' ||
+    pathname === '/terms' ||
+    pathname === '/privacy' ||
+    activeView === 'contact' ||
+    activeView === 'terms' ||
+    activeView === 'privacy';
+
+  if (isPublicRoute && (!isLoggedIn || !user || user.status === 'pending')) {
+    const resolvedPublicTab =
+      pathname === '/contact'
+        ? 'contact'
+        : pathname === '/terms'
+        ? 'terms'
+        : pathname === '/privacy'
+        ? 'privacy'
+        : activeView;
+
+    if (resolvedPublicTab === 'contact') {
+      return (
+        <div className="min-h-screen w-screen overflow-y-auto overflow-x-hidden bg-slate-950 font-sans text-slate-100" dir={dir}>
+          <ContactPage
+            onBackToHome={() => handleViewChange('builder')}
+            onNavigateToTerms={() => handleViewChange('terms')}
+            onNavigateToPrivacy={() => handleViewChange('privacy')}
+          />
+        </div>
+      );
+    }
+
+    if (resolvedPublicTab === 'terms') {
+      return (
+        <div className="min-h-screen w-screen overflow-y-auto overflow-x-hidden bg-slate-950 font-sans text-slate-100" dir={dir}>
+          <TermsPage
+            onBackToHome={() => handleViewChange('builder')}
+            onNavigateToContact={() => handleViewChange('contact')}
+            onNavigateToPrivacy={() => handleViewChange('privacy')}
+          />
+        </div>
+      );
+    }
+
+    if (resolvedPublicTab === 'privacy') {
+      return (
+        <div className="min-h-screen w-screen overflow-y-auto overflow-x-hidden bg-slate-950 font-sans text-slate-100" dir={dir}>
+          <PrivacyPolicyPage
+            onBackToHome={() => handleViewChange('builder')}
+            onNavigateToTerms={() => handleViewChange('terms')}
+            onNavigateToContact={() => handleViewChange('contact')}
+          />
+        </div>
+      );
+    }
+  }
+
   // Loading Screen
   if (isLoading) {
     return (
@@ -937,7 +1048,14 @@ function BuilderWorkspace() {
 
   // Security Gate: require authenticated merchant session to access workspace
   if (!isLoggedIn || !user) {
-    return <AuthPage initialMode="login" />;
+    return (
+      <AuthPage
+        initialMode="login"
+        onNavigateToContact={() => handleViewChange('contact')}
+        onNavigateToTerms={() => handleViewChange('terms')}
+        onNavigateToPrivacy={() => handleViewChange('privacy')}
+      />
+    );
   }
 
   // Task 1: Frontend Gate for Pending Users
@@ -1072,7 +1190,7 @@ function BuilderWorkspace() {
         canRedo={history.future.length > 0}
         saveStatus={saveStatus}
         activeView={activeView}
-        onViewChange={setActiveView}
+        onViewChange={handleViewChange}
         pendingOrdersCount={pendingOrdersCount}
         currentPlan={currentPlan}
         onViewportChange={setViewport}
@@ -1083,7 +1201,7 @@ function BuilderWorkspace() {
         onSavePage={handleSaveCurrentPage}
         onOpenMyPagesModal={() => setIsMyPagesModalOpen(true)}
         onOpenPublishModal={() => setIsPublishModalOpen(true)}
-        onOpenSettingsModal={() => setActiveView('settings')}
+        onOpenSettingsModal={() => handleViewChange('settings')}
         isCurrentPagePublished={!!currentStoredPage?.isPublished}
         currentPublishedSlug={currentStoredPage?.slug}
         onOpenAiModal={handleTriggerAiGeneration}
@@ -1121,7 +1239,7 @@ function BuilderWorkspace() {
             type="button"
             onClick={async () => {
               await stopImpersonating();
-              setActiveView('admin');
+              handleViewChange('admin');
             }}
             className="px-3 py-1 rounded-md bg-slate-950 hover:bg-slate-900 text-amber-300 border border-amber-400/50 text-xs font-bold transition cursor-pointer flex items-center gap-1.5 shadow-sm shrink-0"
           >
@@ -1171,7 +1289,7 @@ function BuilderWorkspace() {
         <div className="flex-1 min-w-0 min-h-0 overflow-y-auto overflow-x-hidden bg-slate-950">
           <AdminOwnerDashboard
             onImpersonateSuccess={() => {
-              setActiveView('builder');
+              handleViewChange('builder');
             }}
             onNavigateToStorefront={() => {
               setIsCustomerLiveView(true);
@@ -1183,11 +1301,11 @@ function BuilderWorkspace() {
           <PricingPage
             currentPlan={currentPlan}
             triggerReason={upgradeTriggerReason}
-            onSelectFreePlan={() => setActiveView('builder')}
-            onBackToBuilder={() => setActiveView('builder')}
-            onNavigateToContact={() => setActiveView('contact')}
-            onNavigateToTerms={() => setActiveView('terms')}
-            onNavigateToPrivacy={() => setActiveView('privacy')}
+            onSelectFreePlan={() => handleViewChange('builder')}
+            onBackToBuilder={() => handleViewChange('builder')}
+            onNavigateToContact={() => handleViewChange('contact')}
+            onNavigateToTerms={() => handleViewChange('terms')}
+            onNavigateToPrivacy={() => handleViewChange('privacy')}
             onUpgradeSuccess={(tier) => {
               setCurrentPlan(tier);
               try {
@@ -1199,25 +1317,25 @@ function BuilderWorkspace() {
       ) : activeView === 'contact' ? (
         <div className="flex-1 min-w-0 min-h-0 overflow-y-auto overflow-x-hidden bg-slate-950">
           <ContactPage
-            onBackToHome={() => setActiveView('builder')}
-            onNavigateToTerms={() => setActiveView('terms')}
-            onNavigateToPrivacy={() => setActiveView('privacy')}
+            onBackToHome={() => handleViewChange('builder')}
+            onNavigateToTerms={() => handleViewChange('terms')}
+            onNavigateToPrivacy={() => handleViewChange('privacy')}
           />
         </div>
       ) : activeView === 'terms' ? (
         <div className="flex-1 min-w-0 min-h-0 overflow-y-auto overflow-x-hidden bg-slate-950">
           <TermsPage
-            onBackToHome={() => setActiveView('builder')}
-            onNavigateToContact={() => setActiveView('contact')}
-            onNavigateToPrivacy={() => setActiveView('privacy')}
+            onBackToHome={() => handleViewChange('builder')}
+            onNavigateToContact={() => handleViewChange('contact')}
+            onNavigateToPrivacy={() => handleViewChange('privacy')}
           />
         </div>
       ) : activeView === 'privacy' ? (
         <div className="flex-1 min-w-0 min-h-0 overflow-y-auto overflow-x-hidden bg-slate-950">
           <PrivacyPolicyPage
-            onBackToHome={() => setActiveView('builder')}
-            onNavigateToTerms={() => setActiveView('terms')}
-            onNavigateToContact={() => setActiveView('contact')}
+            onBackToHome={() => handleViewChange('builder')}
+            onNavigateToTerms={() => handleViewChange('terms')}
+            onNavigateToContact={() => handleViewChange('contact')}
           />
         </div>
       ) : activeView === 'builder' ? (

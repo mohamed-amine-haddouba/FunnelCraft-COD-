@@ -1,6 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { CodFormBlock, PageTheme, BundleOption } from '../../types/landingPage';
-import { ShieldCheck, Truck, Banknote, ArrowRight, ArrowLeft } from 'lucide-react';
+import { ShieldCheck, Truck, Banknote, ArrowRight, ArrowLeft, AlertCircle } from 'lucide-react';
+import { Turnstile, type TurnstileInstance } from '@marsidev/react-turnstile';
+
+const TURNSTILE_SITE_KEY =
+  (import.meta as unknown as { env?: Record<string, string> }).env?.VITE_TURNSTILE_SITE_KEY || '';
 
 interface OrderSubmitPayload {
   customerName: string;
@@ -11,6 +15,7 @@ interface OrderSubmitPayload {
   bundle: BundleOption;
   totalPrice: number;
   currency: string;
+  turnstileToken?: string;
 }
 
 interface Props {
@@ -36,11 +41,24 @@ export const CodFormBlockView: React.FC<Props> = ({ block, theme, isRtl, onOrder
   const [customerCity, setCustomerCity] = useState(block.fields.defaultCities?.[0] || '');
   const [customerAddress, setCustomerAddress] = useState('');
   const [customerNote, setCustomerNote] = useState('');
+  const [formError, setFormError] = useState<string | null>(null);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const turnstileRef = useRef<TurnstileInstance | undefined>(undefined);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setFormError(null);
     if (!customerPhone) {
-      alert(isRtl ? 'يرجى إدخال رقم هاتفك للتواصل' : 'Please provide your phone number.');
+      setFormError(isRtl ? 'يرجى إدخال رقم هاتفك للتواصل' : 'Please provide your phone number.');
+      return;
+    }
+
+    if (TURNSTILE_SITE_KEY && !turnstileToken) {
+      setFormError(
+        isRtl
+          ? 'يرجى إتمام التحقق الأمني (CAPTCHA) قبل تأكيد الطلب.'
+          : 'Please complete the CAPTCHA verification.'
+      );
       return;
     }
 
@@ -54,8 +72,12 @@ export const CodFormBlockView: React.FC<Props> = ({ block, theme, isRtl, onOrder
         bundle: selectedBundle,
         totalPrice: selectedBundle.price,
         currency: block.currency,
+        turnstileToken: turnstileToken || undefined,
       });
     }
+
+    setTurnstileToken(null);
+    turnstileRef.current?.reset();
   };
 
   return (
@@ -244,10 +266,32 @@ export const CodFormBlockView: React.FC<Props> = ({ block, theme, isRtl, onOrder
             <span>{block.guaranteeText}</span>
           </div>
 
+          {formError && (
+            <div className="p-3 bg-rose-50 border border-rose-200 rounded-2xl text-rose-700 text-xs font-bold flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              <span>{formError}</span>
+            </div>
+          )}
+
+          {/* Cloudflare Turnstile CAPTCHA */}
+          {TURNSTILE_SITE_KEY && (
+            <div className="flex justify-center py-1" dir="ltr">
+              <Turnstile
+                ref={turnstileRef}
+                siteKey={TURNSTILE_SITE_KEY}
+                onSuccess={(token) => setTurnstileToken(token)}
+                onExpire={() => setTurnstileToken(null)}
+                onError={() => setTurnstileToken(null)}
+                options={{ theme: 'light', size: 'normal' }}
+              />
+            </div>
+          )}
+
           {/* Big Order Confirmation Button */}
           <button
             type="submit"
-            className="w-full py-4 px-6 text-white font-black text-lg md:text-xl rounded-2xl shadow-xl hover:shadow-2xl active:scale-98 transition transform flex items-center justify-center gap-2 cursor-pointer"
+            disabled={Boolean(TURNSTILE_SITE_KEY) && !turnstileToken}
+            className="w-full py-4 px-6 text-white font-black text-lg md:text-xl rounded-2xl shadow-xl hover:shadow-2xl active:scale-98 disabled:opacity-60 transition transform flex items-center justify-center gap-2 cursor-pointer"
             style={{ backgroundColor: theme.primaryColor || '#059669' }}
           >
             <span>{block.buttonText}</span>
