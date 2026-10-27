@@ -1,40 +1,31 @@
 import nodemailer from 'nodemailer';
 
-export interface SmtpConfig {
-  host: string;
-  port: number;
-  secure: boolean;
-  user?: string;
-  pass?: string;
-  from: string;
-}
-
-export function getSmtpConfig(): SmtpConfig {
-  const host = process.env.SMTP_HOST || 'smtp.gmail.com';
-  const port = parseInt(process.env.SMTP_PORT || '587', 10);
-  const secure = port === 465;
-  const user = process.env.SMTP_USER;
-  const pass = process.env.SMTP_PASS;
-  const from = process.env.SMTP_USER || process.env.SMTP_FROM || 'CodWorth <no-reply@codworth.com>';
-
-  return { host, port, secure, user, pass, from };
-}
-
 export function createMailerTransport() {
-  const config = getSmtpConfig();
-
   return nodemailer.createTransport({
-    host: config.host,
-    port: config.port,
-    secure: config.secure,
-    auth:
-      config.user && config.pass
-        ? {
-            user: config.user,
-            pass: config.pass,
-          }
-        : undefined,
+    service: 'gmail',
+    auth: {
+      type: 'OAuth2',
+      user: process.env.SMTP_USER,
+      clientId: process.env.GOOGLE_MAILER_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_MAILER_CLIENT_SECRET,
+      refreshToken: process.env.GOOGLE_REFRESH_TOKEN,
+    },
   });
+}
+
+function checkMailerConfig(): boolean {
+  if (
+    !process.env.SMTP_USER ||
+    !process.env.GOOGLE_MAILER_CLIENT_ID ||
+    !process.env.GOOGLE_MAILER_CLIENT_SECRET ||
+    !process.env.GOOGLE_REFRESH_TOKEN
+  ) {
+    console.error(
+      '[Mailer Error] Mailer credentials missing. Please set SMTP_USER, GOOGLE_MAILER_CLIENT_ID, GOOGLE_MAILER_CLIENT_SECRET, and GOOGLE_REFRESH_TOKEN in .env'
+    );
+    return false;
+  }
+  return true;
 }
 
 /**
@@ -46,13 +37,7 @@ export async function sendOtpEmail(
   otpCode: string,
   userName: string
 ): Promise<boolean> {
-  // If SMTP credentials are missing, fail gracefully and log clear warning
-  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
-    console.error(
-      '[Mailer Error] SMTP credentials missing in environment variables (SMTP_HOST, SMTP_USER, SMTP_PASS).'
-    );
-    return false;
-  }
+  if (!checkMailerConfig()) return false;
 
   const transporter = createMailerTransport();
 
@@ -69,7 +54,6 @@ export async function sendOtpEmail(
     <tr>
       <td align="center">
         <table role="presentation" width="100%" style="max-width: 540px; background-color: #0f172a; border-radius: 24px; border: 1px solid #1e293b; overflow: hidden; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);" cellspacing="0" cellpadding="0" border="0">
-          <!-- Header Banner -->
           <tr>
             <td style="background: linear-gradient(135deg, #059669 0%, #0d9488 100%); padding: 32px 30px; text-align: center;">
               <div style="font-size: 28px; font-weight: 900; color: #ffffff; letter-spacing: -0.5px;">
@@ -80,8 +64,6 @@ export async function sendOtpEmail(
               </div>
             </td>
           </tr>
-
-          <!-- Main Body -->
           <tr>
             <td style="padding: 36px 32px;">
               <h2 style="margin: 0 0 12px 0; font-size: 20px; font-weight: 800; color: #ffffff; line-height: 1.4;">
@@ -90,8 +72,6 @@ export async function sendOtpEmail(
               <p style="margin: 0 0 24px 0; font-size: 14px; line-height: 1.7; color: #94a3b8;">
                 لحماية حسابك وبيانات متجرك، تلقينا طلباً لتسجيل الدخول إلى حسابك على منصة CodWorth. يرجى استخدام رمز التحقق التالي لإتمام العملية:
               </p>
-
-              <!-- OTP Card -->
               <div style="background-color: #020617; border: 2px dashed #059669; border-radius: 18px; padding: 24px; text-align: center; margin: 28px 0;">
                 <div style="font-size: 12px; font-weight: 700; color: #10b981; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px;">
                   رمز التحقق الخاص بك (2FA OTP)
@@ -103,8 +83,6 @@ export async function sendOtpEmail(
                   ⏳ <strong>هذا الرمز صالح لمدة 5 دقائق فقط</strong>
                 </div>
               </div>
-
-              <!-- Security Notice -->
               <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.25); border-radius: 14px; padding: 14px 16px; margin-bottom: 24px;">
                 <tr>
                   <td style="font-size: 13px; color: #fbbf24; line-height: 1.5;">
@@ -112,14 +90,11 @@ export async function sendOtpEmail(
                   </td>
                 </tr>
               </table>
-
               <p style="margin: 0; font-size: 13px; line-height: 1.6; color: #64748b;">
                 إذا لم تكن أنت من حاول تسجيل الدخول، يُرجى تجاهل هذه الرسالة فوراً وتغيير كلمة مرور حسابك.
               </p>
             </td>
           </tr>
-
-          <!-- Footer -->
           <tr>
             <td style="background-color: #090d16; padding: 20px 32px; border-top: 1px solid #1e293b; text-align: center; font-size: 11px; color: #475569;">
               © ${new Date().getFullYear()} CodWorth Inc. جميع الحقوق محفوظة • المملكة المغربية
@@ -145,7 +120,6 @@ export async function sendOtpEmail(
       text: `مرحباً ${userName || 'تاجرنا'}، رمز التحقق الخاص بك هو: ${otpCode}. هذا الرمز صالح لمدة 5 دقائق فقط. لا تشاركه مع أي شخص.`,
       html: htmlContent,
     });
-
     return true;
   } catch (error) {
     console.error('[Mailer Error] Failed to send OTP email to', to, error);
@@ -162,12 +136,7 @@ export async function sendPasswordResetEmail(
   userName: string,
   resetUrl: string
 ): Promise<boolean> {
-  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
-    console.error(
-      '[Mailer Error] SMTP credentials missing in environment variables (SMTP_HOST, SMTP_USER, SMTP_PASS).'
-    );
-    return false;
-  }
+  if (!checkMailerConfig()) return false;
 
   const transporter = createMailerTransport();
 
@@ -184,7 +153,6 @@ export async function sendPasswordResetEmail(
     <tr>
       <td align="center">
         <table role="presentation" width="100%" style="max-width: 540px; background-color: #0f172a; border-radius: 24px; border: 1px solid #1e293b; overflow: hidden; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);" cellspacing="0" cellpadding="0" border="0">
-          <!-- Header Banner -->
           <tr>
             <td style="background: linear-gradient(135deg, #059669 0%, #0d9488 100%); padding: 32px 30px; text-align: center;">
               <div style="font-size: 28px; font-weight: 900; color: #ffffff; letter-spacing: -0.5px;">
@@ -195,8 +163,6 @@ export async function sendPasswordResetEmail(
               </div>
             </td>
           </tr>
-
-          <!-- Main Body -->
           <tr>
             <td style="padding: 36px 32px;">
               <h2 style="margin: 0 0 12px 0; font-size: 20px; font-weight: 800; color: #ffffff; line-height: 1.4;">
@@ -205,8 +171,6 @@ export async function sendPasswordResetEmail(
               <p style="margin: 0 0 24px 0; font-size: 14px; line-height: 1.7; color: #94a3b8;">
                 تلقينا طلباً لإعادة تعيين كلمة المرور الخاصة بحسابك على منصة CodWorth. يمكنك تعيين كلمة مرور جديدة بالضغط على الزر أدناه:
               </p>
-
-              <!-- Action Button Card -->
               <div style="background-color: #020617; border: 1px solid #1e293b; border-radius: 18px; padding: 28px 24px; text-align: center; margin: 28px 0;">
                 <a href="${resetUrl}" target="_blank" style="display: inline-block; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #020617; font-size: 15px; font-weight: 800; text-decoration: none; padding: 14px 32px; border-radius: 12px; box-shadow: 0 10px 15px -3px rgba(16, 185, 129, 0.3);">
                   إعادة تعيين كلمة المرور
@@ -215,14 +179,10 @@ export async function sendPasswordResetEmail(
                   ⏳ <strong>هذا الرابط صالح لمدة ساعة واحدة (1 ساعة) فقط</strong>
                 </div>
               </div>
-
-              <!-- Fallback Link -->
               <p style="margin: 0 0 20px 0; font-size: 12px; line-height: 1.6; color: #64748b;">
                 إذا لم يعمل الزر أعلاه، يمكنك نسخ الرابط التالي ولصقه في متصفحك:<br/>
                 <a href="${resetUrl}" style="color: #10b981; word-break: break-all; direction: ltr; display: inline-block; margin-top: 6px;">${resetUrl}</a>
               </p>
-
-              <!-- Security Notice -->
               <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.25); border-radius: 14px; padding: 14px 16px; margin-bottom: 20px;">
                 <tr>
                   <td style="font-size: 13px; color: #fbbf24; line-height: 1.5;">
@@ -232,8 +192,6 @@ export async function sendPasswordResetEmail(
               </table>
             </td>
           </tr>
-
-          <!-- Footer -->
           <tr>
             <td style="background-color: #090d16; padding: 20px 32px; border-top: 1px solid #1e293b; text-align: center; font-size: 11px; color: #475569;">
               © ${new Date().getFullYear()} CodWorth Inc. جميع الحقوق محفوظة • المملكة المغربية
@@ -259,7 +217,6 @@ export async function sendPasswordResetEmail(
       text: `مرحباً ${userName || 'تاجرنا'}، لإعادة تعيين كلمة المرور الخاصة بك، يرجى فتح الرابط التالي (صالح لمدة ساعة واحدة): ${resetUrl}`,
       html: htmlContent,
     });
-
     return true;
   } catch (error) {
     console.error('[Mailer Error] Failed to send password reset email to', to, error);
@@ -281,12 +238,7 @@ export async function sendAdminNotificationEmail(
     process.env.SMTP_USER ||
     'naadianajah2020@gmail.com';
 
-  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
-    console.warn(
-      `[Admin Mailer] SMTP credentials not configured. Skipping admin notification: "${subject}"`
-    );
-    return false;
-  }
+  if (!checkMailerConfig()) return false;
 
   const transporter = createMailerTransport();
   const isFullHtmlDoc =
@@ -308,7 +260,6 @@ export async function sendAdminNotificationEmail(
     <tr>
       <td align="center">
         <table role="presentation" width="100%" style="max-width: 580px; background-color: #0f172a; border-radius: 24px; border: 1px solid #1e293b; overflow: hidden; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);" cellspacing="0" cellpadding="0" border="0">
-          <!-- Header Banner -->
           <tr>
             <td style="background: linear-gradient(135deg, #059669 0%, #0d9488 100%); padding: 26px 30px; text-align: center;">
               <div style="font-size: 24px; font-weight: 900; color: #ffffff; letter-spacing: -0.5px;">
@@ -319,8 +270,6 @@ export async function sendAdminNotificationEmail(
               </div>
             </td>
           </tr>
-
-          <!-- Main Body -->
           <tr>
             <td style="padding: 32px 28px; font-size: 14px; line-height: 1.8; color: #e2e8f0;">
               ${htmlContent}
@@ -331,8 +280,6 @@ export async function sendAdminNotificationEmail(
               </div>
             </td>
           </tr>
-
-          <!-- Footer -->
           <tr>
             <td style="background-color: #090d16; padding: 18px 28px; border-top: 1px solid #1e293b; text-align: center; font-size: 11px; color: #64748b;">
               ⏰ توقيت الحدث: ${new Date().toLocaleString('ar-MA', { timeZone: 'Africa/Casablanca' })} • © ${new Date().getFullYear()} CodWorth HQ
@@ -364,5 +311,3 @@ export async function sendAdminNotificationEmail(
     return false;
   }
 }
-
-
