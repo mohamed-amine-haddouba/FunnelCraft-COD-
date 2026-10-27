@@ -11,7 +11,8 @@
 }
 
 .grecaptcha-badge {
-  visibility: hidden !important;
   display: none !important;
+  visibility: hidden !important;
 }
+
 

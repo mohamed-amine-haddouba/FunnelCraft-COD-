@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Sparkles, Mail, MessageCircle, MapPin, ShieldCheck, FileText, Lock, Home } from 'lucide-react';
 
 import { FloatingWhatsApp } from './FloatingWhatsApp';
@@ -16,19 +17,24 @@ export const PublicFooter: React.FC<PublicFooterProps> = ({
   onNavigate,
   showWhatsAppFloat = false,
 }) => {
+  const navigate = useNavigate();
+
   const handleLinkClick = (
     e: React.MouseEvent<HTMLAnchorElement>,
     targetPath: '/' | '/contact' | '/terms' | '/privacy'
   ) => {
+    e.preventDefault();
     if (onNavigate) {
-      e.preventDefault();
       onNavigate(targetPath);
+    } else {
+      navigate(targetPath);
     }
   };
 
   return (
     <>
       {showWhatsAppFloat && <FloatingWhatsApp />}
+
 
       <footer
         dir="rtl"

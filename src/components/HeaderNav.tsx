@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import {
   ViewportMode,
   LandingPageData,
@@ -49,8 +50,8 @@ interface Props {
   canUndo: boolean;
   canRedo: boolean;
   saveStatus?: 'idle' | 'saving' | 'saved' | 'unsaved' | 'error';
-  activeView: WorkspaceTab;
-  onViewChange: (view: WorkspaceTab) => void;
+  activeView?: WorkspaceTab;
+  onViewChange?: (view: WorkspaceTab) => void;
   pendingOrdersCount?: number;
   currentPlan?: SubscriptionPlanId;
   onViewportChange: (mode: ViewportMode) => void;
@@ -98,6 +99,19 @@ export const HeaderNav: React.FC<Props> = ({
   const [showTemplates, setShowTemplates] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
 
+  const navigate = useNavigate();
+  const { tab } = useParams<{ tab?: string }>();
+  const currentTab: WorkspaceTab = (tab as WorkspaceTab) || activeView || 'builder';
+
+  const handleNavigateTab = (target: WorkspaceTab) => {
+    if (target === 'contact' || target === 'terms' || target === 'privacy') {
+      navigate(`/${target}`);
+    } else {
+      navigate(`/dashboard/${target}`);
+    }
+    onViewChange?.(target);
+  };
+
   const {
     user,
     isLoggedIn,
@@ -126,7 +140,7 @@ export const HeaderNav: React.FC<Props> = ({
         <div className="flex items-center gap-2 shrink-0">
           <button
             type="button"
-            onClick={() => onViewChange('builder')}
+            onClick={() => navigate('/dashboard/builder')}
             className="flex items-center gap-2 cursor-pointer group shrink-0"
             title="CodWorth — منصة صفحات الهبوط والدفع عند الاستلام"
           >
@@ -143,10 +157,10 @@ export const HeaderNav: React.FC<Props> = ({
         <nav className="flex items-center justify-center gap-1 bg-slate-900/90 p-1 rounded-xl border border-slate-800 min-w-0 shrink-0">
           <button
             type="button"
-            onClick={() => onViewChange('builder')}
+            onClick={() => handleNavigateTab('builder')}
             title={t.navBuilder}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer whitespace-nowrap shrink-0 ${
-              activeView === 'builder'
+              currentTab === 'builder'
                 ? 'bg-emerald-500 text-slate-950 shadow-xs'
                 : 'text-slate-300 hover:text-white hover:bg-slate-800/70'
             }`}
@@ -157,10 +171,10 @@ export const HeaderNav: React.FC<Props> = ({
 
           <button
             type="button"
-            onClick={() => onViewChange('orders')}
+            onClick={() => handleNavigateTab('orders')}
             title={t.navOrders}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer whitespace-nowrap shrink-0 relative ${
-              activeView === 'orders'
+              currentTab === 'orders'
                 ? 'bg-emerald-500 text-slate-950 shadow-xs'
                 : 'text-slate-300 hover:text-white hover:bg-slate-800/70'
             }`}
@@ -170,7 +184,7 @@ export const HeaderNav: React.FC<Props> = ({
             {pendingOrdersCount > 0 && (
               <span
                 className={`px-1.5 py-0.2 text-[10px] font-black rounded-full font-mono shrink-0 ${
-                  activeView === 'orders'
+                  currentTab === 'orders'
                     ? 'bg-slate-950 text-emerald-400'
                     : 'bg-rose-500 text-white'
                 }`}
@@ -182,10 +196,10 @@ export const HeaderNav: React.FC<Props> = ({
 
           <button
             type="button"
-            onClick={() => onViewChange('analytics')}
+            onClick={() => handleNavigateTab('analytics')}
             title={t.navAnalytics}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer whitespace-nowrap shrink-0 ${
-              activeView === 'analytics'
+              currentTab === 'analytics'
                 ? 'bg-emerald-500 text-slate-950 shadow-xs'
                 : 'text-slate-300 hover:text-white hover:bg-slate-800/70'
             }`}
@@ -197,7 +211,7 @@ export const HeaderNav: React.FC<Props> = ({
 
         {/* 3. Secondary Actions (Left in RTL): Icon-only Builder Tools + User Avatar Dropdown */}
         <div className="flex items-center gap-1.5 shrink-0">
-          {activeView === 'builder' && (
+          {currentTab === 'builder' && (
             <div className="flex items-center gap-1 shrink-0">
               {/* My Pages (Icon-only with tooltip) */}
               <button
@@ -299,7 +313,7 @@ export const HeaderNav: React.FC<Props> = ({
             <button
               type="button"
               onClick={() => {
-                onViewChange('pricing');
+                handleNavigateTab('pricing');
                 onOpenUpgradeModal();
               }}
               title={`${t.upgrade} (${pagesCreatedCount}/${maxFreePages})`}
@@ -346,7 +360,7 @@ export const HeaderNav: React.FC<Props> = ({
       </div>
 
       {/* Templates Dropdown Menu */}
-      {showTemplates && activeView === 'builder' && (
+      {showTemplates && currentTab === 'builder' && (
         <>
           <div
             className="fixed inset-0 z-40"
@@ -413,6 +427,7 @@ export const HeaderNav: React.FC<Props> = ({
                 type="button"
                 onClick={() => {
                   setShowUserMenu(false);
+                  handleNavigateTab('settings');
                   onOpenSettingsModal();
                 }}
                 className="w-full px-3 py-2 rounded-lg hover:bg-slate-800 text-slate-200 font-semibold flex items-center gap-2.5 transition cursor-pointer"
@@ -425,7 +440,7 @@ export const HeaderNav: React.FC<Props> = ({
                 type="button"
                 onClick={() => {
                   setShowUserMenu(false);
-                  onViewChange('settings');
+                  handleNavigateTab('settings');
                 }}
                 className="w-full px-3 py-2 rounded-lg hover:bg-slate-800 text-slate-200 font-semibold flex items-center gap-2.5 transition cursor-pointer"
               >
@@ -451,7 +466,7 @@ export const HeaderNav: React.FC<Props> = ({
                     type="button"
                     onClick={() => {
                       setShowUserMenu(false);
-                      onViewChange('admin');
+                      handleNavigateTab('admin');
                     }}
                     className="w-full px-3 py-2 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 font-bold flex items-center justify-between transition cursor-pointer"
                   >
@@ -487,7 +502,7 @@ export const HeaderNav: React.FC<Props> = ({
                   type="button"
                   onClick={() => {
                     setShowUserMenu(false);
-                    onViewChange('pricing');
+                    handleNavigateTab('pricing');
                   }}
                   className="w-full px-3 py-2 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 font-bold flex items-center gap-2.5 transition cursor-pointer"
                 >
@@ -524,7 +539,7 @@ export const HeaderNav: React.FC<Props> = ({
                 type="button"
                 onClick={() => {
                   setShowUserMenu(false);
-                  onViewChange('contact');
+                  navigate('/contact');
                 }}
                 className="w-full px-3 py-1.5 rounded-lg hover:bg-slate-800 text-slate-300 font-medium flex items-center gap-2 transition cursor-pointer text-[11px]"
               >
@@ -536,7 +551,7 @@ export const HeaderNav: React.FC<Props> = ({
                 type="button"
                 onClick={() => {
                   setShowUserMenu(false);
-                  onViewChange('terms');
+                  navigate('/terms');
                 }}
                 className="w-full px-3 py-1.5 rounded-lg hover:bg-slate-800 text-slate-300 font-medium flex items-center gap-2 transition cursor-pointer text-[11px]"
               >
@@ -548,7 +563,7 @@ export const HeaderNav: React.FC<Props> = ({
                 type="button"
                 onClick={() => {
                   setShowUserMenu(false);
-                  onViewChange('privacy');
+                  navigate('/privacy');
                 }}
                 className="w-full px-3 py-1.5 rounded-lg hover:bg-slate-800 text-slate-300 font-medium flex items-center gap-2 transition cursor-pointer text-[11px]"
               >
@@ -560,9 +575,10 @@ export const HeaderNav: React.FC<Props> = ({
             {/* Logout */}
             <button
               type="button"
-              onClick={() => {
-                logout();
+              onClick={async () => {
                 setShowUserMenu(false);
+                await logout();
+                navigate('/login');
               }}
               className="w-full mt-1 px-3 py-2 rounded-lg hover:bg-rose-950/50 text-rose-400 font-semibold flex items-center gap-2.5 transition cursor-pointer border-t border-slate-800"
             >
@@ -575,3 +591,4 @@ export const HeaderNav: React.FC<Props> = ({
     </header>
   );
 };
+

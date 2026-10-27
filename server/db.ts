@@ -464,6 +464,12 @@ export function updateUserProfile(userId: string, data: Partial<UserProfile>): U
   if (typeof data.avatar === 'string' && data.avatar.trim()) {
     user.avatar = data.avatar.trim();
   }
+  if (typeof data.custom_domain === 'string') {
+    user.custom_domain = data.custom_domain.trim();
+  }
+  if (typeof data.city === 'string' && data.city.trim()) {
+    user.city = data.city.trim();
+  }
   if (typeof data.two_factor_enabled === 'boolean') {
     user.two_factor_enabled = data.two_factor_enabled;
   }
@@ -523,26 +529,85 @@ export function findOrCreateGoogleUser(payload: { email: string; name: string; p
   return newUser;
 }
 
+const SESSIONS_FILE = path.resolve(DATA_DIR, 'sessions.json');
+
+function loadSessionsFromDisk(): void {
+  if (!fs.existsSync(SESSIONS_FILE)) return;
+  try {
+    const raw = fs.readFileSync(SESSIONS_FILE, 'utf-8');
+    const entries = JSON.parse(raw) as Array<[string, { userId: string; expiresAt: number }]>;
+    if (Array.isArray(entries)) {
+      const now = Date.now();
+      for (const [tok, sess] of entries) {
+        if (tok && sess && sess.userId && sess.expiresAt > now) {
+          sessions.set(tok, sess);
+        }
+      }
+    }
+  } catch {
+    // ignore corrupt sessions file
+  }
+}
+
+function saveSessionsToDisk(): void {
+  try {
+    if (!fs.existsSync(DATA_DIR)) {
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+    }
+    const entries = Array.from(sessions.entries());
+    fs.writeFileSync(SESSIONS_FILE, JSON.stringify(entries, null, 2), 'utf-8');
+  } catch {
+    // ignore write error
+  }
+}
+
+loadSessionsFromDisk();
+
 export function createSession(userId: string): string {
-  const token = 'fc_' + crypto.randomBytes(32).toString('hex');
+  const encodedUser = Buffer.from(userId, 'utf-8').toString('base64url');
+  const token = `fc_${encodedUser}.${crypto.randomBytes(24).toString('hex')}`;
   const expiresAt = Date.now() + 30 * 24 * 60 * 60 * 1000;
   sessions.set(token, { userId, expiresAt });
+  saveSessionsToDisk();
   return token;
 }
 
 export function getUserByToken(token: string): StoredUser | undefined {
   const session = sessions.get(token);
-  if (!session) return undefined;
-  if (Date.now() > session.expiresAt) {
-    sessions.delete(token);
-    return undefined;
+  if (session) {
+    if (Date.now() > session.expiresAt) {
+      sessions.delete(token);
+      saveSessionsToDisk();
+      return undefined;
+    }
+    return users.get(session.userId);
   }
-  return users.get(session.userId);
+  // Fallback for encoded token across restarts
+  if (token.startsWith('fc_') && token.includes('.')) {
+    try {
+      const encodedPart = token.slice(3, token.indexOf('.'));
+      const decodedUserId = Buffer.from(encodedPart, 'base64url').toString('utf-8');
+      const foundUser = users.get(decodedUserId);
+      if (foundUser) {
+        sessions.set(token, {
+          userId: decodedUserId,
+          expiresAt: Date.now() + 30 * 24 * 60 * 60 * 1000,
+        });
+        saveSessionsToDisk();
+        return foundUser;
+      }
+    } catch {
+      // ignore invalid format
+    }
+  }
+  return undefined;
 }
 
 export function deleteSession(token: string): void {
   sessions.delete(token);
+  saveSessionsToDisk();
 }
+
 
 export function incrementUserUsage(userId: string): { user: UserProfile; allowed: boolean } {
   const user = users.get(userId);

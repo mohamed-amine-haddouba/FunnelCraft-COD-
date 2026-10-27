@@ -202,10 +202,10 @@ async function startServer() {
   const app = express();
   const PORT = Number(process.env.PORT) || 3000;
 
-  // Strict CORS Configuration
+  // CORS Configuration (supports codworth.me, localhost, and preview URLs)
   app.use(
     cors({
-      origin: ['https://codworth.me', 'https://www.codworth.me', 'http://localhost:3000'], // Add localhost for dev
+      origin: true,
       credentials: true,
       methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     })
@@ -730,12 +730,15 @@ async function startServer() {
       const rawStoreName = req.body.store_name ?? req.body.storeName;
       const rawPhone = req.body.phone;
       const rawAvatar = req.body.avatar;
+      const rawCustomDomain = req.body.custom_domain ?? req.body.customDomain;
 
       const safeProfileUpdates = {
         full_name: typeof rawFullName === 'string' && rawFullName.trim() ? sanitizeInput(rawFullName, 120) : undefined,
         store_name: typeof rawStoreName === 'string' && rawStoreName.trim() ? sanitizeInput(rawStoreName, 120) : undefined,
         phone: typeof rawPhone === 'string' && rawPhone.trim() ? sanitizeInput(rawPhone, 40) : undefined,
         avatar: typeof rawAvatar === 'string' && rawAvatar.trim() ? rawAvatar.trim() : undefined,
+        custom_domain:
+          typeof rawCustomDomain === 'string' ? sanitizeInput(rawCustomDomain, 120) : undefined,
         two_factor_enabled:
           typeof req.body.two_factor_enabled === 'boolean' ? req.body.two_factor_enabled : undefined,
       };

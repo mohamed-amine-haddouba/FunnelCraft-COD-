@@ -765,10 +765,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const refreshUser = async () => {
-    if (token) {
-      await fetchCurrentUser(token);
+    const activeToken = token || localStorage.getItem(TOKEN_KEY);
+    if (activeToken) {
+      await fetchCurrentUser(activeToken);
     }
   };
+
 
   const isPro = user?.subscription_status === 'active';
   const isAdmin = user?.role === 'admin' || user?.email?.includes('admin') || false;

@@ -1,5 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
+  Routes,
+  Route,
+  Navigate,
+  useParams,
+  useNavigate,
+  useLocation,
+  Link,
+} from 'react-router-dom';
+import {
   LandingPageData,
   LandingPageBlock,
   BlockType,
@@ -334,85 +343,38 @@ function BuilderWorkspace() {
     pageData.scrapedData ? 'scraped' : 'blocks'
   );
 
-  // Helper to resolve public view from URL pathname
-  const resolvePublicViewFromPathname = (rawPath: string): 'contact' | 'terms' | 'privacy' | null => {
-    const cleanPath = rawPath.replace(/\/$/, '');
-    if (cleanPath === '/contact') return 'contact';
-    if (cleanPath === '/terms') return 'terms';
-    if (cleanPath === '/privacy') return 'privacy';
-    return null;
-  };
+  const navigate = useNavigate();
+  const { tab } = useParams<{ tab?: string }>();
+  const activeTab: WorkspaceTab =
+    tab === 'orders' ||
+    tab === 'analytics' ||
+    tab === 'settings' ||
+    tab === 'admin' ||
+    tab === 'pricing' ||
+    tab === 'builder'
+      ? tab
+      : 'builder';
 
-  // Platform-wide SaaS View & Pro Plan Gating
-  const [activeView, setActiveView] = useState<WorkspaceTab>(() => {
-    if (typeof window !== 'undefined') {
-      const publicView = resolvePublicViewFromPathname(window.location.pathname);
-      if (publicView) return publicView;
-    }
-    return 'builder';
-  });
   const [isCustomerLiveView, setIsCustomerLiveView] = useState<boolean>(false);
   const [currentPlan, setCurrentPlan] = useState<SubscriptionPlanId>(() => {
     return (localStorage.getItem('funnelcraft_plan') as SubscriptionPlanId) || 'free';
   });
   const [pendingOrdersCount, setPendingOrdersCount] = useState<number>(0);
 
-  const handleViewChange = useCallback((nextView: WorkspaceTab) => {
-    if (typeof window !== 'undefined') {
-      if (nextView === 'contact' || nextView === 'terms' || nextView === 'privacy') {
-        const targetPath = `/${nextView}`;
-        if (window.location.pathname !== targetPath) {
-          window.history.pushState({}, '', targetPath);
-        }
-      } else {
-        const currentClean = window.location.pathname.replace(/\/$/, '');
-        if (currentClean === '/contact' || currentClean === '/terms' || currentClean === '/privacy') {
-          window.history.pushState({}, '', '/');
-        }
-      }
-    }
-    setActiveView(nextView);
-  }, []);
+  const handleNavigateToPricing = useCallback(
+    (reason?: string) => {
+      setUpgradeTriggerReason(reason || '');
+      navigate('/dashboard/pricing');
+    },
+    [navigate]
+  );
 
-  // Listen to browser back/forward navigation for public routes
+  // Fallback if non-admin tries to access /dashboard/admin
   useEffect(() => {
-    const handlePopState = () => {
-      const pubView = resolvePublicViewFromPathname(window.location.pathname);
-      if (pubView) {
-        setActiveView(pubView);
-      } else {
-        setActiveView((prev) =>
-          prev === 'contact' || prev === 'terms' || prev === 'privacy' ? 'builder' : prev
-        );
-      }
-    };
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
-  }, []);
-
-  const handleNavigateToPricing = useCallback((reason?: string) => {
-    setUpgradeTriggerReason(reason || '');
-    handleViewChange('pricing');
-  }, [handleViewChange]);
-
-  // Immediate Super Admin access: when naadianajah2020@gmail.com / admin logs in, grant immediate access to Admin Control Center
-  useEffect(() => {
-    if (typeof window !== 'undefined' && resolvePublicViewFromPathname(window.location.pathname)) {
-      return;
+    if (!isLoading && isLoggedIn && activeTab === 'admin' && !isAdmin) {
+      navigate('/dashboard/builder', { replace: true });
     }
-    if (user && (user.email?.toLowerCase() === 'naadianajah2020@gmail.com' || user.role === 'admin')) {
-      setActiveView((prev) =>
-        prev === 'contact' || prev === 'terms' || prev === 'privacy' ? prev : 'admin'
-      );
-    }
-  }, [user?.id, user?.email, user?.role]);
-
-  // Fallback if non-admin tries to stay on admin tab
-  useEffect(() => {
-    if (activeView === 'admin' && !isAdmin) {
-      setActiveView('builder');
-    }
-  }, [activeView, isAdmin]);
+  }, [activeTab, isAdmin, isLoading, isLoggedIn, navigate]);
 
   // Sync initial pending orders count from backend (authenticated)
   useEffect(() => {
@@ -1039,66 +1001,6 @@ function BuilderWorkspace() {
     setSelectedBlockId(null);
   };
 
-  // Detect public routes from window.location.pathname OR activeView BEFORE any authentication check
-  const pathname = typeof window !== 'undefined' ? window.location.pathname.replace(/\/$/, '') : ''; // remove trailing slash
-  const isPublicRoute =
-    pathname === '/contact' ||
-    pathname === '/terms' ||
-    pathname === '/privacy' ||
-    activeView === 'contact' ||
-    activeView === 'terms' ||
-    activeView === 'privacy';
-
-  if (isPublicRoute && (!isLoggedIn || !user || user.status === 'pending')) {
-    const resolvedPublicTab =
-      pathname === '/contact'
-        ? 'contact'
-        : pathname === '/terms'
-        ? 'terms'
-        : pathname === '/privacy'
-        ? 'privacy'
-        : activeView;
-
-    if (resolvedPublicTab === 'contact') {
-      return (
-        <div className="min-h-screen w-screen overflow-y-auto overflow-x-hidden bg-slate-950 font-sans text-slate-100" dir={dir}>
-          <ContactPage
-            onBackToHome={() => handleViewChange('builder')}
-            onNavigateToTerms={() => handleViewChange('terms')}
-            onNavigateToPrivacy={() => handleViewChange('privacy')}
-          />
-          <FloatingWhatsApp />
-        </div>
-      );
-    }
-
-    if (resolvedPublicTab === 'terms') {
-      return (
-        <div className="min-h-screen w-screen overflow-y-auto overflow-x-hidden bg-slate-950 font-sans text-slate-100" dir={dir}>
-          <TermsPage
-            onBackToHome={() => handleViewChange('builder')}
-            onNavigateToContact={() => handleViewChange('contact')}
-            onNavigateToPrivacy={() => handleViewChange('privacy')}
-          />
-          <FloatingWhatsApp />
-        </div>
-      );
-    }
-
-    if (resolvedPublicTab === 'privacy') {
-      return (
-        <div className="min-h-screen w-screen overflow-y-auto overflow-x-hidden bg-slate-950 font-sans text-slate-100" dir={dir}>
-          <PrivacyPolicyPage
-            onBackToHome={() => handleViewChange('builder')}
-            onNavigateToTerms={() => handleViewChange('terms')}
-            onNavigateToContact={() => handleViewChange('contact')}
-          />
-          <FloatingWhatsApp />
-        </div>
-      );
-    }
-  }
-
   // Loading Screen
   if (isLoading) {
     return (
@@ -1113,17 +1015,7 @@ function BuilderWorkspace() {
 
   // Security Gate: require authenticated merchant session to access workspace
   if (!isLoggedIn || !user) {
-    return (
-      <>
-        <AuthPage
-          initialMode="login"
-          onNavigateToContact={() => handleViewChange('contact')}
-          onNavigateToTerms={() => handleViewChange('terms')}
-          onNavigateToPrivacy={() => handleViewChange('privacy')}
-        />
-        <FloatingWhatsApp />
-      </>
-    );
+    return <Navigate to="/login" replace />;
   }
 
   // Frontend Gate for Suspended Users only (New merchants are auto-activated)
@@ -1152,7 +1044,10 @@ function BuilderWorkspace() {
 
           <button
             type="button"
-            onClick={logout}
+            onClick={async () => {
+              await logout();
+              navigate('/login');
+            }}
             className="w-full py-3.5 px-6 rounded-xl bg-slate-800 hover:bg-rose-600 text-slate-200 hover:text-white font-bold text-sm transition flex items-center justify-center gap-2 cursor-pointer border border-slate-700 hover:border-rose-500"
           >
             <LogOut className="w-4 h-4" />
@@ -1167,7 +1062,6 @@ function BuilderWorkspace() {
   if (isCustomerLiveView) {
     const effectiveSlug = pageData.slug || currentStoredPage?.slug;
 
-    // Task 2: If pageData has scrapedData saved in its data object, render CustomerLandingPage
     if (pageData.scrapedData) {
       return (
         <div className="min-h-screen w-screen bg-slate-50 overflow-y-auto font-sans relative">
@@ -1246,8 +1140,7 @@ function BuilderWorkspace() {
         canUndo={history.past.length > 0}
         canRedo={history.future.length > 0}
         saveStatus={saveStatus}
-        activeView={activeView}
-        onViewChange={handleViewChange}
+        activeView={activeTab}
         pendingOrdersCount={pendingOrdersCount}
         currentPlan={currentPlan}
         onViewportChange={setViewport}
@@ -1258,7 +1151,7 @@ function BuilderWorkspace() {
         onSavePage={handleSaveCurrentPage}
         onOpenMyPagesModal={() => setIsMyPagesModalOpen(true)}
         onOpenPublishModal={() => setIsPublishModalOpen(true)}
-        onOpenSettingsModal={() => handleViewChange('settings')}
+        onOpenSettingsModal={() => navigate('/dashboard/settings')}
         isCurrentPagePublished={!!currentStoredPage?.isPublished}
         currentPublishedSlug={currentStoredPage?.slug}
         onOpenAiModal={handleTriggerAiGeneration}
@@ -1296,7 +1189,7 @@ function BuilderWorkspace() {
             type="button"
             onClick={async () => {
               await stopImpersonating();
-              handleViewChange('admin');
+              navigate('/dashboard/admin');
             }}
             className="px-3 py-1 rounded-md bg-slate-950 hover:bg-slate-900 text-amber-300 border border-amber-400/50 text-xs font-bold transition cursor-pointer flex items-center gap-1.5 shadow-sm shrink-0"
           >
@@ -1341,28 +1234,28 @@ function BuilderWorkspace() {
         </div>
       )}
 
-      {/* Main SaaS Workspace Switcher - Strict Single Page Separation */}
-      {activeView === 'admin' && isAdmin ? (
+      {/* Main SaaS Workspace Switcher via URL Param :tab */}
+      {activeTab === 'admin' && isAdmin ? (
         <div className="flex-1 min-w-0 min-h-0 overflow-y-auto overflow-x-hidden bg-slate-950">
           <AdminOwnerDashboard
             onImpersonateSuccess={() => {
-              handleViewChange('builder');
+              navigate('/dashboard/builder');
             }}
             onNavigateToStorefront={() => {
               setIsCustomerLiveView(true);
             }}
           />
         </div>
-      ) : activeView === 'pricing' ? (
+      ) : activeTab === 'pricing' ? (
         <div className="flex-1 min-w-0 min-h-0 overflow-y-auto overflow-x-hidden bg-slate-950">
           <PricingPage
             currentPlan={currentPlan}
             triggerReason={upgradeTriggerReason}
-            onSelectFreePlan={() => handleViewChange('builder')}
-            onBackToBuilder={() => handleViewChange('builder')}
-            onNavigateToContact={() => handleViewChange('contact')}
-            onNavigateToTerms={() => handleViewChange('terms')}
-            onNavigateToPrivacy={() => handleViewChange('privacy')}
+            onSelectFreePlan={() => navigate('/dashboard/builder')}
+            onBackToBuilder={() => navigate('/dashboard/builder')}
+            onNavigateToContact={() => navigate('/contact')}
+            onNavigateToTerms={() => navigate('/terms')}
+            onNavigateToPrivacy={() => navigate('/privacy')}
             onUpgradeSuccess={(tier) => {
               setCurrentPlan(tier);
               try {
@@ -1371,33 +1264,9 @@ function BuilderWorkspace() {
             }}
           />
         </div>
-      ) : activeView === 'contact' ? (
-        <div className="flex-1 min-w-0 min-h-0 overflow-y-auto overflow-x-hidden bg-slate-950">
-          <ContactPage
-            onBackToHome={() => handleViewChange('builder')}
-            onNavigateToTerms={() => handleViewChange('terms')}
-            onNavigateToPrivacy={() => handleViewChange('privacy')}
-          />
-        </div>
-      ) : activeView === 'terms' ? (
-        <div className="flex-1 min-w-0 min-h-0 overflow-y-auto overflow-x-hidden bg-slate-950">
-          <TermsPage
-            onBackToHome={() => handleViewChange('builder')}
-            onNavigateToContact={() => handleViewChange('contact')}
-            onNavigateToPrivacy={() => handleViewChange('privacy')}
-          />
-        </div>
-      ) : activeView === 'privacy' ? (
-        <div className="flex-1 min-w-0 min-h-0 overflow-y-auto overflow-x-hidden bg-slate-950">
-          <PrivacyPolicyPage
-            onBackToHome={() => handleViewChange('builder')}
-            onNavigateToTerms={() => handleViewChange('terms')}
-            onNavigateToContact={() => handleViewChange('contact')}
-          />
-        </div>
-      ) : activeView === 'builder' ? (
+      ) : activeTab === 'builder' ? (
         <div className="flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden relative">
-          {/* Task 5: Compact Single-Row Product URL Scraper Bar (h-10) */}
+          {/* Compact Single-Row Product URL Scraper Bar (h-10) */}
           {!isPreviewMode && (
             <div className="h-10 bg-slate-900 border-b border-slate-800 px-2.5 shrink-0 flex items-center justify-between gap-2 overflow-x-hidden flex-nowrap">
               <div className="flex items-center gap-1.5 shrink-0">
@@ -1564,7 +1433,7 @@ function BuilderWorkspace() {
             </div>
           )}
 
-          {/* Task 2: Compact Floating Bottom-Center Canvas Dock (Figma / Framer Style) */}
+          {/* Compact Floating Bottom-Center Canvas Dock */}
           <div
             dir="ltr"
             className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30 flex items-center gap-1.5 bg-slate-900/95 backdrop-blur-md border border-slate-700/80 px-2.5 py-1.5 rounded-2xl shadow-2xl text-slate-200 select-none"
@@ -1660,7 +1529,7 @@ function BuilderWorkspace() {
             </button>
           </div>
         </div>
-      ) : activeView === 'orders' ? (
+      ) : activeTab === 'orders' ? (
         <div className="flex-1 min-w-0 min-h-0 overflow-y-auto overflow-x-hidden">
           <OrdersDashboard
             currentPlan={currentPlan}
@@ -1670,14 +1539,14 @@ function BuilderWorkspace() {
             onNewOrderCreated={() => setPendingOrdersCount((prev) => prev + 1)}
           />
         </div>
-      ) : activeView === 'analytics' ? (
+      ) : activeTab === 'analytics' ? (
         <div className="flex-1 min-w-0 min-h-0 overflow-y-auto overflow-x-hidden">
           <AnalyticsDashboard
             currentPlan={currentPlan}
             onUpgradeClick={() => {
               handleNavigateToPricing('التقارير المتقدمة وتحليلات الأداء ميزة حصرية لمشتركي باقة Pro');
             }}
-            onNavigateToBuilder={() => setActiveView('builder')}
+            onNavigateToBuilder={() => navigate('/dashboard/builder')}
           />
         </div>
       ) : (
@@ -1689,7 +1558,7 @@ function BuilderWorkspace() {
             onUpgradeClick={() => {
               handleNavigateToPricing('ربط الدومين المخصص ميزة حصرية لمشتركي باقة Pro');
             }}
-            onClose={() => setActiveView('builder')}
+            onClose={() => navigate('/dashboard/builder')}
           />
         </div>
       )}
@@ -1795,50 +1664,53 @@ function BuilderWorkspace() {
         onClose={() => setOrderConfirmation(null)}
         isRtl={pageData.direction === 'rtl' || pageData.language === 'ar'}
       />
-
-      {/* Global Floating WhatsApp Button (Hidden in Builder, Preview Mode & Customer Live View) */}
-      {activeView !== 'builder' && !isPreviewMode && !isCustomerLiveView && <FloatingWhatsApp />}
     </div>
   );
 }
 
 const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
 
-export default function App() {
+export function NotFoundPage() {
+  return (
+    <div
+      dir="rtl"
+      className="min-h-screen w-screen bg-slate-950 text-white flex items-center justify-center p-4 font-sans"
+    >
+      <div className="max-w-md w-full bg-slate-900 border border-slate-800 rounded-3xl p-8 text-center shadow-2xl">
+        <div className="w-16 h-16 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-2xl flex items-center justify-center mx-auto mb-5">
+          <AlertCircle className="w-8 h-8" />
+        </div>
+        <h1 className="text-2xl font-black mb-2">الصفحة غير موجودة (404)</h1>
+        <p className="text-slate-400 text-sm mb-6 leading-relaxed">
+          عذراً، الرابط الذي تحاول الوصول إليه غير متوفر حالياً أو تم تغيير عنوانه.
+        </p>
+        <Link
+          to="/"
+          className="inline-flex items-center justify-center gap-2 w-full py-3 px-6 bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold text-sm rounded-xl shadow-lg transition"
+        >
+          <span>العودة إلى الصفحة الرئيسية</span>
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+export function PublicFunnelPage() {
+  const { slug: rawParamSlug } = useParams<{ slug: string }>();
   const [publicPage, setPublicPage] = useState<LandingPageData | null>(null);
   const [isLoadingPublic, setIsLoadingPublic] = useState(true);
   const [pageOwnerId, setPageOwnerId] = useState<string | undefined>(undefined);
   const [orderConfirmation, setOrderConfirmation] = useState<OrderConfirmationData | null>(null);
 
-  const rawPathname = typeof window !== 'undefined' ? window.location.pathname : '';
-  const path = rawPathname.replace(/\/$/, '');
-  const isPublicFunnelRoute = path.startsWith('/p/');
-  const rawSlug = isPublicFunnelRoute ? path.slice(3).trim() : '';
-  let slug = rawSlug;
-  if (rawSlug) {
-    try {
-      slug = decodeURIComponent(rawSlug);
-    } catch {
-      slug = rawSlug;
-    }
+  let slug = rawParamSlug || '';
+  try {
+    slug = decodeURIComponent(slug);
+  } catch {
+    // keep rawParamSlug
   }
 
   useEffect(() => {
-    const currentPath = window.location.pathname.replace(/\/$/, '');
-    if (!currentPath.startsWith('/p/')) {
-      setIsLoadingPublic(false);
-      return;
-    }
-
-    const extractedRawSlug = currentPath.slice(3).trim();
-    let extractedSlug = extractedRawSlug;
-    try {
-      extractedSlug = decodeURIComponent(extractedRawSlug);
-    } catch {
-      extractedSlug = extractedRawSlug;
-    }
-
-    if (!extractedSlug) {
+    if (!slug) {
       setPublicPage(null);
       setIsLoadingPublic(false);
       return;
@@ -1847,7 +1719,7 @@ export default function App() {
     let isMounted = true;
     setIsLoadingPublic(true);
 
-    fetch(`/api/public/pages/${encodeURIComponent(extractedSlug)}`)
+    fetch(`/api/public/pages/${encodeURIComponent(slug)}`)
       .then(async (res) => {
         if (!res.ok) {
           throw new Error('Not found');
@@ -1865,7 +1737,7 @@ export default function App() {
           setPublicPage({
             ...resolvedData,
             id: resolvedData.id || json?.page?.id || 'funnel-public',
-            slug: resolvedData.slug || json?.page?.slug || extractedSlug,
+            slug: resolvedData.slug || json?.page?.slug || slug,
             title: resolvedData.title || json?.page?.title || 'CodWorth Store',
           });
           setPageOwnerId(json?.userId || json?.page?.userId);
@@ -1882,7 +1754,7 @@ export default function App() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [slug]);
 
   const handlePublicOrderConfirmed = useCallback(
     async (data: OrderConfirmationData) => {
@@ -1914,117 +1786,164 @@ export default function App() {
     [publicPage, slug, pageOwnerId]
   );
 
-  // 1. PUBLIC FUNNEL ROUTE (/p/:slug)
-  if (isPublicFunnelRoute) {
-    if (isLoadingPublic) {
-      return (
-        <div
-          dir="rtl"
-          className="min-h-screen w-screen bg-slate-950 flex flex-col items-center justify-center text-slate-300 gap-3 font-sans"
-        >
-          <Loader2 className="w-8 h-8 text-emerald-400 animate-spin" />
-          <p className="text-sm font-bold">جاري تحميل الصفحة...</p>
-        </div>
-      );
-    }
-
-    if (publicPage) {
-      if (publicPage.scrapedData) {
-        return (
-          <CustomerLandingPage
-            product={publicPage.scrapedData}
-            pageSlug={publicPage.slug || slug}
-            funnelId={publicPage.id}
-            userId={pageOwnerId}
-          />
-        );
-      }
-
-      return (
-        <div
-          className="min-h-screen w-screen bg-white overflow-y-auto font-sans relative"
-          dir={publicPage.direction || (publicPage.language === 'ar' ? 'rtl' : 'ltr')}
-        >
-          <CanvasRenderer
-            pageData={publicPage}
-            viewport="desktop"
-            selectedBlockId={null}
-            isPreviewMode={true}
-            onSelectBlock={() => {}}
-            onMoveBlock={() => {}}
-            onDuplicateBlock={() => {}}
-            onDeleteBlock={() => {}}
-            onOrderConfirmed={handlePublicOrderConfirmed}
-          />
-          <OrderSuccessModal
-            orderData={orderConfirmation}
-            onClose={() => setOrderConfirmation(null)}
-            isRtl={publicPage.direction === 'rtl' || publicPage.language === 'ar'}
-          />
-        </div>
-      );
-    }
-
+  if (isLoadingPublic) {
     return (
       <div
         dir="rtl"
-        className="min-h-screen w-screen bg-slate-950 text-white flex items-center justify-center p-4 font-sans"
+        className="min-h-screen w-screen bg-slate-950 flex flex-col items-center justify-center text-slate-300 gap-3 font-sans"
       >
-        <div className="max-w-md w-full bg-slate-900 border border-slate-800 rounded-3xl p-8 text-center shadow-2xl">
-          <div className="w-16 h-16 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-2xl flex items-center justify-center mx-auto mb-5">
-            <AlertCircle className="w-8 h-8" />
-          </div>
-          <h1 className="text-2xl font-black mb-2">الصفحة غير موجودة</h1>
-          <p className="text-slate-400 text-sm mb-6 leading-relaxed">
-            عذراً، الرابط الذي تحاول الوصول إليه غير متوفر حالياً أو تم تغيير عنوانه.
-          </p>
-          <a
-            href="/"
-            className="inline-flex items-center justify-center gap-2 w-full py-3 px-6 bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold text-sm rounded-xl shadow-lg transition"
-          >
-            <span>العودة إلى الصفحة الرئيسية</span>
-          </a>
-        </div>
+        <Loader2 className="w-8 h-8 text-emerald-400 animate-spin" />
+        <p className="text-sm font-bold">جاري تحميل الصفحة...</p>
       </div>
     );
   }
 
-  // 2. IMMEDIATE PUBLIC ROUTE CHECK (No Auth Required)
-  if (path === '/contact') {
-    return (
-      <>
-        <ContactPage />
-        <FloatingWhatsApp />
-      </>
-    );
+  if (!publicPage) {
+    return <NotFoundPage />;
   }
-  if (path === '/terms') {
+
+  if (publicPage.scrapedData) {
     return (
-      <>
-        <TermsPage />
-        <FloatingWhatsApp />
-      </>
-    );
-  }
-  if (path === '/privacy') {
-    return (
-      <>
-        <PrivacyPolicyPage />
-        <FloatingWhatsApp />
-      </>
+      <CustomerLandingPage
+        product={publicPage.scrapedData}
+        pageSlug={publicPage.slug || slug}
+        funnelId={publicPage.id}
+        userId={pageOwnerId}
+      />
     );
   }
 
-  // 3. Normal App Flow (Protected)
+  return (
+    <div
+      className="min-h-screen w-screen bg-white overflow-y-auto font-sans relative"
+      dir={publicPage.direction || (publicPage.language === 'ar' ? 'rtl' : 'ltr')}
+    >
+      <CanvasRenderer
+        pageData={publicPage}
+        viewport="desktop"
+        selectedBlockId={null}
+        isPreviewMode={true}
+        onSelectBlock={() => {}}
+        onMoveBlock={() => {}}
+        onDuplicateBlock={() => {}}
+        onDeleteBlock={() => {}}
+        onOrderConfirmed={handlePublicOrderConfirmed}
+      />
+      <OrderSuccessModal
+        orderData={orderConfirmation}
+        onClose={() => setOrderConfirmation(null)}
+        isRtl={publicPage.direction === 'rtl' || publicPage.language === 'ar'}
+      />
+    </div>
+  );
+}
+
+function RootRedirect() {
+  const { isLoggedIn, user, isLoading } = useAuth();
+  if (isLoading) {
+    return (
+      <div className="min-h-screen w-screen bg-slate-950 flex flex-col items-center justify-center text-slate-400 gap-3">
+        <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-400 text-slate-950 flex items-center justify-center font-black text-xl shadow-lg shadow-emerald-500/20 animate-pulse">
+          ⚡
+        </div>
+        <div className="text-xs font-semibold text-slate-300">CodWorth</div>
+      </div>
+    );
+  }
+  return <Navigate to={isLoggedIn && user ? '/dashboard/builder' : '/login'} replace />;
+}
+
+function LoginRoute() {
+  const { isLoggedIn, user, isLoading } = useAuth();
+  const navigate = useNavigate();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen w-screen bg-slate-950 flex flex-col items-center justify-center text-slate-400 gap-3">
+        <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-400 text-slate-950 flex items-center justify-center font-black text-xl shadow-lg shadow-emerald-500/20 animate-pulse">
+          ⚡
+        </div>
+        <div className="text-xs font-semibold text-slate-300">CodWorth</div>
+      </div>
+    );
+  }
+
+  if (isLoggedIn && user) {
+    const isSuperAdmin =
+      user.email?.toLowerCase() === 'naadianajah2020@gmail.com' || user.role === 'admin';
+    return <Navigate to={isSuperAdmin ? '/dashboard/admin' : '/dashboard/builder'} replace />;
+  }
+
+  return (
+    <AuthPage
+      initialMode="login"
+      onSuccess={() => navigate('/dashboard/builder')}
+      onNavigateToContact={() => navigate('/contact')}
+      onNavigateToTerms={() => navigate('/terms')}
+      onNavigateToPrivacy={() => navigate('/privacy')}
+    />
+  );
+}
+
+function ContactRoute() {
+  const navigate = useNavigate();
+  return (
+    <ContactPage
+      onBackToHome={() => navigate('/')}
+      onNavigateToTerms={() => navigate('/terms')}
+      onNavigateToPrivacy={() => navigate('/privacy')}
+    />
+  );
+}
+
+function TermsRoute() {
+  const navigate = useNavigate();
+  return (
+    <TermsPage
+      onBackToHome={() => navigate('/')}
+      onNavigateToContact={() => navigate('/contact')}
+      onNavigateToPrivacy={() => navigate('/privacy')}
+    />
+  );
+}
+
+function PrivacyRoute() {
+  const navigate = useNavigate();
+  return (
+    <PrivacyPolicyPage
+      onBackToHome={() => navigate('/')}
+      onNavigateToTerms={() => navigate('/terms')}
+      onNavigateToContact={() => navigate('/contact')}
+    />
+  );
+}
+
+export default function App() {
+  const location = useLocation();
+  const isBuilder = location.pathname === '/dashboard/builder';
+
   return (
     <GoogleOAuthProvider clientId={googleClientId}>
       <LanguageProvider>
         <AuthProvider>
-          <BuilderWorkspace />
+          <Routes>
+            <Route path="/" element={<RootRedirect />} />
+            <Route path="/login" element={<LoginRoute />} />
+            <Route path="/reset-password" element={<LoginRoute />} />
+            <Route path="/contact" element={<ContactRoute />} />
+            <Route path="/terms" element={<TermsRoute />} />
+            <Route path="/privacy" element={<PrivacyRoute />} />
+            <Route path="/p/:slug" element={<PublicFunnelPage />} />
+            <Route path="/dashboard" element={<Navigate to="/dashboard/builder" replace />} />
+            <Route path="/dashboard/:tab" element={<BuilderWorkspace />} />
+            <Route path="*" element={<NotFoundPage />} />
+          </Routes>
+          {!isBuilder && <FloatingWhatsApp />}
         </AuthProvider>
       </LanguageProvider>
     </GoogleOAuthProvider>
   );
 }
+
 
 

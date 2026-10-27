@@ -142,8 +142,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
     reader.readAsDataURL(file);
   };
 
-  // Save Profile
-  const handleSaveProfile = async (e: React.FormEvent) => {
+  // Save Profile (Task 3: Explicit PUT /api/auth/profile + refreshUser)
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!fullName.trim()) {
       setErrorMessage(language === 'ar' ? 'يرجى إدخال الاسم الكامل' : 'Veuillez saisir votre nom');
@@ -154,23 +154,46 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
     setErrorMessage(null);
 
     try {
-      const payload = {
+      const formData = {
         full_name: fullName.trim(),
         phone: phone.trim(),
         store_name: storeName.trim(),
         avatar: avatarUrl,
+        custom_domain: customDomain.trim(),
+        two_factor_enabled: isTwoFactorEnabled,
       };
 
-      const res = await updateProfile(payload);
-      if (!res.success) {
-        setErrorMessage(res.error || (language === 'ar' ? 'تعذر حفظ التغييرات' : 'Erreur lors de la sauvegarde'));
-        return;
+      const authToken = localStorage.getItem('funnelcraft_auth_token');
+      const response = await fetch('/api/auth/profile', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+        },
+        body: JSON.stringify(formData),
+      });
+
+      const resData = await response.json().catch(() => ({}));
+      if (!response.ok || !resData.success) {
+        // Also try AuthContext updateProfile as fallback
+        const fallbackRes = await updateProfile(formData);
+        if (!fallbackRes.success) {
+          setErrorMessage(
+            resData.error ||
+              fallbackRes.error ||
+              (language === 'ar' ? 'تعذر حفظ التغييرات' : 'Erreur lors de la sauvegarde')
+          );
+          return;
+        }
       }
 
-      localStorage.setItem('fc_user_fullname', payload.full_name);
-      localStorage.setItem('fc_user_phone', payload.phone);
-      localStorage.setItem('fc_user_storename', payload.store_name);
-      localStorage.setItem('fc_user_avatar', payload.avatar);
+      localStorage.setItem('fc_user_fullname', formData.full_name);
+      localStorage.setItem('fc_user_phone', formData.phone);
+      localStorage.setItem('fc_user_storename', formData.store_name);
+      localStorage.setItem('fc_user_avatar', formData.avatar);
+      if (formData.custom_domain) {
+        localStorage.setItem('fc_custom_domain', formData.custom_domain);
+      }
 
       await refreshUser();
       triggerSuccessToast(t.saved);
@@ -180,6 +203,9 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
       setIsSaving(false);
     }
   };
+
+  const handleSaveProfile = handleSave;
+
 
   const handleToggle2FA = async () => {
     const nextVal = !isTwoFactorEnabled;
