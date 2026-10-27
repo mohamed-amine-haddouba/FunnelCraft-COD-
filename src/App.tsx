@@ -1796,27 +1796,58 @@ function BuilderWorkspace() {
         isRtl={pageData.direction === 'rtl' || pageData.language === 'ar'}
       />
 
-      {/* Global Floating WhatsApp Button (Hidden in Builder & Preview Mode) */}
-      {activeView !== 'builder' && !isPreviewMode && <FloatingWhatsApp />}
+      {/* Global Floating WhatsApp Button (Hidden in Builder, Preview Mode & Customer Live View) */}
+      {activeView !== 'builder' && !isPreviewMode && !isCustomerLiveView && <FloatingWhatsApp />}
     </div>
   );
 }
 
 const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
 
-function PublicFunnelView({ slug }: { slug: string }) {
-  const [loading, setLoading] = useState(true);
-  const [notFound, setNotFound] = useState(false);
-  const [publicPageData, setPublicPageData] = useState<LandingPageData | null>(null);
+export default function App() {
+  const [publicPage, setPublicPage] = useState<LandingPageData | null>(null);
+  const [isLoadingPublic, setIsLoadingPublic] = useState(true);
   const [pageOwnerId, setPageOwnerId] = useState<string | undefined>(undefined);
   const [orderConfirmation, setOrderConfirmation] = useState<OrderConfirmationData | null>(null);
 
-  useEffect(() => {
-    let isMounted = true;
-    setLoading(true);
-    setNotFound(false);
+  const rawPathname = typeof window !== 'undefined' ? window.location.pathname : '';
+  const path = rawPathname.replace(/\/$/, '');
+  const isPublicFunnelRoute = path.startsWith('/p/');
+  const rawSlug = isPublicFunnelRoute ? path.slice(3).trim() : '';
+  let slug = rawSlug;
+  if (rawSlug) {
+    try {
+      slug = decodeURIComponent(rawSlug);
+    } catch {
+      slug = rawSlug;
+    }
+  }
 
-    fetch(`/api/public/pages/${encodeURIComponent(slug)}`)
+  useEffect(() => {
+    const currentPath = window.location.pathname.replace(/\/$/, '');
+    if (!currentPath.startsWith('/p/')) {
+      setIsLoadingPublic(false);
+      return;
+    }
+
+    const extractedRawSlug = currentPath.slice(3).trim();
+    let extractedSlug = extractedRawSlug;
+    try {
+      extractedSlug = decodeURIComponent(extractedRawSlug);
+    } catch {
+      extractedSlug = extractedRawSlug;
+    }
+
+    if (!extractedSlug) {
+      setPublicPage(null);
+      setIsLoadingPublic(false);
+      return;
+    }
+
+    let isMounted = true;
+    setIsLoadingPublic(true);
+
+    fetch(`/api/public/pages/${encodeURIComponent(extractedSlug)}`)
       .then(async (res) => {
         if (!res.ok) {
           throw new Error('Not found');
@@ -1829,32 +1860,29 @@ function PublicFunnelView({ slug }: { slug: string }) {
           json?.data || json?.page?.data || (json?.blocks || json?.scrapedData ? json : null);
 
         if (!resolvedData) {
-          setNotFound(true);
+          setPublicPage(null);
         } else {
-          setPublicPageData({
+          setPublicPage({
             ...resolvedData,
             id: resolvedData.id || json?.page?.id || 'funnel-public',
-            slug: resolvedData.slug || json?.page?.slug || slug,
+            slug: resolvedData.slug || json?.page?.slug || extractedSlug,
             title: resolvedData.title || json?.page?.title || 'CodWorth Store',
           });
           setPageOwnerId(json?.userId || json?.page?.userId);
         }
+        setIsLoadingPublic(false);
       })
       .catch(() => {
         if (isMounted) {
-          setNotFound(true);
-        }
-      })
-      .finally(() => {
-        if (isMounted) {
-          setLoading(false);
+          setPublicPage(null);
+          setIsLoadingPublic(false);
         }
       });
 
     return () => {
       isMounted = false;
     };
-  }, [slug]);
+  }, []);
 
   const handlePublicOrderConfirmed = useCallback(
     async (data: OrderConfirmationData) => {
@@ -1868,11 +1896,11 @@ function PublicFunnelView({ slug }: { slug: string }) {
             phone: data.customerPhone,
             city: data.customerCity,
             address: data.customerAddress,
-            productName: data.bundle?.name || publicPageData?.title || 'منتج صفحة الهبوط',
+            productName: data.bundle?.name || publicPage?.title || 'منتج صفحة الهبوط',
             price: data.totalPrice,
             quantity: data.bundle?.quantity || 1,
-            funnelId: publicPageData?.id,
-            pageSlug: publicPageData?.slug || slug,
+            funnelId: publicPage?.id,
+            pageSlug: publicPage?.slug || slug,
             userId: pageOwnerId,
             notes: data.customerNote,
             recaptchaToken: data.recaptchaToken,
@@ -1883,22 +1911,60 @@ function PublicFunnelView({ slug }: { slug: string }) {
         console.warn('Failed to submit public order:', err);
       }
     },
-    [publicPageData, slug, pageOwnerId]
+    [publicPage, slug, pageOwnerId]
   );
 
-  if (loading) {
-    return (
-      <div
-        dir="rtl"
-        className="min-h-screen w-screen bg-slate-950 flex flex-col items-center justify-center text-slate-300 gap-3 font-sans"
-      >
-        <Loader2 className="w-8 h-8 text-emerald-400 animate-spin" />
-        <p className="text-sm font-bold">جاري تحميل الصفحة...</p>
-      </div>
-    );
-  }
+  // 1. PUBLIC FUNNEL ROUTE (/p/:slug)
+  if (isPublicFunnelRoute) {
+    if (isLoadingPublic) {
+      return (
+        <div
+          dir="rtl"
+          className="min-h-screen w-screen bg-slate-950 flex flex-col items-center justify-center text-slate-300 gap-3 font-sans"
+        >
+          <Loader2 className="w-8 h-8 text-emerald-400 animate-spin" />
+          <p className="text-sm font-bold">جاري تحميل الصفحة...</p>
+        </div>
+      );
+    }
 
-  if (notFound || !publicPageData) {
+    if (publicPage) {
+      if (publicPage.scrapedData) {
+        return (
+          <CustomerLandingPage
+            product={publicPage.scrapedData}
+            pageSlug={publicPage.slug || slug}
+            funnelId={publicPage.id}
+            userId={pageOwnerId}
+          />
+        );
+      }
+
+      return (
+        <div
+          className="min-h-screen w-screen bg-white overflow-y-auto font-sans relative"
+          dir={publicPage.direction || (publicPage.language === 'ar' ? 'rtl' : 'ltr')}
+        >
+          <CanvasRenderer
+            pageData={publicPage}
+            viewport="desktop"
+            selectedBlockId={null}
+            isPreviewMode={true}
+            onSelectBlock={() => {}}
+            onMoveBlock={() => {}}
+            onDuplicateBlock={() => {}}
+            onDeleteBlock={() => {}}
+            onOrderConfirmed={handlePublicOrderConfirmed}
+          />
+          <OrderSuccessModal
+            orderData={orderConfirmation}
+            onClose={() => setOrderConfirmation(null)}
+            isRtl={publicPage.direction === 'rtl' || publicPage.language === 'ar'}
+          />
+        </div>
+      );
+    }
+
     return (
       <div
         dir="rtl"
@@ -1923,58 +1989,7 @@ function PublicFunnelView({ slug }: { slug: string }) {
     );
   }
 
-  if (publicPageData.scrapedData) {
-    return (
-      <CustomerLandingPage
-        product={publicPageData.scrapedData}
-        pageSlug={publicPageData.slug || slug}
-        funnelId={publicPageData.id}
-        userId={pageOwnerId}
-      />
-    );
-  }
-
-  return (
-    <div
-      className="min-h-screen w-screen bg-white overflow-y-auto font-sans relative"
-      dir={publicPageData.direction || (publicPageData.language === 'ar' ? 'rtl' : 'ltr')}
-    >
-      <CanvasRenderer
-        pageData={publicPageData}
-        viewport="desktop"
-        selectedBlockId={null}
-        isPreviewMode={true}
-        onSelectBlock={() => {}}
-        onMoveBlock={() => {}}
-        onDuplicateBlock={() => {}}
-        onDeleteBlock={() => {}}
-        onOrderConfirmed={handlePublicOrderConfirmed}
-      />
-      <OrderSuccessModal
-        orderData={orderConfirmation}
-        onClose={() => setOrderConfirmation(null)}
-        isRtl={publicPageData.direction === 'rtl' || publicPageData.language === 'ar'}
-      />
-    </div>
-  );
-}
-
-export default function App() {
-  // 1. IMMEDIATE PUBLIC ROUTE CHECK (No Auth Required)
-  const rawPathname = window.location.pathname;
-  const path = rawPathname.replace(/\/$/, '');
-
-  if (path.startsWith('/p/')) {
-    const rawSlug = path.slice(3).trim();
-    let decodedSlug = rawSlug;
-    try {
-      decodedSlug = decodeURIComponent(rawSlug);
-    } catch {
-      // keep rawSlug
-    }
-    return <PublicFunnelView slug={decodedSlug} />;
-  }
-
+  // 2. IMMEDIATE PUBLIC ROUTE CHECK (No Auth Required)
   if (path === '/contact') {
     return (
       <>
@@ -2000,7 +2015,7 @@ export default function App() {
     );
   }
 
-  // 2. Normal App Flow (Protected)
+  // 3. Normal App Flow (Protected)
   return (
     <GoogleOAuthProvider clientId={googleClientId}>
       <LanguageProvider>
@@ -2011,4 +2026,5 @@ export default function App() {
     </GoogleOAuthProvider>
   );
 }
+
 
