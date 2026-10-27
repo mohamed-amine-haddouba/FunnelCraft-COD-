@@ -9,3 +9,11 @@
     font-family: 'Cairo', 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
   }
 }
+
+.grecaptcha-badge {
+  transform: scale(0.7) !important;
+  transform-origin: bottom right !important;
+  bottom: 80px !important; /* Move above the WhatsApp button */
+  box-shadow: none !important;
+  border-radius: 8px !important;
+}

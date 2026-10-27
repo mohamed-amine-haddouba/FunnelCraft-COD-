@@ -72,24 +72,41 @@ export const PublishModal: React.FC<PublishModalProps> = ({
   const [dnsStatus, setDnsStatus] = useState<'idle' | 'checking' | 'connected' | 'error'>('idle');
   const [dnsMessage, setDnsMessage] = useState('');
 
+  const sanitizeSlugValue = (raw?: string): string => {
+    const cleaned = (raw || '')
+      .replace(/\b404\s*[-_]*\s*(page|not\s*found)?\b/gi, '')
+      .replace(/\bpage\s*not\s*found\b/gi, '')
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9\u0600-\u06FF]+/g, '-')
+      .replace(/--+/g, '-')
+      .replace(/^-+|-+$/g, '');
+
+    if (!cleaned || cleaned === '404' || cleaned === '404-page') {
+      return '';
+    }
+    return cleaned;
+  };
+
   // Initial slug sync
   useEffect(() => {
     if (isOpen) {
+      const fromPageDataSlug = sanitizeSlugValue(pageData.slug);
+      const fromCurrentPageSlug = sanitizeSlugValue(currentPage?.slug);
+      const fromTitle = sanitizeSlugValue(pageData.title);
+
       const initialSlug =
-        currentPage?.slug ||
-        (pageData.title || 'special-offer')
-          .toLowerCase()
-          .trim()
-          .replace(/[^a-z0-9\u0600-\u06FF]+/g, '-')
-          .replace(/^-+|-+$/g, '') ||
-        'my-cod-page';
+        fromPageDataSlug ||
+        fromCurrentPageSlug ||
+        fromTitle ||
+        `page-${Date.now()}`;
 
       setSlug(initialSlug);
       setCustomDomain(currentPage?.customDomain || '');
       setStatusMessage(null);
       setDnsStatus(currentPage?.customDomain ? 'connected' : 'idle');
     }
-  }, [isOpen, currentPage, pageData.title]);
+  }, [isOpen, currentPage, pageData.slug, pageData.title]);
 
   // Debounced slug availability check
   useEffect(() => {
@@ -113,14 +130,17 @@ export const PublishModal: React.FC<PublishModalProps> = ({
   const currentHost = typeof window !== 'undefined' ? window.location.host : 'codworth.com';
   const protocol = typeof window !== 'undefined' ? window.location.protocol : 'https:';
   const origin = `${protocol}//${currentHost}`;
-  const liveUrl = `${origin}/p/${slug.trim()}`;
+  const safeDisplaySlug =
+    slug.trim() && slug.trim() !== '404-page' ? slug.trim() : sanitizeSlugValue(pageData.title) || `page-${Date.now()}`;
+  const liveUrl = `${origin}/p/${safeDisplaySlug}`;
   const isCurrentlyPublished = !!currentPage?.isPublished;
   const viewsCount = currentPage?.viewsCount || 0;
   const ordersCount = currentPage?.ordersCount || 0;
 
   const handleSlugChange = (val: string) => {
-    // Format slug automatically: alphanumeric and hyphens
+    // Format slug automatically: Arabic letters, alphanumeric, and hyphens (never 404-page)
     const clean = val
+      .replace(/\b404-page\b/gi, '')
       .toLowerCase()
       .replace(/\s+/g, '-')
       .replace(/[^a-z0-9\u0600-\u06FF\-]/g, '');

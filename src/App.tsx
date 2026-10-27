@@ -29,6 +29,7 @@ import { PricingPage } from './components/PricingPage';
 import { ContactPage } from './components/ContactPage';
 import { TermsPage } from './components/TermsPage';
 import { PrivacyPolicyPage } from './components/PrivacyPolicyPage';
+import { FloatingWhatsApp } from './components/FloatingWhatsApp';
 import { CustomerLandingPage, ScrapedProduct } from './components/CustomerLandingPage';
 import { LanguageProvider, useLanguage } from './i18n/translations';
 import { StoredPage } from './types/user';
@@ -61,6 +62,24 @@ import {
 } from 'lucide-react';
 
 const STORAGE_KEY = 'funnelcraft_page_draft';
+
+function slugify(text: string): string {
+  const cleaned = (text || '')
+    .toString()
+    .replace(/\b404\s*[-_]*\s*(page|not\s*found)?\b/gi, '')
+    .replace(/\bpage\s*not\s*found\b/gi, '')
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, '-')
+    .replace(/[^\w\u0600-\u06FF-]+/g, '')
+    .replace(/--+/g, '-')
+    .replace(/^-+|-+$/g, '');
+
+  if (!cleaned || cleaned === '404' || cleaned === '404-page') {
+    return `page-${Date.now()}`;
+  }
+  return cleaned;
+}
 
 function buildBlocksFromScrapedProduct(
   scraped: ScrapedProduct,
@@ -200,6 +219,7 @@ function buildBlocksFromScrapedProduct(
   return {
     id: `page-${timestamp}`,
     title: scraped.title,
+    slug: slugify(scraped.title),
     language: 'ar',
     direction: 'rtl',
     theme: {
@@ -207,7 +227,11 @@ function buildBlocksFromScrapedProduct(
       fontFamily: 'Cairo',
     },
     blocks,
-    scrapedData: scraped,
+    scrapedData: {
+      ...scraped,
+      images: Array.isArray(scraped.images) ? [...scraped.images] : [],
+      features: Array.isArray(scraped.features) ? [...scraped.features] : [],
+    },
   };
 }
 
@@ -472,17 +496,14 @@ function BuilderWorkspace() {
         );
       }
 
-      const scrapedProduct = (await response.json()) as ScrapedProduct;
+      const rawPayload = (await response.json()) as ScrapedProduct & {
+        product?: ScrapedProduct;
+      };
+      const scrapedProduct: ScrapedProduct = rawPayload.product ? rawPayload.product : rawPayload;
 
-      updatePageDataWithHistory((prev) => {
-        const built = buildBlocksFromScrapedProduct(scrapedProduct, prev.theme);
-        return {
-          ...built,
-          id: prev.id || built.id,
-          slug: prev.slug,
-          scrapedData: scrapedProduct,
-        };
-      });
+      // Completely replace current pageData with a fresh LandingPageData object
+      const freshPageData = buildBlocksFromScrapedProduct(scrapedProduct, pageData.theme);
+      updatePageDataWithHistory(() => freshPageData);
 
       setBuilderRenderMode('scraped');
       setSelectedBlockId(null);
@@ -566,10 +587,21 @@ function BuilderWorkspace() {
 
     setSaveStatus('saving');
     try {
+      const resolvedSlug =
+        pageData.slug && !pageData.slug.includes('404')
+          ? slugify(pageData.slug)
+          : slugify(pageData.title);
+
+      const updatedPageData: LandingPageData = {
+        ...pageData,
+        slug: resolvedSlug,
+      };
+
       const res = await saveUserPageToCloud({
-        id: pageData.id,
-        title: pageData.title,
-        data: pageData,
+        id: updatedPageData.id,
+        title: updatedPageData.title,
+        slug: resolvedSlug,
+        data: updatedPageData,
       });
 
       if (res.isLimitReached) {
@@ -583,9 +615,11 @@ function BuilderWorkspace() {
 
       if (res.success && res.page) {
         setSaveStatus('saved');
-        if (res.page.id && res.page.id !== pageData.id) {
-          setPageData((prev) => ({ ...prev, id: res.page!.id }));
-        }
+        setPageData((prev) => ({
+          ...prev,
+          id: res.page!.id || prev.id,
+          slug: res.page!.slug || resolvedSlug,
+        }));
         setTimeout(() => {
           setSaveStatus('idle');
         }, 3000);
@@ -1007,6 +1041,7 @@ function BuilderWorkspace() {
             onNavigateToTerms={() => handleViewChange('terms')}
             onNavigateToPrivacy={() => handleViewChange('privacy')}
           />
+          <FloatingWhatsApp />
         </div>
       );
     }
@@ -1019,6 +1054,7 @@ function BuilderWorkspace() {
             onNavigateToContact={() => handleViewChange('contact')}
             onNavigateToPrivacy={() => handleViewChange('privacy')}
           />
+          <FloatingWhatsApp />
         </div>
       );
     }
@@ -1031,6 +1067,7 @@ function BuilderWorkspace() {
             onNavigateToTerms={() => handleViewChange('terms')}
             onNavigateToContact={() => handleViewChange('contact')}
           />
+          <FloatingWhatsApp />
         </div>
       );
     }
@@ -1051,12 +1088,15 @@ function BuilderWorkspace() {
   // Security Gate: require authenticated merchant session to access workspace
   if (!isLoggedIn || !user) {
     return (
-      <AuthPage
-        initialMode="login"
-        onNavigateToContact={() => handleViewChange('contact')}
-        onNavigateToTerms={() => handleViewChange('terms')}
-        onNavigateToPrivacy={() => handleViewChange('privacy')}
-      />
+      <>
+        <AuthPage
+          initialMode="login"
+          onNavigateToContact={() => handleViewChange('contact')}
+          onNavigateToTerms={() => handleViewChange('terms')}
+          onNavigateToPrivacy={() => handleViewChange('privacy')}
+        />
+        <FloatingWhatsApp />
+      </>
     );
   }
 
@@ -1729,6 +1769,9 @@ function BuilderWorkspace() {
         onClose={() => setOrderConfirmation(null)}
         isRtl={pageData.direction === 'rtl' || pageData.language === 'ar'}
       />
+
+      {/* Global Floating WhatsApp Button (Hidden in Builder & Preview Mode) */}
+      {activeView !== 'builder' && !isPreviewMode && <FloatingWhatsApp />}
     </div>
   );
 }
@@ -1738,9 +1781,30 @@ const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
 export default function App() {
   // 1. IMMEDIATE PUBLIC ROUTE CHECK (No Auth Required)
   const path = window.location.pathname.replace(/\/$/, '');
-  if (path === '/contact') return <ContactPage />;
-  if (path === '/terms') return <TermsPage />;
-  if (path === '/privacy') return <PrivacyPolicyPage />;
+  if (path === '/contact') {
+    return (
+      <>
+        <ContactPage />
+        <FloatingWhatsApp />
+      </>
+    );
+  }
+  if (path === '/terms') {
+    return (
+      <>
+        <TermsPage />
+        <FloatingWhatsApp />
+      </>
+    );
+  }
+  if (path === '/privacy') {
+    return (
+      <>
+        <PrivacyPolicyPage />
+        <FloatingWhatsApp />
+      </>
+    );
+  }
 
   // 2. Normal App Flow (Protected)
   return (

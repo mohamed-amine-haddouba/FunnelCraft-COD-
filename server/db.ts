@@ -660,18 +660,26 @@ export function rejectManualPayment(paymentId: string): ManualPaymentRequest {
 
 /* ---------------- USER PAGES / FUNNELS PERSISTENCE ---------------- */
 
-function slugify(text: string): string {
-  return (
-    text
-      .toString()
-      .toLowerCase()
-      .trim()
-      .replace(/\s+/g, '-')
-      .replace(/[^\w\u0600-\u06FF-]+/g, '')
-      .replace(/--+/g, '-')
-      .replace(/^-+/, '')
-      .replace(/-+$/, '') || 'funnel'
-  );
+export function slugify(text: string): string {
+  const cleanedInput = (text || '')
+    .toString()
+    .replace(/\b404\s*[-_]*\s*(page|not\s*found)?\b/gi, '')
+    .replace(/\bpage\s*not\s*found\b/gi, '')
+    .toLowerCase()
+    .trim();
+
+  const slug = cleanedInput
+    .replace(/\s+/g, '-')
+    .replace(/[^\w\u0600-\u06FF-]+/g, '')
+    .replace(/--+/g, '-')
+    .replace(/^-+/, '')
+    .replace(/-+$/, '');
+
+  if (!slug || slug === '404' || slug === '404-page') {
+    return `page-${Date.now()}`;
+  }
+
+  return slug;
 }
 
 function loadPagesFromDisk(): Map<string, StoredPage> {
@@ -726,8 +734,13 @@ export function saveUserPage(
       throw new Error('Forbidden: You do not have permission to modify this page.');
     }
     existing.title = pageInput.title || dataTitle || existing.title;
-    existing.slug =
-      pageInput.slug || existing.slug || `${slugify(existing.title)}-${existing.id.slice(0, 6)}`;
+    const candidateExistingSlug =
+      pageInput.slug && !pageInput.slug.includes('404')
+        ? slugify(pageInput.slug)
+        : existing.slug && !existing.slug.includes('404')
+        ? existing.slug
+        : slugify(existing.title);
+    existing.slug = candidateExistingSlug;
     existing.data = pageInput.data;
     if (pageInput.customDomain !== undefined) existing.customDomain = pageInput.customDomain;
     if (pageInput.isPublished !== undefined) existing.isPublished = pageInput.isPublished;
@@ -740,7 +753,10 @@ export function saveUserPage(
 
   const pageId = pageInput.id && !pages.has(pageInput.id) ? pageInput.id : `page-${crypto.randomUUID()}`;
   const title = pageInput.title || dataTitle || 'Untitled Landing Page';
-  const slug = pageInput.slug || `${slugify(title)}-${pageId.slice(0, 6)}`;
+  const slug =
+    pageInput.slug && !pageInput.slug.includes('404')
+      ? slugify(pageInput.slug)
+      : slugify(title);
 
   const finalData =
     typeof pageInput.data === 'object' && pageInput.data !== null
@@ -906,9 +922,19 @@ export function unpublishPage(userId: string, pageId: string): StoredPage {
 }
 
 export function getPublishedPageBySlug(slug: string): StoredPage | null {
-  const normalized = slug.trim().toLowerCase();
+  let decoded = slug.trim();
+  try {
+    decoded = decodeURIComponent(decoded);
+  } catch {
+    // Keep raw if malformed URI
+  }
+  const normalized = decoded.toLowerCase();
+  const slugifiedTarget = slugify(decoded);
+
   for (const p of pages.values()) {
-    if (p.slug.trim().toLowerCase() === normalized && p.isPublished) {
+    if (!p.isPublished) continue;
+    const pageSlug = p.slug.trim().toLowerCase();
+    if (pageSlug === normalized || pageSlug === slugifiedTarget) {
       return p;
     }
   }

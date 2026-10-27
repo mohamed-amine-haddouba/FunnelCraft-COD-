@@ -2282,7 +2282,13 @@ async function startServer() {
 
   // Public route to view live published page: /p/:slug
   app.get('/p/:slug', (req: Request, res: Response) => {
-    const slug = (req.params.slug || '').trim().toLowerCase();
+    let rawSlug = (req.params.slug || '').trim();
+    try {
+      rawSlug = decodeURIComponent(rawSlug);
+    } catch {
+      // Keep rawSlug if URI decoding fails
+    }
+    const slug = rawSlug.toLowerCase();
     const page = getPublishedPageBySlug(slug);
 
     if (!page || !page.isPublished) {
@@ -2405,6 +2411,7 @@ Return ONLY a valid JSON object with: id, title, language, direction, theme, blo
     try {
       const productData = await scrapeProductData(url.trim());
       return res.status(200).json({
+        ...productData,
         success: true,
         product: productData,
       });

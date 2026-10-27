@@ -1,34 +1,20 @@
 import React from 'react';
 import { Sparkles, Mail, MessageCircle, MapPin, ShieldCheck, FileText, Lock, Home } from 'lucide-react';
 
+import { FloatingWhatsApp } from './FloatingWhatsApp';
+
 interface PublicFooterProps {
   onNavigate?: (path: '/' | '/contact' | '/terms' | '/privacy') => void;
   showWhatsAppFloat?: boolean;
 }
 
 export const FloatingWhatsAppButton: React.FC = () => {
-  return (
-    <a
-      href="https://wa.me/212722256897?text=%D9%85%D8%B1%D8%AD%D8%A8%D8%A7%D9%8B%20%D9%81%D8%B1%D9%8A%D9%82%20CodWorth%D8%8C%20%D8%A3%D8%AD%D8%AA%D8%A7%D8%AC%20%D9%85%D8%B3%D8%A7%D8%B9%D8%AF%D8%A9%20%D8%A8%D8%AE%D8%B5%D9%88%D8%B5%20%D8%A7%D9%84%D9%85%D9%86%D8%B5%D8%A9"
-      target="_blank"
-      rel="noopener noreferrer"
-      aria-label="تواصل معنا عبر واتساب"
-      className="fixed bottom-6 left-6 z-50 group flex items-center gap-2.5 bg-[#25D366] hover:bg-[#20bd5a] text-slate-950 font-extrabold text-xs sm:text-sm px-4 py-3 rounded-full shadow-2xl shadow-[#25D366]/30 border border-white/20 transition-all duration-200 hover:scale-105 print:hidden"
-      dir="rtl"
-    >
-      <span className="relative flex h-3 w-3">
-        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />
-        <span className="relative inline-flex rounded-full h-3 w-3 bg-white" />
-      </span>
-      <MessageCircle className="w-5 h-5 fill-slate-950 text-slate-950 shrink-0" />
-      <span>تواصل عبر واتساب</span>
-    </a>
-  );
+  return <FloatingWhatsApp />;
 };
 
 export const PublicFooter: React.FC<PublicFooterProps> = ({
   onNavigate,
-  showWhatsAppFloat = true,
+  showWhatsAppFloat = false,
 }) => {
   const handleLinkClick = (
     e: React.MouseEvent<HTMLAnchorElement>,
@@ -42,7 +28,7 @@ export const PublicFooter: React.FC<PublicFooterProps> = ({
 
   return (
     <>
-      {showWhatsAppFloat && <FloatingWhatsAppButton />}
+      {showWhatsAppFloat && <FloatingWhatsApp />}
 
       <footer
         dir="rtl"

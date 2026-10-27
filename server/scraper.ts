@@ -924,12 +924,21 @@ export async function scrapeProductData(url: string): Promise<ScrapedProduct> {
     .replace(/[-_]+/g, ' ')
     .trim();
 
-  const rawTitle =
-    shopifyData?.title ||
-    jsonLdData.title ||
-    ogDomData.title ||
-    slugFallbackTitle ||
+  const isErrorTitle = (t?: string) =>
+    !t || /\b404\b|not\s*found|access\s*denied|just\s*a\s*moment|attention\s*required|cloudflare/i.test(t);
+
+  const safeSlugFallback = isErrorTitle(slugFallbackTitle)
+    ? 'منتج احترافي أصلي للمغرب'
+    : slugFallbackTitle;
+
+  const candidateTitle =
+    (!isErrorTitle(shopifyData?.title) && shopifyData?.title) ||
+    (!isErrorTitle(jsonLdData.title) && jsonLdData.title) ||
+    (!isErrorTitle(ogDomData.title) && ogDomData.title) ||
+    safeSlugFallback ||
     'منتج احترافي أصلي للمغرب';
+
+  const rawTitle = candidateTitle;
 
   const rawDescription =
     shopifyData?.description ||
