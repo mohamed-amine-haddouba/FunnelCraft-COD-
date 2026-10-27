@@ -519,7 +519,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     if (!user || !token) return { success: false, error: 'Not logged in.' };
     try {
       const res = await fetch('/api/auth/profile', {
-        method: 'PATCH',
+        method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
@@ -529,6 +529,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const resData = await res.json();
       if (resData.success && resData.user) {
         setUser(resData.user);
+        if (impersonatedUser && impersonatedUser.id === resData.user.id) {
+          setImpersonatedUser(resData.user);
+          localStorage.setItem('funnelcraft_impersonated_user', JSON.stringify(resData.user));
+        }
         return { success: true };
       }
       return { success: false, error: resData.error };

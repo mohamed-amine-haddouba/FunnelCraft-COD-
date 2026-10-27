@@ -452,11 +452,21 @@ export function updateUser2FA(userId: string, enabled: boolean): UserProfile {
 export function updateUserProfile(userId: string, data: Partial<UserProfile>): UserProfile {
   const user = users.get(userId);
   if (!user) throw new Error('User not found.');
-  if (data.full_name) user.full_name = data.full_name;
-  if (data.store_name) user.store_name = data.store_name;
-  if (data.phone) user.phone = data.phone;
-  if (data.avatar) user.avatar = data.avatar;
-  if (typeof data.two_factor_enabled === 'boolean') user.two_factor_enabled = data.two_factor_enabled;
+  if (typeof data.full_name === 'string' && data.full_name.trim()) {
+    user.full_name = data.full_name.trim();
+  }
+  if (typeof data.store_name === 'string' && data.store_name.trim()) {
+    user.store_name = data.store_name.trim();
+  }
+  if (typeof data.phone === 'string' && data.phone.trim()) {
+    user.phone = data.phone.trim();
+  }
+  if (typeof data.avatar === 'string' && data.avatar.trim()) {
+    user.avatar = data.avatar.trim();
+  }
+  if (typeof data.two_factor_enabled === 'boolean') {
+    user.two_factor_enabled = data.two_factor_enabled;
+  }
   users.set(userId, user);
   saveUsersToDisk(users);
   return toSafeProfile(user);
@@ -660,23 +670,47 @@ export function rejectManualPayment(paymentId: string): ManualPaymentRequest {
 
 /* ---------------- USER PAGES / FUNNELS PERSISTENCE ---------------- */
 
+const ARABIC_TO_LATIN_MAP: Record<string, string> = {
+  'ا': 'a', 'أ': 'a', 'إ': 'i', 'آ': 'a', 'ء': '', 'ؤ': 'w', 'ئ': 'y',
+  'ب': 'b', 'ت': 't', 'ث': 'th', 'ج': 'j', 'ح': 'h', 'خ': 'kh',
+  'د': 'd', 'ذ': 'dh', 'ر': 'r', 'ز': 'z', 'س': 's', 'ش': 'sh',
+  'ص': 's', 'ض': 'd', 'ط': 't', 'ظ': 'z', 'ع': 'a', 'غ': 'gh',
+  'ف': 'f', 'ق': 'q', 'ك': 'k', 'ل': 'l', 'م': 'm', 'ن': 'n',
+  'ه': 'h', 'ة': 'a', 'و': 'w', 'ي': 'y', 'ى': 'a',
+  '٠': '0', '١': '1', '٢': '2', '٣': '3', '٤': '4',
+  '٥': '5', '٦': '6', '٧': '7', '٨': '8', '٩': '9',
+};
+
 export function slugify(text: string): string {
-  const cleanedInput = (text || '')
-    .toString()
+  let raw = (text || '').toString();
+  try {
+    raw = decodeURIComponent(raw);
+  } catch {
+    // Keep raw if not URI encoded
+  }
+
+  const cleanedInput = raw
     .replace(/\b404\s*[-_]*\s*(page|not\s*found)?\b/gi, '')
     .replace(/\bpage\s*not\s*found\b/gi, '')
     .toLowerCase()
     .trim();
 
-  const slug = cleanedInput
+  const transliterated = Array.from(cleanedInput)
+    .map((ch) => (ARABIC_TO_LATIN_MAP[ch] !== undefined ? ARABIC_TO_LATIN_MAP[ch] : ch))
+    .join('');
+
+  const slug = transliterated
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9\u0600-\u06FF\s-]/g, '')
+    .trim()
     .replace(/\s+/g, '-')
-    .replace(/[^\w\u0600-\u06FF-]+/g, '')
     .replace(/--+/g, '-')
     .replace(/^-+/, '')
     .replace(/-+$/, '');
 
-  if (!slug || slug === '404' || slug === '404-page') {
-    return `page-${Date.now()}`;
+  if (!slug || slug === '404' || slug === '404-page' || slug.includes('404-page')) {
+    return `funnel-${Date.now().toString(36)}`;
   }
 
   return slug;
@@ -688,8 +722,19 @@ function loadPagesFromDisk(): Map<string, StoredPage> {
     try {
       const data = fs.readFileSync(PAGES_FILE, 'utf-8');
       const list: StoredPage[] = JSON.parse(data);
+      let repaired = false;
       for (const p of list) {
+        if (!p.slug || p.slug === '404' || p.slug.includes('404-page')) {
+          p.slug = slugify(p.title || 'landing-page');
+          if (p.data && typeof p.data === 'object') {
+            (p.data as Record<string, unknown>).slug = p.slug;
+          }
+          repaired = true;
+        }
         pagesMap.set(p.id, p);
+      }
+      if (repaired) {
+        savePagesToDisk(pagesMap);
       }
     } catch (e) {
       console.warn('Failed to parse pages.json, re-initializing store:', e);
@@ -922,7 +967,7 @@ export function unpublishPage(userId: string, pageId: string): StoredPage {
 }
 
 export function getPublishedPageBySlug(slug: string): StoredPage | null {
-  let decoded = slug.trim();
+  let decoded = (slug || '').trim();
   try {
     decoded = decodeURIComponent(decoded);
   } catch {
@@ -931,13 +976,36 @@ export function getPublishedPageBySlug(slug: string): StoredPage | null {
   const normalized = decoded.toLowerCase();
   const slugifiedTarget = slugify(decoded);
 
+  // 1. Prioritize explicitly published pages matching the slug
   for (const p of pages.values()) {
     if (!p.isPublished) continue;
-    const pageSlug = p.slug.trim().toLowerCase();
-    if (pageSlug === normalized || pageSlug === slugifiedTarget) {
+    const pageSlug = (p.slug || '').trim().toLowerCase();
+    const pageSlugified = slugify(pageSlug);
+    if (
+      pageSlug === normalized ||
+      pageSlug === slugifiedTarget ||
+      pageSlugified === normalized ||
+      pageSlugified === slugifiedTarget
+    ) {
       return p;
     }
   }
+
+  // 2. Fallback to any saved page matching the slug or ID so saved funnel links always resolve
+  for (const p of pages.values()) {
+    const pageSlug = (p.slug || '').trim().toLowerCase();
+    const pageSlugified = slugify(pageSlug);
+    if (
+      pageSlug === normalized ||
+      pageSlug === slugifiedTarget ||
+      pageSlugified === normalized ||
+      pageSlugified === slugifiedTarget ||
+      p.id.toLowerCase() === normalized
+    ) {
+      return p;
+    }
+  }
+
   return null;
 }
 

@@ -15,11 +15,12 @@ export const FloatingWhatsApp: React.FC<FloatingWhatsAppProps> = ({
   return (
     <div
       dir="rtl"
-      className="fixed bottom-5 end-5 z-50 flex items-center group print:hidden select-none"
+      style={{ zIndex: 9999 }}
+      className="fixed bottom-5 end-5 z-[9999] flex items-center group print:hidden select-none"
     >
       {/* Hover Tooltip */}
       <span className="pointer-events-none opacity-0 group-hover:opacity-100 translate-y-1 group-hover:translate-y-0 transition-all duration-200 me-3 px-3.5 py-2 rounded-xl bg-slate-900/95 text-white text-xs font-bold whitespace-nowrap shadow-xl border border-slate-700/80 backdrop-blur-md">
-        تواصل معنا على واتساب
+        تواصل معنا على واتساب (<span dir="ltr">+212 722-256897</span>)
       </span>
 
       {/* Circular WhatsApp Button with Subtle Pulse Ring */}

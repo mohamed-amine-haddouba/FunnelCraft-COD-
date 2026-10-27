@@ -63,20 +63,46 @@ import {
 
 const STORAGE_KEY = 'funnelcraft_page_draft';
 
+const ARABIC_TO_LATIN_MAP: Record<string, string> = {
+  'ا': 'a', 'أ': 'a', 'إ': 'i', 'آ': 'a', 'ء': '', 'ؤ': 'w', 'ئ': 'y',
+  'ب': 'b', 'ت': 't', 'ث': 'th', 'ج': 'j', 'ح': 'h', 'خ': 'kh',
+  'د': 'd', 'ذ': 'dh', 'ر': 'r', 'ز': 'z', 'س': 's', 'ش': 'sh',
+  'ص': 's', 'ض': 'd', 'ط': 't', 'ظ': 'z', 'ع': 'a', 'غ': 'gh',
+  'ف': 'f', 'ق': 'q', 'ك': 'k', 'ل': 'l', 'م': 'm', 'ن': 'n',
+  'ه': 'h', 'ة': 'a', 'و': 'w', 'ي': 'y', 'ى': 'a',
+  '٠': '0', '١': '1', '٢': '2', '٣': '3', '٤': '4',
+  '٥': '5', '٦': '6', '٧': '7', '٨': '8', '٩': '9',
+};
+
 function slugify(text: string): string {
-  const cleaned = (text || '')
-    .toString()
+  let raw = (text || '').toString();
+  try {
+    raw = decodeURIComponent(raw);
+  } catch {
+    // Keep raw if not URI encoded
+  }
+
+  const cleanedInput = raw
     .replace(/\b404\s*[-_]*\s*(page|not\s*found)?\b/gi, '')
     .replace(/\bpage\s*not\s*found\b/gi, '')
     .toLowerCase()
+    .trim();
+
+  const transliterated = Array.from(cleanedInput)
+    .map((ch) => (ARABIC_TO_LATIN_MAP[ch] !== undefined ? ARABIC_TO_LATIN_MAP[ch] : ch))
+    .join('');
+
+  const cleaned = transliterated
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9\u0600-\u06FF\s-]/g, '')
     .trim()
     .replace(/\s+/g, '-')
-    .replace(/[^\w\u0600-\u06FF-]+/g, '')
     .replace(/--+/g, '-')
     .replace(/^-+|-+$/g, '');
 
-  if (!cleaned || cleaned === '404' || cleaned === '404-page') {
-    return `page-${Date.now()}`;
+  if (!cleaned || cleaned === '404' || cleaned === '404-page' || cleaned.includes('404-page')) {
+    return `funnel-${Date.now().toString(36)}`;
   }
   return cleaned;
 }
@@ -1778,9 +1804,177 @@ function BuilderWorkspace() {
 
 const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
 
+function PublicFunnelView({ slug }: { slug: string }) {
+  const [loading, setLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
+  const [publicPageData, setPublicPageData] = useState<LandingPageData | null>(null);
+  const [pageOwnerId, setPageOwnerId] = useState<string | undefined>(undefined);
+  const [orderConfirmation, setOrderConfirmation] = useState<OrderConfirmationData | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    setLoading(true);
+    setNotFound(false);
+
+    fetch(`/api/public/pages/${encodeURIComponent(slug)}`)
+      .then(async (res) => {
+        if (!res.ok) {
+          throw new Error('Not found');
+        }
+        return res.json();
+      })
+      .then((json) => {
+        if (!isMounted) return;
+        const resolvedData: LandingPageData | null =
+          json?.data || json?.page?.data || (json?.blocks || json?.scrapedData ? json : null);
+
+        if (!resolvedData) {
+          setNotFound(true);
+        } else {
+          setPublicPageData({
+            ...resolvedData,
+            id: resolvedData.id || json?.page?.id || 'funnel-public',
+            slug: resolvedData.slug || json?.page?.slug || slug,
+            title: resolvedData.title || json?.page?.title || 'CodWorth Store',
+          });
+          setPageOwnerId(json?.userId || json?.page?.userId);
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          setNotFound(true);
+        }
+      })
+      .finally(() => {
+        if (isMounted) {
+          setLoading(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [slug]);
+
+  const handlePublicOrderConfirmed = useCallback(
+    async (data: OrderConfirmationData) => {
+      setOrderConfirmation(data);
+      try {
+        await fetch('/api/orders', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            customerName: data.customerName,
+            phone: data.customerPhone,
+            city: data.customerCity,
+            address: data.customerAddress,
+            productName: data.bundle?.name || publicPageData?.title || 'منتج صفحة الهبوط',
+            price: data.totalPrice,
+            quantity: data.bundle?.quantity || 1,
+            funnelId: publicPageData?.id,
+            pageSlug: publicPageData?.slug || slug,
+            userId: pageOwnerId,
+            notes: data.customerNote,
+            recaptchaToken: data.recaptchaToken,
+            turnstileToken: data.turnstileToken,
+          }),
+        });
+      } catch (err) {
+        console.warn('Failed to submit public order:', err);
+      }
+    },
+    [publicPageData, slug, pageOwnerId]
+  );
+
+  if (loading) {
+    return (
+      <div
+        dir="rtl"
+        className="min-h-screen w-screen bg-slate-950 flex flex-col items-center justify-center text-slate-300 gap-3 font-sans"
+      >
+        <Loader2 className="w-8 h-8 text-emerald-400 animate-spin" />
+        <p className="text-sm font-bold">جاري تحميل الصفحة...</p>
+      </div>
+    );
+  }
+
+  if (notFound || !publicPageData) {
+    return (
+      <div
+        dir="rtl"
+        className="min-h-screen w-screen bg-slate-950 text-white flex items-center justify-center p-4 font-sans"
+      >
+        <div className="max-w-md w-full bg-slate-900 border border-slate-800 rounded-3xl p-8 text-center shadow-2xl">
+          <div className="w-16 h-16 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-2xl flex items-center justify-center mx-auto mb-5">
+            <AlertCircle className="w-8 h-8" />
+          </div>
+          <h1 className="text-2xl font-black mb-2">الصفحة غير موجودة</h1>
+          <p className="text-slate-400 text-sm mb-6 leading-relaxed">
+            عذراً، الرابط الذي تحاول الوصول إليه غير متوفر حالياً أو تم تغيير عنوانه.
+          </p>
+          <a
+            href="/"
+            className="inline-flex items-center justify-center gap-2 w-full py-3 px-6 bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold text-sm rounded-xl shadow-lg transition"
+          >
+            <span>العودة إلى الصفحة الرئيسية</span>
+          </a>
+        </div>
+      </div>
+    );
+  }
+
+  if (publicPageData.scrapedData) {
+    return (
+      <CustomerLandingPage
+        product={publicPageData.scrapedData}
+        pageSlug={publicPageData.slug || slug}
+        funnelId={publicPageData.id}
+        userId={pageOwnerId}
+      />
+    );
+  }
+
+  return (
+    <div
+      className="min-h-screen w-screen bg-white overflow-y-auto font-sans relative"
+      dir={publicPageData.direction || (publicPageData.language === 'ar' ? 'rtl' : 'ltr')}
+    >
+      <CanvasRenderer
+        pageData={publicPageData}
+        viewport="desktop"
+        selectedBlockId={null}
+        isPreviewMode={true}
+        onSelectBlock={() => {}}
+        onMoveBlock={() => {}}
+        onDuplicateBlock={() => {}}
+        onDeleteBlock={() => {}}
+        onOrderConfirmed={handlePublicOrderConfirmed}
+      />
+      <OrderSuccessModal
+        orderData={orderConfirmation}
+        onClose={() => setOrderConfirmation(null)}
+        isRtl={publicPageData.direction === 'rtl' || publicPageData.language === 'ar'}
+      />
+    </div>
+  );
+}
+
 export default function App() {
   // 1. IMMEDIATE PUBLIC ROUTE CHECK (No Auth Required)
-  const path = window.location.pathname.replace(/\/$/, '');
+  const rawPathname = window.location.pathname;
+  const path = rawPathname.replace(/\/$/, '');
+
+  if (path.startsWith('/p/')) {
+    const rawSlug = path.slice(3).trim();
+    let decodedSlug = rawSlug;
+    try {
+      decodedSlug = decodeURIComponent(rawSlug);
+    } catch {
+      // keep rawSlug
+    }
+    return <PublicFunnelView slug={decodedSlug} />;
+  }
+
   if (path === '/contact') {
     return (
       <>

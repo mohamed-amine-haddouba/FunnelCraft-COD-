@@ -47,28 +47,28 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   onUpgradeClick,
   asModal = false,
 }) => {
-  const { user, isPro, toggle2FA, updateProfile, logout } = useAuth();
+  const { user, isPro, toggle2FA, updateProfile, refreshUser, logout } = useAuth();
   const { t, dir, isRtl, language } = useLanguage();
   const isProUser = currentPlan === 'pro' || currentPlan === 'enterprise' || isPro;
 
   // Active sub-tab
   const [activeTab, setActiveTab] = useState<'profile' | 'domain' | 'security'>(initialTab);
 
-  // Profile Form State
+  // Profile Form State (prioritize authenticated user profile from server)
   const [fullName, setFullName] = useState<string>(() => {
-    return localStorage.getItem('fc_user_fullname') || user?.full_name || 'محمد أمين';
+    return user?.full_name || localStorage.getItem('fc_user_fullname') || 'محمد أمين';
   });
-  const [email] = useState<string>(() => {
+  const [email, setEmail] = useState<string>(() => {
     return user?.email || 'amine.store@funnelcraft.ma';
   });
   const [phone, setPhone] = useState<string>(() => {
-    return localStorage.getItem('fc_user_phone') || user?.phone || '+212 661 234 567';
+    return user?.phone || localStorage.getItem('fc_user_phone') || '+212 661 234 567';
   });
   const [storeName, setStoreName] = useState<string>(() => {
-    return localStorage.getItem('fc_user_storename') || user?.store_name || 'متجر COD المغرب';
+    return user?.store_name || localStorage.getItem('fc_user_storename') || 'متجر COD المغرب';
   });
   const [avatarUrl, setAvatarUrl] = useState<string>(() => {
-    return localStorage.getItem('fc_user_avatar') || user?.avatar || DEFAULT_AVATAR;
+    return user?.avatar || localStorage.getItem('fc_user_avatar') || DEFAULT_AVATAR;
   });
 
   // Custom Domain State
@@ -104,6 +104,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   useEffect(() => {
     if (user) {
       if (user.full_name) setFullName(user.full_name);
+      if (user.email) setEmail(user.email);
       if (user.phone) setPhone(user.phone);
       if (user.store_name) setStoreName(user.store_name);
       if (user.avatar) setAvatarUrl(user.avatar);
@@ -153,18 +154,25 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
     setErrorMessage(null);
 
     try {
-      localStorage.setItem('fc_user_fullname', fullName.trim());
-      localStorage.setItem('fc_user_phone', phone.trim());
-      localStorage.setItem('fc_user_storename', storeName.trim());
-      localStorage.setItem('fc_user_avatar', avatarUrl);
-
-      await updateProfile({
+      const payload = {
         full_name: fullName.trim(),
         phone: phone.trim(),
         store_name: storeName.trim(),
         avatar: avatarUrl,
-      });
+      };
 
+      const res = await updateProfile(payload);
+      if (!res.success) {
+        setErrorMessage(res.error || (language === 'ar' ? 'تعذر حفظ التغييرات' : 'Erreur lors de la sauvegarde'));
+        return;
+      }
+
+      localStorage.setItem('fc_user_fullname', payload.full_name);
+      localStorage.setItem('fc_user_phone', payload.phone);
+      localStorage.setItem('fc_user_storename', payload.store_name);
+      localStorage.setItem('fc_user_avatar', payload.avatar);
+
+      await refreshUser();
       triggerSuccessToast(t.saved);
     } catch (err: any) {
       setErrorMessage(err.message || 'Error');

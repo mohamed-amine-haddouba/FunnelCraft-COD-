@@ -11,9 +11,9 @@
 }
 
 .grecaptcha-badge {
-  transform: scale(0.7) !important;
+  transform: scale(0.6) !important;
   transform-origin: bottom right !important;
-  bottom: 80px !important; /* Move above the WhatsApp button */
+  bottom: 80px !important; /* Above the WhatsApp button */
   box-shadow: none !important;
   border-radius: 8px !important;
 }

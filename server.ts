@@ -721,16 +721,21 @@ async function startServer() {
     }
   });
 
-  // 7. Update Merchant Profile (Strictly scoped to authenticated user from token — prevents IDOR & Mass Assignment)
-  app.patch('/api/auth/profile', authMiddleware, (req: AuthRequest, res: Response) => {
+  // 7. Update Merchant Profile (Supports both PUT and PATCH — strictly scoped to authenticated user)
+  const handleUpdateMerchantProfile = (req: AuthRequest, res: Response) => {
     const targetUserId = req.user!.id;
 
     try {
+      const rawFullName = req.body.full_name ?? req.body.fullName;
+      const rawStoreName = req.body.store_name ?? req.body.storeName;
+      const rawPhone = req.body.phone;
+      const rawAvatar = req.body.avatar;
+
       const safeProfileUpdates = {
-        full_name: req.body.full_name ? sanitizeInput(req.body.full_name, 120) : undefined,
-        store_name: req.body.store_name ? sanitizeInput(req.body.store_name, 120) : undefined,
-        phone: req.body.phone ? sanitizeInput(req.body.phone, 40) : undefined,
-        avatar: typeof req.body.avatar === 'string' ? req.body.avatar.trim() : undefined,
+        full_name: typeof rawFullName === 'string' && rawFullName.trim() ? sanitizeInput(rawFullName, 120) : undefined,
+        store_name: typeof rawStoreName === 'string' && rawStoreName.trim() ? sanitizeInput(rawStoreName, 120) : undefined,
+        phone: typeof rawPhone === 'string' && rawPhone.trim() ? sanitizeInput(rawPhone, 40) : undefined,
+        avatar: typeof rawAvatar === 'string' && rawAvatar.trim() ? rawAvatar.trim() : undefined,
         two_factor_enabled:
           typeof req.body.two_factor_enabled === 'boolean' ? req.body.two_factor_enabled : undefined,
       };
@@ -739,7 +744,10 @@ async function startServer() {
     } catch (err: any) {
       return res.status(400).json({ success: false, error: err.message });
     }
-  });
+  };
+
+  app.put('/api/auth/profile', authMiddleware, handleUpdateMerchantProfile);
+  app.patch('/api/auth/profile', authMiddleware, handleUpdateMerchantProfile);
 
   // 8. Get Current Session Profile
   app.get('/api/auth/me', authMiddleware, (req: AuthRequest, res: Response) => {
@@ -2280,8 +2288,8 @@ async function startServer() {
     }
   });
 
-  // Public route to view live published page: /p/:slug
-  app.get('/p/:slug', (req: Request, res: Response) => {
+  // Public JSON API for live funnel page: GET /api/public/pages/:slug
+  app.get('/api/public/pages/:slug', (req: Request, res: Response) => {
     let rawSlug = (req.params.slug || '').trim();
     try {
       rawSlug = decodeURIComponent(rawSlug);
@@ -2291,54 +2299,42 @@ async function startServer() {
     const slug = rawSlug.toLowerCase();
     const page = getPublishedPageBySlug(slug);
 
-    if (!page || !page.isPublished) {
-      // Return a sleek 404 page in Arabic & English
-      res.status(404).setHeader('Content-Type', 'text/html; charset=utf-8');
-      return res.send(`<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>404 - صفحة غير متوفرة | CodWorth</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-  <style>body { font-family: 'Cairo', sans-serif; }</style>
-</head>
-<body class="bg-slate-900 text-white min-h-screen flex items-center justify-center p-4">
-  <div class="max-w-md w-full bg-slate-800/90 border border-slate-700/80 rounded-3xl p-8 text-center shadow-2xl backdrop-blur-md">
-    <div class="w-16 h-16 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-2xl flex items-center justify-center mx-auto mb-5 text-2xl shadow-inner">
-      ⚡
-    </div>
-    <span class="inline-block px-3 py-1 bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs font-bold rounded-full mb-3 uppercase tracking-wider">
-      404 • Page Not Found
-    </span>
-    <h1 class="text-2xl font-black mb-2">هذه الصفحة غير منشورة حالياً</h1>
-    <p class="text-slate-400 text-sm mb-6 leading-relaxed">
-      الرابط الذي تحاول الوصول إليه غير موجود أو تم إيقاف نشره مؤقتاً من قِبل التاجر.
-    </p>
-    <a href="/" class="inline-flex items-center justify-center gap-2 w-full py-3 px-6 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-bold text-sm rounded-xl shadow-lg transition">
-      <span>العودة إلى منصة CodWorth</span>
-      <span>➔</span>
-    </a>
-  </div>
-</body>
-</html>`);
-    }
-
-    // Increment page views counter
-    incrementPageViews(slug);
-
-    // Make sure compiled HTML exists
-    let htmlContent = page.compiledHtml;
-    if (!htmlContent && page.data) {
-      htmlContent = generateStandaloneHtml({
-        ...page.data,
-        slug: page.slug,
+    if (!page) {
+      return res.status(404).json({
+        success: false,
+        error: 'الصفحة غير موجودة',
       });
     }
 
-    res.setHeader('Content-Type', 'text/html; charset=utf-8');
-    return res.send(htmlContent);
+    incrementPageViews(page.slug || slug);
+
+    const pageData =
+      page.data && typeof page.data === 'object'
+        ? {
+            ...(page.data as Record<string, unknown>),
+            id: page.id,
+            title: page.title || (page.data as Record<string, unknown>).title || 'Landing Page',
+            slug: page.slug,
+          }
+        : {
+            id: page.id,
+            title: page.title || 'Landing Page',
+            slug: page.slug,
+            blocks: [],
+          };
+
+    return res.json({
+      success: true,
+      page,
+      data: pageData,
+      ...pageData,
+      userId: page.userId,
+    });
+  });
+
+  // Public route /p/:slug: delegate HTML requests to the React SPA so App.tsx renders CustomerLandingPage / CanvasRenderer
+  app.get('/p/:slug', (_req: Request, _res: Response, next) => {
+    return next();
   });
 
   /* ---------------- AI LANDING PAGE GENERATION ---------------- */
