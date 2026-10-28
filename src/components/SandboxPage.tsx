@@ -964,7 +964,7 @@ export function SandboxPage() {
       const ws = new WebSocket(wsUrl);
       terminalWsRef.current = ws;
 
-      // Task 1: Keyboard Shortcuts (Ctrl+C with selection / Ctrl+Shift+C to Copy, Ctrl+Shift+V to Paste, Ctrl+C without selection sends SIGINT)
+      // Task 1: Keyboard Shortcuts (Ctrl+Insert / Cmd+Insert or Ctrl+C with selection to Copy; Shift+Insert / Cmd+V / Ctrl+Shift+V to Paste; Ctrl+C without selection sends SIGINT)
       term.attachCustomKeyEventHandler((event: KeyboardEvent) => {
         if (event.type !== 'keydown') {
           return true;
@@ -973,24 +973,32 @@ export function SandboxPage() {
         const isCtrlOrCmd = event.ctrlKey || event.metaKey;
         const key = event.key.toLowerCase();
 
-        // 1. Copy: Ctrl+Shift+C (or Cmd+Shift+C), OR Ctrl+C / Cmd+C when terminal has a text selection
-        if (isCtrlOrCmd && key === 'c') {
-          if (event.shiftKey || term.hasSelection()) {
-            const selection = term.getSelection();
-            if (selection) {
-              navigator.clipboard.writeText(selection).catch(() => {});
-              term.clearSelection();
-            }
-            event.preventDefault();
-            event.stopPropagation();
-            return false;
+        // 1. Copy: Ctrl+Insert (or Cmd+Insert on Mac) OR Ctrl+C / Cmd+C when terminal has a text selection
+        const isCopyInsert = isCtrlOrCmd && !event.shiftKey && event.key === 'Insert';
+        const isCopyCtrlC = isCtrlOrCmd && !event.shiftKey && key === 'c' && term.hasSelection();
+
+        if (isCopyInsert || isCopyCtrlC) {
+          const selection = term.getSelection();
+          if (selection) {
+            navigator.clipboard.writeText(selection).catch(() => {});
+            term.clearSelection();
           }
-          // No selection and no Shift -> allow Ctrl+C to pass through to WebSocket as SIGINT (\x03)
+          event.preventDefault();
+          event.stopPropagation();
+          return false;
+        }
+
+        // Plain Ctrl+C without selection -> allow to pass through to WebSocket as SIGINT (\x03)
+        if (event.ctrlKey && !event.shiftKey && key === 'c' && !term.hasSelection()) {
           return true;
         }
 
-        // 2. Paste via Ctrl+Shift+V (or Cmd+Shift+V)
-        if (isCtrlOrCmd && event.shiftKey && key === 'v') {
+        // 2. Paste: Shift+Insert OR Cmd+V (on Mac) OR Ctrl+Shift+V
+        const isShiftInsert = event.shiftKey && !event.ctrlKey && !event.metaKey && event.key === 'Insert';
+        const isCmdV = event.metaKey && !event.ctrlKey && !event.shiftKey && key === 'v';
+        const isCtrlShiftV = isCtrlOrCmd && event.shiftKey && key === 'v';
+
+        if (isShiftInsert || isCmdV || isCtrlShiftV) {
           event.preventDefault();
           event.stopPropagation();
           navigator.clipboard
@@ -1004,8 +1012,8 @@ export function SandboxPage() {
           return false;
         }
 
-        // 3. Plain Ctrl+V / Cmd+V: return false so XTerm does not send \x16 (SYN), while letting the browser fire the native 'paste' event handled below
-        if (isCtrlOrCmd && !event.shiftKey && key === 'v') {
+        // 3. Plain Ctrl+V: return false so XTerm does not send \x16 (SYN), while letting the browser fire the native 'paste' event handled below
+        if (event.ctrlKey && !event.shiftKey && key === 'v') {
           return false;
         }
 
@@ -2190,7 +2198,7 @@ export function SandboxPage() {
                       <Copy className="w-3.5 h-3.5 text-emerald-400" />
                       <span>Copy</span>
                     </span>
-                    <span className="text-[10px] text-slate-400">Ctrl+C</span>
+                    <span className="text-[10px] text-slate-400">Ctrl+Insert</span>
                   </button>
 
                   <button
@@ -2202,7 +2210,7 @@ export function SandboxPage() {
                       <ClipboardPaste className="w-3.5 h-3.5 text-emerald-400" />
                       <span>Paste</span>
                     </span>
-                    <span className="text-[10px] text-slate-400">Ctrl+V</span>
+                    <span className="text-[10px] text-slate-400">Shift+Insert</span>
                   </button>
                 </div>
               )}
