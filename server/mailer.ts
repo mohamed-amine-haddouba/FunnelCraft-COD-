@@ -25,21 +25,30 @@ export function getSmtpConfig(): SmtpConfig {
 
 export function createMailerTransport() {
   const config = getSmtpConfig();
+  const clientId = process.env.GOOGLE_MAILER_CLIENT_ID;
+  const clientSecret = process.env.GOOGLE_MAILER_CLIENT_SECRET;
+  const refreshToken = process.env.GOOGLE_MAILER_REFRESH_TOKEN;
 
+  // إذا كانت إعدادات OAuth2 موجودة، استخدمها
+  if (clientId && clientSecret && refreshToken) {
+    return nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        type: 'OAuth2',
+        user: config.user || process.env.SMTP_USER,
+        clientId: clientId,
+        clientSecret: clientSecret,
+        refreshToken: refreshToken,
+      },
+    });
+  }
+
+  // إذا كان هناك كلمة مرور عادية (SMTP_PASS) استخدمها
   return nodemailer.createTransport({
     host: config.host,
     port: config.port,
     secure: config.secure,
-    connectionTimeout: 10_000,
-    greetingTimeout: 10_000,
-    socketTimeout: 15_000,
-    auth:
-      config.user && config.pass
-        ? {
-            user: config.user,
-            pass: config.pass,
-          }
-        : undefined,
+    auth: config.user && config.pass ? { user: config.user, pass: config.pass } : undefined,
   });
 }
 
