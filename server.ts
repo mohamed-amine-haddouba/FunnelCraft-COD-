@@ -62,6 +62,7 @@ import {
 import {
   DEFAULT_EXCHANGE_RATES,
   normalizeExchangeRates,
+  calculatePayPalUsdSettlement,
 } from './src/utils/currencyAndBanks';
 import crypto from 'crypto';
 import cors from 'cors';
@@ -1960,16 +1961,238 @@ async function startServer() {
     'SGD', 'HKD', 'NZD', 'RUB',
   ]);
 
-  // POST /api/paypal/create-order: Creates a PayPal order and returns { id: string }
+  // Trusted server-side subscription plan prices in MAD
+  const PLANS: Record<string, { id: string; name: string; monthlyPriceMAD: number; yearlyPriceMAD: number }> = {
+    starter: {
+      id: 'starter',
+      name: 'Starter Plan',
+      monthlyPriceMAD: 99,
+      yearlyPriceMAD: Math.round(99 * 0.8) * 12, // 948 MAD
+    },
+    pro: {
+      id: 'pro',
+      name: 'Pro Plan',
+      monthlyPriceMAD: 179,
+      yearlyPriceMAD: Math.round(179 * 0.8) * 12, // 1716 MAD
+    },
+    enterprise: {
+      id: 'enterprise',
+      name: 'Enterprise Plan',
+      monthlyPriceMAD: 349,
+      yearlyPriceMAD: Math.round(349 * 0.8) * 12, // 3348 MAD
+    },
+    starter_monthly: { id: 'starter', name: 'Starter Plan (Monthly)', monthlyPriceMAD: 99, yearlyPriceMAD: 99 },
+    starter_yearly: { id: 'starter', name: 'Starter Plan (Yearly)', monthlyPriceMAD: 948, yearlyPriceMAD: 948 },
+    pro_monthly: { id: 'pro', name: 'Pro Plan (Monthly)', monthlyPriceMAD: 179, yearlyPriceMAD: 179 },
+    pro_yearly: { id: 'pro', name: 'Pro Plan (Yearly)', monthlyPriceMAD: 1716, yearlyPriceMAD: 1716 },
+    enterprise_monthly: { id: 'enterprise', name: 'Enterprise Plan (Monthly)', monthlyPriceMAD: 349, yearlyPriceMAD: 349 },
+    enterprise_yearly: { id: 'enterprise', name: 'Enterprise Plan (Yearly)', monthlyPriceMAD: 3348, yearlyPriceMAD: 3348 },
+  };
+
+  // Server-side registry of expected PayPal order amounts (OrderId -> Expected Amount & Metadata)
+  const expectedPayPalOrders = new Map<
+    string,
+    {
+      expectedAmount: string;
+      expectedCurrency: string;
+      priceMAD: number;
+      identifier: string;
+      sourceType: 'plan' | 'landing_page';
+      createdAt: number;
+    }
+  >();
+
+  // Helper to resolve trusted server-side price (never trusts req.body.amount)
+  const resolveTrustedPayPalOrderPrice = (payload: {
+    identifier?: unknown;
+    planId?: unknown;
+    billingCycle?: unknown;
+    pageSlug?: unknown;
+    funnelId?: unknown;
+    bundleIndex?: unknown;
+    bundleQuantity?: unknown;
+  }): {
+    priceMAD: number;
+    amountUSD: number;
+    formattedValue: string;
+    currencyCode: string;
+    identifier: string;
+    sourceType: 'plan' | 'landing_page';
+  } | null => {
+    const activeRates = exchangeRatesCache?.rates || DEFAULT_EXCHANGE_RATES;
+    const rawPlanId = typeof payload.planId === 'string' ? payload.planId.trim().toLowerCase() : '';
+    const rawIdentifier = typeof payload.identifier === 'string' ? payload.identifier.trim() : '';
+    const rawPageSlug = typeof payload.pageSlug === 'string' ? payload.pageSlug.trim() : '';
+    const rawFunnelId = typeof payload.funnelId === 'string' ? payload.funnelId.trim() : '';
+    const billingCycle = payload.billingCycle === 'yearly' ? 'yearly' : 'monthly';
+
+    // 1. Check if this is a Subscription Plan checkout
+    const candidatePlanKey = rawPlanId || (PLANS[rawIdentifier.toLowerCase()] ? rawIdentifier.toLowerCase() : '');
+    if (candidatePlanKey && PLANS[candidatePlanKey]) {
+      const plan = PLANS[candidatePlanKey];
+      const isExplicitCycleKey = candidatePlanKey.endsWith('_monthly') || candidatePlanKey.endsWith('_yearly');
+      const priceMAD = isExplicitCycleKey
+        ? plan.monthlyPriceMAD
+        : billingCycle === 'yearly'
+          ? plan.yearlyPriceMAD
+          : plan.monthlyPriceMAD;
+
+      if (!Number.isFinite(priceMAD) || priceMAD <= 0) {
+        return null;
+      }
+
+      const settlement = calculatePayPalUsdSettlement(priceMAD, activeRates);
+      if (!Number.isFinite(settlement.amount) || settlement.amount <= 0) {
+        return null;
+      }
+
+      return {
+        priceMAD,
+        amountUSD: settlement.amount,
+        formattedValue: settlement.amount.toFixed(2),
+        currencyCode: 'USD',
+        identifier: `plan:${plan.id}:${billingCycle}`,
+        sourceType: 'plan',
+      };
+    }
+
+    // 2. Otherwise resolve as a Landing Page product checkout by pageSlug / funnelId / identifier
+    const lookupKeys = [rawPageSlug, rawFunnelId, rawIdentifier].filter(Boolean);
+    let resolvedPage: ReturnType<typeof getPublishedPageBySlug> = null;
+    let matchedKey = '';
+
+    for (const key of lookupKeys) {
+      const found = getPublishedPageBySlug(key);
+      if (found) {
+        resolvedPage = found;
+        matchedKey = key;
+        break;
+      }
+    }
+
+    if (!resolvedPage || !resolvedPage.data) {
+      return null;
+    }
+
+    const pageData = resolvedPage.data as Record<string, any>;
+    const scrapedData = (pageData.scrapedData || {}) as Record<string, any>;
+    const requestedBundleIndex =
+      payload.bundleIndex !== undefined && payload.bundleIndex !== null && payload.bundleIndex !== ''
+        ? Number(payload.bundleIndex)
+        : undefined;
+    const requestedBundleQuantity =
+      payload.bundleQuantity !== undefined && payload.bundleQuantity !== null && payload.bundleQuantity !== ''
+        ? Number(payload.bundleQuantity)
+        : undefined;
+
+    let priceMAD = 0;
+
+    // Collect bundles from scrapedData.bundles, pageData.bundles, or cod-form block in pageData.blocks
+    let bundles: Array<{ price?: number; quantity?: number }> = [];
+    if (Array.isArray(scrapedData.bundles) && scrapedData.bundles.length > 0) {
+      bundles = scrapedData.bundles;
+    } else if (Array.isArray(pageData.bundles) && pageData.bundles.length > 0) {
+      bundles = pageData.bundles;
+    } else if (Array.isArray(pageData.blocks)) {
+      const codBlock = pageData.blocks.find(
+        (b: any) => b && b.type === 'cod-form' && b.content && Array.isArray(b.content.bundles)
+      );
+      if (codBlock?.content?.bundles?.length > 0) {
+        bundles = codBlock.content.bundles;
+      }
+    }
+
+    if (bundles.length > 0) {
+      let selectedBundle = bundles[0];
+      if (
+        typeof requestedBundleIndex === 'number' &&
+        Number.isInteger(requestedBundleIndex) &&
+        requestedBundleIndex >= 0 &&
+        requestedBundleIndex < bundles.length
+      ) {
+        selectedBundle = bundles[requestedBundleIndex];
+      } else if (
+        typeof requestedBundleQuantity === 'number' &&
+        Number.isFinite(requestedBundleQuantity) &&
+        requestedBundleQuantity > 0
+      ) {
+        const byQty = bundles.find((b) => Number(b?.quantity) === requestedBundleQuantity);
+        if (byQty) {
+          selectedBundle = byQty;
+        }
+      }
+      priceMAD = Number(selectedBundle?.price);
+    }
+
+    // Fallback to base product price if bundles had no valid price
+    if (!Number.isFinite(priceMAD) || priceMAD <= 0) {
+      const rawBasePrice =
+        scrapedData.price ??
+        pageData.price ??
+        pageData.productPrice ??
+        (Array.isArray(pageData.blocks)
+          ? pageData.blocks.find((b: any) => b?.type === 'cod-form')?.content?.productPrice
+          : undefined);
+      const basePrice = Number(String(rawBasePrice ?? '').replace(/[^\d.]/g, ''));
+
+      if (Number.isFinite(basePrice) && basePrice > 0) {
+        if (requestedBundleQuantity === 2) {
+          priceMAD = Math.round(basePrice * 2 * 0.85);
+        } else if (requestedBundleQuantity === 3) {
+          priceMAD = Math.round(basePrice * 3 * 0.75);
+        } else {
+          priceMAD = basePrice;
+        }
+      }
+    }
+
+    if (!Number.isFinite(priceMAD) || priceMAD <= 0) {
+      return null;
+    }
+
+    const settlement = calculatePayPalUsdSettlement(priceMAD, activeRates);
+    if (!Number.isFinite(settlement.amount) || settlement.amount <= 0) {
+      return null;
+    }
+
+    return {
+      priceMAD,
+      amountUSD: settlement.amount,
+      formattedValue: settlement.amount.toFixed(2),
+      currencyCode: 'USD',
+      identifier: `page:${resolvedPage.slug || matchedKey}`,
+      sourceType: 'landing_page',
+    };
+  };
+
+  // POST /api/paypal/create-order: Creates a PayPal order using ONLY server-verified database/plan prices
   app.post('/api/paypal/create-order', async (req: Request, res: Response) => {
     try {
-      const { amount, currency = 'USD' } = req.body;
-      const numericAmount = Number(amount);
+      // Strictly ignore any client-supplied amount/currency to prevent price tampering
+      const {
+        identifier,
+        planId,
+        billingCycle,
+        pageSlug,
+        funnelId,
+        bundleIndex,
+        bundleQuantity,
+      } = req.body || {};
 
-      if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
+      const resolvedOrder = resolveTrustedPayPalOrderPrice({
+        identifier,
+        planId,
+        billingCycle,
+        pageSlug,
+        funnelId,
+        bundleIndex,
+        bundleQuantity,
+      });
+
+      if (!resolvedOrder || !Number.isFinite(resolvedOrder.amountUSD) || resolvedOrder.amountUSD <= 0) {
         return res.status(400).json({
           success: false,
-          error: 'A valid positive amount is required to create a PayPal order.',
+          error: 'Invalid or unknown product/plan identifier. Unable to resolve a valid server-side price.',
         });
       }
 
@@ -1980,22 +2203,22 @@ async function startServer() {
         });
       }
 
-      const requestedCurrency = String(currency || 'USD').trim().toUpperCase();
-      // Normalize currency code for PayPal REST API (fallback to USD if local currency like MAD is not directly supported by PayPal)
-      const normalizedCurrency = PAYPAL_SUPPORTED_CURRENCIES.has(requestedCurrency)
-        ? requestedCurrency
+      const normalizedCurrency = PAYPAL_SUPPORTED_CURRENCIES.has(resolvedOrder.currencyCode)
+        ? resolvedOrder.currencyCode
         : 'USD';
 
-      const formattedValue =
-        normalizedCurrency === 'JPY' || normalizedCurrency === 'HUF' || normalizedCurrency === 'TWD'
-          ? String(Math.round(numericAmount))
-          : numericAmount.toFixed(2);
+      const formattedValue = resolvedOrder.formattedValue;
 
       const { result, statusCode } = await paypalOrdersController.createOrder({
         body: {
           intent: CheckoutPaymentIntent.Capture,
           purchaseUnits: [
             {
+              customId: JSON.stringify({
+                id: resolvedOrder.identifier,
+                amt: formattedValue,
+                cur: normalizedCurrency,
+              }),
               amount: {
                 currencyCode: normalizedCurrency,
                 value: formattedValue,
@@ -2013,9 +2236,21 @@ async function startServer() {
         });
       }
 
+      // Record expected order amount on the server for verification during capture
+      expectedPayPalOrders.set(result.id, {
+        expectedAmount: formattedValue,
+        expectedCurrency: normalizedCurrency,
+        priceMAD: resolvedOrder.priceMAD,
+        identifier: resolvedOrder.identifier,
+        sourceType: resolvedOrder.sourceType,
+        createdAt: Date.now(),
+      });
+
       return res.status(201).json({
         id: result.id,
         status: result.status,
+        amount: resolvedOrder.amountUSD,
+        currency: normalizedCurrency,
       });
     } catch (err: any) {
       console.error('PayPal Create Order Error:', err);
@@ -2027,7 +2262,7 @@ async function startServer() {
     }
   });
 
-  // POST /api/paypal/capture-order/:orderId: Captures an approved PayPal order and verifies COMPLETED status
+  // POST /api/paypal/capture-order/:orderId: Captures an approved PayPal order and verifies COMPLETED status & expected amount
   app.post('/api/paypal/capture-order/:orderId', async (req: Request, res: Response) => {
     try {
       const orderId = (req.params.orderId || '').trim();
@@ -2063,10 +2298,74 @@ async function startServer() {
         });
       }
 
+      // Extract the actual captured amount and currency returned by PayPal
+      const captureObj = result?.purchaseUnits?.[0]?.payments?.captures?.[0];
+      const capturedAmountValue =
+        captureObj?.amount?.value ?? result?.purchaseUnits?.[0]?.amount?.value;
+      const capturedCurrencyCode =
+        captureObj?.amount?.currencyCode ?? result?.purchaseUnits?.[0]?.amount?.currencyCode ?? 'USD';
+
+      // Resolve expected server-side amount from:
+      // 1) In-memory expectedPayPalOrders map
+      // 2) Re-evaluating identifier/pageSlug/planId from request body
+      // 3) Embedded customId metadata on the PayPal purchaseUnit
+      const storedOrder = expectedPayPalOrders.get(orderId);
+      const reEvaluatedOrder = resolveTrustedPayPalOrderPrice(req.body || {});
+      let customIdMeta: { id?: string; amt?: string; cur?: string } | null = null;
+      const rawCustomId =
+        captureObj?.customId || result?.purchaseUnits?.[0]?.customId;
+      if (typeof rawCustomId === 'string' && rawCustomId.startsWith('{')) {
+        try {
+          customIdMeta = JSON.parse(rawCustomId);
+        } catch (_e) {
+          customIdMeta = null;
+        }
+      }
+
+      const expectedAmountStr =
+        storedOrder?.expectedAmount ||
+        reEvaluatedOrder?.formattedValue ||
+        customIdMeta?.amt;
+      const expectedCurrencyStr =
+        storedOrder?.expectedCurrency ||
+        reEvaluatedOrder?.currencyCode ||
+        customIdMeta?.cur ||
+        'USD';
+
+      const numericCaptured = Number(capturedAmountValue);
+      const numericExpected = Number(expectedAmountStr);
+
+      if (
+        !Number.isFinite(numericCaptured) ||
+        numericCaptured <= 0 ||
+        !Number.isFinite(numericExpected) ||
+        numericExpected <= 0 ||
+        numericCaptured.toFixed(2) !== numericExpected.toFixed(2) ||
+        String(capturedCurrencyCode).toUpperCase() !== String(expectedCurrencyStr).toUpperCase()
+      ) {
+        console.error('[SECURITY] PayPal Capture Price Mismatch Detected:', {
+          orderId,
+          capturedAmountValue,
+          capturedCurrencyCode,
+          expectedAmountStr,
+          expectedCurrencyStr,
+        });
+        return res.status(400).json({
+          success: false,
+          code: 'PRICE_TAMPERING_DETECTED',
+          error: 'Security verification failed: Captured amount does not match the expected server-side price.',
+        });
+      }
+
+      // Clean up stored order after successful verification
+      expectedPayPalOrders.delete(orderId);
+
       return res.status(statusCode || 200).json({
         success: true,
         id: result.id,
         status: result.status,
+        capturedAmount: Number(numericCaptured.toFixed(2)),
+        capturedCurrency: expectedCurrencyStr,
         payer: result.payer,
         purchaseUnits: result.purchaseUnits,
         order: result,

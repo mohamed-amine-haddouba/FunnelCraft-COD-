@@ -1013,8 +1013,11 @@ export const CustomerLandingPage: React.FC<CustomerLandingPageProps> = ({
                               'Content-Type': 'application/json',
                             },
                             body: JSON.stringify({
-                              amount: paypalCheckoutData.amount,
-                              currency: paypalCheckoutData.currency,
+                              identifier: pageSlug || funnelId,
+                              pageSlug: pageSlug || undefined,
+                              funnelId: funnelId || undefined,
+                              bundleIndex: selectedBundleIndex,
+                              bundleQuantity: activeBundle ? activeBundle.quantity : 1,
                             }),
                           });
 
@@ -1043,6 +1046,13 @@ export const CustomerLandingPage: React.FC<CustomerLandingPageProps> = ({
                                 headers: {
                                   'Content-Type': 'application/json',
                                 },
+                                body: JSON.stringify({
+                                  identifier: pageSlug || funnelId,
+                                  pageSlug: pageSlug || undefined,
+                                  funnelId: funnelId || undefined,
+                                  bundleIndex: selectedBundleIndex,
+                                  bundleQuantity: activeBundle ? activeBundle.quantity : 1,
+                                }),
                               }
                             );
 
@@ -1050,6 +1060,8 @@ export const CustomerLandingPage: React.FC<CustomerLandingPageProps> = ({
                               success?: boolean;
                               id?: string;
                               status?: string;
+                              capturedAmount?: number;
+                              capturedCurrency?: string;
                               error?: string;
                               payer?: {
                                 name?: { givenName?: string; surname?: string };
@@ -1059,12 +1071,21 @@ export const CustomerLandingPage: React.FC<CustomerLandingPageProps> = ({
 
                             if (
                               !captureResponse.ok ||
+                              !captureData.success ||
                               captureData.status !== 'COMPLETED'
                             ) {
                               throw new Error(
                                 captureData.error || 'لم تكتمل عملية الدفع عبر PayPal.'
                               );
                             }
+
+                            const verifiedAmount =
+                              typeof captureData.capturedAmount === 'number' &&
+                              captureData.capturedAmount > 0
+                                ? captureData.capturedAmount
+                                : paypalCheckoutData.amount;
+                            const verifiedCurrency =
+                              captureData.capturedCurrency || paypalCheckoutData.currency;
 
                             const finalQuantity = activeBundle ? activeBundle.quantity : 1;
                             const payerFullName = [
@@ -1089,7 +1110,7 @@ export const CustomerLandingPage: React.FC<CustomerLandingPageProps> = ({
                               },
                               body: JSON.stringify({
                                 productName: product.title,
-                                price: paypalCheckoutData.amount,
+                                price: verifiedAmount,
                                 quantity: finalQuantity,
                                 customerName: resolvedName,
                                 phone: resolvedPhone,
@@ -1101,9 +1122,9 @@ export const CustomerLandingPage: React.FC<CustomerLandingPageProps> = ({
                                 userId: userId || undefined,
                                 paymentMethod: 'paypal',
                                 status: 'paid',
-                                currency: paypalCheckoutData.currency,
+                                currency: verifiedCurrency,
                                 paypalOrderId: data.orderID,
-                                notes: `مدفوع عبر PayPal (${data.orderID}) — ${paypalCheckoutData.formattedAmount} ${paypalCheckoutData.currency} | العرض: ${activeBundle.label} | المواصفات: ${formattedVariantString}`,
+                                notes: `مدفوع عبر PayPal (${data.orderID}) — ${verifiedAmount.toFixed(2)} ${verifiedCurrency} | العرض: ${activeBundle.label} | المواصفات: ${formattedVariantString}`,
                               }),
                             });
 
@@ -1129,8 +1150,8 @@ export const CustomerLandingPage: React.FC<CustomerLandingPageProps> = ({
                                 recordedOrder.orderId ||
                                 recordedOrder.order?.id ||
                                 `#PP-${Date.now().toString().slice(-5)}`,
-                              totalPrice: paypalCheckoutData.amount,
-                              currency: paypalCheckoutData.currency,
+                              totalPrice: verifiedAmount,
+                              currency: verifiedCurrency,
                               quantity: finalQuantity,
                               variantSummary: formattedVariantString,
                               paymentMethod: 'paypal',

@@ -290,8 +290,9 @@ export const PricingPage: React.FC<PricingPageProps> = ({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          amount: paypalSettlement.amount,
-          currency: 'USD',
+          identifier: selectedPaidTier.id,
+          planId: selectedPaidTier.id,
+          billingCycle,
         }),
       });
 
@@ -769,8 +770,9 @@ export const PricingPage: React.FC<PricingPageProps> = ({
                               method: 'POST',
                               headers: { 'Content-Type': 'application/json' },
                               body: JSON.stringify({
-                                amount: paypalSettlement.amount,
-                                currency: 'USD',
+                                identifier: selectedPaidTier.id,
+                                planId: selectedPaidTier.id,
+                                billingCycle,
                               }),
                             });
                             const data = await res.json();
@@ -783,10 +785,28 @@ export const PricingPage: React.FC<PricingPageProps> = ({
                             setIsProcessing(true);
                             setCheckoutError(null);
                             try {
-                              await fetch(`/api/paypal/capture-order/${data.orderID}`, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                              });
+                              const captureRes = await fetch(
+                                `/api/paypal/capture-order/${encodeURIComponent(data.orderID)}`,
+                                {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({
+                                    identifier: selectedPaidTier.id,
+                                    planId: selectedPaidTier.id,
+                                    billingCycle,
+                                  }),
+                                }
+                              );
+                              const captureData = await captureRes.json().catch(() => ({}));
+                              if (
+                                !captureRes.ok ||
+                                !captureData.success ||
+                                captureData.status !== 'COMPLETED'
+                              ) {
+                                throw new Error(
+                                  captureData.error || 'تعذر التحقق من قيمة الدفع عبر PayPal.'
+                                );
+                              }
                               const upg = await upgradeToPro();
                               if (upg.success) {
                                 try {
@@ -797,8 +817,12 @@ export const PricingPage: React.FC<PricingPageProps> = ({
                                   `🎉 تم تأكيد دفعتك عبر PayPal وتفعيل ${selectedPaidTier.nameAr} بنجاح!`
                                 );
                               }
-                            } catch (_err) {
-                              setCheckoutError('تعذر تأكيد عملية الدفع عبر PayPal.');
+                            } catch (err: unknown) {
+                              setCheckoutError(
+                                err instanceof Error
+                                  ? err.message
+                                  : 'تعذر تأكيد عملية الدفع عبر PayPal.'
+                              );
                             } finally {
                               setIsProcessing(false);
                             }
