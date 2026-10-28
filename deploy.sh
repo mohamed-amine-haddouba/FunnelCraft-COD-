@@ -23,10 +23,11 @@ echo ">>> [4/5] Building production frontend & bundle (npm run build)..."
 npm run build
 
 echo ""
-echo ">>> [5/5] Restarting PM2 service (funnelcraft-api)..."
+echo ">>> [5/5] Scheduling PM2 service restart (funnelcraft-api) in background..."
 (sleep 3 && pm2 restart funnelcraft-api --update-env) > /dev/null 2>&1 &
 
 echo ""
 echo "========================================================"
 echo "[FunnelCraft-COD] Local VPS Deployment Completed Successfully!"
+echo "PM2 will restart funnelcraft-api in 3 seconds."
 echo "========================================================"

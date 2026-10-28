@@ -19,7 +19,7 @@ import {
   bootstrapOwnerFromEnv,
   StoredUser,
 } from './db';
-import { sendSandboxResetEmail } from './mailer';
+import { sendSandboxResetEmail, sendSandboxTestEmail } from './mailer';
 
 const execFileAsync = promisify(execFile);
 
@@ -1602,7 +1602,44 @@ export function createSandboxRouter(): Router {
     });
   });
 
-  // 6. POST /api/sandbox/recovery/request — Constant-time Owner-only password recovery (Defect 3)
+  // 5b. POST /api/sandbox/auth/test-email — Trigger a diagnostic SMTP test email to the Owner (requires requireCsrf + requireOwner)
+  router.post(
+    '/auth/test-email',
+    requireOwner,
+    asyncHandler(async (req: SandboxAuthRequest, res: Response) => {
+      const ip = getRequestIp(req);
+      const ownerEmail =
+        req.sandboxUser?.email || (process.env.OWNER_EMAIL || '').trim().toLowerCase();
+
+      const result = await sendSandboxTestEmail(ownerEmail, ip);
+
+      if (!result.ok) {
+        return sendUnifiedResponse(res, 502, {
+          ok: false,
+          code: 'SMTP_TEST_FAILED',
+          message: result.error || 'SMTP test email failed to send.',
+          error: result.error,
+          smtpHost: result.smtpHost,
+          smtpPort: result.smtpPort,
+          smtpUser: result.smtpUser,
+          recipient: ownerEmail,
+        });
+      }
+
+      return sendUnifiedResponse(res, 200, {
+        ok: true,
+        code: 'SMTP_TEST_SENT',
+        message: `Test email sent successfully to ${ownerEmail} (Message ID: ${result.messageId}).`,
+        messageId: result.messageId,
+        smtpHost: result.smtpHost,
+        smtpPort: result.smtpPort,
+        smtpUser: result.smtpUser,
+        recipient: ownerEmail,
+      });
+    })
+  );
+
+  // 6. POST /api/sandbox/recovery/request — Owner-only password recovery with awaited SMTP delivery & error logging
   router.post(
     '/recovery/request',
     asyncHandler(async (req: Request, res: Response) => {
@@ -1640,6 +1677,7 @@ export function createSandboxRouter(): Router {
           user.role === 'admin'
       );
 
+      let emailDelivered = false;
       if (isAuthorizedOwner && user) {
         for (const [k, existing] of resetTokens.entries()) {
           if (existing.userId === user.id) {
@@ -1664,12 +1702,16 @@ export function createSandboxRouter(): Router {
           (typeof req.headers.origin === 'string' ? req.headers.origin : 'https://codworth.me');
         const resetUrl = `${appOrigin.replace(/\/$/, '')}/reset?token=${rawToken}`;
 
-        // Fire-and-forget email dispatch — NEVER awaited inside the request handler (Defect 3.3)
-        void Promise.resolve()
-          .then(() => activeDependencies.sendRecoveryEmail(user.email, resetUrl, ip))
-          .catch(() => {
-            // Never leak mailer errors
-          });
+        try {
+          emailDelivered = await activeDependencies.sendRecoveryEmail(user.email, resetUrl, ip);
+          if (!emailDelivered) {
+            console.error(
+              `[MAILER ERROR] sendRecoveryEmail returned false for owner ${user.email}. Check SMTP_HOST, SMTP_PORT, SMTP_USER, and SMTP_PASS.`
+            );
+          }
+        } catch (mailErr) {
+          console.error('[MAILER ERROR] Exception while sending recovery email:', mailErr);
+        }
       } else {
         // Perform identical disk write work on non-owner branch so I/O latency is symmetrical
         saveResetTokensToDisk();
@@ -1683,6 +1725,7 @@ export function createSandboxRouter(): Router {
         result: 'success',
         metadata: {
           dispatchedToOwner: isAuthorizedOwner,
+          emailDelivered,
         },
       });
 

@@ -14,6 +14,7 @@ import {
   Terminal,
   Activity,
   KeyRound,
+  Mail,
 } from 'lucide-react';
 import { SANDBOX_TOKEN_STORAGE_KEY } from './SandboxLoginPage';
 
@@ -110,10 +111,19 @@ export function SandboxPage() {
     exitCode?: number;
   } | null>(null);
 
-  // Re-verification modal state
+  // Re-verification & SMTP Test state
   const [reverifyPassword, setReverifyPassword] = useState('');
   const [isReverifying, setIsReverifying] = useState(false);
   const [reverifyError, setReverifyError] = useState<string | null>(null);
+  const [isTestingEmail, setIsTestingEmail] = useState(false);
+  const [emailTestFeedback, setEmailTestFeedback] = useState<{
+    ok: boolean;
+    code: string;
+    message: string;
+    smtpHost?: string;
+    smtpPort?: number;
+    smtpUser?: string;
+  } | null>(null);
 
   const fetchCsrfToken = useCallback(async () => {
     try {
@@ -287,6 +297,44 @@ export function SandboxPage() {
     }
   };
 
+  const handleTestEmailConfiguration = async () => {
+    if (isTestingEmail) return;
+    setIsTestingEmail(true);
+    setEmailTestFeedback(null);
+
+    try {
+      const activeCsrf = csrfToken || (await fetchCsrfToken());
+      const res = await fetch('/api/sandbox/auth/test-email', {
+        method: 'POST',
+        credentials: 'include',
+        headers: getSandboxAuthHeaders(activeCsrf),
+        body: JSON.stringify({}),
+      });
+
+      const data = await res.json();
+      setEmailTestFeedback({
+        ok: Boolean(res.ok && data.ok),
+        code: data.code || (res.ok ? 'SMTP_TEST_SENT' : 'SMTP_TEST_FAILED'),
+        message:
+          data.message ||
+          data.error ||
+          (res.ok ? 'Test email sent.' : 'Failed to send test email.'),
+        smtpHost: data.smtpHost,
+        smtpPort: data.smtpPort,
+        smtpUser: data.smtpUser,
+      });
+      await fetchCsrfToken();
+    } catch {
+      setEmailTestFeedback({
+        ok: false,
+        code: 'NETWORK_ERROR',
+        message: 'Unable to reach /api/sandbox/auth/test-email endpoint.',
+      });
+    } finally {
+      setIsTestingEmail(false);
+    }
+  };
+
   const executeDeploy = async () => {
     if (confirmInput !== 'DEPLOY' || isDeploying) return;
     setIsDeploying(true);
@@ -338,7 +386,8 @@ export function SandboxPage() {
       await fetchCsrfToken();
       await loadSandboxData();
     } catch {
-      const errLog = '[NETWORK_ERROR] Failed to communicate with the local VPS Sandbox deployment server.';
+      const errLog =
+        '[NETWORK_ERROR] Failed to communicate with the local VPS Sandbox deployment server.';
       setTerminalLogs(errLog);
       setDeployResult({
         ok: false,
@@ -431,7 +480,9 @@ export function SandboxPage() {
               </button>
               <button
                 type="submit"
-                disabled={isChangingPassword || !currentPasswordInput || newPasswordInput.length < 12}
+                disabled={
+                  isChangingPassword || !currentPasswordInput || newPasswordInput.length < 12
+                }
                 className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-slate-950 font-bold text-xs rounded-md cursor-pointer"
               >
                 {isChangingPassword ? 'Rotating Password...' : 'Rotate Password & Unlock'}
@@ -509,40 +560,102 @@ export function SandboxPage() {
       </header>
 
       <main className="max-w-6xl mx-auto px-6 py-8 space-y-8">
-        {/* Session Re-Verification Panel (30m Max TTL Renewal) */}
-        <section className="bg-slate-900 border border-slate-800 rounded-lg p-5">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        {/* Session Re-Verification & SMTP Diagnostic Panel */}
+        <section className="bg-slate-900 border border-slate-800 rounded-lg p-5 space-y-4">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
             <div>
               <h2 className="text-sm font-semibold text-white flex items-center gap-2">
                 <Lock className="w-4 h-4 text-emerald-400" />
-                <span>Session Re-Verification (30-Minute Security Window)</span>
+                <span>Session Re-Verification & SMTP Recovery Diagnostics</span>
               </h2>
               <p className="text-xs text-slate-400 mt-1">
-                Sandbox sessions strictly expire after 30 minutes. Re-confirm your owner password at
-                any time to renew the 30-minute window.
+                Sandbox sessions strictly expire after 30 minutes. Re-confirm your owner password to
+                renew the session or test your VPS SMTP email configuration.
               </p>
               {reverifyError && (
                 <p className="text-xs text-rose-400 mt-1.5">{reverifyError}</p>
               )}
             </div>
 
-            <form onSubmit={handleReverify} className="flex items-center gap-2 shrink-0">
-              <input
-                type="password"
-                value={reverifyPassword}
-                onChange={(e) => setReverifyPassword(e.target.value)}
-                placeholder="Confirm owner password"
-                className="px-3 py-2 bg-slate-950 border border-slate-800 rounded-md text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
-              />
+            <div className="flex flex-wrap items-center gap-2 shrink-0">
+              <form onSubmit={handleReverify} className="flex items-center gap-2">
+                <input
+                  type="password"
+                  value={reverifyPassword}
+                  onChange={(e) => setReverifyPassword(e.target.value)}
+                  placeholder="Confirm owner password"
+                  className="px-3 py-2 bg-slate-950 border border-slate-800 rounded-md text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+                />
+                <button
+                  type="submit"
+                  disabled={isReverifying || !reverifyPassword}
+                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-white text-xs font-semibold rounded-md transition-colors cursor-pointer"
+                >
+                  {isReverifying ? 'Verifying...' : 'Re-Verify 30m'}
+                </button>
+              </form>
+
               <button
-                type="submit"
-                disabled={isReverifying || !reverifyPassword}
-                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-white text-xs font-semibold rounded-md transition-colors cursor-pointer"
+                type="button"
+                onClick={handleTestEmailConfiguration}
+                disabled={isTestingEmail}
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-xs font-semibold rounded-md transition-colors flex items-center gap-1.5 cursor-pointer"
               >
-                {isReverifying ? 'Verifying...' : 'Re-Verify 30m'}
+                {isTestingEmail ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Testing SMTP...</span>
+                  </>
+                ) : (
+                  <>
+                    <Mail className="w-3.5 h-3.5" />
+                    <span>Test Email Configuration</span>
+                  </>
+                )}
               </button>
-            </form>
+            </div>
           </div>
+
+          {/* SMTP Test Toast / Alert Banner */}
+          {emailTestFeedback && (
+            <div
+              role="alert"
+              className={`p-3.5 rounded-md border text-xs font-mono ${
+                emailTestFeedback.ok
+                  ? 'bg-emerald-950/40 border-emerald-800/80 text-emerald-200'
+                  : 'bg-rose-950/40 border-rose-800/80 text-rose-200'
+              }`}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 font-bold">
+                    {emailTestFeedback.ok ? (
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                    ) : (
+                      <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
+                    )}
+                    <span>
+                      [{emailTestFeedback.code}] {emailTestFeedback.message}
+                    </span>
+                  </div>
+                  {(emailTestFeedback.smtpHost || emailTestFeedback.smtpUser) && (
+                    <div className="text-[11px] text-slate-400">
+                      SMTP_HOST: {emailTestFeedback.smtpHost || 'unset'}:
+                      {emailTestFeedback.smtpPort || 587} · SMTP_USER:{' '}
+                      {emailTestFeedback.smtpUser || 'unset'}
+                    </div>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setEmailTestFeedback(null)}
+                  className="text-slate-400 hover:text-white text-xs px-1.5 cursor-pointer"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+          )}
         </section>
 
         {/* Direct Local VPS Deployment Gate */}
@@ -554,7 +667,12 @@ export function SandboxPage() {
                 <span>Direct Local VPS Deployment Gate (./deploy.sh)</span>
               </h2>
               <p className="text-xs text-slate-400 mt-1">
-                Runs server-side verification checks and executes <code className="text-emerald-400 font-mono">./deploy.sh</code> directly on the VPS (<code className="text-slate-300 font-mono">git pull</code> → <code className="text-slate-300 font-mono">npm install --legacy-peer-deps</code> → <code className="text-slate-300 font-mono">npm run build</code> → <code className="text-slate-300 font-mono">pm2 restart funnelcraft-api</code>).
+                Runs server-side verification checks and executes{' '}
+                <code className="text-emerald-400 font-mono">./deploy.sh</code> directly on the VPS
+                (<code className="text-slate-300 font-mono">git pull</code> →{' '}
+                <code className="text-slate-300 font-mono">npm install --legacy-peer-deps</code> →{' '}
+                <code className="text-slate-300 font-mono">npm run build</code> →{' '}
+                <code className="text-slate-300 font-mono">pm2 restart funnelcraft-api</code>).
               </p>
             </div>
             <div className="text-xs font-mono text-slate-400 flex items-center gap-2">
@@ -617,7 +735,9 @@ export function SandboxPage() {
                 htmlFor="deploy-confirm-literal"
                 className="block text-xs font-medium text-slate-300 mb-1.5"
               >
-                Type exact confirmation literal <code className="text-emerald-400 font-mono">DEPLOY</code> to unlock local VPS deployment
+                Type exact confirmation literal{' '}
+                <code className="text-emerald-400 font-mono">DEPLOY</code> to unlock local VPS
+                deployment
               </label>
               <input
                 id="deploy-confirm-literal"
