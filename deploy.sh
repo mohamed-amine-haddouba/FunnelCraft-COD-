@@ -1,33 +1,32 @@
-#!/bin/bash
-
-# إيقاف السكربت فوراً إذا حدث أي خطأ
+#!/usr/bin/env bash
 set -e
 
-cd /var/www/funnelcraft || exit
+echo "========================================================"
+echo "[FunnelCraft-COD] Starting Direct Local VPS Deployment"
+echo "Timestamp: $(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+echo "========================================================"
 
-echo "--- بدء التحديث التلقائي: $(date) ---"
+echo ""
+echo ">>> [1/5] Pulling latest code from origin/main..."
+git pull origin main
 
-# حفظ رقم الـ commit الحالي
-OLD_COMMIT=$(git rev-parse HEAD)
+echo ""
+echo ">>> [2/5] Removing package-lock.json to prevent esbuild/vite conflicts..."
+rm -f package-lock.json
 
-# جلب أحدث التغييرات من GitHub
-git fetch origin main
-
-# إجبار الخادم على التطابق التام مع GitHub (يتجاهل أي تعارضات محلية)
-git reset --hard origin/main
-
-# التحقق مما إذا كان هناك تحديث جديد
-NEW_COMMIT=$(git rev-parse HEAD)
-
-if [ "$OLD_COMMIT" == "$NEW_COMMIT" ]; then
-    echo "✅ لا توجد تحديثات جديدة."
-    exit 0
-fi
-
-echo "🚀 تم العثور على تحديثات جديدة. جاري التثبيت والبناء..."
-
+echo ""
+echo ">>> [3/5] Installing dependencies (npm install --legacy-peer-deps)..."
 npm install --legacy-peer-deps
+
+echo ""
+echo ">>> [4/5] Building production frontend & bundle (npm run build)..."
 npm run build
+
+echo ""
+echo ">>> [5/5] Restarting PM2 service (funnelcraft-api)..."
 pm2 restart funnelcraft-api --update-env
 
-echo "--- ✅ تم التحديث بنجاح: $(date) ---"
+echo ""
+echo "========================================================"
+echo "[FunnelCraft-COD] Local VPS Deployment Completed Successfully!"
+echo "========================================================"

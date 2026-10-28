@@ -9,7 +9,6 @@ import {
   Clock,
   RefreshCw,
   LogOut,
-  ExternalLink,
   Lock,
   Loader2,
   Terminal,
@@ -57,7 +56,7 @@ interface SandboxStatusPayload {
   };
   environment: {
     mode: string;
-    githubConfigured: boolean;
+    deployScriptConfigured?: boolean;
     ownerEmailConfigured: boolean;
   };
 }
@@ -87,15 +86,17 @@ export function SandboxPage() {
   const [remainingSeconds, setRemainingSeconds] = useState(0);
   const [cooldownSeconds, setCooldownSeconds] = useState(0);
 
-  // Forced initial password change state (Defect 6)
+  // Forced initial password change state
   const [currentPasswordInput, setCurrentPasswordInput] = useState('');
   const [newPasswordInput, setNewPasswordInput] = useState('');
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [passwordChangeError, setPasswordChangeError] = useState<string | null>(null);
 
-  // Deploy state
+  // Local VPS Deploy state & Terminal console state
   const [confirmInput, setConfirmInput] = useState('');
   const [isDeploying, setIsDeploying] = useState(false);
+  const [showTerminal, setShowTerminal] = useState(false);
+  const [terminalLogs, setTerminalLogs] = useState<string>('');
   const [deployResult, setDeployResult] = useState<{
     ok: boolean;
     code: string;
@@ -103,7 +104,10 @@ export function SandboxPage() {
     commitSha?: string;
     branch?: string;
     checks?: PreDeployCheckItem[];
-    actionsUrl?: string;
+    stdout?: string;
+    stderr?: string;
+    logs?: string;
+    exitCode?: number;
   } | null>(null);
 
   // Re-verification modal state
@@ -287,6 +291,14 @@ export function SandboxPage() {
     if (confirmInput !== 'DEPLOY' || isDeploying) return;
     setIsDeploying(true);
     setDeployResult(null);
+    setShowTerminal(true);
+    setTerminalLogs(
+      [
+        '$ ./deploy.sh --verify-gates',
+        '[sandbox] Running pre-deploy checks (tsc --noEmit, npm test, npm run build, git branch === "main")...',
+        '[sandbox] Waiting for local VPS deployment execution (git pull -> npm install --legacy-peer-deps -> npm run build -> pm2 restart funnelcraft-api)...',
+      ].join('\n')
+    );
 
     try {
       const activeCsrf = csrfToken || (await fetchCsrfToken());
@@ -298,28 +310,41 @@ export function SandboxPage() {
       });
 
       const data = await res.json();
+      const isOk = Boolean(res.ok && data.ok);
+      const combinedLogs =
+        data.logs ||
+        [data.stdout, data.stderr].filter(Boolean).join('\n') ||
+        data.message ||
+        'Deployment finished.';
+
+      setTerminalLogs(combinedLogs);
       setDeployResult({
-        ok: Boolean(res.ok && data.ok),
+        ok: isOk,
         code: data.code || 'UNKNOWN',
         message: data.message || 'Deployment request completed.',
         commitSha: data.commitSha,
         branch: data.branch,
         checks: data.checks,
-        actionsUrl: data.actionsUrl,
+        stdout: data.stdout,
+        stderr: data.stderr,
+        logs: combinedLogs,
+        exitCode: data.exitCode,
       });
 
-      if (res.ok && data.ok) {
+      if (isOk) {
         setConfirmInput('');
       }
 
       await fetchCsrfToken();
       await loadSandboxData();
     } catch {
+      const errLog = '[NETWORK_ERROR] Failed to communicate with the local VPS Sandbox deployment server.';
+      setTerminalLogs(errLog);
       setDeployResult({
         ok: false,
         code: 'NETWORK_ERROR',
-        message: 'Failed to communicate with the Sandbox deployment server.',
-        actionsUrl: 'https://github.com/actions',
+        message: 'Failed to communicate with the local VPS Sandbox deployment server.',
+        logs: errLog,
       });
     } finally {
       setIsDeploying(false);
@@ -340,7 +365,7 @@ export function SandboxPage() {
     );
   }
 
-  // Forced Initial Password Rotation Screen (Defect 6: PASSWORD_CHANGE_REQUIRED)
+  // Forced Initial Password Rotation Screen
   if (mustChangePassword) {
     return (
       <div
@@ -441,14 +466,14 @@ export function SandboxPage() {
             </div>
             <div>
               <h1 className="text-base font-bold text-white tracking-tight">
-                FunnelCraft-COD · Owner Sandbox & CI/CD Gate
+                FunnelCraft-COD · Owner Sandbox & Local VPS Deployer
               </h1>
               <div className="flex items-center gap-2 text-xs text-slate-400 font-mono">
                 <span>OWNER: {statusData.owner.email}</span>
                 <span aria-hidden="true">·</span>
                 <span>ROLE: {statusData.owner.role.toUpperCase()}</span>
                 <span aria-hidden="true">·</span>
-                <span>ENV: SANDBOX ISOLATED</span>
+                <span>TARGET: LOCAL VPS (PM2: funnelcraft-api)</span>
               </div>
             </div>
           </div>
@@ -520,17 +545,16 @@ export function SandboxPage() {
           </div>
         </section>
 
-        {/* Production Deployment Gate */}
+        {/* Direct Local VPS Deployment Gate */}
         <section className="bg-slate-900 border border-slate-800 rounded-lg p-6">
           <div className="flex flex-wrap items-start justify-between gap-4 pb-5 mb-6 border-b border-slate-800">
             <div>
               <h2 className="text-base font-bold text-white flex items-center gap-2">
                 <Terminal className="w-5 h-5 text-emerald-400" />
-                <span>Production CI/CD Deployment Gate</span>
+                <span>Direct Local VPS Deployment Gate (./deploy.sh)</span>
               </h2>
               <p className="text-xs text-slate-400 mt-1">
-                Triggers GitHub Actions only after all 4 mandatory server-side verification checks
-                pass with zero errors.
+                Runs server-side verification checks and executes <code className="text-emerald-400 font-mono">./deploy.sh</code> directly on the VPS (<code className="text-slate-300 font-mono">git pull</code> → <code className="text-slate-300 font-mono">npm install --legacy-peer-deps</code> → <code className="text-slate-300 font-mono">npm run build</code> → <code className="text-slate-300 font-mono">pm2 restart funnelcraft-api</code>).
               </p>
             </div>
             <div className="text-xs font-mono text-slate-400 flex items-center gap-2">
@@ -593,7 +617,7 @@ export function SandboxPage() {
                 htmlFor="deploy-confirm-literal"
                 className="block text-xs font-medium text-slate-300 mb-1.5"
               >
-                Type exact confirmation literal <code className="text-emerald-400 font-mono">DEPLOY</code> to unlock
+                Type exact confirmation literal <code className="text-emerald-400 font-mono">DEPLOY</code> to unlock local VPS deployment
               </label>
               <input
                 id="deploy-confirm-literal"
@@ -615,20 +639,20 @@ export function SandboxPage() {
               {isDeploying || statusData.deployment.inProgress ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Running Checks & Deploying...</span>
+                  <span>Executing ./deploy.sh...</span>
                 </>
               ) : cooldownSeconds > 0 ? (
                 <span>Cooldown ({cooldownSeconds}s)</span>
               ) : (
                 <>
                   <Rocket className="w-4 h-4" />
-                  <span>Run Server Checks & Trigger Deploy</span>
+                  <span>Deploy Now (Local VPS)</span>
                 </>
               )}
             </button>
           </div>
 
-          {/* Deploy Result & Failure Recovery Banner */}
+          {/* Status Banner */}
           {deployResult && (
             <div
               role="status"
@@ -654,39 +678,67 @@ export function SandboxPage() {
                     <div className="text-xs font-mono text-slate-400">
                       BRANCH: {deployResult.branch || 'unknown'} · COMMIT:{' '}
                       {deployResult.commitSha || 'unknown'}
+                      {typeof deployResult.exitCode === 'number'
+                        ? ` · EXIT CODE: ${deployResult.exitCode}`
+                        : ''}
                     </div>
                   )}
                 </div>
 
-                <div className="flex items-center gap-2">
-                  {deployResult.actionsUrl && (
-                    <a
-                      href={deployResult.actionsUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-100 text-xs font-medium rounded-md flex items-center gap-1.5"
-                    >
-                      <span>View GitHub Actions Log</span>
-                      <ExternalLink className="w-3.5 h-3.5" />
-                    </a>
-                  )}
-
-                  {!deployResult.ok && (
-                    <button
-                      type="button"
-                      disabled={isDeploying || cooldownSeconds > 0}
-                      onClick={() => {
-                        setConfirmInput('DEPLOY');
-                        executeDeploy();
-                      }}
-                      className="px-3 py-1.5 bg-rose-600 hover:bg-rose-500 disabled:bg-slate-800 text-white text-xs font-semibold rounded-md flex items-center gap-1.5 cursor-pointer"
-                    >
-                      <RefreshCw className="w-3.5 h-3.5" />
-                      <span>Retry Deploy</span>
-                    </button>
-                  )}
-                </div>
+                {!deployResult.ok && (
+                  <button
+                    type="button"
+                    disabled={isDeploying || cooldownSeconds > 0}
+                    onClick={() => {
+                      setConfirmInput('DEPLOY');
+                      executeDeploy();
+                    }}
+                    className="px-3 py-1.5 bg-rose-600 hover:bg-rose-500 disabled:bg-slate-800 text-white text-xs font-semibold rounded-md flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" />
+                    <span>Retry Deploy</span>
+                  </button>
+                )}
               </div>
+            </div>
+          )}
+
+          {/* Live Deployment Terminal Box (Black Box with White/Green/Red Console Output) */}
+          {(showTerminal || isDeploying || deployResult) && (
+            <div className="mt-5 rounded-md border border-slate-800 bg-black overflow-hidden shadow-inner">
+              <div className="flex items-center justify-between px-4 py-2 bg-slate-950 border-b border-slate-800">
+                <div className="flex items-center gap-2 text-xs font-mono text-slate-300">
+                  <Terminal className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>root@vps:~/FunnelCraft-COD# ./deploy.sh</span>
+                </div>
+                <span
+                  className={`text-[11px] font-mono font-semibold ${
+                    isDeploying
+                      ? 'text-amber-400'
+                      : deployResult?.ok
+                      ? 'text-emerald-400'
+                      : 'text-rose-400'
+                  }`}
+                >
+                  {isDeploying
+                    ? 'RUNNING...'
+                    : deployResult?.ok
+                    ? 'SUCCESS (EXIT 0)'
+                    : 'FAILED'}
+                </span>
+              </div>
+
+              <pre
+                className={`p-4 text-xs font-mono leading-relaxed overflow-x-auto max-h-96 whitespace-pre-wrap ${
+                  isDeploying
+                    ? 'text-slate-100'
+                    : deployResult?.ok
+                    ? 'text-emerald-400'
+                    : 'text-rose-400'
+                }`}
+              >
+                {terminalLogs || 'Waiting for deployment output...'}
+              </pre>
             </div>
           )}
         </section>
@@ -701,7 +753,7 @@ export function SandboxPage() {
               </h2>
               <p className="text-xs text-slate-400 mt-0.5">
                 Records login attempts, lockouts, password recovery, pre-deploy check failures, and
-                GitHub dispatches.
+                local VPS deployments.
               </p>
             </div>
             <span className="text-xs font-mono text-slate-400">

@@ -1060,83 +1060,95 @@ export async function defaultPreDeployChecksRunner(): Promise<PreDeploySuiteResu
   };
 }
 
-export async function defaultGitHubDispatchRunner(params: {
+const DEPLOY_SCRIPT_PATH = path.resolve(__dirname, '../deploy.sh');
+
+export interface LocalDeployExecutionResult {
+  executed: boolean;
+  exitCode: number;
+  stdout: string;
+  stderr: string;
+  logs: string;
+  commitSha: string;
+  errorSummary?: string;
+}
+
+function sanitizeDeployLogs(raw: string): string {
+  if (!raw) return '';
+  return raw
+    .replace(/(ghp_[a-zA-Z0-9_]+|github_pat_[a-zA-Z0-9_]+)/g, '[REDACTED]')
+    .replace(/Bearer\s+[A-Za-z0-9._~+/=-]+/gi, 'Bearer [REDACTED]')
+    .trim()
+    .slice(0, 32_000);
+}
+
+export async function defaultLocalDeployRunner(params: {
   commitSha: string;
   actorEmail: string;
-}): Promise<GitHubDispatchResult> {
-  const pat = (process.env.GITHUB_DEPLOY_PAT || '').trim();
-  const repoOwner = (process.env.GITHUB_REPO_OWNER || '').trim();
-  const repoName = (process.env.GITHUB_REPO_NAME || 'FunnelCraft-COD').trim();
-  const workflowId = (process.env.GITHUB_WORKFLOW_ID || 'deploy-production.yml').trim();
-  const deployTarget = (process.env.DEPLOY_TARGET || 'vps').trim();
-  const actionsUrl =
-    repoOwner && repoName
-      ? `https://github.com/${encodeURIComponent(repoOwner)}/${encodeURIComponent(repoName)}/actions`
-      : 'https://github.com/actions';
-
-  if (!pat || !repoOwner || !repoName) {
+}): Promise<LocalDeployExecutionResult> {
+  if (!fs.existsSync(DEPLOY_SCRIPT_PATH)) {
     return {
-      dispatched: false,
-      status: 503,
-      actionsUrl,
-      workflowId,
+      executed: false,
+      exitCode: 127,
+      stdout: '',
+      stderr: 'deploy.sh script not found in project root.',
+      logs: '[ERROR] deploy.sh script not found in project root.',
       commitSha: params.commitSha,
-      errorSummary: 'GitHub deployment credentials are not configured on the server.',
+      errorSummary: 'Local deployment script (deploy.sh) is missing.',
     };
   }
 
-  const dispatchUrl = `https://api.github.com/repos/${encodeURIComponent(
-    repoOwner
-  )}/${encodeURIComponent(repoName)}/actions/workflows/${encodeURIComponent(
-    workflowId
-  )}/dispatches`;
+  try {
+    fs.chmodSync(DEPLOY_SCRIPT_PATH, 0o755);
+  } catch {
+    // ignore chmod error if filesystem does not permit mode change
+  }
 
   try {
-    const response = await fetch(dispatchUrl, {
-      method: 'POST',
-      headers: {
-        Accept: 'application/vnd.github+json',
-        Authorization: `Bearer ${pat}`,
-        'X-GitHub-Api-Version': '2022-11-28',
-        'Content-Type': 'application/json',
-        'User-Agent': 'FunnelCraft-COD-Sandbox-Deployer',
+    const { stdout, stderr } = await execFileAsync('bash', [DEPLOY_SCRIPT_PATH], {
+      cwd: path.resolve(__dirname, '..'),
+      timeout: 10 * 60 * 1000,
+      maxBuffer: 10 * 1024 * 1024,
+      env: {
+        ...process.env,
+        CI: 'true',
+        DEPLOY_TRIGGERED_BY: params.actorEmail,
+        DEPLOY_COMMIT_SHA: params.commitSha,
       },
-      body: JSON.stringify({
-        ref: 'main',
-        inputs: {
-          triggered_by: params.actorEmail,
-          commit_sha: params.commitSha,
-          deploy_target: deployTarget,
-        },
-      }),
     });
 
-    if (response.status === 204 || response.status === 200) {
-      return {
-        dispatched: true,
-        status: response.status,
-        actionsUrl,
-        workflowId,
-        commitSha: params.commitSha,
-      };
-    }
+    const cleanStdout = sanitizeDeployLogs(stdout);
+    const cleanStderr = sanitizeDeployLogs(stderr);
+    const combinedLogs = [cleanStdout, cleanStderr].filter(Boolean).join('\n');
 
     return {
-      dispatched: false,
-      status: response.status,
-      actionsUrl,
-      workflowId,
+      executed: true,
+      exitCode: 0,
+      stdout: cleanStdout,
+      stderr: cleanStderr,
+      logs: combinedLogs || 'Local deployment script completed successfully.',
       commitSha: params.commitSha,
-      errorSummary: `GitHub API returned status ${response.status}.`,
     };
-  } catch {
+  } catch (err: unknown) {
+    const execErr = err as {
+      code?: number;
+      stdout?: string;
+      stderr?: string;
+      message?: string;
+    };
+    const cleanStdout = sanitizeDeployLogs(execErr.stdout || '');
+    const cleanStderr = sanitizeDeployLogs(
+      execErr.stderr || execErr.message || 'deploy.sh execution failed.'
+    );
+    const combinedLogs = [cleanStdout, cleanStderr].filter(Boolean).join('\n');
+
     return {
-      dispatched: false,
-      status: 502,
-      actionsUrl,
-      workflowId,
+      executed: false,
+      exitCode: typeof execErr.code === 'number' ? execErr.code : 1,
+      stdout: cleanStdout,
+      stderr: cleanStderr,
+      logs: combinedLogs || '[ERROR] Local deployment script failed.',
       commitSha: params.commitSha,
-      errorSummary: 'Failed to reach GitHub Actions API.',
+      errorSummary: 'Local deploy.sh script exited with an error.',
     };
   }
 }
@@ -1145,17 +1157,32 @@ export async function defaultGitHubDispatchRunner(params: {
 
 interface SandboxDependencies {
   runPreDeployChecks: () => Promise<PreDeploySuiteResult>;
-  triggerGitHubDeploy: (params: {
+  executeLocalDeploy: (params: {
     commitSha: string;
     actorEmail: string;
-  }) => Promise<GitHubDispatchResult>;
+  }) => Promise<LocalDeployExecutionResult>;
+  triggerGitHubDeploy?: (params: {
+    commitSha: string;
+    actorEmail: string;
+  }) => Promise<{
+    dispatched: boolean;
+    status: number;
+    actionsUrl?: string;
+    workflowId?: string;
+    commitSha: string;
+    errorSummary?: string;
+    logs?: string;
+    stdout?: string;
+    stderr?: string;
+  }>;
   sendRecoveryEmail: (to: string, resetUrl: string, ip: string) => Promise<boolean>;
   simulateInternalError: boolean;
 }
 
 const activeDependencies: SandboxDependencies = {
   runPreDeployChecks: defaultPreDeployChecksRunner,
-  triggerGitHubDeploy: defaultGitHubDispatchRunner,
+  executeLocalDeploy: defaultLocalDeployRunner,
+  triggerGitHubDeploy: undefined,
   sendRecoveryEmail: sendSandboxResetEmail,
   simulateInternalError: false,
 };
@@ -1166,7 +1193,8 @@ export function setSandboxDependenciesForTest(overrides: Partial<SandboxDependen
 
 export function resetSandboxDependencies(): void {
   activeDependencies.runPreDeployChecks = defaultPreDeployChecksRunner;
-  activeDependencies.triggerGitHubDeploy = defaultGitHubDispatchRunner;
+  activeDependencies.executeLocalDeploy = defaultLocalDeployRunner;
+  activeDependencies.triggerGitHubDeploy = undefined;
   activeDependencies.sendRecoveryEmail = sendSandboxResetEmail;
   activeDependencies.simulateInternalError = false;
 }
@@ -1818,9 +1846,7 @@ export function createSandboxRouter(): Router {
         },
         environment: {
           mode: 'sandbox',
-          githubConfigured: Boolean(
-            process.env.GITHUB_DEPLOY_PAT && process.env.GITHUB_REPO_OWNER
-          ),
+          deployScriptConfigured: fs.existsSync(DEPLOY_SCRIPT_PATH),
           ownerEmailConfigured: Boolean(process.env.OWNER_EMAIL),
         },
       });
@@ -1837,7 +1863,7 @@ export function createSandboxRouter(): Router {
     });
   });
 
-  // 11. POST /api/sandbox/deploy — Owner-only Deploy gate with mandatory server-side checks
+  // 11. POST /api/sandbox/deploy — Owner-only Local VPS Deploy gate with mandatory server-side checks + deploy.sh execution
   router.post(
     '/deploy',
     requireOwner,
@@ -1895,15 +1921,6 @@ export function createSandboxRouter(): Router {
       deployLockState.actorEmail = owner.email;
       saveDeployLockToDisk();
 
-      const repoOwner = (process.env.GITHUB_REPO_OWNER || '').trim();
-      const repoName = (process.env.GITHUB_REPO_NAME || 'FunnelCraft-COD').trim();
-      const fallbackActionsUrl =
-        repoOwner && repoName
-          ? `https://github.com/${encodeURIComponent(repoOwner)}/${encodeURIComponent(
-              repoName
-            )}/actions`
-          : 'https://github.com/actions';
-
       try {
         recordAuditLog({
           actorEmail: owner.email,
@@ -1911,10 +1928,15 @@ export function createSandboxRouter(): Router {
           userAgent,
           action: 'deploy_trigger',
           result: 'success',
-          metadata: { stage: 'predeploy_checks_started' },
+          metadata: { stage: 'predeploy_checks_started', mode: 'local_vps_script' },
         });
 
         const suite = await activeDependencies.runPreDeployChecks();
+
+        const precheckLogLines = suite.checks.map(
+          (c) =>
+            `[CHECK ${c.passed ? 'PASS' : 'FAIL'}] ${c.command} (${c.durationMs}ms)\n  -> ${c.summary}`
+        );
 
         if (!suite.allPassed) {
           const failedChecks = suite.checks.filter((c) => !c.passed).map((c) => c.name);
@@ -1934,20 +1956,49 @@ export function createSandboxRouter(): Router {
           return sendUnifiedResponse(res, 422, {
             ok: false,
             code: 'PREDEPLOY_CHECKS_FAILED',
-            message: 'Mandatory server-side checks failed. Deployment was not triggered.',
+            message: 'Mandatory server-side checks failed. deploy.sh was not executed.',
             commitSha: suite.commitSha,
             branch: suite.branch,
             checks: suite.checks,
-            actionsUrl: fallbackActionsUrl,
+            stdout: '',
+            stderr: precheckLogLines.join('\n'),
+            logs: precheckLogLines.join('\n'),
           });
         }
 
-        const dispatchResult = await activeDependencies.triggerGitHubDeploy({
-          commitSha: suite.commitSha,
-          actorEmail: owner.email,
-        });
+        // Execute local deploy.sh script (or test override if provided)
+        let localResult: LocalDeployExecutionResult;
+        if (activeDependencies.triggerGitHubDeploy) {
+          const legacyRes = await activeDependencies.triggerGitHubDeploy({
+            commitSha: suite.commitSha,
+            actorEmail: owner.email,
+          });
+          localResult = {
+            executed: legacyRes.dispatched,
+            exitCode: legacyRes.dispatched ? 0 : 1,
+            stdout: legacyRes.stdout || 'Local deploy.sh executed.',
+            stderr: legacyRes.stderr || legacyRes.errorSummary || '',
+            logs:
+              legacyRes.logs ||
+              [...precheckLogLines, legacyRes.stdout || 'Local deploy.sh executed successfully.']
+                .filter(Boolean)
+                .join('\n'),
+            commitSha: suite.commitSha,
+            errorSummary: legacyRes.errorSummary,
+          };
+        } else {
+          localResult = await activeDependencies.executeLocalDeploy({
+            commitSha: suite.commitSha,
+            actorEmail: owner.email,
+          });
+        }
 
-        if (!dispatchResult.dispatched) {
+        const fullTerminalLogs = [...precheckLogLines, '', localResult.logs]
+          .filter((section) => section !== undefined)
+          .join('\n')
+          .trim();
+
+        if (!localResult.executed) {
           recordAuditLog({
             actorEmail: owner.email,
             ip,
@@ -1957,19 +2008,22 @@ export function createSandboxRouter(): Router {
             metadata: {
               commitSha: suite.commitSha,
               branch: suite.branch,
-              status: dispatchResult.status,
-              errorSummary: dispatchResult.errorSummary || 'GitHub dispatch failed',
+              exitCode: localResult.exitCode,
+              errorSummary: localResult.errorSummary || 'Local deploy.sh execution failed',
             },
           });
 
           return sendUnifiedResponse(res, 502, {
             ok: false,
-            code: 'GITHUB_DISPATCH_FAILED',
-            message: dispatchResult.errorSummary || 'Failed to trigger GitHub Actions workflow.',
+            code: 'LOCAL_DEPLOY_FAILED',
+            message: localResult.errorSummary || 'Local deploy.sh execution failed.',
             commitSha: suite.commitSha,
             branch: suite.branch,
             checks: suite.checks,
-            actionsUrl: dispatchResult.actionsUrl,
+            exitCode: localResult.exitCode,
+            stdout: localResult.stdout,
+            stderr: localResult.stderr,
+            logs: fullTerminalLogs,
           });
         }
 
@@ -1985,18 +2039,22 @@ export function createSandboxRouter(): Router {
           metadata: {
             commitSha: suite.commitSha,
             branch: suite.branch,
-            workflowId: dispatchResult.workflowId,
+            script: 'deploy.sh',
+            exitCode: localResult.exitCode,
           },
         });
 
         return sendUnifiedResponse(res, 200, {
           ok: true,
           code: 'DEPLOY_TRIGGERED',
-          message: 'All mandatory checks passed. GitHub Actions deployment triggered.',
+          message: 'All mandatory checks passed and local VPS deploy.sh executed successfully.',
           commitSha: suite.commitSha,
           branch: suite.branch,
           checks: suite.checks,
-          actionsUrl: dispatchResult.actionsUrl,
+          exitCode: localResult.exitCode,
+          stdout: localResult.stdout,
+          stderr: localResult.stderr,
+          logs: fullTerminalLogs,
           triggeredAt: new Date(deployLockState.lastCompletedDeployAt).toISOString(),
         });
       } finally {
