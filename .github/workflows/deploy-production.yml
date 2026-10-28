@@ -45,9 +45,11 @@ jobs:
           DISPATCH_OWNER: ${{ inputs.triggered_by }}
         run: |
           set -euo pipefail
-          if [ -z "$OWNER_EMAIL" ]; then exit 1; fi
-          if [ "$DISPATCH_OWNER" != "$OWNER_EMAIL" ]; then exit 1; fi
-
+          OWNER_TRIMMED=$(echo "$OWNER_EMAIL" | xargs)
+          DISPATCH_TRIMMED=$(echo "$DISPATCH_OWNER" | xargs)
+          if [ -z "$OWNER_TRIMMED" ]; then echo "OWNER_EMAIL secret is missing"; exit 1; fi
+          if [ "${DISPATCH_TRIMMED,,}" != "${OWNER_TRIMMED,,}" ]; then echo "Unauthorized dispatch: Email mismatch"; exit 1; fi
+          echo "✅ Owner verified successfully!"
       - name: Validate commit SHA format
         env:
           TARGET_SHA: ${{ inputs.commit_sha }}
