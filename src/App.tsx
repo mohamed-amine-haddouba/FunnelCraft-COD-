@@ -40,6 +40,9 @@ import { TermsPage } from './components/TermsPage';
 import { PrivacyPolicyPage } from './components/PrivacyPolicyPage';
 import { FloatingWhatsApp } from './components/FloatingWhatsApp';
 import { CustomerLandingPage, ScrapedProduct } from './components/CustomerLandingPage';
+import { SandboxPage } from './components/SandboxPage';
+import { SandboxLoginPage } from './components/SandboxLoginPage';
+import { SandboxResetPage } from './components/SandboxResetPage';
 import { LanguageProvider, useLanguage } from './i18n/translations';
 import { StoredPage } from './types/user';
 import { SubscriptionPlanId } from './types/orders';
@@ -1869,8 +1872,7 @@ function LoginRoute() {
   }
 
   if (isLoggedIn && user) {
-    const isSuperAdmin =
-      user.email?.toLowerCase() === 'naadianajah2020@gmail.com' || user.role === 'admin';
+    const isSuperAdmin = user.role === 'admin';
     return <Navigate to={isSuperAdmin ? '/dashboard/admin' : '/dashboard/builder'} replace />;
   }
 
@@ -1920,7 +1922,10 @@ function PrivacyRoute() {
 
 export default function App() {
   const location = useLocation();
-  const isBuilder = location.pathname === '/dashboard/builder';
+  const isBuilderOrSandbox =
+    location.pathname === '/dashboard/builder' ||
+    location.pathname.startsWith('/sandbox') ||
+    location.pathname === '/reset';
 
   return (
     <GoogleOAuthProvider clientId={googleClientId}>
@@ -1930,6 +1935,9 @@ export default function App() {
             <Route path="/" element={<RootRedirect />} />
             <Route path="/login" element={<LoginRoute />} />
             <Route path="/reset-password" element={<LoginRoute />} />
+            <Route path="/sandbox" element={<SandboxPage />} />
+            <Route path="/sandbox/login" element={<SandboxLoginPage />} />
+            <Route path="/reset" element={<SandboxResetPage />} />
             <Route path="/contact" element={<ContactRoute />} />
             <Route path="/terms" element={<TermsRoute />} />
             <Route path="/privacy" element={<PrivacyRoute />} />
@@ -1938,7 +1946,7 @@ export default function App() {
             <Route path="/dashboard/:tab" element={<BuilderWorkspace />} />
             <Route path="*" element={<NotFoundPage />} />
           </Routes>
-          {!isBuilder && <FloatingWhatsApp />}
+          {!isBuilderOrSandbox && <FloatingWhatsApp />}
         </AuthProvider>
       </LanguageProvider>
     </GoogleOAuthProvider>

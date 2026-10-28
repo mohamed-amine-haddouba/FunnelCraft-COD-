@@ -71,6 +71,7 @@ import { scrapeProductData } from './server/scraper';
 import { sendOtpEmail, sendPasswordResetEmail, sendAdminNotificationEmail } from './server/mailer';
 import { verifyGoogleCredential, isGoogleAuthConfigured } from './server/googleAuth';
 import { verifyCaptchaToken, verifyTurnstileToken, extractClientIp } from './server/captcha';
+import { createSandboxRouter, sandboxPageServerGuard } from './server/sandbox';
 import {
   Client as PayPalClient,
   Environment as PayPalEnvironment,
@@ -225,6 +226,10 @@ async function startServer() {
   app.get('/api/health', (_req: Request, res: Response) => {
     res.json({ status: 'ok', serverTime: new Date().toISOString() });
   });
+
+  // Owner-Only Sandbox API & Server-Side Route Guard
+  app.use('/api/sandbox', createSandboxRouter());
+  app.get('/sandbox', sandboxPageServerGuard);
 
   /* ---------------- AUTHENTICATION & LIVE 2FA OTP ENGINE ---------------- */
 

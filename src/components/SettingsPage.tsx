@@ -142,11 +142,30 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
     reader.readAsDataURL(file);
   };
 
+  const showToast = (msg: string) => {
+    setErrorMessage(msg);
+    setSaveSuccessMessage(null);
+  };
+
   // Save Profile (Task 3: Explicit PUT /api/auth/profile + refreshUser)
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!fullName.trim()) {
-      setErrorMessage(language === 'ar' ? 'يرجى إدخال الاسم الكامل' : 'Veuillez saisir votre nom');
+
+    const formData = {
+      full_name: fullName.trim(),
+      phone: phone.trim(),
+      store_name: storeName.trim(),
+      avatar: avatarUrl,
+      custom_domain: customDomain.trim(),
+      two_factor_enabled: isTwoFactorEnabled,
+    };
+
+    if (!formData.full_name?.trim()) {
+      showToast('الاسم الكامل مطلوب ولا يمكن تركه فارغاً.');
+      return;
+    }
+    if (!formData.store_name?.trim()) {
+      showToast('اسم المتجر مطلوب ولا يمكن تركه فارغاً.');
       return;
     }
 
@@ -154,14 +173,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
     setErrorMessage(null);
 
     try {
-      const formData = {
-        full_name: fullName.trim(),
-        phone: phone.trim(),
-        store_name: storeName.trim(),
-        avatar: avatarUrl,
-        custom_domain: customDomain.trim(),
-        two_factor_enabled: isTwoFactorEnabled,
-      };
 
       const authToken = localStorage.getItem('funnelcraft_auth_token');
       const response = await fetch('/api/auth/profile', {

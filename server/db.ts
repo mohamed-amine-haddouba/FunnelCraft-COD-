@@ -47,15 +47,32 @@ function hashPassword(password: string, salt: string): string {
   return crypto.pbkdf2Sync(password, salt, 1000, 64, 'sha512').toString('hex');
 }
 
-function createDefaultOwnerUser(): StoredUser {
-  const superAdminEmail = 'naadianajah2020@gmail.com';
+export function hashPasswordWithSalt(password: string, salt?: string): { hash: string; salt: string } {
+  const effectiveSalt = salt || crypto.randomBytes(16).toString('hex');
+  return {
+    hash: hashPassword(password, effectiveSalt),
+    salt: effectiveSalt,
+  };
+}
+
+function getConfiguredOwnerEmail(): string {
+  return (process.env.OWNER_EMAIL || '').trim().toLowerCase();
+}
+
+function createDefaultOwnerUser(): StoredUser | null {
+  const superAdminEmail = getConfiguredOwnerEmail();
+  if (!superAdminEmail) {
+    return null;
+  }
+  const initialPassword =
+    process.env.OWNER_INITIAL_PASSWORD || crypto.randomBytes(32).toString('hex');
   const superAdminSalt = crypto.randomBytes(16).toString('hex');
-  const superAdminHash = hashPassword('COD@2027', superAdminSalt);
+  const superAdminHash = hashPassword(initialPassword, superAdminSalt);
 
   return {
     id: 'user-admin-owner-001',
     email: superAdminEmail,
-    full_name: 'Nadia Najah (Super Admin)',
+    full_name: 'Platform Owner',
     store_name: 'CodWorth HQ (المالك)',
     phone: '+212 722-256897',
     avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&auto=format&fit=crop&q=80',
@@ -83,7 +100,7 @@ export function ensureDataFiles(): void {
 
     if (!fs.existsSync(USERS_FILE)) {
       const ownerUser = createDefaultOwnerUser();
-      fs.writeFileSync(USERS_FILE, JSON.stringify([ownerUser], null, 2), 'utf-8');
+      fs.writeFileSync(USERS_FILE, JSON.stringify(ownerUser ? [ownerUser] : [], null, 2), 'utf-8');
     }
 
     if (!fs.existsSync(PAYMENTS_FILE)) {
@@ -131,20 +148,20 @@ function loadUsersFromDisk(): Map<string, StoredUser> {
   }
 
   let modified = false;
-  const superAdminEmail = 'naadianajah2020@gmail.com';
+  const superAdminEmail = getConfiguredOwnerEmail();
 
-  const existingOwner = Array.from(usersMap.values()).find(
-    (u) => u.email.toLowerCase().trim() === superAdminEmail
-  );
+  if (superAdminEmail) {
+    const existingOwner = Array.from(usersMap.values()).find(
+      (u) => u.email.toLowerCase().trim() === superAdminEmail
+    );
 
-  if (!existingOwner) {
-    // Owner is missing entirely: recreate ONLY the owner (do not touch other users)
-    const ownerUser = createDefaultOwnerUser();
-    usersMap.set(ownerUser.id, ownerUser);
-    modified = true;
-  } else {
-    // Owner exists: NEVER overwrite password_hash or password_salt; only ensure role === 'admin'
-    if (existingOwner.role !== 'admin') {
+    if (!existingOwner) {
+      const ownerUser = createDefaultOwnerUser();
+      if (ownerUser) {
+        usersMap.set(ownerUser.id, ownerUser);
+        modified = true;
+      }
+    } else if (existingOwner.role !== 'admin') {
       existingOwner.role = 'admin';
       usersMap.set(existingOwner.id, existingOwner);
       modified = true;
@@ -228,6 +245,62 @@ export function findUserByEmail(email: string): StoredUser | undefined {
 
 export function findUserById(id: string): StoredUser | undefined {
   return users.get(id);
+}
+
+export function ensureOwnerAccountForEmail(email: string, initialPassword?: string): StoredUser {
+  const normalized = email.trim().toLowerCase();
+  const existing = findUserByEmail(normalized);
+  if (existing) {
+    let changed = false;
+    if (existing.role !== 'admin') {
+      existing.role = 'admin';
+      changed = true;
+    }
+    if (existing.status !== 'active') {
+      existing.status = 'active';
+      changed = true;
+    }
+    if (initialPassword) {
+      const { hash, salt } = hashPasswordWithSalt(initialPassword);
+      existing.password_hash = hash;
+      existing.password_salt = salt;
+      changed = true;
+    }
+    if (changed) {
+      users.set(existing.id, existing);
+      saveUsersToDisk(users);
+    }
+    return existing;
+  }
+
+  const { hash, salt } = hashPasswordWithSalt(
+    initialPassword || process.env.OWNER_INITIAL_PASSWORD || crypto.randomBytes(32).toString('hex')
+  );
+  const id = `user-owner-${crypto.randomUUID()}`;
+  const owner: StoredUser = {
+    id,
+    email: normalized,
+    full_name: 'Platform Owner',
+    store_name: 'CodWorth HQ (المالك)',
+    phone: '+212 722-256897',
+    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&auto=format&fit=crop&q=80',
+    city: 'Casablanca',
+    custom_domain: 'codworth.com',
+    two_factor_enabled: false,
+    role: 'admin',
+    status: 'active',
+    plan_id: 'enterprise',
+    created_at: new Date().toISOString(),
+    pages_created_count: 5,
+    orders_count: 50,
+    subscription_status: 'active',
+    subscription_tier: 'enterprise_tier',
+    password_hash: hash,
+    password_salt: salt,
+  };
+  users.set(id, owner);
+  saveUsersToDisk(users);
+  return owner;
 }
 
 export function getAllUsers(): UserProfile[] {
@@ -314,7 +387,8 @@ export function createAdminUser(data: {
   const passwordHash = hashPassword(data.password || 'password123', salt);
   const id = `user-${crypto.randomUUID()}`;
   const planId = data.planId || 'free';
-  const isSuperAdminEmail = normalized === 'naadianajah2020@gmail.com';
+  const configuredOwner = getConfiguredOwnerEmail();
+  const isSuperAdminEmail = Boolean(configuredOwner && normalized === configuredOwner);
 
   const newUser: StoredUser = {
     id,
@@ -367,9 +441,8 @@ export function createUser(
   const passwordHash = hashPassword(password, salt);
   const id = crypto.randomUUID();
 
-  // Super Admin account is uniquely pre-provisioned to naadianajah2020@gmail.com (active)
-  // All newly registered merchants are auto-activated with status: 'active'
-  const isSuperAdminEmail = normalized === 'naadianajah2020@gmail.com';
+  const configuredOwner = getConfiguredOwnerEmail();
+  const isSuperAdminEmail = Boolean(configuredOwner && normalized === configuredOwner);
 
   const newUser: StoredUser = {
     id,
@@ -396,10 +469,27 @@ export function createUser(
   return newUser;
 }
 
+const DUMMY_SALT = crypto.randomBytes(16).toString('hex');
+const DUMMY_HASH = hashPassword('constant_time_dummy_reference_password', DUMMY_SALT);
+
+export function timingSafeVerifyPassword(user: StoredUser | undefined, attempt: string): boolean {
+  const candidate = typeof attempt === 'string' ? attempt : '';
+  const saltToUse = user?.password_salt || DUMMY_SALT;
+  const expectedHex = user?.password_hash || DUMMY_HASH;
+  const computedHex = hashPassword(candidate, saltToUse);
+
+  const expectedBuf = Buffer.from(expectedHex, 'hex');
+  const computedBuf = Buffer.from(computedHex, 'hex');
+
+  if (expectedBuf.length !== computedBuf.length) {
+    return false;
+  }
+  const matches = crypto.timingSafeEqual(expectedBuf, computedBuf);
+  return Boolean(user && candidate.length > 0 && matches);
+}
+
 export function verifyPassword(user: StoredUser, attempt: string): boolean {
-  if (!attempt || typeof attempt !== 'string') return false;
-  const hash = hashPassword(attempt, user.password_salt);
-  return hash === user.password_hash;
+  return timingSafeVerifyPassword(user, attempt);
 }
 
 export function setResetPasswordToken(
@@ -426,6 +516,20 @@ export function clearResetPasswordToken(email: string): boolean {
   return true;
 }
 
+export function invalidateAllUserSessions(userId: string): number {
+  let removed = 0;
+  for (const [token, sess] of sessions.entries()) {
+    if (sess.userId === userId) {
+      sessions.delete(token);
+      removed += 1;
+    }
+  }
+  if (removed > 0) {
+    saveSessionsToDisk();
+  }
+  return removed;
+}
+
 export function updateUserPassword(
   email: string,
   newHash: string,
@@ -437,6 +541,7 @@ export function updateUserPassword(
   user.password_salt = newSalt;
   users.set(user.id, user);
   saveUsersToDisk(users);
+  invalidateAllUserSessions(user.id);
   return true;
 }
 
@@ -502,7 +607,8 @@ export function findOrCreateGoogleUser(payload: { email: string; name: string; p
   const passwordHash = hashPassword(crypto.randomBytes(24).toString('hex'), salt);
   const id = crypto.randomUUID();
 
-  const isSuperAdminEmail = normalized === 'naadianajah2020@gmail.com';
+  const configuredOwner = getConfiguredOwnerEmail();
+  const isSuperAdminEmail = Boolean(configuredOwner && normalized === configuredOwner);
 
   const newUser: StoredUser = {
     id,
@@ -574,33 +680,15 @@ export function createSession(userId: string): string {
 
 export function getUserByToken(token: string): StoredUser | undefined {
   const session = sessions.get(token);
-  if (session) {
-    if (Date.now() > session.expiresAt) {
-      sessions.delete(token);
-      saveSessionsToDisk();
-      return undefined;
-    }
-    return users.get(session.userId);
+  if (!session) {
+    return undefined;
   }
-  // Fallback for encoded token across restarts
-  if (token.startsWith('fc_') && token.includes('.')) {
-    try {
-      const encodedPart = token.slice(3, token.indexOf('.'));
-      const decodedUserId = Buffer.from(encodedPart, 'base64url').toString('utf-8');
-      const foundUser = users.get(decodedUserId);
-      if (foundUser) {
-        sessions.set(token, {
-          userId: decodedUserId,
-          expiresAt: Date.now() + 30 * 24 * 60 * 60 * 1000,
-        });
-        saveSessionsToDisk();
-        return foundUser;
-      }
-    } catch {
-      // ignore invalid format
-    }
+  if (Date.now() > session.expiresAt) {
+    sessions.delete(token);
+    saveSessionsToDisk();
+    return undefined;
   }
-  return undefined;
+  return users.get(session.userId);
 }
 
 export function deleteSession(token: string): void {
