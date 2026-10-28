@@ -71,8 +71,13 @@ import { scrapeProductFromUrl, validateProductUrl, ScrapedProduct } from './serv
 import { scrapeProductData } from './server/scraper';
 import { sendOtpEmail, sendPasswordResetEmail, sendAdminNotificationEmail } from './server/mailer';
 import { verifyGoogleCredential, isGoogleAuthConfigured } from './server/googleAuth';
+import http from 'http';
 import { verifyCaptchaToken, verifyTurnstileToken, extractClientIp } from './server/captcha';
-import { createSandboxRouter, sandboxPageServerGuard } from './server/sandbox';
+import {
+  createSandboxRouter,
+  sandboxPageServerGuard,
+  setupSandboxTerminalWebSocket,
+} from './server/sandbox';
 import {
   Client as PayPalClient,
   Environment as PayPalEnvironment,
@@ -2978,7 +2983,10 @@ Return ONLY a valid JSON object matching this exact schema (no markdown outside 
 
   ensureDataFiles();
 
-  app.listen(PORT, '0.0.0.0', () => {
+  const httpServer = http.createServer(app);
+  setupSandboxTerminalWebSocket(httpServer);
+
+  httpServer.listen(PORT, '0.0.0.0', () => {
     console.log(`CodWorth Builder & Billing Server running on http://0.0.0.0:${PORT}`);
   });
 }

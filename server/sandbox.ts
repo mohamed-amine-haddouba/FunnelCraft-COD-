@@ -1,12 +1,15 @@
 import express, { Request, Response, NextFunction, Router } from 'express';
+import http, { Server as HttpServer, IncomingMessage } from 'http';
 import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { execFile } from 'child_process';
+import { createRequire } from 'module';
+import { execFile, spawn as cpSpawn } from 'child_process';
 import { promisify } from 'util';
 import helmet from 'helmet';
 import { z } from 'zod';
+import { WebSocketServer, WebSocket } from 'ws';
 import {
   findUserByEmail,
   findUserById,
@@ -76,6 +79,8 @@ export type AuditAction =
   | 'deploy_result'
   | 'server_command_2fa_request'
   | 'server_command'
+  | 'server_terminal_open'
+  | 'server_terminal_close'
   | 'logout';
 
 export interface AuditLogEntry {
@@ -2593,9 +2598,13 @@ export function createSandboxRouter(): Router {
       }
 
       const { commandId, password } = parsed.data;
+      const isInteractiveTerminalRequest = commandId === 'INTERACTIVE_TERMINAL';
 
-      // 2. Verify commandId is in strict ALLOWED_COMMANDS whitelist
-      if (!Object.prototype.hasOwnProperty.call(ALLOWED_COMMANDS, commandId)) {
+      // 2. Verify commandId is in strict ALLOWED_COMMANDS whitelist or is INTERACTIVE_TERMINAL
+      if (
+        !isInteractiveTerminalRequest &&
+        !Object.prototype.hasOwnProperty.call(ALLOWED_COMMANDS, commandId)
+      ) {
         recordAuditLog({
           actorEmail: owner.email,
           ip,
@@ -2658,7 +2667,9 @@ export function createSandboxRouter(): Router {
         expiresAt,
       });
 
-      const commandSpec = ALLOWED_COMMANDS[commandId];
+      const resolvedCommandLabel = isInteractiveTerminalRequest
+        ? 'Interactive Root Web Terminal (/bin/bash)'
+        : ALLOWED_COMMANDS[commandId].label;
       const ownerEmailTarget = (process.env.OWNER_EMAIL || owner.email).trim();
 
       // 5. Email 6-digit OTP to OWNER_EMAIL
@@ -2666,7 +2677,7 @@ export function createSandboxRouter(): Router {
         ownerEmailTarget,
         code,
         commandId,
-        commandSpec.label,
+        resolvedCommandLabel,
         ip
       );
 
@@ -2707,7 +2718,7 @@ export function createSandboxRouter(): Router {
         metadata: {
           actorEmail: owner.email,
           commandId,
-          commandLabel: commandSpec.label,
+          commandLabel: resolvedCommandLabel,
           ip,
           userAgent,
           otpTtlSeconds: 300,
@@ -3071,3 +3082,462 @@ export function createSandboxRouter(): Router {
 
   return router;
 }
+
+/* ============================================================================
+ * INTERACTIVE ROOT WEB TERMINAL WEBSOCKET SERVER (/api/sandbox/terminal)
+ * ============================================================================
+ * Security Model:
+ * 1. Session Binding: Verifies `sandbox_sid` cookie (or session token) against
+ *    active Owner Sandbox sessions (`sandboxSessions`).
+ * 2. Step-Up Auth + Email 2FA Handshake: Requires first WebSocket message to be
+ *    `{ type: 'auth', password: '...', otpCode: '...' }`.
+ * 3. Verifies Owner Password via `timingSafeVerifyPassword` (from DB).
+ * 4. Verifies 6-digit `otpCode` from `otpStore` (single-use, 5-minute TTL).
+ * 5. Only after all checks succeed, spawns `/bin/bash` via `node-pty` in
+ *    `/var/www/funnelcraft` and pipes PTY data over the WebSocket.
+ * 6. Logs `server_terminal_open` and `server_terminal_close` in the Audit Trail.
+ * ============================================================================
+ */
+
+interface TerminalProcessHandle {
+  pid: number;
+  write: (data: string) => void;
+  resize: (cols: number, rows: number) => void;
+  kill: () => void;
+  onData: (cb: (data: string) => void) => void;
+  onExit: (cb: (info: { exitCode: number; signal?: number }) => void) => void;
+}
+
+function spawnBashTerminalProcess(
+  cwd: string,
+  cols = 120,
+  rows = 32
+): TerminalProcessHandle {
+  const shell = fs.existsSync('/bin/bash') ? '/bin/bash' : 'bash';
+  const envMap: Record<string, string> = {};
+  for (const [k, v] of Object.entries(process.env)) {
+    if (typeof v === 'string') {
+      envMap[k] = v;
+    }
+  }
+  envMap.TERM = 'xterm-256color';
+
+  try {
+    const localRequire = createRequire(import.meta.url);
+    const ptyModule = localRequire('node-pty') as typeof import('node-pty');
+    const ptyProc = ptyModule.spawn(shell, [], {
+      name: 'xterm-256color',
+      cols,
+      rows,
+      cwd,
+      env: envMap,
+    });
+
+    return {
+      pid: ptyProc.pid,
+      write: (data: string) => ptyProc.write(data),
+      resize: (newCols: number, newRows: number) => {
+        try {
+          ptyProc.resize(Math.max(20, newCols), Math.max(5, newRows));
+        } catch {
+          // ignore resize errors
+        }
+      },
+      kill: () => {
+        try {
+          ptyProc.kill();
+        } catch {
+          // ignore kill errors
+        }
+      },
+      onData: (cb) => {
+        ptyProc.onData(cb);
+      },
+      onExit: (cb) => {
+        ptyProc.onExit(cb);
+      },
+    };
+  } catch (ptyErr) {
+    // Fallback for preview containers where native node-pty C++ addon was not compiled with make/g++
+    console.warn(
+      '[TERMINAL] node-pty native binary unavailable in current environment; using child_process /bin/bash fallback:',
+      ptyErr instanceof Error ? ptyErr.message : ptyErr
+    );
+    const child = cpSpawn(shell, ['-i'], {
+      cwd,
+      env: envMap,
+      stdio: 'pipe',
+    });
+
+    return {
+      pid: child.pid || 0,
+      write: (data: string) => {
+        if (child.stdin && !child.stdin.destroyed) {
+          child.stdin.write(data);
+        }
+      },
+      resize: () => {
+        // no-op for non-pty fallback
+      },
+      kill: () => {
+        try {
+          child.kill('SIGTERM');
+        } catch {
+          // ignore
+        }
+      },
+      onData: (cb) => {
+        child.stdout?.on('data', (chunk: Buffer) => cb(chunk.toString('utf-8')));
+        child.stderr?.on('data', (chunk: Buffer) => cb(chunk.toString('utf-8')));
+      },
+      onExit: (cb) => {
+        child.on('exit', (code) => {
+          cb({ exitCode: typeof code === 'number' ? code : 0 });
+        });
+      },
+    };
+  }
+}
+
+function extractWsSandboxSession(req: IncomingMessage): {
+  session: SandboxSession;
+  user: StoredUser;
+} | null {
+  const cookies = parseCookies(req.headers.cookie);
+  let rawToken = '';
+
+  if (cookies.sandbox_sid && /^[a-f0-9]{64}$/i.test(cookies.sandbox_sid.trim())) {
+    rawToken = cookies.sandbox_sid.trim();
+  } else if (req.url) {
+    try {
+      const parsedUrl = new URL(req.url, 'http://localhost');
+      const queryToken = parsedUrl.searchParams.get('token') || '';
+      if (/^[a-f0-9]{64}$/i.test(queryToken.trim())) {
+        rawToken = queryToken.trim();
+      }
+    } catch {
+      // ignore invalid URL
+    }
+  }
+
+  if (!rawToken) return null;
+
+  const hash = sha256Hex(rawToken);
+  const session = sandboxSessions.get(hash);
+  if (!session) return null;
+
+  if (Date.now() > session.expiresAt) {
+    sandboxSessions.delete(hash);
+    saveSandboxSessionsToDisk();
+    return null;
+  }
+
+  const user = findUserById(session.userId);
+  if (!user || !isStrictOwnerUser(user)) {
+    return null;
+  }
+
+  return { session, user };
+}
+
+function extractWsClientIp(req: IncomingMessage): string {
+  const xff = req.headers['x-forwarded-for'];
+  if (typeof xff === 'string' && xff.trim()) {
+    return xff.split(',')[0].trim();
+  }
+  return req.socket?.remoteAddress || '0.0.0.0';
+}
+
+export function setupSandboxTerminalWebSocket(httpServer: HttpServer): WebSocketServer {
+  const wss = new WebSocketServer({
+    server: httpServer,
+    path: '/api/sandbox/terminal',
+  });
+
+  wss.on('connection', (ws: WebSocket, req: IncomingMessage) => {
+    const ip = extractWsClientIp(req);
+    const userAgent =
+      typeof req.headers['user-agent'] === 'string' ? req.headers['user-agent'] : 'unknown';
+
+    // 1. Verify active Owner Sandbox session from sandbox_sid cookie
+    const activeSession = extractWsSandboxSession(req);
+    if (!activeSession) {
+      recordAuditLog({
+        actorEmail: 'unauthenticated',
+        ip,
+        userAgent,
+        action: 'server_terminal_open',
+        result: 'blocked',
+        metadata: {
+          ip,
+          userAgent,
+          reason: 'missing_or_expired_sandbox_session',
+        },
+      });
+      ws.close(4001, 'Unauthorized: Active Owner Sandbox session required.');
+      return;
+    }
+
+    const { session, user: owner } = activeSession;
+    let isAuthenticated = false;
+    let ptyProcess: TerminalProcessHandle | null = null;
+    let openedAt = 0;
+    let closeLogged = false;
+
+    // Fail-closed 15s timeout if initial auth frame is not sent
+    const authTimer = setTimeout(() => {
+      if (!isAuthenticated) {
+        recordAuditLog({
+          actorEmail: owner.email,
+          ip,
+          userAgent,
+          action: 'server_terminal_open',
+          result: 'blocked',
+          metadata: {
+            actorEmail: owner.email,
+            ip,
+            userAgent,
+            reason: 'auth_handshake_timeout',
+          },
+        });
+        ws.close(4001, 'Unauthorized: Authentication handshake timed out.');
+      }
+    }, 15_000);
+
+    const recordTerminalCloseOnce = (reason: string, exitCode?: number) => {
+      if (!isAuthenticated || closeLogged) return;
+      closeLogged = true;
+      recordAuditLog({
+        actorEmail: owner.email,
+        ip,
+        userAgent,
+        action: 'server_terminal_close',
+        result: 'success',
+        executionTimeMs: openedAt > 0 ? Date.now() - openedAt : 0,
+        exitCode: typeof exitCode === 'number' ? exitCode : 0,
+        metadata: {
+          actorEmail: owner.email,
+          ip,
+          userAgent,
+          pid: ptyProcess?.pid,
+          durationMs: openedAt > 0 ? Date.now() - openedAt : 0,
+          reason,
+        },
+      });
+    };
+
+    ws.on('message', (rawMessage) => {
+      const text = typeof rawMessage === 'string' ? rawMessage : rawMessage.toString('utf-8');
+
+      // Step-Up Auth + Email 2FA Handshake on first message
+      if (!isAuthenticated) {
+        clearTimeout(authTimer);
+
+        let parsedAuth: {
+          type?: string;
+          password?: string;
+          otpCode?: string;
+          cols?: number;
+          rows?: number;
+        } | null = null;
+
+        try {
+          parsedAuth = JSON.parse(text);
+        } catch {
+          parsedAuth = null;
+        }
+
+        if (
+          !parsedAuth ||
+          parsedAuth.type !== 'auth' ||
+          typeof parsedAuth.password !== 'string' ||
+          !parsedAuth.password ||
+          typeof parsedAuth.otpCode !== 'string' ||
+          !/^\d{6}$/.test(parsedAuth.otpCode.trim())
+        ) {
+          recordAuditLog({
+            actorEmail: owner.email,
+            ip,
+            userAgent,
+            action: 'server_terminal_open',
+            result: 'failure',
+            metadata: {
+              actorEmail: owner.email,
+              ip,
+              userAgent,
+              reason: 'invalid_auth_payload',
+            },
+          });
+          ws.close(4001, 'Unauthorized: Invalid authentication payload.');
+          return;
+        }
+
+        // Re-check session expiration at auth time
+        if (Date.now() > session.expiresAt) {
+          recordAuditLog({
+            actorEmail: owner.email,
+            ip,
+            userAgent,
+            action: 'server_terminal_open',
+            result: 'blocked',
+            metadata: {
+              actorEmail: owner.email,
+              ip,
+              userAgent,
+              reason: 'session_expired',
+            },
+          });
+          ws.close(4001, 'Unauthorized: Sandbox session expired.');
+          return;
+        }
+
+        // Verify Owner Password from DB via timingSafeVerifyPassword
+        const dbUser = findUserByEmail(owner.email);
+        const passwordValid = dbUser
+          ? timingSafeVerifyPassword(dbUser, parsedAuth.password)
+          : false;
+
+        if (!passwordValid) {
+          recordAuditLog({
+            actorEmail: owner.email,
+            ip,
+            userAgent,
+            action: 'server_terminal_open',
+            result: 'failure',
+            metadata: {
+              actorEmail: owner.email,
+              ip,
+              userAgent,
+              reason: 'step_up_password_invalid',
+            },
+          });
+          ws.close(4001, 'Unauthorized: Invalid Owner password.');
+          return;
+        }
+
+        // Verify 6-digit OTP from otpStore (single-use, 5-minute TTL)
+        const storedOtp = otpStore.get(session.sessionIdHash);
+        const now = Date.now();
+
+        if (
+          !storedOtp ||
+          now > storedOtp.expiresAt ||
+          !timingSafeOtpEqual(storedOtp.code, parsedAuth.otpCode.trim())
+        ) {
+          if (storedOtp && now > storedOtp.expiresAt) {
+            otpStore.delete(session.sessionIdHash);
+          }
+          recordAuditLog({
+            actorEmail: owner.email,
+            ip,
+            userAgent,
+            action: 'server_terminal_open',
+            result: 'failure',
+            metadata: {
+              actorEmail: owner.email,
+              ip,
+              userAgent,
+              reason: !storedOtp
+                ? 'otp_missing'
+                : now > storedOtp.expiresAt
+                ? 'otp_expired'
+                : 'otp_invalid',
+            },
+          });
+          ws.close(4001, 'Unauthorized: Invalid or expired 2FA OTP code.');
+          return;
+        }
+
+        // Single-use OTP: delete immediately upon verification
+        otpStore.delete(session.sessionIdHash);
+
+        // All checks passed — Spawn /bin/bash via node-pty in /var/www/funnelcraft
+        isAuthenticated = true;
+        openedAt = Date.now();
+        const targetCwd = fs.existsSync(RESTRICTED_VPS_WORKDIR)
+          ? RESTRICTED_VPS_WORKDIR
+          : resolveRestrictedCommandCwd();
+        const initialCols =
+          typeof parsedAuth.cols === 'number' && parsedAuth.cols > 0 ? parsedAuth.cols : 120;
+        const initialRows =
+          typeof parsedAuth.rows === 'number' && parsedAuth.rows > 0 ? parsedAuth.rows : 32;
+
+        ptyProcess = spawnBashTerminalProcess(targetCwd, initialCols, initialRows);
+
+        recordAuditLog({
+          actorEmail: owner.email,
+          ip,
+          userAgent,
+          action: 'server_terminal_open',
+          result: 'success',
+          metadata: {
+            actorEmail: owner.email,
+            ip,
+            userAgent,
+            cwd: targetCwd,
+            pid: ptyProcess.pid,
+          },
+        });
+
+        // Pipe ptyProcess.onData -> ws.send()
+        ptyProcess.onData((data: string) => {
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(data);
+          }
+        });
+
+        ptyProcess.onExit(({ exitCode }) => {
+          recordTerminalCloseOnce('pty_process_exit', exitCode);
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.close(1000, 'Shell process exited.');
+          }
+        });
+
+        return;
+      }
+
+      // Already authenticated: handle terminal resize or pipe raw input to ptyProcess.write()
+      if (!ptyProcess) return;
+
+      if (text.startsWith('{') && text.includes('"resize"')) {
+        try {
+          const ctrl = JSON.parse(text) as { type?: string; cols?: number; rows?: number };
+          if (
+            ctrl &&
+            ctrl.type === 'resize' &&
+            typeof ctrl.cols === 'number' &&
+            typeof ctrl.rows === 'number'
+          ) {
+            ptyProcess.resize(ctrl.cols, ctrl.rows);
+            return;
+          }
+        } catch {
+          // Not a valid JSON control frame; write as raw terminal input
+        }
+      }
+
+      ptyProcess.write(text);
+    });
+
+    ws.on('close', () => {
+      clearTimeout(authTimer);
+      if (ptyProcess) {
+        ptyProcess.kill();
+        ptyProcess = null;
+      }
+      recordTerminalCloseOnce('websocket_closed');
+    });
+
+    ws.on('error', () => {
+      clearTimeout(authTimer);
+      if (ptyProcess) {
+        ptyProcess.kill();
+        ptyProcess = null;
+      }
+      recordTerminalCloseOnce('websocket_error');
+    });
+  });
+
+  return wss;
+}
+

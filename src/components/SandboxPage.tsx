@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Shield,
@@ -17,7 +17,12 @@ import {
   Mail,
   Server,
   Play,
+  Maximize2,
+  X,
 } from 'lucide-react';
+import { Terminal as XTerm } from 'xterm';
+import { FitAddon } from 'xterm-addon-fit';
+import 'xterm/css/xterm.css';
 import { SANDBOX_TOKEN_STORAGE_KEY } from './SandboxLoginPage';
 
 /* ============================================================================
@@ -203,6 +208,23 @@ export function SandboxPage() {
     remainingCommandsInMinute?: number;
   } | null>(null);
 
+  // Interactive Root Web Terminal (node-pty + ws + xterm) state
+  const [isTerminalModalOpen, setIsTerminalModalOpen] = useState<boolean>(false);
+  const [terminalStep, setTerminalStep] = useState<'password' | 'otp' | 'connected'>('password');
+  const [terminalPassword, setTerminalPassword] = useState<string>('');
+  const [terminalOtpCode, setTerminalOtpCode] = useState<string>('');
+  const [terminalOtpSecondsLeft, setTerminalOtpSecondsLeft] = useState<number>(0);
+  const [isRequestingTerminalOtp, setIsRequestingTerminalOtp] = useState<boolean>(false);
+  const [isConnectingTerminal, setIsConnectingTerminal] = useState<boolean>(false);
+  const [terminalFeedback, setTerminalFeedback] = useState<{
+    type: 'info' | 'error';
+    message: string;
+  } | null>(null);
+  const terminalContainerRef = useRef<HTMLDivElement | null>(null);
+  const xtermInstanceRef = useRef<XTerm | null>(null);
+  const fitAddonInstanceRef = useRef<FitAddon | null>(null);
+  const terminalWsRef = useRef<WebSocket | null>(null);
+
   const fetchCsrfToken = useCallback(async () => {
     try {
       const res = await fetch('/api/sandbox/csrf', {
@@ -294,6 +316,20 @@ export function SandboxPage() {
           setOtpFeedback({
             type: 'error',
             code: 'OTP_EXPIRED',
+            message: 'The 6-digit 2FA OTP code expired after 5 minutes. Please request a new code.',
+          });
+          return 0;
+        }
+        return prev - 1;
+      });
+      setTerminalOtpSecondsLeft((prev) => {
+        if (prev <= 0) return 0;
+        if (prev === 1) {
+          setTerminalStep('password');
+          setTerminalOtpCode('');
+          setTerminalPassword('');
+          setTerminalFeedback({
+            type: 'error',
             message: 'The 6-digit 2FA OTP code expired after 5 minutes. Please request a new code.',
           });
           return 0;
@@ -683,6 +719,270 @@ export function SandboxPage() {
     } finally {
       setIsExecutingCommand(false);
     }
+  };
+
+  // Cleanup XTerm & WebSocket resources
+  const disposeInteractiveTerminal = useCallback(() => {
+    if (terminalWsRef.current) {
+      try {
+        terminalWsRef.current.close();
+      } catch {
+        // ignore close error
+      }
+      terminalWsRef.current = null;
+    }
+    if (xtermInstanceRef.current) {
+      try {
+        xtermInstanceRef.current.dispose();
+      } catch {
+        // ignore dispose error
+      }
+      xtermInstanceRef.current = null;
+    }
+    fitAddonInstanceRef.current = null;
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      disposeInteractiveTerminal();
+    };
+  }, [disposeInteractiveTerminal]);
+
+  // Handle window resize for active XTerm FitAddon
+  useEffect(() => {
+    if (!isTerminalModalOpen || terminalStep !== 'connected') return;
+
+    const handleWindowResize = () => {
+      if (fitAddonInstanceRef.current && xtermInstanceRef.current) {
+        try {
+          fitAddonInstanceRef.current.fit();
+          const ws = terminalWsRef.current;
+          if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(
+              JSON.stringify({
+                type: 'resize',
+                cols: xtermInstanceRef.current.cols,
+                rows: xtermInstanceRef.current.rows,
+              })
+            );
+          }
+        } catch {
+          // ignore resize error
+        }
+      }
+    };
+
+    window.addEventListener('resize', handleWindowResize);
+    return () => window.removeEventListener('resize', handleWindowResize);
+  }, [isTerminalModalOpen, terminalStep]);
+
+  const handleOpenTerminalModal = () => {
+    disposeInteractiveTerminal();
+    setTerminalStep('password');
+    setTerminalPassword('');
+    setTerminalOtpCode('');
+    setTerminalOtpSecondsLeft(0);
+    setTerminalFeedback(null);
+    setIsTerminalModalOpen(true);
+  };
+
+  const handleCloseTerminalModal = async () => {
+    disposeInteractiveTerminal();
+    setIsTerminalModalOpen(false);
+    setTerminalStep('password');
+    setTerminalPassword('');
+    setTerminalOtpCode('');
+    setTerminalOtpSecondsLeft(0);
+    setTerminalFeedback(null);
+    await loadSandboxData();
+  };
+
+  // Terminal Modal Step 1: Verify Owner Password & Request 6-Digit Email 2FA Code
+  const handleRequestTerminal2fa = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!terminalPassword.trim() || isRequestingTerminalOtp) return;
+
+    setIsRequestingTerminalOtp(true);
+    setTerminalFeedback(null);
+
+    try {
+      const activeCsrf = csrfToken || (await fetchCsrfToken());
+      const res = await fetch('/api/sandbox/server/request-2fa', {
+        method: 'POST',
+        credentials: 'include',
+        headers: getSandboxAuthHeaders(activeCsrf),
+        body: JSON.stringify({
+          commandId: 'INTERACTIVE_TERMINAL',
+          password: terminalPassword,
+        }),
+      });
+
+      const data = await res.json().catch(() => ({
+        ok: false,
+        code: 'INVALID_RESPONSE',
+        message: 'Unexpected response from 2FA endpoint.',
+      }));
+
+      if (!res.ok || !data.ok) {
+        setTerminalPassword('');
+        setTerminalFeedback({
+          type: 'error',
+          message: data.message || 'Password verification or 2FA email delivery failed.',
+        });
+      } else {
+        setTerminalStep('otp');
+        setTerminalOtpCode('');
+        setTerminalOtpSecondsLeft(
+          typeof data.expiresInSeconds === 'number' ? data.expiresInSeconds : 300
+        );
+        setTerminalFeedback({
+          type: 'info',
+          message:
+            '6-digit 2FA OTP sent to your OWNER_EMAIL. Enter the code below to open the interactive root shell.',
+        });
+      }
+
+      await fetchCsrfToken();
+      await loadSandboxData();
+    } catch {
+      setTerminalFeedback({
+        type: 'error',
+        message: 'Failed to communicate with /api/sandbox/server/request-2fa.',
+      });
+    } finally {
+      setIsRequestingTerminalOtp(false);
+    }
+  };
+
+  // Terminal Modal Step 2: Connect WebSocket (/api/sandbox/terminal), Authenticate, & Mount XTerm
+  const handleConnectInteractiveTerminal = (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleanOtp = terminalOtpCode.trim();
+    if (!terminalPassword.trim() || !/^\d{6}$/.test(cleanOtp) || isConnectingTerminal) {
+      setTerminalFeedback({
+        type: 'error',
+        message: 'Please enter a valid 6-digit numeric OTP code.',
+      });
+      return;
+    }
+
+    setIsConnectingTerminal(true);
+    setTerminalFeedback(null);
+    disposeInteractiveTerminal();
+
+    const passwordToAuth = terminalPassword;
+    const otpToAuth = cleanOtp;
+
+    // Transition to connected view so terminalContainerRef is mounted in DOM
+    setTerminalStep('connected');
+
+    setTimeout(() => {
+      const container = terminalContainerRef.current;
+      if (!container) {
+        setIsConnectingTerminal(false);
+        setTerminalStep('otp');
+        setTerminalFeedback({
+          type: 'error',
+          message: 'Terminal container failed to mount.',
+        });
+        return;
+      }
+
+      const term = new XTerm({
+        cursorBlink: true,
+        fontFamily: 'JetBrains Mono, Menlo, Monaco, Consolas, "Courier New", monospace',
+        fontSize: 13,
+        lineHeight: 1.25,
+        theme: {
+          background: '#000000',
+          foreground: '#e2e8f0',
+          cursor: '#10b981',
+          selectionBackground: '#10b98140',
+        },
+      });
+      const fitAddon = new FitAddon();
+      term.loadAddon(fitAddon);
+      term.open(container);
+      try {
+        fitAddon.fit();
+      } catch {
+        // ignore initial fit error
+      }
+
+      xtermInstanceRef.current = term;
+      fitAddonInstanceRef.current = fitAddon;
+
+      const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const storedToken = sessionStorage.getItem(SANDBOX_TOKEN_STORAGE_KEY) || '';
+      const tokenQuery = storedToken ? `?token=${encodeURIComponent(storedToken)}` : '';
+      const wsUrl = `${wsProtocol}//${window.location.host}/api/sandbox/terminal${tokenQuery}`;
+
+      const ws = new WebSocket(wsUrl);
+      terminalWsRef.current = ws;
+
+      ws.onopen = () => {
+        setIsConnectingTerminal(false);
+        // Clear sensitive credentials from React state immediately after sending auth payload
+        setTerminalPassword('');
+        setTerminalOtpCode('');
+        setTerminalOtpSecondsLeft(0);
+
+        ws.send(
+          JSON.stringify({
+            type: 'auth',
+            password: passwordToAuth,
+            otpCode: otpToAuth,
+            cols: term.cols || 120,
+            rows: term.rows || 32,
+          })
+        );
+        term.focus();
+      };
+
+      ws.onmessage = (event) => {
+        if (typeof event.data === 'string') {
+          term.write(event.data);
+        } else if (event.data instanceof ArrayBuffer) {
+          term.write(new Uint8Array(event.data));
+        } else if (event.data instanceof Blob) {
+          event.data.arrayBuffer().then((buf) => term.write(new Uint8Array(buf)));
+        }
+      };
+
+      ws.onclose = (event) => {
+        setIsConnectingTerminal(false);
+        if (event.code === 4001) {
+          disposeInteractiveTerminal();
+          setTerminalStep('password');
+          setTerminalPassword('');
+          setTerminalOtpCode('');
+          setTerminalFeedback({
+            type: 'error',
+            message:
+              event.reason ||
+              'Unauthorized (4001): Invalid password, expired/invalid 2FA OTP code, or expired session.',
+          });
+        } else {
+          term.writeln(
+            `\r\n\x1b[33m[WebSocket Disconnected — Code ${event.code}${
+              event.reason ? `: ${event.reason}` : ''
+            }]\x1b[0m`
+          );
+        }
+        loadSandboxData();
+      };
+
+      ws.onerror = () => {
+        setIsConnectingTerminal(false);
+        term.writeln('\r\n\x1b[31m[WebSocket Connection Error]\x1b[0m');
+      };
+
+      term.onData((data) => {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(data);
+        }
+      });
+    }, 50);
   };
 
   if (isVerifyingSession) {
@@ -1437,6 +1737,34 @@ export function SandboxPage() {
           </div>
         </section>
 
+        {/* Interactive Root Web Terminal (No PuTTY Required) */}
+        <section className="bg-slate-900 border border-slate-800 rounded-lg p-6">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <h2 className="text-base font-bold text-white flex items-center gap-2">
+                <Terminal className="w-5 h-5 text-emerald-400" />
+                <span>Root Web Terminal (No PuTTY Required)</span>
+              </h2>
+              <p className="text-xs text-slate-400 mt-1">
+                Spawns a direct local <code className="text-emerald-400 font-mono">/bin/bash</code>{' '}
+                PTY session in <code className="text-slate-300 font-mono">/var/www/funnelcraft</code>{' '}
+                over WebSocket (<code className="text-emerald-400 font-mono">node-pty</code> +{' '}
+                <code className="text-emerald-400 font-mono">xterm.js</code>). Protected by active
+                Sandbox session binding, Step-Up Owner Password, and Single-Use Email 2FA OTP.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleOpenTerminalModal}
+              className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold text-xs rounded-md transition-colors flex items-center gap-2 cursor-pointer shrink-0"
+            >
+              <Maximize2 className="w-4 h-4" />
+              <span>Launch Secure Terminal</span>
+            </button>
+          </div>
+        </section>
+
         {/* Security Audit Trail */}
         <section className="bg-slate-900 border border-slate-800 rounded-lg p-6">
           <div className="flex items-center justify-between pb-4 mb-4 border-b border-slate-800">
@@ -1446,8 +1774,8 @@ export function SandboxPage() {
                 <span>Immutable Security Audit Trail</span>
               </h2>
               <p className="text-xs text-slate-400 mt-0.5">
-                Records login attempts, lockouts, password recovery, pre-deploy check failures, and
-                local VPS deployments.
+                Records login attempts, lockouts, password recovery, pre-deploy check failures,
+                local VPS deployments, and interactive terminal sessions.
               </p>
             </div>
             <span className="text-xs font-mono text-slate-400">
@@ -1505,6 +1833,191 @@ export function SandboxPage() {
           </div>
         </section>
       </main>
+
+      {/* Full-Screen Interactive Root Web Terminal Modal */}
+      {isTerminalModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-950/95 backdrop-blur-md flex flex-col">
+          {/* Modal Top Bar */}
+          <div className="flex items-center justify-between px-6 py-3.5 bg-slate-900 border-b border-slate-800">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-md bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+                <Terminal className="w-4 h-4" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                  <span>Interactive Root Web Terminal (/bin/bash)</span>
+                  <span className="px-2 py-0.5 text-[10px] font-mono rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+                    {terminalStep === 'connected' ? 'CONNECTED (PTY)' : 'STEP-UP + 2FA REQUIRED'}
+                  </span>
+                </h3>
+                <p className="text-[11px] font-mono text-slate-400">
+                  OWNER: {statusData.owner.email} · CWD: /var/www/funnelcraft · ENDPOINT:
+                  /api/sandbox/terminal
+                </p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleCloseTerminalModal}
+              className="px-3 py-1.5 bg-rose-950/60 hover:bg-rose-900/80 border border-rose-800 text-rose-200 text-xs font-medium rounded-md flex items-center gap-1.5 cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+              <span>{terminalStep === 'connected' ? 'Disconnect & Close' : 'Close'}</span>
+            </button>
+          </div>
+
+          {/* Modal Body */}
+          {terminalStep !== 'connected' ? (
+            <div className="flex-1 flex items-center justify-center p-6 overflow-y-auto">
+              <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-lg p-6 space-y-5">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-md bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+                    <Lock className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-white">
+                      Root Terminal Authorization Gate
+                    </h4>
+                    <p className="text-xs text-slate-400">
+                      Verify your Owner Password and 6-digit Email 2FA code to spawn{' '}
+                      <code className="text-emerald-400 font-mono">/bin/bash</code>.
+                    </p>
+                  </div>
+                </div>
+
+                {terminalFeedback && (
+                  <div
+                    className={`p-3 rounded-md border text-xs font-mono ${
+                      terminalFeedback.type === 'info'
+                        ? 'bg-emerald-950/30 border-emerald-800 text-emerald-200'
+                        : 'bg-rose-950/40 border-rose-800 text-rose-200'
+                    }`}
+                  >
+                    {terminalFeedback.message}
+                  </div>
+                )}
+
+                {terminalStep === 'password' ? (
+                  <form onSubmit={handleRequestTerminal2fa} className="space-y-4">
+                    <div>
+                      <label
+                        htmlFor="terminal-stepup-password"
+                        className="block text-xs font-medium text-slate-300 mb-1.5"
+                      >
+                        Step 1: Owner Password
+                      </label>
+                      <input
+                        id="terminal-stepup-password"
+                        type="password"
+                        value={terminalPassword}
+                        onChange={(e) => setTerminalPassword(e.target.value)}
+                        disabled={isRequestingTerminalOtp}
+                        autoFocus
+                        autoComplete="off"
+                        placeholder="Enter current owner password"
+                        className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-md text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+                      />
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={isRequestingTerminalOtp || !terminalPassword.trim()}
+                      className="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-800 disabled:text-slate-500 text-slate-950 font-bold text-xs rounded-md transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      {isRequestingTerminalOtp ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span>Sending 2FA Code to {statusData.owner.email}...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Mail className="w-4 h-4" />
+                          <span>Request 2FA Code</span>
+                        </>
+                      )}
+                    </button>
+                  </form>
+                ) : (
+                  <form onSubmit={handleConnectInteractiveTerminal} className="space-y-4">
+                    <div className="flex items-center justify-between text-xs font-mono text-emerald-300 bg-slate-950 px-3 py-2 rounded border border-slate-800">
+                      <span>2FA OTP TARGET: {statusData.owner.email}</span>
+                      <span>
+                        TTL: {Math.floor(terminalOtpSecondsLeft / 60)}:
+                        {String(terminalOtpSecondsLeft % 60).padStart(2, '0')}
+                      </span>
+                    </div>
+
+                    <div>
+                      <label
+                        htmlFor="terminal-otp-input"
+                        className="block text-xs font-medium text-slate-300 mb-1.5"
+                      >
+                        Step 2: 6-Digit Email 2FA OTP Code (Single-Use)
+                      </label>
+                      <input
+                        id="terminal-otp-input"
+                        type="text"
+                        inputMode="numeric"
+                        pattern="\d{6}"
+                        maxLength={6}
+                        value={terminalOtpCode}
+                        onChange={(e) =>
+                          setTerminalOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))
+                        }
+                        disabled={isConnectingTerminal}
+                        autoFocus
+                        autoComplete="one-time-code"
+                        placeholder="Enter 6-digit OTP code"
+                        className="w-full px-3 py-2.5 bg-slate-950 border border-emerald-600/60 rounded-md text-sm font-mono tracking-widest text-white placeholder-slate-500 focus:outline-none focus:border-emerald-400"
+                      />
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setTerminalStep('password');
+                          setTerminalOtpCode('');
+                          setTerminalFeedback(null);
+                        }}
+                        className="px-3 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium rounded-md cursor-pointer"
+                      >
+                        Back
+                      </button>
+
+                      <button
+                        type="submit"
+                        disabled={isConnectingTerminal || terminalOtpCode.trim().length !== 6}
+                        className="flex-1 py-2.5 px-4 bg-emerald-500 hover:bg-emerald-400 disabled:bg-slate-800 disabled:text-slate-500 text-slate-950 font-bold text-xs rounded-md transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                      >
+                        {isConnectingTerminal ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            <span>Connecting WebSocket PTY...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Terminal className="w-4 h-4" />
+                            <span>Connect & Spawn /bin/bash</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </form>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="flex-1 p-3 bg-black overflow-hidden flex flex-col">
+              <div
+                ref={terminalContainerRef}
+                className="flex-1 w-full h-full rounded border border-slate-800 bg-black p-2 overflow-hidden"
+              />
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
