@@ -52,6 +52,16 @@ export function createMailerTransport() {
   });
 }
 
+export function hasValidMailerAuth(): boolean {
+  const hasOAuth2 = Boolean(
+    process.env.GOOGLE_MAILER_CLIENT_ID?.trim() &&
+      process.env.GOOGLE_MAILER_CLIENT_SECRET?.trim() &&
+      process.env.GOOGLE_MAILER_REFRESH_TOKEN?.trim()
+  );
+  const hasPass = Boolean(process.env.SMTP_PASS?.trim());
+  return Boolean(process.env.SMTP_USER?.trim() && (hasPass || hasOAuth2));
+}
+
 /**
  * Sends a high-security 6-digit 2FA verification email to the user.
  * Template is rendered in RTL Arabic with CodWorth branding.
@@ -61,9 +71,9 @@ export async function sendOtpEmail(
   otpCode: string,
   userName: string
 ): Promise<boolean> {
-  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+  if (!hasValidMailerAuth()) {
     console.error(
-      '[Mailer Error] SMTP credentials missing in environment variables (SMTP_HOST, SMTP_USER, SMTP_PASS).'
+      '[Mailer Error] SMTP credentials missing in environment variables (SMTP_USER + SMTP_PASS or GOOGLE_MAILER_* OAuth2).'
     );
     return false;
   }
@@ -164,9 +174,9 @@ export async function sendPasswordResetEmail(
   userName: string,
   resetUrl: string
 ): Promise<boolean> {
-  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+  if (!hasValidMailerAuth()) {
     console.error(
-      '[Mailer Error] SMTP credentials missing in environment variables (SMTP_HOST, SMTP_USER, SMTP_PASS).'
+      '[Mailer Error] SMTP credentials missing in environment variables (SMTP_USER + SMTP_PASS or GOOGLE_MAILER_* OAuth2).'
     );
     return false;
   }
@@ -271,7 +281,7 @@ export async function sendAdminNotificationEmail(
     process.env.SMTP_USER ||
     '';
 
-  if (!to || !process.env.SMTP_USER || !process.env.SMTP_PASS) {
+  if (!to || !hasValidMailerAuth()) {
     console.warn(
       `[Admin Mailer] SMTP credentials or OWNER_EMAIL not configured. Skipping admin notification: "${subject}"`
     );
@@ -359,9 +369,9 @@ export async function sendSandboxResetEmail(
 ): Promise<boolean> {
   console.log('[MAILER] Sending reset email to:', email);
 
-  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+  if (!hasValidMailerAuth()) {
     console.error(
-      '[MAILER ERROR] Cannot send Sandbox reset email: SMTP_USER or SMTP_PASS is missing in .env.'
+      '[MAILER ERROR] Cannot send Sandbox reset email: SMTP_USER + (SMTP_PASS or GOOGLE_MAILER_* OAuth2) is missing in .env.'
     );
     return false;
   }
@@ -434,9 +444,9 @@ export async function sendSandboxTestEmail(
     user: config.user || '(unset)',
   });
 
-  if (!config.user || !config.pass) {
+  if (!hasValidMailerAuth()) {
     const missingMsg =
-      'SMTP_USER or SMTP_PASS is not set in environment variables (.env). Configure SMTP credentials on the VPS and restart PM2.';
+      'SMTP_USER and (SMTP_PASS or GOOGLE_MAILER_* OAuth2) are not set in environment variables (.env). Configure SMTP credentials on the VPS and restart PM2.';
     console.error('[MAILER ERROR]', missingMsg);
     return {
       ok: false,
@@ -482,7 +492,7 @@ export async function sendSandboxTestEmail(
       messageId: info.messageId,
       smtpHost: config.host,
       smtpPort: config.port,
-      smtpUser: config.user,
+      smtpUser: config.user || '(unset)',
     };
   } catch (err: unknown) {
     const smtpErr = err as { message?: string; code?: string; response?: string };
@@ -495,7 +505,7 @@ export async function sendSandboxTestEmail(
       error: detailedError || 'SMTP connection or authentication failed.',
       smtpHost: config.host,
       smtpPort: config.port,
-      smtpUser: config.user,
+      smtpUser: config.user || '(unset)',
     };
   }
 }

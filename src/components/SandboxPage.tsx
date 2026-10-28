@@ -15,8 +15,60 @@ import {
   Activity,
   KeyRound,
   Mail,
+  Server,
+  Play,
 } from 'lucide-react';
 import { SANDBOX_TOKEN_STORAGE_KEY } from './SandboxLoginPage';
+
+/* ============================================================================
+ * VPS LEAST-PRIVILEGE (NON-ROOT USER) DEPLOYMENT GUIDE FOR PM2:
+ * ----------------------------------------------------------------------------
+ * For maximum security on your production VPS, NEVER run Node.js / PM2 as root.
+ * Run the application under a dedicated unprivileged system user (`funnelcraft`):
+ *
+ *   sudo groupadd --system funnelcraft
+ *   sudo useradd --system --gid funnelcraft --create-home \
+ *     --home-dir /home/funnelcraft --shell /usr/sbin/nologin funnelcraft
+ *   sudo chown -R funnelcraft:funnelcraft /var/www/funnelcraft
+ *   pm2 start npm --name "funnelcraft-api" --cwd /var/www/funnelcraft \
+ *     --uid funnelcraft --gid funnelcraft -- start
+ *   pm2 save
+ * ============================================================================
+ */
+
+interface AllowedCommandOption {
+  id: 'PM2_STATUS' | 'PM2_LOGS' | 'DISK_SPACE' | 'GIT_LOG' | 'RESTART_APP';
+  label: string;
+  preview: string;
+}
+
+const SERVER_CONSOLE_COMMANDS: readonly AllowedCommandOption[] = [
+  {
+    id: 'PM2_STATUS',
+    label: 'PM2 Process Status (pm2 list)',
+    preview: 'pm2 list --no-color',
+  },
+  {
+    id: 'PM2_LOGS',
+    label: 'PM2 Recent Logs (last 50 lines, nostream)',
+    preview: 'pm2 logs funnelcraft-api --lines 50 --nostream --no-color',
+  },
+  {
+    id: 'DISK_SPACE',
+    label: 'Disk Space & Filesystem Usage (df -h)',
+    preview: 'df -h',
+  },
+  {
+    id: 'GIT_LOG',
+    label: 'Recent Git Commits (git log -n 10 --oneline)',
+    preview: 'git log -n 10 --oneline --decorate',
+  },
+  {
+    id: 'RESTART_APP',
+    label: 'Restart Application (pm2 restart funnelcraft-api)',
+    preview: 'pm2 restart funnelcraft-api --update-env',
+  },
+];
 
 interface PreDeployCheckItem {
   name: 'typecheck' | 'tests' | 'build' | 'branch';
@@ -123,6 +175,23 @@ export function SandboxPage() {
     smtpHost?: string;
     smtpPort?: number;
     smtpUser?: string;
+  } | null>(null);
+
+  // Zero-Trust Server Control Console state (Step-Up Auth + Strict Command Whitelist)
+  const [selectedCommandId, setSelectedCommandId] = useState<string>('PM2_STATUS');
+  const [stepUpPassword, setStepUpPassword] = useState<string>('');
+  const [isExecutingCommand, setIsExecutingCommand] = useState<boolean>(false);
+  const [commandResult, setCommandResult] = useState<{
+    ok: boolean;
+    code: string;
+    message: string;
+    commandId: string;
+    commandLabel?: string;
+    exitCode?: number;
+    executionTimeMs?: number;
+    stdout?: string;
+    stderr?: string;
+    remainingCommandsInMinute?: number;
   } | null>(null);
 
   const fetchCsrfToken = useCallback(async () => {
@@ -397,6 +466,63 @@ export function SandboxPage() {
       });
     } finally {
       setIsDeploying(false);
+    }
+  };
+
+  const handleExecuteServerCommand = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedCommandId || !stepUpPassword.trim() || isExecutingCommand) return;
+
+    // Capture password for this single request and clear input immediately (Step-Up Auth every time)
+    const passwordForRequest = stepUpPassword;
+    setStepUpPassword('');
+    setIsExecutingCommand(true);
+    setCommandResult(null);
+
+    try {
+      const activeCsrf = csrfToken || (await fetchCsrfToken());
+      const res = await fetch('/api/sandbox/server/command', {
+        method: 'POST',
+        credentials: 'include',
+        headers: getSandboxAuthHeaders(activeCsrf),
+        body: JSON.stringify({
+          commandId: selectedCommandId,
+          password: passwordForRequest,
+        }),
+      });
+
+      const data = await res.json().catch(() => ({
+        ok: false,
+        code: 'INVALID_RESPONSE',
+        message: 'Received an unexpected response from the server.',
+      }));
+
+      setCommandResult({
+        ok: Boolean(res.ok && data.ok),
+        code: data.code || (res.ok ? 'COMMAND_EXECUTED' : 'COMMAND_FAILED'),
+        message: data.message || 'Command execution finished.',
+        commandId: data.commandId || selectedCommandId,
+        commandLabel: data.commandLabel,
+        exitCode: data.exitCode,
+        executionTimeMs: data.executionTimeMs,
+        stdout: data.stdout || '',
+        stderr: data.stderr || '',
+        remainingCommandsInMinute: data.remainingCommandsInMinute,
+      });
+
+      await fetchCsrfToken();
+      await loadSandboxData();
+    } catch {
+      setCommandResult({
+        ok: false,
+        code: 'NETWORK_ERROR',
+        message: 'Failed to communicate with /api/sandbox/server/command.',
+        commandId: selectedCommandId,
+        stdout: '',
+        stderr: '[NETWORK_ERROR] Connection interrupted or server restarted during command execution.',
+      });
+    } finally {
+      setIsExecutingCommand(false);
     }
   };
 
@@ -861,6 +987,198 @@ export function SandboxPage() {
               </pre>
             </div>
           )}
+        </section>
+
+        {/* Zero-Trust Server Control Console */}
+        <section className="bg-slate-900 border border-slate-800 rounded-lg p-6">
+          <div className="flex flex-wrap items-start justify-between gap-4 pb-5 mb-6 border-b border-slate-800">
+            <div>
+              <h2 className="text-base font-bold text-white flex items-center gap-2">
+                <Server className="w-5 h-5 text-emerald-400" />
+                <span>Server Control Console (Zero-Trust Step-Up Execution)</span>
+              </h2>
+              <p className="text-xs text-slate-400 mt-1">
+                Executes strictly whitelisted server commands via{' '}
+                <code className="text-emerald-400 font-mono">execFile</code> (no shell interpolation)
+                inside <code className="text-slate-300 font-mono">/var/www/funnelcraft</code> with
+                secret-stripped env, 10s hard timeout, 1MB output cap, and instant owner email
+                alerting.
+              </p>
+            </div>
+            <div className="text-xs font-mono text-slate-400 flex items-center gap-2">
+              <span>RATE LIMIT: 3 CMDS / MIN</span>
+              <span aria-hidden="true">·</span>
+              <span>TIMEOUT: 10S HARD CAP</span>
+              <span aria-hidden="true">·</span>
+              <span>AUTH: STEP-UP PASSWORD</span>
+            </div>
+          </div>
+
+          <form
+            onSubmit={handleExecuteServerCommand}
+            className="grid grid-cols-1 lg:grid-cols-12 gap-4 bg-slate-950 border border-slate-800 rounded-md p-4 items-end"
+          >
+            {/* Whitelisted Command Dropdown */}
+            <div className="lg:col-span-5">
+              <label
+                htmlFor="server-command-select"
+                className="block text-xs font-medium text-slate-300 mb-1.5"
+              >
+                Whitelisted Server Command (<code className="text-emerald-400 font-mono">ALLOWED_COMMANDS</code>)
+              </label>
+              <select
+                id="server-command-select"
+                value={selectedCommandId}
+                onChange={(e) => setSelectedCommandId(e.target.value)}
+                disabled={isExecutingCommand}
+                className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-md text-xs font-mono text-white focus:outline-none focus:border-emerald-500"
+              >
+                {SERVER_CONSOLE_COMMANDS.map((cmd) => (
+                  <option key={cmd.id} value={cmd.id}>
+                    [{cmd.id}] {cmd.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Step-Up Authentication Password Input */}
+            <div className="lg:col-span-4">
+              <label
+                htmlFor="server-command-password"
+                className="block text-xs font-medium text-slate-300 mb-1.5"
+              >
+                Step-Up Owner Password (Required Every Execution)
+              </label>
+              <input
+                id="server-command-password"
+                type="password"
+                value={stepUpPassword}
+                onChange={(e) => setStepUpPassword(e.target.value)}
+                disabled={isExecutingCommand}
+                autoComplete="off"
+                placeholder="Enter owner password to authorize"
+                className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-md text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+              />
+            </div>
+
+            {/* Execute Command Button */}
+            <div className="lg:col-span-3">
+              <button
+                type="submit"
+                disabled={isExecutingCommand || !selectedCommandId || !stepUpPassword.trim()}
+                className="w-full py-2 px-4 bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-800 disabled:text-slate-500 text-slate-950 font-bold text-xs rounded-md transition-colors flex items-center justify-center gap-2 cursor-pointer"
+              >
+                {isExecutingCommand ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Executing (10s max)...</span>
+                  </>
+                ) : (
+                  <>
+                    <Play className="w-3.5 h-3.5 fill-current" />
+                    <span>Execute Command</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </form>
+
+          {/* Terminal Console Output (<pre>) */}
+          <div className="mt-5 rounded-md border border-slate-800 bg-black overflow-hidden shadow-inner">
+            <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2 bg-slate-950 border-b border-slate-800">
+              <div className="flex items-center gap-2 text-xs font-mono text-slate-300">
+                <Terminal className="w-3.5 h-3.5 text-emerald-400" />
+                <span>
+                  funnelcraft@vps:/var/www/funnelcraft${' '}
+                  {SERVER_CONSOLE_COMMANDS.find((c) => c.id === selectedCommandId)?.preview ||
+                    selectedCommandId}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-3 text-[11px] font-mono">
+                {commandResult && typeof commandResult.executionTimeMs === 'number' && (
+                  <span className="text-slate-400">
+                    TIME: {commandResult.executionTimeMs}ms
+                  </span>
+                )}
+                {commandResult && typeof commandResult.exitCode === 'number' && (
+                  <span
+                    className={
+                      commandResult.exitCode === 0 ? 'text-emerald-400' : 'text-rose-400'
+                    }
+                  >
+                    EXIT: {commandResult.exitCode}
+                  </span>
+                )}
+                <span
+                  className={`font-semibold ${
+                    isExecutingCommand
+                      ? 'text-amber-400'
+                      : !commandResult
+                      ? 'text-slate-500'
+                      : commandResult.ok
+                      ? 'text-emerald-400'
+                      : 'text-rose-400'
+                  }`}
+                >
+                  {isExecutingCommand
+                    ? 'RUNNING (10S TIMEOUT WINDOW)...'
+                    : !commandResult
+                    ? 'IDLE'
+                    : commandResult.ok
+                    ? `SUCCESS [${commandResult.code}]`
+                    : `ERROR [${commandResult.code}]`}
+                </span>
+              </div>
+            </div>
+
+            {isExecutingCommand ? (
+              <div className="p-8 flex flex-col items-center justify-center gap-3 text-slate-300 font-mono text-xs">
+                <Loader2 className="w-6 h-6 text-emerald-400 animate-spin" />
+                <span>
+                  Executing whitelisted command [{selectedCommandId}] with 10-second hard timeout...
+                </span>
+              </div>
+            ) : commandResult ? (
+              <div className="divide-y divide-slate-900">
+                <div
+                  className={`px-4 py-2 text-xs font-mono ${
+                    commandResult.ok ? 'text-emerald-300 bg-emerald-950/20' : 'text-rose-300 bg-rose-950/20'
+                  }`}
+                >
+                  [{commandResult.code}] {commandResult.message}
+                </div>
+
+                {commandResult.stdout && (
+                  <pre className="p-4 text-xs font-mono leading-relaxed text-emerald-400 overflow-x-auto max-h-96 whitespace-pre-wrap">
+                    {commandResult.stdout}
+                  </pre>
+                )}
+
+                {commandResult.stderr && (
+                  <pre className="p-4 text-xs font-mono leading-relaxed text-rose-400 overflow-x-auto max-h-96 whitespace-pre-wrap">
+                    {commandResult.stderr}
+                  </pre>
+                )}
+
+                {!commandResult.stdout && !commandResult.stderr && (
+                  <pre
+                    className={`p-4 text-xs font-mono leading-relaxed ${
+                      commandResult.ok ? 'text-emerald-400' : 'text-rose-400'
+                    }`}
+                  >
+                    {commandResult.ok
+                      ? '(Command completed with exit code 0 and no console output)'
+                      : commandResult.message}
+                  </pre>
+                )}
+              </div>
+            ) : (
+              <pre className="p-4 text-xs font-mono text-slate-500">
+                Select a whitelisted command above and enter your Owner password to execute.
+              </pre>
+            )}
+          </div>
         </section>
 
         {/* Security Audit Trail */}

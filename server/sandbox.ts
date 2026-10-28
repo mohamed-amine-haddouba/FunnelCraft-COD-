@@ -19,7 +19,11 @@ import {
   bootstrapOwnerFromEnv,
   StoredUser,
 } from './db';
-import { sendSandboxResetEmail, sendSandboxTestEmail } from './mailer';
+import {
+  sendSandboxResetEmail,
+  sendSandboxTestEmail,
+  sendAdminNotificationEmail,
+} from './mailer';
 
 const execFileAsync = promisify(execFile);
 
@@ -30,6 +34,7 @@ const AUDIT_LOG_FILE = path.resolve(DATA_DIR, 'sandbox_audit.json');
 const SANDBOX_SESSIONS_FILE = path.resolve(DATA_DIR, 'sandbox_sessions.json');
 const SANDBOX_RESET_TOKENS_FILE = path.resolve(DATA_DIR, 'sandbox_reset_tokens.json');
 const DEPLOY_LOCK_FILE = path.resolve(DATA_DIR, 'sandbox_deploy_lock.json');
+const SERVER_COMMAND_LOCK_FILE = path.resolve(DATA_DIR, 'sandbox_command_lock.json');
 
 /* ---------------- CONSTANTS ---------------- */
 
@@ -44,6 +49,12 @@ export const DEPLOY_COOLDOWN_MS = 5 * 60 * 1000; // 1 deploy per 5 minutes
 export const DEPLOY_LOCK_STALE_MS = 10 * 60 * 1000; // 10 minutes safety TTL for lock
 export const AUDIT_MAX_FILE_BYTES = 10 * 1024 * 1024; // 10 MB rotation threshold
 export const RECOVERY_FIXED_PAD_MS = 350; // Fixed 350ms constant-time target for recovery requests
+export const SERVER_COMMAND_TIMEOUT_MS = 10_000; // Hard 10-second execution timeout
+export const SERVER_COMMAND_MAX_BUFFER_BYTES = 1024 * 1024; // Hard 1 MB output cap
+export const SERVER_COMMAND_RATE_WINDOW_MS = 60 * 1000; // 1-minute sliding window
+export const MAX_SERVER_COMMANDS_PER_MINUTE = 3; // Strict max 3 commands per minute
+export const SERVER_COMMAND_LOCK_STALE_MS = 15 * 1000; // 15s stale lock recovery (> 10s timeout)
+export const RESTRICTED_VPS_WORKDIR = '/var/www/funnelcraft';
 
 /* ---------------- TYPES ---------------- */
 
@@ -61,6 +72,7 @@ export type AuditAction =
   | 'deploy_trigger'
   | 'check_failure'
   | 'deploy_result'
+  | 'server_command'
   | 'logout';
 
 export interface AuditLogEntry {
@@ -71,6 +83,9 @@ export interface AuditLogEntry {
   userAgent: string;
   action: AuditAction;
   result: 'success' | 'failure' | 'blocked';
+  commandId?: string;
+  executionTimeMs?: number;
+  exitCode?: number;
   metadata: Record<string, unknown>;
 }
 
@@ -168,6 +183,13 @@ const recoveryResetSchema = z
       .string()
       .min(8, 'Password must be at least 8 characters')
       .max(128, 'Password must not exceed 128 characters'),
+  })
+  .strict();
+
+const serverCommandSchema = z
+  .object({
+    commandId: z.string().trim().min(1).max(64),
+    password: z.string().min(1).max(256),
   })
   .strict();
 
@@ -332,6 +354,9 @@ export function recordAuditLog(params: {
   userAgent?: string;
   action: AuditAction;
   result: 'success' | 'failure' | 'blocked';
+  commandId?: string;
+  executionTimeMs?: number;
+  exitCode?: number;
   metadata?: Record<string, unknown>;
 }): AuditLogEntry {
   const entry: AuditLogEntry = {
@@ -342,6 +367,9 @@ export function recordAuditLog(params: {
     userAgent: redactSensitiveStringValue(params.userAgent || 'unknown').slice(0, 250),
     action: params.action,
     result: params.result,
+    ...(params.commandId !== undefined ? { commandId: params.commandId } : {}),
+    ...(params.executionTimeMs !== undefined ? { executionTimeMs: params.executionTimeMs } : {}),
+    ...(params.exitCode !== undefined ? { exitCode: params.exitCode } : {}),
     metadata: redactSecrets(params.metadata || {}),
   };
   auditLogs.push(entry);
@@ -1153,6 +1181,340 @@ export async function defaultLocalDeployRunner(params: {
   }
 }
 
+/* ============================================================================
+ * ZERO-TRUST SERVER CONTROL CONSOLE (NO SHELL EXECUTION, STEP-UP AUTH)
+ * ============================================================================
+ *
+ * VPS LEAST-PRIVILEGE (NON-ROOT USER) HARDENING GUIDE:
+ * ----------------------------------------------------------------------------
+ * Never run the Node.js / PM2 process as `root` on a production VPS. To isolate
+ * the application and ensure that any child process spawned by `execFile` runs
+ * with minimal OS privileges:
+ *
+ * 1. Create a dedicated system user and group with no interactive login shell:
+ *      sudo groupadd --system funnelcraft
+ *      sudo useradd --system --gid funnelcraft --create-home \
+ *        --home-dir /home/funnelcraft --shell /usr/sbin/nologin funnelcraft
+ *
+ * 2. Grant ownership of the application directory `/var/www/funnelcraft` only:
+ *      sudo mkdir -p /var/www/funnelcraft
+ *      sudo chown -R funnelcraft:funnelcraft /var/www/funnelcraft
+ *      sudo chmod 750 /var/www/funnelcraft
+ *      sudo chmod 600 /var/www/funnelcraft/.env
+ *
+ * 3. Start the PM2 daemon and application under the non-root `funnelcraft` UID/GID:
+ *      pm2 start npm --name "funnelcraft-api" \
+ *        --cwd /var/www/funnelcraft \
+ *        --uid funnelcraft --gid funnelcraft \
+ *        -- start
+ *      pm2 save
+ *
+ * 4. Enable the systemd startup unit scoped exclusively to `funnelcraft`:
+ *      sudo env PATH=$PATH:/usr/bin pm2 startup systemd -u funnelcraft --hp /home/funnelcraft
+ * ============================================================================
+ */
+
+export interface AllowedCommandSpec {
+  id: string;
+  label: string;
+  description: string;
+  binary: string;
+  args: readonly string[];
+}
+
+/**
+ * Strict, immutable command whitelist.
+ * User input NEVER interpolates into a command string or shell.
+ * Only keys present on ALLOWED_COMMANDS can be invoked via `execFile(binary, args)`.
+ */
+export const ALLOWED_COMMANDS: Readonly<Record<string, AllowedCommandSpec>> = Object.freeze({
+  PM2_STATUS: {
+    id: 'PM2_STATUS',
+    label: 'PM2 Process Status (pm2 list)',
+    description: 'Displays status, uptime, CPU, and memory for managed PM2 processes.',
+    binary: 'pm2',
+    args: Object.freeze(['list', '--no-color']),
+  },
+  GET_PM2_STATUS: {
+    id: 'GET_PM2_STATUS',
+    label: 'PM2 Process Status (pm2 list)',
+    description: 'Displays status, uptime, CPU, and memory for managed PM2 processes.',
+    binary: 'pm2',
+    args: Object.freeze(['list', '--no-color']),
+  },
+  PM2_LOGS: {
+    id: 'PM2_LOGS',
+    label: 'PM2 Recent Logs (last 50 lines, nostream)',
+    description: 'Fetches the last 50 log lines from funnelcraft-api without streaming.',
+    binary: 'pm2',
+    args: Object.freeze(['logs', 'funnelcraft-api', '--lines', '50', '--nostream', '--no-color']),
+  },
+  DISK_SPACE: {
+    id: 'DISK_SPACE',
+    label: 'Disk Space & Filesystem Usage (df -h)',
+    description: 'Reports human-readable disk usage across mounted filesystems.',
+    binary: 'df',
+    args: Object.freeze(['-h']),
+  },
+  GIT_LOG: {
+    id: 'GIT_LOG',
+    label: 'Recent Git Commits (git log -n 10 --oneline)',
+    description: 'Shows the 10 most recent git commits on the current branch.',
+    binary: 'git',
+    args: Object.freeze(['log', '-n', '10', '--oneline', '--decorate']),
+  },
+  RESTART_APP: {
+    id: 'RESTART_APP',
+    label: 'Restart Application (pm2 restart funnelcraft-api)',
+    description: 'Gracefully restarts the funnelcraft-api PM2 process with updated env.',
+    binary: 'pm2',
+    args: Object.freeze(['restart', 'funnelcraft-api', '--update-env']),
+  },
+});
+
+const STRIPPED_SENSITIVE_ENV_KEYS = new Set([
+  'SMTP_PASS',
+  'SMTP_USER',
+  'JWT_SECRET',
+  'GITHUB_DEPLOY_PAT',
+  'OWNER_INITIAL_PASSWORD',
+  'GOOGLE_MAILER_CLIENT_ID',
+  'GOOGLE_MAILER_CLIENT_SECRET',
+  'GOOGLE_MAILER_REFRESH_TOKEN',
+  'DATABASE_URL',
+  'SUPABASE_SERVICE_ROLE_KEY',
+  'PAYPAL_CLIENT_SECRET',
+  'STRIPE_SECRET_KEY',
+]);
+
+const SENSITIVE_ENV_KEY_REGEX =
+  /pass|password|secret|token|key|pat|credential|private|cookie|auth|dsn/i;
+
+/**
+ * Builds a minimal, secret-stripped environment object for child processes.
+ * Explicitly removes `SMTP_PASS`, `JWT_SECRET`, OAuth tokens, and any key matching secret patterns.
+ */
+export function buildSanitizedChildEnv(): NodeJS.ProcessEnv {
+  const safeAllowlist = ['PATH', 'HOME', 'USER', 'LOGNAME', 'LANG', 'LC_ALL', 'TERM', 'PM2_HOME'];
+  const sanitized: NodeJS.ProcessEnv = {
+    NODE_ENV: process.env.NODE_ENV || 'production',
+    CI: 'true',
+  };
+
+  for (const key of safeAllowlist) {
+    const val = process.env[key];
+    if (
+      typeof val === 'string' &&
+      !STRIPPED_SENSITIVE_ENV_KEYS.has(key) &&
+      !SENSITIVE_ENV_KEY_REGEX.test(key)
+    ) {
+      sanitized[key] = val;
+    }
+  }
+
+  return sanitized;
+}
+
+export function resolveRestrictedCommandCwd(): string {
+  const configuredDir = (process.env.SANDBOX_COMMAND_CWD || RESTRICTED_VPS_WORKDIR).trim();
+  if (fs.existsSync(configuredDir)) {
+    return configuredDir;
+  }
+  return path.resolve(__dirname, '..');
+}
+
+interface ServerCommandLockState {
+  inProgress: boolean;
+  lockedAt: number;
+  actorEmail: string;
+  commandId: string;
+}
+
+function loadServerCommandLockFromDisk(): ServerCommandLockState {
+  if (!fs.existsSync(SERVER_COMMAND_LOCK_FILE)) {
+    return { inProgress: false, lockedAt: 0, actorEmail: '', commandId: '' };
+  }
+  try {
+    const raw = fs.readFileSync(SERVER_COMMAND_LOCK_FILE, 'utf-8');
+    const parsed = JSON.parse(raw) as ServerCommandLockState;
+    if (parsed && typeof parsed.inProgress === 'boolean') {
+      return parsed;
+    }
+  } catch {
+    // ignore corrupt lock file
+  }
+  return { inProgress: false, lockedAt: 0, actorEmail: '', commandId: '' };
+}
+
+let serverCommandLockState: ServerCommandLockState = loadServerCommandLockFromDisk();
+
+function saveServerCommandLockToDisk(): void {
+  try {
+    const tmp = `${SERVER_COMMAND_LOCK_FILE}.tmp.${process.pid}.${crypto.randomUUID()}`;
+    fs.writeFileSync(tmp, JSON.stringify(serverCommandLockState, null, 2), {
+      encoding: 'utf-8',
+      mode: 0o600,
+    });
+    fs.renameSync(tmp, SERVER_COMMAND_LOCK_FILE);
+  } catch {
+    // ignore write error
+  }
+}
+
+export function isServerCommandLocked(): boolean {
+  const diskState = loadServerCommandLockFromDisk();
+  if (diskState.inProgress) {
+    if (Date.now() - diskState.lockedAt > SERVER_COMMAND_LOCK_STALE_MS) {
+      serverCommandLockState = { inProgress: false, lockedAt: 0, actorEmail: '', commandId: '' };
+      saveServerCommandLockToDisk();
+      return false;
+    }
+    return true;
+  }
+  if (serverCommandLockState.inProgress) {
+    if (Date.now() - serverCommandLockState.lockedAt > SERVER_COMMAND_LOCK_STALE_MS) {
+      serverCommandLockState = { inProgress: false, lockedAt: 0, actorEmail: '', commandId: '' };
+      saveServerCommandLockToDisk();
+      return false;
+    }
+    return true;
+  }
+  return false;
+}
+
+function acquireServerCommandLock(actorEmail: string, commandId: string): boolean {
+  if (isServerCommandLocked()) {
+    return false;
+  }
+  serverCommandLockState = {
+    inProgress: true,
+    lockedAt: Date.now(),
+    actorEmail,
+    commandId,
+  };
+  saveServerCommandLockToDisk();
+  return true;
+}
+
+function releaseServerCommandLock(): void {
+  serverCommandLockState = {
+    inProgress: false,
+    lockedAt: 0,
+    actorEmail: '',
+    commandId: '',
+  };
+  saveServerCommandLockToDisk();
+}
+
+// Strict rate limiter: Max 3 commands per minute
+const serverCommandTimestamps: number[] = [];
+
+export function checkServerCommandRateLimit(): {
+  allowed: boolean;
+  retryAfterSeconds?: number;
+  remainingInWindow: number;
+} {
+  const now = Date.now();
+  while (
+    serverCommandTimestamps.length > 0 &&
+    now - serverCommandTimestamps[0] >= SERVER_COMMAND_RATE_WINDOW_MS
+  ) {
+    serverCommandTimestamps.shift();
+  }
+
+  if (serverCommandTimestamps.length >= MAX_SERVER_COMMANDS_PER_MINUTE) {
+    const oldest = serverCommandTimestamps[0];
+    const retryAfterSeconds = Math.max(
+      1,
+      Math.ceil((oldest + SERVER_COMMAND_RATE_WINDOW_MS - now) / 1000)
+    );
+    return {
+      allowed: false,
+      retryAfterSeconds,
+      remainingInWindow: 0,
+    };
+  }
+
+  serverCommandTimestamps.push(now);
+  return {
+    allowed: true,
+    remainingInWindow: Math.max(0, MAX_SERVER_COMMANDS_PER_MINUTE - serverCommandTimestamps.length),
+  };
+}
+
+export function resetServerCommandStateForTest(): void {
+  serverCommandTimestamps.length = 0;
+  releaseServerCommandLock();
+}
+
+export interface ServerCommandExecutionResult {
+  executed: boolean;
+  exitCode: number;
+  stdout: string;
+  stderr: string;
+  executionTimeMs: number;
+  timedOut?: boolean;
+}
+
+export async function defaultServerCommandRunner(
+  spec: AllowedCommandSpec
+): Promise<ServerCommandExecutionResult> {
+  const start = Date.now();
+  const restrictedCwd = resolveRestrictedCommandCwd();
+  const sanitizedEnv = buildSanitizedChildEnv();
+
+  try {
+    const { stdout, stderr } = await execFileAsync(spec.binary, [...spec.args], {
+      cwd: restrictedCwd,
+      timeout: SERVER_COMMAND_TIMEOUT_MS,
+      maxBuffer: SERVER_COMMAND_MAX_BUFFER_BYTES,
+      killSignal: 'SIGKILL',
+      windowsHide: true,
+      shell: false,
+      env: sanitizedEnv,
+    });
+
+    return {
+      executed: true,
+      exitCode: 0,
+      stdout: sanitizeDeployLogs(stdout || ''),
+      stderr: sanitizeDeployLogs(stderr || ''),
+      executionTimeMs: Date.now() - start,
+    };
+  } catch (err: unknown) {
+    const execErr = err as {
+      code?: number | string;
+      killed?: boolean;
+      signal?: string;
+      stdout?: string;
+      stderr?: string;
+      message?: string;
+    };
+    const duration = Date.now() - start;
+    const timedOut =
+      Boolean(execErr.killed) ||
+      execErr.signal === 'SIGKILL' ||
+      duration >= SERVER_COMMAND_TIMEOUT_MS;
+    const exitCode =
+      typeof execErr.code === 'number' ? execErr.code : timedOut ? 124 : 1;
+
+    return {
+      executed: false,
+      exitCode,
+      stdout: sanitizeDeployLogs(execErr.stdout || ''),
+      stderr: sanitizeDeployLogs(
+        timedOut
+          ? `[TIMEOUT] Command exceeded the hard 10-second execution limit and was terminated (SIGKILL).\n${
+              execErr.stderr || ''
+            }`
+          : execErr.stderr || execErr.message || 'Command execution failed.'
+      ),
+      executionTimeMs: duration,
+      timedOut,
+    };
+  }
+}
+
 /* ---------------- DEPENDENCY OVERRIDES FOR AUTOMATED TESTING ---------------- */
 
 interface SandboxDependencies {
@@ -1161,6 +1523,8 @@ interface SandboxDependencies {
     commitSha: string;
     actorEmail: string;
   }) => Promise<LocalDeployExecutionResult>;
+  executeServerCommand: (spec: AllowedCommandSpec) => Promise<ServerCommandExecutionResult>;
+  sendCommandAlertEmail: (subject: string, htmlContent: string) => Promise<boolean>;
   triggerGitHubDeploy?: (params: {
     commitSha: string;
     actorEmail: string;
@@ -1182,6 +1546,8 @@ interface SandboxDependencies {
 const activeDependencies: SandboxDependencies = {
   runPreDeployChecks: defaultPreDeployChecksRunner,
   executeLocalDeploy: defaultLocalDeployRunner,
+  executeServerCommand: defaultServerCommandRunner,
+  sendCommandAlertEmail: sendAdminNotificationEmail,
   triggerGitHubDeploy: undefined,
   sendRecoveryEmail: sendSandboxResetEmail,
   simulateInternalError: false,
@@ -1194,6 +1560,8 @@ export function setSandboxDependenciesForTest(overrides: Partial<SandboxDependen
 export function resetSandboxDependencies(): void {
   activeDependencies.runPreDeployChecks = defaultPreDeployChecksRunner;
   activeDependencies.executeLocalDeploy = defaultLocalDeployRunner;
+  activeDependencies.executeServerCommand = defaultServerCommandRunner;
+  activeDependencies.sendCommandAlertEmail = sendAdminNotificationEmail;
   activeDependencies.triggerGitHubDeploy = undefined;
   activeDependencies.sendRecoveryEmail = sendSandboxResetEmail;
   activeDependencies.simulateInternalError = false;
@@ -2105,6 +2473,287 @@ export function createSandboxRouter(): Router {
         deployLockState.lockedAt = 0;
         deployLockState.actorEmail = '';
         saveDeployLockToDisk();
+      }
+    })
+  );
+
+  // 12. POST /api/sandbox/server/command — Zero-Trust Server Control Console (requires requireCsrf + requireOwner + Step-Up Password + Strict Whitelist)
+  router.post(
+    '/server/command',
+    requireOwner,
+    asyncHandler(async (req: SandboxAuthRequest, res: Response) => {
+      const requestStart = Date.now();
+      const ip = getRequestIp(req);
+      const userAgent =
+        typeof req.headers['user-agent'] === 'string' ? req.headers['user-agent'] : 'unknown';
+      const owner = req.sandboxUser!;
+
+      if (!req.sandboxSession || Date.now() > req.sandboxSession.expiresAt) {
+        recordAuditLog({
+          actorEmail: owner.email,
+          ip,
+          userAgent,
+          action: 'server_command',
+          result: 'blocked',
+          commandId: 'UNKNOWN',
+          executionTimeMs: Date.now() - requestStart,
+          exitCode: -1,
+          metadata: {
+            actorEmail: owner.email,
+            commandId: 'UNKNOWN',
+            ip,
+            userAgent,
+            executionTimeMs: Date.now() - requestStart,
+            exitCode: -1,
+            reason: 'session_expired',
+          },
+        });
+        return sendUnifiedResponse(res, 401, {
+          ok: false,
+          code: 'SESSION_EXPIRED',
+          message: 'Sandbox session expired. Please re-authenticate.',
+        });
+      }
+
+      // 1. Validate request payload schema ({ commandId, password })
+      const parsed = serverCommandSchema.safeParse(req.body);
+      if (!parsed.success) {
+        const rawCmdId =
+          req.body && typeof req.body === 'object' && typeof req.body.commandId === 'string'
+            ? req.body.commandId.slice(0, 64)
+            : 'INVALID_PAYLOAD';
+        const elapsed = Date.now() - requestStart;
+        recordAuditLog({
+          actorEmail: owner.email,
+          ip,
+          userAgent,
+          action: 'server_command',
+          result: 'failure',
+          commandId: rawCmdId,
+          executionTimeMs: elapsed,
+          exitCode: -1,
+          metadata: {
+            actorEmail: owner.email,
+            commandId: rawCmdId,
+            ip,
+            userAgent,
+            executionTimeMs: elapsed,
+            exitCode: -1,
+            reason: 'validation_error',
+          },
+        });
+        return sendUnifiedResponse(res, 400, {
+          ok: false,
+          code: 'VALIDATION_ERROR',
+          message: 'Both commandId and your current owner password are required.',
+        });
+      }
+
+      const { commandId, password } = parsed.data;
+
+      // 2. Step-Up Authentication: Verify Owner Password on EVERY execution
+      const passwordValid = timingSafeVerifyPassword(owner, password);
+      if (!passwordValid) {
+        const elapsed = Date.now() - requestStart;
+        recordAuditLog({
+          actorEmail: owner.email,
+          ip,
+          userAgent,
+          action: 'server_command',
+          result: 'failure',
+          commandId,
+          executionTimeMs: elapsed,
+          exitCode: -1,
+          metadata: {
+            actorEmail: owner.email,
+            commandId,
+            ip,
+            userAgent,
+            executionTimeMs: elapsed,
+            exitCode: -1,
+            reason: 'step_up_password_invalid',
+          },
+        });
+        return sendUnifiedResponse(res, 401, {
+          ok: false,
+          code: 'STEP_UP_AUTH_FAILED',
+          message: 'Step-up password verification failed. Command execution denied.',
+        });
+      }
+
+      // 3. Strict Command Whitelisting (No Shell Execution)
+      if (!Object.prototype.hasOwnProperty.call(ALLOWED_COMMANDS, commandId)) {
+        const elapsed = Date.now() - requestStart;
+        recordAuditLog({
+          actorEmail: owner.email,
+          ip,
+          userAgent,
+          action: 'server_command',
+          result: 'blocked',
+          commandId,
+          executionTimeMs: elapsed,
+          exitCode: 126,
+          metadata: {
+            actorEmail: owner.email,
+            commandId,
+            ip,
+            userAgent,
+            executionTimeMs: elapsed,
+            exitCode: 126,
+            reason: 'command_not_whitelisted',
+          },
+        });
+        return sendUnifiedResponse(res, 403, {
+          ok: false,
+          code: 'COMMAND_NOT_ALLOWED',
+          message: `Command ID "${commandId}" is not in the strict ALLOWED_COMMANDS whitelist.`,
+        });
+      }
+
+      // 4. Rate Limiting: Max 3 commands per minute
+      const rateGate = checkServerCommandRateLimit();
+      if (!rateGate.allowed) {
+        const elapsed = Date.now() - requestStart;
+        recordAuditLog({
+          actorEmail: owner.email,
+          ip,
+          userAgent,
+          action: 'server_command',
+          result: 'blocked',
+          commandId,
+          executionTimeMs: elapsed,
+          exitCode: -1,
+          metadata: {
+            actorEmail: owner.email,
+            commandId,
+            ip,
+            userAgent,
+            executionTimeMs: elapsed,
+            exitCode: -1,
+            reason: 'rate_limit_exceeded',
+            retryAfterSeconds: rateGate.retryAfterSeconds,
+          },
+        });
+        return sendUnifiedResponse(res, 429, {
+          ok: false,
+          code: 'COMMAND_RATE_LIMITED',
+          message: `Rate limit exceeded (max 3 commands per minute). Retry in ${rateGate.retryAfterSeconds}s.`,
+          retryAfterSeconds: rateGate.retryAfterSeconds,
+        });
+      }
+
+      // 5. Distributed Lock: Prevent concurrent command execution
+      if (!acquireServerCommandLock(owner.email, commandId)) {
+        const elapsed = Date.now() - requestStart;
+        recordAuditLog({
+          actorEmail: owner.email,
+          ip,
+          userAgent,
+          action: 'server_command',
+          result: 'blocked',
+          commandId,
+          executionTimeMs: elapsed,
+          exitCode: -1,
+          metadata: {
+            actorEmail: owner.email,
+            commandId,
+            ip,
+            userAgent,
+            executionTimeMs: elapsed,
+            exitCode: -1,
+            reason: 'concurrent_lock_active',
+          },
+        });
+        return sendUnifiedResponse(res, 409, {
+          ok: false,
+          code: 'COMMAND_LOCKED',
+          message: 'Another server command is currently executing. Please wait.',
+        });
+      }
+
+      const commandSpec = ALLOWED_COMMANDS[commandId];
+
+      try {
+        // 6. Execute command via execFile (10s timeout, 1MB maxBuffer, restricted CWD, stripped env)
+        const execResult = await activeDependencies.executeServerCommand(commandSpec);
+
+        // 7. Record Immutable Audit Trail in sandbox_audit.json
+        recordAuditLog({
+          actorEmail: owner.email,
+          ip,
+          userAgent,
+          action: 'server_command',
+          result: execResult.executed ? 'success' : 'failure',
+          commandId,
+          executionTimeMs: execResult.executionTimeMs,
+          exitCode: execResult.exitCode,
+          metadata: {
+            actorEmail: owner.email,
+            commandId,
+            commandLabel: commandSpec.label,
+            ip,
+            userAgent,
+            executionTimeMs: execResult.executionTimeMs,
+            exitCode: execResult.exitCode,
+            timedOut: Boolean(execResult.timedOut),
+          },
+        });
+
+        // 8. Instant Email Alert to Owner after ANY command is executed successfully
+        if (execResult.executed) {
+          try {
+            await activeDependencies.sendCommandAlertEmail(
+              `[Security Alert] Server Command Executed: ${commandId}`,
+              `
+              <div style="text-align:left;direction:ltr;font-family:monospace;background:#020617;padding:16px;border-radius:10px;border:1px solid #1e293b;color:#e2e8f0;">
+                <p style="margin:0 0 10px 0;color:#10b981;font-weight:bold;">
+                  ⚡ Sandbox Server Control Console — Command Executed
+                </p>
+                <p style="margin:4px 0;"><strong>Command ID:</strong> ${commandId} (${commandSpec.label})</p>
+                <p style="margin:4px 0;"><strong>Actor Email:</strong> ${owner.email}</p>
+                <p style="margin:4px 0;"><strong>IP Address:</strong> ${ip}</p>
+                <p style="margin:4px 0;"><strong>User-Agent:</strong> ${redactSensitiveStringValue(userAgent)}</p>
+                <p style="margin:4px 0;"><strong>Execution Time:</strong> ${execResult.executionTimeMs}ms</p>
+                <p style="margin:4px 0;"><strong>Exit Code:</strong> ${execResult.exitCode}</p>
+                <p style="margin:4px 0;"><strong>Timestamp:</strong> ${new Date().toISOString()}</p>
+              </div>
+              `.trim()
+            );
+          } catch (alertErr) {
+            console.error('[MAILER ERROR] Failed to send server command alert email:', alertErr);
+          }
+        }
+
+        if (!execResult.executed) {
+          return sendUnifiedResponse(res, 502, {
+            ok: false,
+            code: execResult.timedOut ? 'COMMAND_TIMEOUT' : 'COMMAND_EXECUTION_FAILED',
+            message: execResult.timedOut
+              ? `Command "${commandId}" timed out after 10 seconds and was terminated.`
+              : `Command "${commandId}" exited with code ${execResult.exitCode}.`,
+            commandId,
+            commandLabel: commandSpec.label,
+            exitCode: execResult.exitCode,
+            executionTimeMs: execResult.executionTimeMs,
+            stdout: execResult.stdout,
+            stderr: execResult.stderr,
+          });
+        }
+
+        return sendUnifiedResponse(res, 200, {
+          ok: true,
+          code: 'COMMAND_EXECUTED',
+          message: `Command "${commandId}" executed successfully in ${execResult.executionTimeMs}ms.`,
+          commandId,
+          commandLabel: commandSpec.label,
+          exitCode: execResult.exitCode,
+          executionTimeMs: execResult.executionTimeMs,
+          stdout: execResult.stdout,
+          stderr: execResult.stderr,
+          remainingCommandsInMinute: rateGate.remainingInWindow,
+        });
+      } finally {
+        releaseServerCommandLock();
       }
     })
   );
