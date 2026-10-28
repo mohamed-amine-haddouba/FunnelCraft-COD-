@@ -1,3 +1,5 @@
+
+
 name: FunnelCraft-COD Production Deployment
 
 on:
@@ -83,6 +85,7 @@ jobs:
       - name: Install dependencies
         run: |
           set -euo pipefail
+          rm -f package-lock.json
           npm install --legacy-peer-deps
 
       - name: Run TypeScript typecheck
@@ -106,7 +109,7 @@ jobs:
 
       # Variant 1: VPS deployment via SSH (Default: deploy_target == 'vps')
       # Required GitHub Secrets: PROD_DEPLOY_HOST, PROD_DEPLOY_USER, PROD_DEPLOY_SSH_KEY, PROD_DEPLOY_PATH
-      - name: Deploy to Production VPS via SSH
+       - name: Deploy to Production VPS via SSH
         if: inputs.deploy_target == 'vps'
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -121,10 +124,11 @@ jobs:
             cd "${{ secrets.PROD_DEPLOY_PATH }}"
             git fetch origin main
             git reset --hard "${{ inputs.commit_sha }}"
+            rm -f package-lock.json
             npm install --omit=dev --legacy-peer-deps
             npm run build
             if command -v pm2 >/dev/null 2>&1; then
-              pm2 restart funnelcraft --update-env
+              pm2 restart funnelcraft-api --update-env
             else
               sudo systemctl restart funnelcraft
             fi
