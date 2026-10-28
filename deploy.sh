@@ -24,7 +24,7 @@ npm run build
 
 echo ""
 echo ">>> [5/5] Restarting PM2 service (funnelcraft-api)..."
-pm2 restart funnelcraft-api --update-env
+(sleep 3 && pm2 restart funnelcraft-api --update-env) > /dev/null 2>&1 &
 
 echo ""
 echo "========================================================"
