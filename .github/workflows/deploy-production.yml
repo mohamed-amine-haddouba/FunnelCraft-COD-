@@ -81,7 +81,7 @@ jobs:
       - name: Install dependencies
         run: |
           set -euo pipefail
-          npm ci --legacy-peer-deps
+          npm install --legacy-peer-deps
 
       - name: Run TypeScript typecheck
         run: |
