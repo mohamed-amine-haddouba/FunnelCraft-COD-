@@ -23,6 +23,7 @@ import {
   sendSandboxResetEmail,
   sendSandboxTestEmail,
   sendAdminNotificationEmail,
+  sendServerCommandOtpEmail,
 } from './mailer';
 
 const execFileAsync = promisify(execFile);
@@ -54,6 +55,7 @@ export const SERVER_COMMAND_MAX_BUFFER_BYTES = 1024 * 1024; // Hard 1 MB output 
 export const SERVER_COMMAND_RATE_WINDOW_MS = 60 * 1000; // 1-minute sliding window
 export const MAX_SERVER_COMMANDS_PER_MINUTE = 3; // Strict max 3 commands per minute
 export const SERVER_COMMAND_LOCK_STALE_MS = 15 * 1000; // 15s stale lock recovery (> 10s timeout)
+export const SERVER_COMMAND_OTP_TTL_MS = 5 * 60 * 1000; // 5-minute TTL (300,000 ms) for 6-digit 2FA OTP
 export const RESTRICTED_VPS_WORKDIR = '/var/www/funnelcraft';
 
 /* ---------------- TYPES ---------------- */
@@ -72,6 +74,7 @@ export type AuditAction =
   | 'deploy_trigger'
   | 'check_failure'
   | 'deploy_result'
+  | 'server_command_2fa_request'
   | 'server_command'
   | 'logout';
 
@@ -186,10 +189,21 @@ const recoveryResetSchema = z
   })
   .strict();
 
+const serverRequest2faSchema = z
+  .object({
+    commandId: z.string().trim().min(1).max(64),
+    password: z.string().min(1).max(256),
+  })
+  .strict();
+
 const serverCommandSchema = z
   .object({
     commandId: z.string().trim().min(1).max(64),
     password: z.string().min(1).max(256),
+    otpCode: z
+      .string()
+      .trim()
+      .regex(/^\d{6}$/, 'OTP code must be a 6-digit numeric code.'),
   })
   .strict();
 
@@ -199,6 +213,8 @@ const EXPLICIT_SENSITIVE_KEYS = new Set([
   'password',
   'newpassword',
   'currentpassword',
+  'otpcode',
+  'otp',
   'token',
   'csrftoken',
   'x-csrf-token',
@@ -211,7 +227,7 @@ const EXPLICIT_SENSITIVE_KEYS = new Set([
 ]);
 
 const SENSITIVE_KEY_PATTERN =
-  /password|newpassword|currentpassword|secret|token|csrf|pat|authorization|cookie|key|credential|hash|salt|smtp_pass/i;
+  /password|newpassword|currentpassword|otpcode|secret|token|csrf|pat|authorization|cookie|key|credential|hash|salt|smtp_pass/i;
 
 function redactSensitiveStringValue(val: string): string {
   return val
@@ -1442,8 +1458,33 @@ export function checkServerCommandRateLimit(): {
   };
 }
 
+// In-memory 5-minute single-use 2FA OTP store keyed by sessionId (sessionIdHash)
+export interface ServerCommandOtpRecord {
+  code: string;
+  commandId: string;
+  expiresAt: number;
+}
+
+export const otpStore = new Map<string, ServerCommandOtpRecord>();
+
+function timingSafeOtpEqual(codeA: string, codeB: string): boolean {
+  if (typeof codeA !== 'string' || typeof codeB !== 'string') return false;
+  const trimmedA = codeA.trim();
+  const trimmedB = codeB.trim();
+  if (trimmedA.length !== 6 || trimmedB.length !== 6) return false;
+  try {
+    return crypto.timingSafeEqual(
+      Buffer.from(trimmedA, 'utf-8'),
+      Buffer.from(trimmedB, 'utf-8')
+    );
+  } catch {
+    return false;
+  }
+}
+
 export function resetServerCommandStateForTest(): void {
   serverCommandTimestamps.length = 0;
+  otpStore.clear();
   releaseServerCommandLock();
 }
 
@@ -1525,6 +1566,13 @@ interface SandboxDependencies {
   }) => Promise<LocalDeployExecutionResult>;
   executeServerCommand: (spec: AllowedCommandSpec) => Promise<ServerCommandExecutionResult>;
   sendCommandAlertEmail: (subject: string, htmlContent: string) => Promise<boolean>;
+  sendServerCommandOtp: (
+    email: string,
+    otpCode: string,
+    commandId: string,
+    commandLabel: string,
+    ip: string
+  ) => Promise<boolean>;
   triggerGitHubDeploy?: (params: {
     commitSha: string;
     actorEmail: string;
@@ -1548,6 +1596,7 @@ const activeDependencies: SandboxDependencies = {
   executeLocalDeploy: defaultLocalDeployRunner,
   executeServerCommand: defaultServerCommandRunner,
   sendCommandAlertEmail: sendAdminNotificationEmail,
+  sendServerCommandOtp: sendServerCommandOtpEmail,
   triggerGitHubDeploy: undefined,
   sendRecoveryEmail: sendSandboxResetEmail,
   simulateInternalError: false,
@@ -1562,6 +1611,7 @@ export function resetSandboxDependencies(): void {
   activeDependencies.executeLocalDeploy = defaultLocalDeployRunner;
   activeDependencies.executeServerCommand = defaultServerCommandRunner;
   activeDependencies.sendCommandAlertEmail = sendAdminNotificationEmail;
+  activeDependencies.sendServerCommandOtp = sendServerCommandOtpEmail;
   activeDependencies.triggerGitHubDeploy = undefined;
   activeDependencies.sendRecoveryEmail = sendSandboxResetEmail;
   activeDependencies.simulateInternalError = false;
@@ -2477,7 +2527,204 @@ export function createSandboxRouter(): Router {
     })
   );
 
-  // 12. POST /api/sandbox/server/command — Zero-Trust Server Control Console (requires requireCsrf + requireOwner + Step-Up Password + Strict Whitelist)
+  // 12. POST /api/sandbox/server/request-2fa — Step-Up Password + Generate & Email 6-Digit 2FA OTP (5m TTL)
+  router.post(
+    '/server/request-2fa',
+    requireOwner,
+    asyncHandler(async (req: SandboxAuthRequest, res: Response) => {
+      const requestStart = Date.now();
+      const ip = getRequestIp(req);
+      const userAgent =
+        typeof req.headers['user-agent'] === 'string' ? req.headers['user-agent'] : 'unknown';
+      const owner = req.sandboxUser!;
+
+      if (!req.sandboxSession || Date.now() > req.sandboxSession.expiresAt) {
+        recordAuditLog({
+          actorEmail: owner.email,
+          ip,
+          userAgent,
+          action: 'server_command_2fa_request',
+          result: 'blocked',
+          commandId: 'UNKNOWN',
+          executionTimeMs: Date.now() - requestStart,
+          metadata: {
+            actorEmail: owner.email,
+            commandId: 'UNKNOWN',
+            ip,
+            userAgent,
+            reason: 'session_expired',
+          },
+        });
+        return sendUnifiedResponse(res, 401, {
+          ok: false,
+          code: 'SESSION_EXPIRED',
+          message: 'Sandbox session expired. Please re-authenticate.',
+        });
+      }
+
+      // 1. Validate request payload ({ commandId, password })
+      const parsed = serverRequest2faSchema.safeParse(req.body);
+      if (!parsed.success) {
+        const rawCmdId =
+          req.body && typeof req.body === 'object' && typeof req.body.commandId === 'string'
+            ? req.body.commandId.slice(0, 64)
+            : 'INVALID_PAYLOAD';
+        recordAuditLog({
+          actorEmail: owner.email,
+          ip,
+          userAgent,
+          action: 'server_command_2fa_request',
+          result: 'failure',
+          commandId: rawCmdId,
+          executionTimeMs: Date.now() - requestStart,
+          metadata: {
+            actorEmail: owner.email,
+            commandId: rawCmdId,
+            ip,
+            userAgent,
+            reason: 'validation_error',
+          },
+        });
+        return sendUnifiedResponse(res, 400, {
+          ok: false,
+          code: 'VALIDATION_ERROR',
+          message: 'Both commandId and your current owner password are required.',
+        });
+      }
+
+      const { commandId, password } = parsed.data;
+
+      // 2. Verify commandId is in strict ALLOWED_COMMANDS whitelist
+      if (!Object.prototype.hasOwnProperty.call(ALLOWED_COMMANDS, commandId)) {
+        recordAuditLog({
+          actorEmail: owner.email,
+          ip,
+          userAgent,
+          action: 'server_command_2fa_request',
+          result: 'blocked',
+          commandId,
+          executionTimeMs: Date.now() - requestStart,
+          metadata: {
+            actorEmail: owner.email,
+            commandId,
+            ip,
+            userAgent,
+            reason: 'command_not_whitelisted',
+          },
+        });
+        return sendUnifiedResponse(res, 403, {
+          ok: false,
+          code: 'COMMAND_NOT_ALLOWED',
+          message: `Command ID "${commandId}" is not in the strict ALLOWED_COMMANDS whitelist.`,
+        });
+      }
+
+      // 3. Step-Up Authentication: Verify Owner Password from DB
+      const dbUser = findUserByEmail(owner.email);
+      const passwordValid = dbUser ? timingSafeVerifyPassword(dbUser, password) : false;
+
+      if (!passwordValid) {
+        recordAuditLog({
+          actorEmail: owner.email,
+          ip,
+          userAgent,
+          action: 'server_command_2fa_request',
+          result: 'failure',
+          commandId,
+          executionTimeMs: Date.now() - requestStart,
+          metadata: {
+            actorEmail: owner.email,
+            commandId,
+            ip,
+            userAgent,
+            reason: 'step_up_password_invalid',
+          },
+        });
+        return sendUnifiedResponse(res, 401, {
+          ok: false,
+          code: 'STEP_UP_AUTH_FAILED',
+          message: 'Step-up password verification failed. 2FA OTP generation denied.',
+        });
+      }
+
+      // 4. Generate 6-digit OTP and store in otpStore tied to sessionId with 5-minute TTL
+      const code = String(crypto.randomInt(100000, 999999));
+      const sessionId = req.sandboxSession.sessionIdHash;
+      const expiresAt = Date.now() + SERVER_COMMAND_OTP_TTL_MS;
+
+      otpStore.set(sessionId, {
+        code,
+        commandId,
+        expiresAt,
+      });
+
+      const commandSpec = ALLOWED_COMMANDS[commandId];
+      const ownerEmailTarget = (process.env.OWNER_EMAIL || owner.email).trim();
+
+      // 5. Email 6-digit OTP to OWNER_EMAIL
+      const emailSent = await activeDependencies.sendServerCommandOtp(
+        ownerEmailTarget,
+        code,
+        commandId,
+        commandSpec.label,
+        ip
+      );
+
+      if (!emailSent) {
+        otpStore.delete(sessionId);
+        recordAuditLog({
+          actorEmail: owner.email,
+          ip,
+          userAgent,
+          action: 'server_command_2fa_request',
+          result: 'failure',
+          commandId,
+          executionTimeMs: Date.now() - requestStart,
+          metadata: {
+            actorEmail: owner.email,
+            commandId,
+            ip,
+            userAgent,
+            reason: 'otp_email_delivery_failed',
+          },
+        });
+        return sendUnifiedResponse(res, 502, {
+          ok: false,
+          code: 'OTP_EMAIL_FAILED',
+          message:
+            'Failed to send 2FA verification code to OWNER_EMAIL. Please verify SMTP settings.',
+        });
+      }
+
+      recordAuditLog({
+        actorEmail: owner.email,
+        ip,
+        userAgent,
+        action: 'server_command_2fa_request',
+        result: 'success',
+        commandId,
+        executionTimeMs: Date.now() - requestStart,
+        metadata: {
+          actorEmail: owner.email,
+          commandId,
+          commandLabel: commandSpec.label,
+          ip,
+          userAgent,
+          otpTtlSeconds: 300,
+        },
+      });
+
+      return sendUnifiedResponse(res, 200, {
+        ok: true,
+        code: 'OTP_SENT',
+        message: '2FA code sent to your email.',
+        commandId,
+        expiresInSeconds: 300,
+      });
+    })
+  );
+
+  // 13. POST /api/sandbox/server/command — Zero-Trust Server Control Console (requires requireCsrf + requireOwner + Step-Up Password + Single-Use Email 2FA OTP + Strict Whitelist)
   router.post(
     '/server/command',
     requireOwner,
@@ -2515,7 +2762,7 @@ export function createSandboxRouter(): Router {
         });
       }
 
-      // 1. Validate request payload schema ({ commandId, password })
+      // 1. Validate request payload schema ({ commandId, password, otpCode })
       const parsed = serverCommandSchema.safeParse(req.body);
       if (!parsed.success) {
         const rawCmdId =
@@ -2545,14 +2792,13 @@ export function createSandboxRouter(): Router {
         return sendUnifiedResponse(res, 400, {
           ok: false,
           code: 'VALIDATION_ERROR',
-          message: 'Both commandId and your current owner password are required.',
+          message: 'commandId, your current owner password, and a 6-digit otpCode are required.',
         });
       }
 
-      const { commandId, password } = parsed.data;
+      const { commandId, password, otpCode } = parsed.data;
 
       // 2. Step-Up Authentication: Verify Owner Password on EVERY execution
-      
       const dbUser = findUserByEmail(owner.email);
       const passwordValid = dbUser ? timingSafeVerifyPassword(dbUser, password) : false;
 
@@ -2584,7 +2830,60 @@ export function createSandboxRouter(): Router {
         });
       }
 
-      // 3. Strict Command Whitelisting (No Shell Execution)
+      // 3. Verify 6-Digit Email 2FA OTP against otpStore (must be valid, not expired, matching commandId, and single-use)
+      const sessionId = req.sandboxSession.sessionIdHash;
+      const storedOtp = otpStore.get(sessionId);
+      const now = Date.now();
+
+      if (
+        !storedOtp ||
+        now > storedOtp.expiresAt ||
+        storedOtp.commandId !== commandId ||
+        !timingSafeOtpEqual(storedOtp.code, otpCode)
+      ) {
+        if (storedOtp && now > storedOtp.expiresAt) {
+          otpStore.delete(sessionId);
+        }
+        const elapsed = Date.now() - requestStart;
+        recordAuditLog({
+          actorEmail: owner.email,
+          ip,
+          userAgent,
+          action: 'server_command',
+          result: 'failure',
+          commandId,
+          executionTimeMs: elapsed,
+          exitCode: -1,
+          metadata: {
+            actorEmail: owner.email,
+            commandId,
+            ip,
+            userAgent,
+            executionTimeMs: elapsed,
+            exitCode: -1,
+            reason: !storedOtp
+              ? 'otp_missing'
+              : now > storedOtp.expiresAt
+              ? 'otp_expired'
+              : storedOtp.commandId !== commandId
+              ? 'otp_command_mismatch'
+              : 'otp_invalid',
+          },
+        });
+        return sendUnifiedResponse(res, 401, {
+          ok: false,
+          code: 'INVALID_OTP',
+          message:
+            !storedOtp || now > storedOtp.expiresAt
+              ? '2FA OTP code has expired or was not requested. Please request a new 2FA code.'
+              : 'Invalid 2FA OTP code for the selected command.',
+        });
+      }
+
+      // Single-use: immediately delete OTP from otpStore after verification
+      otpStore.delete(sessionId);
+
+      // 4. Strict Command Whitelisting (No Shell Execution)
       if (!Object.prototype.hasOwnProperty.call(ALLOWED_COMMANDS, commandId)) {
         const elapsed = Date.now() - requestStart;
         recordAuditLog({

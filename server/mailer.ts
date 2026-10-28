@@ -509,3 +509,79 @@ export async function sendSandboxTestEmail(
     };
   }
 }
+
+/**
+ * Sends a single-use, 5-minute 6-digit 2FA OTP code to the Owner email
+ * before executing a whitelisted Server Control Console command.
+ */
+export async function sendServerCommandOtpEmail(
+  email: string,
+  otpCode: string,
+  commandId: string,
+  commandLabel: string,
+  ip: string
+): Promise<boolean> {
+  console.log('[MAILER] Sending server command 2FA OTP email to:', email, 'for command:', commandId);
+
+  if (!hasValidMailerAuth()) {
+    console.error(
+      '[MAILER ERROR] Cannot send Server Command 2FA OTP email: SMTP_USER + (SMTP_PASS or GOOGLE_MAILER_* OAuth2) is missing in .env.'
+    );
+    return false;
+  }
+
+  const transporter = createMailerTransport();
+  const config = getSmtpConfig();
+
+  const htmlContent = `
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="UTF-8">
+  <title>FunnelCraft-COD Server Command 2FA Verification</title>
+</head>
+<body style="margin:0;padding:32px;background:#090d16;color:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <div style="max-width:520px;margin:0 auto;background:#0f172a;border:1px solid #1e293b;border-radius:12px;padding:28px;">
+    <h2 style="margin:0 0 12px 0;color:#10b981;font-size:18px;">Server Control Console — 2FA Verification Code</h2>
+    <p style="font-size:14px;line-height:1.6;color:#cbd5e1;">
+      A request to execute a whitelisted server command was initiated from IP <code>${ip}</code>.
+      Enter the single-use 6-digit verification code below within <strong>5 minutes</strong> to authorize execution:
+    </p>
+    <div style="margin:20px 0;padding:18px;background:#020617;border:1px solid #10b981;border-radius:10px;text-align:center;">
+      <div style="font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:6px;">
+        Single-Use 2FA OTP Code (5m TTL)
+      </div>
+      <div style="font-family:monospace;font-size:32px;font-weight:800;letter-spacing:8px;color:#10b981;">
+        ${otpCode}
+      </div>
+    </div>
+    <div style="font-family:monospace;font-size:12px;color:#cbd5e1;background:#020617;padding:12px;border-radius:8px;border:1px solid #1e293b;margin-bottom:16px;">
+      <div><strong>COMMAND ID:</strong> ${commandId}</div>
+      <div><strong>COMMAND:</strong> ${commandLabel}</div>
+      <div><strong>REQUEST IP:</strong> ${ip}</div>
+      <div><strong>EXPIRES IN:</strong> 5 minutes (Single-Use)</div>
+    </div>
+    <p style="font-size:12px;color:#64748b;margin:0;">
+      If you did not initiate this command, do not share this code and rotate your Owner password immediately.
+    </p>
+  </div>
+</body>
+</html>
+  `.trim();
+
+  try {
+    const info = await transporter.sendMail({
+      from: config.from,
+      to: email,
+      subject: `[2FA Code: ${otpCode}] Authorize Server Command: ${commandId}`,
+      text: `Your FunnelCraft-COD Server Control Console 2FA verification code for command ${commandId} (${commandLabel}) requested from IP ${ip} is: ${otpCode}. This code is single-use and expires in 5 minutes.`,
+      html: htmlContent,
+    });
+    console.log('[MAILER] Server command 2FA OTP email sent successfully:', info.messageId);
+    return true;
+  } catch (error) {
+    console.error('[MAILER ERROR] Failed to send Server Command 2FA OTP email to', email, error);
+    return false;
+  }
+}
+

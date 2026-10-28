@@ -177,9 +177,18 @@ export function SandboxPage() {
     smtpUser?: string;
   } | null>(null);
 
-  // Zero-Trust Server Control Console state (Step-Up Auth + Strict Command Whitelist)
+  // Zero-Trust Server Control Console state (Step-Up Auth + Email 2FA OTP + Strict Command Whitelist)
   const [selectedCommandId, setSelectedCommandId] = useState<string>('PM2_STATUS');
   const [stepUpPassword, setStepUpPassword] = useState<string>('');
+  const [isRequesting2fa, setIsRequesting2fa] = useState<boolean>(false);
+  const [isAwaitingOtp, setIsAwaitingOtp] = useState<boolean>(false);
+  const [otpCode, setOtpCode] = useState<string>('');
+  const [otpSecondsRemaining, setOtpSecondsRemaining] = useState<number>(0);
+  const [otpFeedback, setOtpFeedback] = useState<{
+    type: 'info' | 'error';
+    code: string;
+    message: string;
+  } | null>(null);
   const [isExecutingCommand, setIsExecutingCommand] = useState<boolean>(false);
   const [commandResult, setCommandResult] = useState<{
     ok: boolean;
@@ -263,7 +272,7 @@ export function SandboxPage() {
     loadSandboxData();
   }, [fetchCsrfToken, loadSandboxData]);
 
-  // Countdown tick for 30-minute session TTL and 5-minute deploy cooldown
+  // Countdown tick for 30-minute session TTL, 5-minute deploy cooldown, and 5-minute 2FA OTP TTL
   useEffect(() => {
     if (isVerifyingSession || mustChangePassword) return;
     const timer = setInterval(() => {
@@ -276,6 +285,21 @@ export function SandboxPage() {
         return prev - 1;
       });
       setCooldownSeconds((prev) => (prev > 0 ? prev - 1 : 0));
+      setOtpSecondsRemaining((prev) => {
+        if (prev <= 0) return 0;
+        if (prev === 1) {
+          setIsAwaitingOtp(false);
+          setOtpCode('');
+          setStepUpPassword('');
+          setOtpFeedback({
+            type: 'error',
+            code: 'OTP_EXPIRED',
+            message: 'The 6-digit 2FA OTP code expired after 5 minutes. Please request a new code.',
+          });
+          return 0;
+        }
+        return prev - 1;
+      });
     }, 1000);
 
     return () => clearInterval(timer);
@@ -469,14 +493,110 @@ export function SandboxPage() {
     }
   };
 
-  const handleExecuteServerCommand = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedCommandId || !stepUpPassword.trim() || isExecutingCommand) return;
-
-    // Capture password for this single request and clear input immediately (Step-Up Auth every time)
-    const passwordForRequest = stepUpPassword;
+  const resetCommand2faState = useCallback(() => {
+    setIsAwaitingOtp(false);
+    setOtpCode('');
+    setOtpSecondsRemaining(0);
+    setOtpFeedback(null);
     setStepUpPassword('');
+  }, []);
+
+  // Step 1: Verify Owner Password & Request 6-Digit Email 2FA Code (/api/sandbox/server/request-2fa)
+  const handleRequestCommand2fa = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedCommandId || !stepUpPassword.trim() || isRequesting2fa || isExecutingCommand) {
+      return;
+    }
+
+    setIsRequesting2fa(true);
+    setOtpFeedback(null);
+    setCommandResult(null);
+
+    try {
+      const activeCsrf = csrfToken || (await fetchCsrfToken());
+      const res = await fetch('/api/sandbox/server/request-2fa', {
+        method: 'POST',
+        credentials: 'include',
+        headers: getSandboxAuthHeaders(activeCsrf),
+        body: JSON.stringify({
+          commandId: selectedCommandId,
+          password: stepUpPassword,
+        }),
+      });
+
+      const data = await res.json().catch(() => ({
+        ok: false,
+        code: 'INVALID_RESPONSE',
+        message: 'Received an unexpected response from /api/sandbox/server/request-2fa.',
+      }));
+
+      if (!res.ok || !data.ok) {
+        setIsAwaitingOtp(false);
+        setOtpCode('');
+        setStepUpPassword('');
+        setOtpFeedback({
+          type: 'error',
+          code: data.code || '2FA_REQUEST_FAILED',
+          message: data.message || 'Failed to request 2FA OTP code.',
+        });
+        setCommandResult({
+          ok: false,
+          code: data.code || '2FA_REQUEST_FAILED',
+          message: data.message || 'Failed to request 2FA OTP code.',
+          commandId: selectedCommandId,
+          stdout: '',
+          stderr: `[${data.code || '2FA_REQUEST_FAILED'}] ${
+            data.message || 'Step-up authentication or 2FA email delivery failed.'
+          }`,
+        });
+      } else {
+        setIsAwaitingOtp(true);
+        setOtpCode('');
+        setOtpSecondsRemaining(typeof data.expiresInSeconds === 'number' ? data.expiresInSeconds : 300);
+        setOtpFeedback({
+          type: 'info',
+          code: data.code || 'OTP_SENT',
+          message:
+            data.message ||
+            '6-digit 2FA verification code sent to OWNER_EMAIL. Valid for 5 minutes (single-use).',
+        });
+      }
+
+      await fetchCsrfToken();
+      await loadSandboxData();
+    } catch {
+      setIsAwaitingOtp(false);
+      setOtpFeedback({
+        type: 'error',
+        code: 'NETWORK_ERROR',
+        message: 'Failed to communicate with /api/sandbox/server/request-2fa.',
+      });
+    } finally {
+      setIsRequesting2fa(false);
+    }
+  };
+
+  // Step 2: Confirm 6-Digit OTP & Execute Whitelisted Command (/api/sandbox/server/command)
+  const handleConfirmAndExecuteCommand = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleanOtp = otpCode.trim();
+    if (
+      !selectedCommandId ||
+      !stepUpPassword.trim() ||
+      !/^\d{6}$/.test(cleanOtp) ||
+      isExecutingCommand ||
+      isRequesting2fa
+    ) {
+      setOtpFeedback({
+        type: 'error',
+        code: 'INVALID_OTP_FORMAT',
+        message: 'Please enter a valid 6-digit numeric OTP code.',
+      });
+      return;
+    }
+
     setIsExecutingCommand(true);
+    setOtpFeedback(null);
     setCommandResult(null);
 
     try {
@@ -487,7 +607,8 @@ export function SandboxPage() {
         headers: getSandboxAuthHeaders(activeCsrf),
         body: JSON.stringify({
           commandId: selectedCommandId,
-          password: passwordForRequest,
+          password: stepUpPassword,
+          otpCode: cleanOtp,
         }),
       });
 
@@ -497,29 +618,67 @@ export function SandboxPage() {
         message: 'Received an unexpected response from the server.',
       }));
 
-      setCommandResult({
-        ok: Boolean(res.ok && data.ok),
-        code: data.code || (res.ok ? 'COMMAND_EXECUTED' : 'COMMAND_FAILED'),
-        message: data.message || 'Command execution finished.',
-        commandId: data.commandId || selectedCommandId,
-        commandLabel: data.commandLabel,
-        exitCode: data.exitCode,
-        executionTimeMs: data.executionTimeMs,
-        stdout: data.stdout || '',
-        stderr: data.stderr || '',
-        remainingCommandsInMinute: data.remainingCommandsInMinute,
-      });
+      if (!res.ok || !data.ok) {
+        const isExpiredOrMissing =
+          data.code === 'INVALID_OTP' &&
+          typeof data.message === 'string' &&
+          data.message.toLowerCase().includes('expired');
+
+        if (isExpiredOrMissing) {
+          setIsAwaitingOtp(false);
+          setOtpSecondsRemaining(0);
+          setStepUpPassword('');
+        }
+        setOtpCode('');
+        setOtpFeedback({
+          type: 'error',
+          code: data.code || 'COMMAND_FAILED',
+          message: data.message || 'OTP verification or command execution failed.',
+        });
+        setCommandResult({
+          ok: false,
+          code: data.code || 'COMMAND_FAILED',
+          message: data.message || 'Command execution failed.',
+          commandId: data.commandId || selectedCommandId,
+          commandLabel: data.commandLabel,
+          exitCode: data.exitCode,
+          executionTimeMs: data.executionTimeMs,
+          stdout: data.stdout || '',
+          stderr: data.stderr || `[${data.code || 'ERROR'}] ${data.message || ''}`,
+        });
+      } else {
+        // Single-use OTP consumed: reset all 2FA and password state on successful execution
+        resetCommand2faState();
+        setCommandResult({
+          ok: true,
+          code: data.code || 'COMMAND_EXECUTED',
+          message: data.message || 'Command executed successfully.',
+          commandId: data.commandId || selectedCommandId,
+          commandLabel: data.commandLabel,
+          exitCode: data.exitCode,
+          executionTimeMs: data.executionTimeMs,
+          stdout: data.stdout || '',
+          stderr: data.stderr || '',
+          remainingCommandsInMinute: data.remainingCommandsInMinute,
+        });
+      }
 
       await fetchCsrfToken();
       await loadSandboxData();
     } catch {
+      setOtpFeedback({
+        type: 'error',
+        code: 'NETWORK_ERROR',
+        message: 'Failed to communicate with /api/sandbox/server/command.',
+      });
       setCommandResult({
         ok: false,
         code: 'NETWORK_ERROR',
         message: 'Failed to communicate with /api/sandbox/server/command.',
         commandId: selectedCommandId,
         stdout: '',
-        stderr: '[NETWORK_ERROR] Connection interrupted or server restarted during command execution.',
+        stderr:
+          '[NETWORK_ERROR] Connection interrupted or server restarted during command execution.',
       });
     } finally {
       setIsExecutingCommand(false);
@@ -1010,12 +1169,13 @@ export function SandboxPage() {
               <span aria-hidden="true">·</span>
               <span>TIMEOUT: 10S HARD CAP</span>
               <span aria-hidden="true">·</span>
-              <span>AUTH: STEP-UP PASSWORD</span>
+              <span>AUTH: STEP-UP PASSWORD + EMAIL 2FA OTP</span>
             </div>
           </div>
 
+          {/* Step 1 Form: Command Selection + Step-Up Owner Password -> Request 2FA OTP */}
           <form
-            onSubmit={handleExecuteServerCommand}
+            onSubmit={handleRequestCommand2fa}
             className="grid grid-cols-1 lg:grid-cols-12 gap-4 bg-slate-950 border border-slate-800 rounded-md p-4 items-end"
           >
             {/* Whitelisted Command Dropdown */}
@@ -1029,8 +1189,13 @@ export function SandboxPage() {
               <select
                 id="server-command-select"
                 value={selectedCommandId}
-                onChange={(e) => setSelectedCommandId(e.target.value)}
-                disabled={isExecutingCommand}
+                onChange={(e) => {
+                  setSelectedCommandId(e.target.value);
+                  if (isAwaitingOtp) {
+                    resetCommand2faState();
+                  }
+                }}
+                disabled={isRequesting2fa || isExecutingCommand}
                 className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-md text-xs font-mono text-white focus:outline-none focus:border-emerald-500"
               >
                 {SERVER_CONSOLE_COMMANDS.map((cmd) => (
@@ -1054,24 +1219,30 @@ export function SandboxPage() {
                 type="password"
                 value={stepUpPassword}
                 onChange={(e) => setStepUpPassword(e.target.value)}
-                disabled={isExecutingCommand}
+                disabled={isRequesting2fa || isExecutingCommand || isAwaitingOtp}
                 autoComplete="off"
                 placeholder="Enter owner password to authorize"
-                className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-md text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+                className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-md text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 disabled:opacity-60"
               />
             </div>
 
-            {/* Execute Command Button */}
+            {/* Execute Command (Request 2FA Code) Button */}
             <div className="lg:col-span-3">
               <button
                 type="submit"
-                disabled={isExecutingCommand || !selectedCommandId || !stepUpPassword.trim()}
+                disabled={
+                  isRequesting2fa ||
+                  isExecutingCommand ||
+                  isAwaitingOtp ||
+                  !selectedCommandId ||
+                  !stepUpPassword.trim()
+                }
                 className="w-full py-2 px-4 bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-800 disabled:text-slate-500 text-slate-950 font-bold text-xs rounded-md transition-colors flex items-center justify-center gap-2 cursor-pointer"
               >
-                {isExecutingCommand ? (
+                {isRequesting2fa ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Executing (10s max)...</span>
+                    <span>Sending 2FA Code...</span>
                   </>
                 ) : (
                   <>
@@ -1082,6 +1253,91 @@ export function SandboxPage() {
               </button>
             </div>
           </form>
+
+          {/* 2FA Status / Error Banner */}
+          {otpFeedback && (
+            <div
+              className={`mt-4 p-3 rounded-md border text-xs font-mono flex items-center justify-between gap-3 ${
+                otpFeedback.type === 'info'
+                  ? 'bg-emerald-950/30 border-emerald-800/70 text-emerald-200'
+                  : 'bg-rose-950/40 border-rose-800 text-rose-200'
+              }`}
+            >
+              <div>
+                <span className="font-bold mr-2">[{otpFeedback.code}]</span>
+                <span>{otpFeedback.message}</span>
+              </div>
+              {isAwaitingOtp && otpSecondsRemaining > 0 && (
+                <span className="px-2 py-0.5 rounded bg-slate-950 border border-emerald-700/60 text-emerald-300 shrink-0">
+                  TTL: {Math.floor(otpSecondsRemaining / 60)}:
+                  {String(otpSecondsRemaining % 60).padStart(2, '0')}
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* Step 2 Form: 6-Digit Email 2FA OTP Verification & Final Execution */}
+          {isAwaitingOtp && (
+            <form
+              onSubmit={handleConfirmAndExecuteCommand}
+              className="mt-4 grid grid-cols-1 lg:grid-cols-12 gap-4 bg-slate-950/90 border border-emerald-700/60 rounded-md p-4 items-end"
+            >
+              <div className="lg:col-span-6">
+                <label
+                  htmlFor="server-command-otp"
+                  className="block text-xs font-medium text-emerald-300 mb-1.5"
+                >
+                  6-Digit Email 2FA OTP Code (Sent to{' '}
+                  <code className="font-mono text-white">{statusData.owner.email}</code> — Single-Use)
+                </label>
+                <input
+                  id="server-command-otp"
+                  type="text"
+                  inputMode="numeric"
+                  pattern="\d{6}"
+                  maxLength={6}
+                  value={otpCode}
+                  onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  disabled={isExecutingCommand}
+                  autoFocus
+                  autoComplete="one-time-code"
+                  placeholder="Enter 6-digit OTP code (e.g. 482910)"
+                  className="w-full px-3 py-2 bg-slate-900 border border-emerald-600/60 rounded-md text-sm font-mono tracking-widest text-white placeholder-slate-500 focus:outline-none focus:border-emerald-400"
+                />
+              </div>
+
+              <div className="lg:col-span-4">
+                <button
+                  type="submit"
+                  disabled={isExecutingCommand || otpCode.trim().length !== 6}
+                  className="w-full py-2 px-4 bg-emerald-500 hover:bg-emerald-400 disabled:bg-slate-800 disabled:text-slate-500 text-slate-950 font-bold text-xs rounded-md transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  {isExecutingCommand ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Confirming & Executing (10s max)...</span>
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span>Confirm & Execute</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
+              <div className="lg:col-span-2">
+                <button
+                  type="button"
+                  onClick={resetCommand2faState}
+                  disabled={isExecutingCommand}
+                  className="w-full py-2 px-3 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-300 font-medium text-xs rounded-md transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          )}
 
           {/* Terminal Console Output (<pre>) */}
           <div className="mt-5 rounded-md border border-slate-800 bg-black overflow-hidden shadow-inner">
