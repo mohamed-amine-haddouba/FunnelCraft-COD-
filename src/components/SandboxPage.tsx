@@ -19,6 +19,8 @@ import {
   Play,
   Maximize2,
   X,
+  Copy,
+  ClipboardPaste,
 } from 'lucide-react';
 import { Terminal as XTerm } from 'xterm';
 import { FitAddon } from 'xterm-addon-fit';
@@ -224,6 +226,18 @@ export function SandboxPage() {
   const xtermInstanceRef = useRef<XTerm | null>(null);
   const fitAddonInstanceRef = useRef<FitAddon | null>(null);
   const terminalWsRef = useRef<WebSocket | null>(null);
+  const terminalPasteCleanupRef = useRef<(() => void) | null>(null);
+  const [terminalContextMenu, setTerminalContextMenu] = useState<{
+    visible: boolean;
+    x: number;
+    y: number;
+    hasSelection: boolean;
+  }>({
+    visible: false,
+    x: 0,
+    y: 0,
+    hasSelection: false,
+  });
 
   const fetchCsrfToken = useCallback(async () => {
     try {
@@ -723,6 +737,14 @@ export function SandboxPage() {
 
   // Cleanup XTerm & WebSocket resources
   const disposeInteractiveTerminal = useCallback(() => {
+    if (terminalPasteCleanupRef.current) {
+      try {
+        terminalPasteCleanupRef.current();
+      } catch {
+        // ignore cleanup error
+      }
+      terminalPasteCleanupRef.current = null;
+    }
     if (terminalWsRef.current) {
       try {
         terminalWsRef.current.close();
@@ -740,6 +762,7 @@ export function SandboxPage() {
       xtermInstanceRef.current = null;
     }
     fitAddonInstanceRef.current = null;
+    setTerminalContextMenu({ visible: false, x: 0, y: 0, hasSelection: false });
   }, []);
 
   useEffect(() => {
@@ -747,6 +770,27 @@ export function SandboxPage() {
       disposeInteractiveTerminal();
     };
   }, [disposeInteractiveTerminal]);
+
+  // Dismiss custom terminal right-click context menu when clicking anywhere or pressing Escape
+  useEffect(() => {
+    if (!terminalContextMenu.visible) return;
+
+    const handleGlobalClick = () => {
+      setTerminalContextMenu((prev) => (prev.visible ? { ...prev, visible: false } : prev));
+    };
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setTerminalContextMenu((prev) => (prev.visible ? { ...prev, visible: false } : prev));
+      }
+    };
+
+    window.addEventListener('click', handleGlobalClick);
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => {
+      window.removeEventListener('click', handleGlobalClick);
+      window.removeEventListener('keydown', handleGlobalKeyDown);
+    };
+  }, [terminalContextMenu.visible]);
 
   // Handle window resize for active XTerm FitAddon
   useEffect(() => {
@@ -920,6 +964,69 @@ export function SandboxPage() {
       const ws = new WebSocket(wsUrl);
       terminalWsRef.current = ws;
 
+      // Task 1: Keyboard Shortcuts (Ctrl+C with selection / Ctrl+Shift+C to Copy, Ctrl+Shift+V to Paste, Ctrl+C without selection sends SIGINT)
+      term.attachCustomKeyEventHandler((event: KeyboardEvent) => {
+        if (event.type !== 'keydown') {
+          return true;
+        }
+
+        const isCtrlOrCmd = event.ctrlKey || event.metaKey;
+        const key = event.key.toLowerCase();
+
+        // 1. Copy: Ctrl+Shift+C (or Cmd+Shift+C), OR Ctrl+C / Cmd+C when terminal has a text selection
+        if (isCtrlOrCmd && key === 'c') {
+          if (event.shiftKey || term.hasSelection()) {
+            const selection = term.getSelection();
+            if (selection) {
+              navigator.clipboard.writeText(selection).catch(() => {});
+              term.clearSelection();
+            }
+            event.preventDefault();
+            event.stopPropagation();
+            return false;
+          }
+          // No selection and no Shift -> allow Ctrl+C to pass through to WebSocket as SIGINT (\x03)
+          return true;
+        }
+
+        // 2. Paste via Ctrl+Shift+V (or Cmd+Shift+V)
+        if (isCtrlOrCmd && event.shiftKey && key === 'v') {
+          event.preventDefault();
+          event.stopPropagation();
+          navigator.clipboard
+            .readText()
+            .then((text) => {
+              if (text && ws.readyState === WebSocket.OPEN) {
+                ws.send(text);
+              }
+            })
+            .catch(() => {});
+          return false;
+        }
+
+        // 3. Plain Ctrl+V / Cmd+V: return false so XTerm does not send \x16 (SYN), while letting the browser fire the native 'paste' event handled below
+        if (isCtrlOrCmd && !event.shiftKey && key === 'v') {
+          return false;
+        }
+
+        return true;
+      });
+
+      // Task 2: Native Paste Event on terminalContainerRef (handles Ctrl+V and browser context menu Paste)
+      const handleNativePaste = (pasteEvent: ClipboardEvent) => {
+        pasteEvent.preventDefault();
+        pasteEvent.stopPropagation();
+        const pastedText = pasteEvent.clipboardData?.getData('text');
+        if (pastedText && ws.readyState === WebSocket.OPEN) {
+          ws.send(pastedText);
+        }
+      };
+
+      container.addEventListener('paste', handleNativePaste, true);
+      terminalPasteCleanupRef.current = () => {
+        container.removeEventListener('paste', handleNativePaste, true);
+      };
+
       ws.onopen = () => {
         setIsConnectingTerminal(false);
         // Clear sensitive credentials from React state immediately after sending auth payload
@@ -983,6 +1090,54 @@ export function SandboxPage() {
         }
       });
     }, 50);
+  };
+
+  // Task 3: Custom Right-Click Context Menu Handlers for Terminal Copy / Paste
+  const handleTerminalContextMenu = (e: React.MouseEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const menuWidth = 168;
+    const menuHeight = 84;
+    const clampedX = Math.min(e.clientX, window.innerWidth - menuWidth - 8);
+    const clampedY = Math.min(e.clientY, window.innerHeight - menuHeight - 8);
+    const hasSelection = Boolean(xtermInstanceRef.current?.hasSelection());
+
+    setTerminalContextMenu({
+      visible: true,
+      x: Math.max(8, clampedX),
+      y: Math.max(8, clampedY),
+      hasSelection,
+    });
+  };
+
+  const handleContextMenuCopy = async () => {
+    setTerminalContextMenu((prev) => ({ ...prev, visible: false }));
+    const term = xtermInstanceRef.current;
+    if (!term) return;
+    const selectedText = term.getSelection();
+    if (selectedText) {
+      try {
+        await navigator.clipboard.writeText(selectedText);
+        term.clearSelection();
+      } catch {
+        // ignore clipboard write error
+      }
+    }
+    term.focus();
+  };
+
+  const handleContextMenuPaste = async () => {
+    setTerminalContextMenu((prev) => ({ ...prev, visible: false }));
+    const term = xtermInstanceRef.current;
+    const ws = terminalWsRef.current;
+    try {
+      const text = await navigator.clipboard.readText();
+      if (text && ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(text);
+      }
+    } catch {
+      // ignore clipboard read error
+    }
+    term?.focus();
   };
 
   if (isVerifyingSession) {
@@ -2009,11 +2164,48 @@ export function SandboxPage() {
               </div>
             </div>
           ) : (
-            <div className="flex-1 p-3 bg-black overflow-hidden flex flex-col">
+            <div
+              onContextMenu={handleTerminalContextMenu}
+              className="flex-1 p-3 bg-black overflow-hidden flex flex-col relative"
+            >
               <div
                 ref={terminalContainerRef}
                 className="flex-1 w-full h-full rounded border border-slate-800 bg-black p-2 overflow-hidden"
               />
+
+              {/* Custom Right-Click Context Menu for Copy / Paste */}
+              {terminalContextMenu.visible && (
+                <div
+                  style={{ top: terminalContextMenu.y, left: terminalContextMenu.x }}
+                  onClick={(e) => e.stopPropagation()}
+                  className="fixed z-50 w-44 rounded-md bg-slate-900 border border-slate-700 shadow-2xl py-1 text-xs font-mono text-slate-200"
+                >
+                  <button
+                    type="button"
+                    onClick={handleContextMenuCopy}
+                    disabled={!terminalContextMenu.hasSelection}
+                    className="w-full px-3 py-2 text-left flex items-center justify-between hover:bg-slate-800 disabled:opacity-40 disabled:hover:bg-transparent cursor-pointer"
+                  >
+                    <span className="flex items-center gap-2">
+                      <Copy className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>Copy</span>
+                    </span>
+                    <span className="text-[10px] text-slate-400">Ctrl+C</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleContextMenuPaste}
+                    className="w-full px-3 py-2 text-left flex items-center justify-between hover:bg-slate-800 cursor-pointer"
+                  >
+                    <span className="flex items-center gap-2">
+                      <ClipboardPaste className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>Paste</span>
+                    </span>
+                    <span className="text-[10px] text-slate-400">Ctrl+V</span>
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>
