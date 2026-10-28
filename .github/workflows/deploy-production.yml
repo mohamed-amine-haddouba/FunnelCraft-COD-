@@ -11,9 +11,19 @@ on:
         description: 'Verified commit SHA from Sandbox pre-deploy gate'
         required: true
         type: string
+      deploy_target:
+        description: 'Production deployment target infrastructure (vps | docker | vercel)'
+        required: true
+        default: 'vps'
+        type: choice
+        options:
+          - vps
+          - docker
+          - vercel
 
 permissions:
   contents: read
+  packages: read
   actions: read
 
 concurrency:
@@ -24,15 +34,43 @@ jobs:
   verify-and-deploy:
     name: Verify Gate & Deploy Production
     runs-on: ubuntu-latest
+    environment: production
     if: github.ref == 'refs/heads/main'
     timeout-minutes: 15
 
     steps:
+      - name: Verify owner token
+        env:
+          OWNER_EMAIL: ${{ secrets.OWNER_EMAIL }}
+          DISPATCH_OWNER: ${{ inputs.triggered_by }}
+        run: |
+          set -euo pipefail
+          if [ -z "$OWNER_EMAIL" ]; then exit 1; fi
+          if [ "$DISPATCH_OWNER" != "$OWNER_EMAIL" ]; then exit 1; fi
+
+      - name: Validate commit SHA format
+        env:
+          TARGET_SHA: ${{ inputs.commit_sha }}
+        run: |
+          set -euo pipefail
+          if ! [[ "$TARGET_SHA" =~ ^[0-9a-fA-F]{7,40}$ ]]; then
+            echo "Invalid commit_sha input" >&2
+            exit 1
+          fi
+
       - name: Checkout main repository
         uses: actions/checkout@v4
         with:
           ref: main
-          fetch-depth: 1
+          fetch-depth: 0
+
+      - name: Checkout exact verified commit SHA
+        env:
+          TARGET_SHA: ${{ inputs.commit_sha }}
+        run: |
+          set -euo pipefail
+          git branch --contains "$TARGET_SHA" | grep -E '(^|\s)main$'
+          git checkout --detach "$TARGET_SHA"
 
       - name: Setup Node.js 22
         uses: actions/setup-node@v4
@@ -41,27 +79,108 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci --legacy-peer-deps
+        run: |
+          set -euo pipefail
+          npm ci --legacy-peer-deps
 
       - name: Run TypeScript typecheck
-        run: npx tsc --noEmit
+        run: |
+          set -euo pipefail
+          npx tsc --noEmit
 
       - name: Run mandatory unit & security test suite
-        run: npm test
         env:
           NODE_ENV: test
+        run: |
+          set -euo pipefail
+          npm test
 
       - name: Build production bundle
-        run: npm run build
         env:
           NODE_ENV: production
-
-      - name: Deploy to Production Server
-        if: success()
-        env:
-          DEPLOY_HOST: ${{ secrets.PROD_DEPLOY_HOST }}
-          DEPLOY_USER: ${{ secrets.PROD_DEPLOY_USER }}
-          DEPLOY_PATH: ${{ secrets.PROD_DEPLOY_PATH }}
         run: |
-          echo "Deploying verified commit ${{ inputs.commit_sha }} triggered by owner..."
-          echo "Production build verified and ready for rollout."
+          set -euo pipefail
+          npm run build
+
+      # Variant 1: VPS deployment via SSH (Default: deploy_target == 'vps')
+      # Required GitHub Secrets: PROD_DEPLOY_HOST, PROD_DEPLOY_USER, PROD_DEPLOY_SSH_KEY, PROD_DEPLOY_PATH
+      - name: Deploy to Production VPS via SSH
+        if: inputs.deploy_target == 'vps'
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.PROD_DEPLOY_HOST }}
+          username: ${{ secrets.PROD_DEPLOY_USER }}
+          key: ${{ secrets.PROD_DEPLOY_SSH_KEY }}
+          port: ${{ secrets.PROD_DEPLOY_PORT || 22 }}
+          script_stop: true
+          command_timeout: 10m
+          script: |
+            set -euo pipefail
+            cd "${{ secrets.PROD_DEPLOY_PATH }}"
+            git fetch origin main
+            git reset --hard "${{ inputs.commit_sha }}"
+            npm ci --omit=dev --legacy-peer-deps
+            npm run build
+            if command -v pm2 >/dev/null 2>&1; then
+              pm2 restart funnelcraft --update-env
+            else
+              sudo systemctl restart funnelcraft
+            fi
+
+      # Variant 2: Docker Compose deployment (deploy_target == 'docker')
+      # Required GitHub Secrets: PROD_DEPLOY_HOST, PROD_DEPLOY_USER, PROD_DEPLOY_SSH_KEY, PROD_DEPLOY_PATH, GHCR_PULL_TOKEN
+      - name: Deploy to Production via Docker Compose
+        if: inputs.deploy_target == 'docker'
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.PROD_DEPLOY_HOST }}
+          username: ${{ secrets.PROD_DEPLOY_USER }}
+          key: ${{ secrets.PROD_DEPLOY_SSH_KEY }}
+          port: ${{ secrets.PROD_DEPLOY_PORT || 22 }}
+          script_stop: true
+          command_timeout: 10m
+          script: |
+            set -euo pipefail
+            cd "${{ secrets.PROD_DEPLOY_PATH }}"
+            echo "${{ secrets.GHCR_PULL_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+            docker pull "ghcr.io/${{ github.repository }}:${{ inputs.commit_sha }}"
+            IMAGE_TAG="${{ inputs.commit_sha }}" docker compose up -d --remove-orphans
+
+      # Variant 3: Vercel Production Deployment (deploy_target == 'vercel')
+      # Required GitHub Secrets: VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID
+      - name: Deploy to Production via Vercel CLI
+        if: inputs.deploy_target == 'vercel'
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          set -euo pipefail
+          if [ -z "$VERCEL_TOKEN" ]; then
+            echo "VERCEL_TOKEN secret is required for deploy_target=vercel" >&2
+            exit 1
+          fi
+          npx vercel deploy --prod --yes --token="$VERCEL_TOKEN"
+
+      # Mandatory Post-Deploy Health Check (60s timeout)
+      # Required GitHub Secret: PROD_PUBLIC_URL (e.g. https://codworth.me)
+      - name: Post-Deploy Live Health Verification (60s SLA)
+        env:
+          PROD_PUBLIC_URL: ${{ secrets.PROD_PUBLIC_URL }}
+        run: |
+          set -euo pipefail
+          if [ -z "$PROD_PUBLIC_URL" ]; then
+            echo "PROD_PUBLIC_URL secret is not configured" >&2
+            exit 1
+          fi
+          HEALTH_ENDPOINT="${PROD_PUBLIC_URL%/}/api/health"
+          DEADLINE=$((SECONDS + 60))
+          while [ $SECONDS -lt $DEADLINE ]; do
+            if curl -fsS --max-time 5 "$HEALTH_ENDPOINT" >/dev/null; then
+              echo "Health check passed at $HEALTH_ENDPOINT"
+              exit 0
+            fi
+            sleep 3
+          done
+          echo "Post-deploy health check failed to return 200 within 60 seconds at $HEALTH_ENDPOINT" >&2
+          exit 1

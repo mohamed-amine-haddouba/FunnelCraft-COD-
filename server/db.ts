@@ -33,9 +33,11 @@ export interface StoredUser extends UserProfile {
   reset_token_expires?: string;
   resetPasswordToken?: string;
   resetPasswordExpires?: number;
+  mustChangePassword?: boolean;
+  initialPasswordBootstrapped?: boolean;
 }
 
-// In-memory sessions store: token -> userId
+// In-memory sessions store: sha256(token) -> { userId, expiresAt }
 const sessions = new Map<string, { userId: string; expiresAt: number }>();
 
 // Ensure data directory exists
@@ -64,8 +66,8 @@ function createDefaultOwnerUser(): StoredUser | null {
   if (!superAdminEmail) {
     return null;
   }
-  const initialPassword =
-    process.env.OWNER_INITIAL_PASSWORD || crypto.randomBytes(32).toString('hex');
+  const envInitialPassword = (process.env.OWNER_INITIAL_PASSWORD || '').trim();
+  const initialPassword = envInitialPassword || crypto.randomBytes(32).toString('hex');
   const superAdminSalt = crypto.randomBytes(16).toString('hex');
   const superAdminHash = hashPassword(initialPassword, superAdminSalt);
 
@@ -89,6 +91,8 @@ function createDefaultOwnerUser(): StoredUser | null {
     subscription_tier: 'enterprise_tier',
     password_hash: superAdminHash,
     password_salt: superAdminSalt,
+    mustChangePassword: false,
+    initialPasswordBootstrapped: Boolean(envInitialPassword),
   };
 }
 
@@ -161,10 +165,17 @@ function loadUsersFromDisk(): Map<string, StoredUser> {
         usersMap.set(ownerUser.id, ownerUser);
         modified = true;
       }
-    } else if (existingOwner.role !== 'admin') {
-      existingOwner.role = 'admin';
-      usersMap.set(existingOwner.id, existingOwner);
-      modified = true;
+    } else {
+      if ((process.env.OWNER_INITIAL_PASSWORD || '').trim()) {
+        console.warn(
+          '[SECURITY WARNING] OWNER_INITIAL_PASSWORD is set in environment, but owner record already exists. Ignoring OWNER_INITIAL_PASSWORD.'
+        );
+      }
+      if (existingOwner.role !== 'admin') {
+        existingOwner.role = 'admin';
+        usersMap.set(existingOwner.id, existingOwner);
+        modified = true;
+      }
     }
   }
 
@@ -228,6 +239,8 @@ export function toSafeProfile(user: StoredUser): UserProfile {
     reset_token_expires,
     resetPasswordToken,
     resetPasswordExpires,
+    mustChangePassword,
+    initialPasswordBootstrapped,
     ...profile
   } = user;
   return profile;
@@ -236,7 +249,7 @@ export function toSafeProfile(user: StoredUser): UserProfile {
 export function findUserByEmail(email: string): StoredUser | undefined {
   const normalized = email.trim().toLowerCase();
   for (const u of users.values()) {
-    if (u.email.toLowerCase() === normalized) {
+    if (u.email.trim().toLowerCase() === normalized) {
       return u;
     }
   }
@@ -245,6 +258,77 @@ export function findUserByEmail(email: string): StoredUser | undefined {
 
 export function findUserById(id: string): StoredUser | undefined {
   return users.get(id);
+}
+
+/**
+ * Bootstraps the owner account using process.env.OWNER_INITIAL_PASSWORD ONLY if no owner record exists.
+ * If an owner record already exists, logs a startup warning and ignores OWNER_INITIAL_PASSWORD.
+ */
+export function bootstrapOwnerFromEnv(): {
+  user: StoredUser | null;
+  bootstrapped: boolean;
+  warningLogged: boolean;
+} {
+  const configuredEmail = getConfiguredOwnerEmail();
+  if (!configuredEmail) {
+    return { user: null, bootstrapped: false, warningLogged: false };
+  }
+
+  const existing = findUserByEmail(configuredEmail);
+  const envInitialPassword = (process.env.OWNER_INITIAL_PASSWORD || '').trim();
+
+  if (existing) {
+    let warningLogged = false;
+    if (envInitialPassword) {
+      console.warn(
+        '[SECURITY WARNING] OWNER_INITIAL_PASSWORD is set in environment, but owner record already exists. Ignoring OWNER_INITIAL_PASSWORD.'
+      );
+      warningLogged = true;
+    }
+    return { user: existing, bootstrapped: false, warningLogged };
+  }
+
+  const rawPassword = envInitialPassword || crypto.randomBytes(32).toString('hex');
+  const { hash, salt } = hashPasswordWithSalt(rawPassword);
+  const id = `user-owner-${crypto.randomUUID()}`;
+  const owner: StoredUser = {
+    id,
+    email: configuredEmail,
+    full_name: 'Platform Owner',
+    store_name: 'CodWorth HQ (المالك)',
+    phone: '+212 722-256897',
+    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&auto=format&fit=crop&q=80',
+    city: 'Casablanca',
+    custom_domain: 'codworth.com',
+    two_factor_enabled: false,
+    role: 'admin',
+    status: 'active',
+    plan_id: 'enterprise',
+    created_at: new Date().toISOString(),
+    pages_created_count: 5,
+    orders_count: 50,
+    subscription_status: 'active',
+    subscription_tier: 'enterprise_tier',
+    password_hash: hash,
+    password_salt: salt,
+    mustChangePassword: false,
+    initialPasswordBootstrapped: Boolean(envInitialPassword),
+  };
+  users.set(id, owner);
+  saveUsersToDisk(users);
+  return { user: owner, bootstrapped: Boolean(envInitialPassword), warningLogged: false };
+}
+
+export function setOwnerMustChangePassword(userId: string, mustChange: boolean): boolean {
+  const user = users.get(userId);
+  if (!user) return false;
+  user.mustChangePassword = mustChange;
+  if (!mustChange) {
+    user.initialPasswordBootstrapped = false;
+  }
+  users.set(user.id, user);
+  saveUsersToDisk(users);
+  return true;
 }
 
 export function ensureOwnerAccountForEmail(email: string, initialPassword?: string): StoredUser {
@@ -264,6 +348,8 @@ export function ensureOwnerAccountForEmail(email: string, initialPassword?: stri
       const { hash, salt } = hashPasswordWithSalt(initialPassword);
       existing.password_hash = hash;
       existing.password_salt = salt;
+      existing.mustChangePassword = false;
+      existing.initialPasswordBootstrapped = false;
       changed = true;
     }
     if (changed) {
@@ -273,6 +359,7 @@ export function ensureOwnerAccountForEmail(email: string, initialPassword?: stri
     return existing;
   }
 
+  const usedEnvBootstrap = !initialPassword && Boolean((process.env.OWNER_INITIAL_PASSWORD || '').trim());
   const { hash, salt } = hashPasswordWithSalt(
     initialPassword || process.env.OWNER_INITIAL_PASSWORD || crypto.randomBytes(32).toString('hex')
   );
@@ -297,6 +384,8 @@ export function ensureOwnerAccountForEmail(email: string, initialPassword?: stri
     subscription_tier: 'enterprise_tier',
     password_hash: hash,
     password_salt: salt,
+    mustChangePassword: false,
+    initialPasswordBootstrapped: usedEnvBootstrap,
   };
   users.set(id, owner);
   saveUsersToDisk(users);
@@ -539,6 +628,8 @@ export function updateUserPassword(
   if (!user) return false;
   user.password_hash = newHash;
   user.password_salt = newSalt;
+  user.mustChangePassword = false;
+  user.initialPasswordBootstrapped = false;
   users.set(user.id, user);
   saveUsersToDisk(users);
   invalidateAllUserSessions(user.id);
@@ -669,22 +760,34 @@ function saveSessionsToDisk(): void {
 
 loadSessionsFromDisk();
 
+function hashSessionToken(rawToken: string): string {
+  return crypto.createHash('sha256').update(rawToken, 'utf-8').digest('hex');
+}
+
 export function createSession(userId: string): string {
-  const encodedUser = Buffer.from(userId, 'utf-8').toString('base64url');
-  const token = `fc_${encodedUser}.${crypto.randomBytes(24).toString('hex')}`;
+  const rawToken = crypto.randomBytes(32).toString('hex');
+  const tokenHash = hashSessionToken(rawToken);
   const expiresAt = Date.now() + 30 * 24 * 60 * 60 * 1000;
-  sessions.set(token, { userId, expiresAt });
+  sessions.set(tokenHash, { userId, expiresAt });
   saveSessionsToDisk();
-  return token;
+  return rawToken;
 }
 
 export function getUserByToken(token: string): StoredUser | undefined {
-  const session = sessions.get(token);
+  if (!token || typeof token !== 'string') {
+    return undefined;
+  }
+  const trimmed = token.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+  const tokenHash = hashSessionToken(trimmed);
+  const session = sessions.get(tokenHash);
   if (!session) {
     return undefined;
   }
   if (Date.now() > session.expiresAt) {
-    sessions.delete(token);
+    sessions.delete(tokenHash);
     saveSessionsToDisk();
     return undefined;
   }
@@ -692,7 +795,9 @@ export function getUserByToken(token: string): StoredUser | undefined {
 }
 
 export function deleteSession(token: string): void {
-  sessions.delete(token);
+  if (!token || typeof token !== 'string') return;
+  const tokenHash = hashSessionToken(token.trim());
+  sessions.delete(tokenHash);
   saveSessionsToDisk();
 }
 

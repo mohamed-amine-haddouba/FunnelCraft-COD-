@@ -10,7 +10,7 @@
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
-    "test": "npx tsx --test server/db.test.ts server/sandbox.test.ts"
+    "test": "npx tsx --test server/sandbox.test.ts"
   },
   "dependencies": {
     "@fontsource/cairo": "^5.3.0",

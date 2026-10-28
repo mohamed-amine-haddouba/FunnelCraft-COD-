@@ -14,6 +14,7 @@ import {
   Loader2,
   Terminal,
   Activity,
+  KeyRound,
 } from 'lucide-react';
 import { SANDBOX_TOKEN_STORAGE_KEY } from './SandboxLoginPage';
 
@@ -79,11 +80,18 @@ export function SandboxPage() {
   const navigate = useNavigate();
 
   const [isVerifyingSession, setIsVerifyingSession] = useState(true);
+  const [mustChangePassword, setMustChangePassword] = useState(false);
   const [statusData, setStatusData] = useState<SandboxStatusPayload | null>(null);
   const [auditEntries, setAuditEntries] = useState<AuditEntry[]>([]);
   const [csrfToken, setCsrfToken] = useState('');
   const [remainingSeconds, setRemainingSeconds] = useState(0);
   const [cooldownSeconds, setCooldownSeconds] = useState(0);
+
+  // Forced initial password change state (Defect 6)
+  const [currentPasswordInput, setCurrentPasswordInput] = useState('');
+  const [newPasswordInput, setNewPasswordInput] = useState('');
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [passwordChangeError, setPasswordChangeError] = useState<string | null>(null);
 
   // Deploy state
   const [confirmInput, setConfirmInput] = useState('');
@@ -108,6 +116,7 @@ export function SandboxPage() {
       const res = await fetch('/api/sandbox/csrf', {
         method: 'GET',
         credentials: 'include',
+        headers: getSandboxAuthHeaders(),
       });
       const data = await res.json();
       if (data.ok && data.csrfToken) {
@@ -135,21 +144,23 @@ export function SandboxPage() {
         }),
       ]);
 
-      if (statusRes.status === 401 || statusRes.status === 403) {
+      const statusJson = await statusRes.json().catch(() => ({ ok: false, code: 'UNKNOWN' }));
+
+      if (statusRes.status === 403 && statusJson?.code === 'PASSWORD_CHANGE_REQUIRED') {
+        setMustChangePassword(true);
+        setIsVerifyingSession(false);
+        return;
+      }
+
+      if (statusRes.status === 401 || statusRes.status === 403 || !statusRes.ok || !statusJson.ok) {
         sessionStorage.removeItem(SANDBOX_TOKEN_STORAGE_KEY);
         navigate('/sandbox/login', { replace: true });
         return;
       }
 
-      const statusJson = await statusRes.json();
-      const auditJson = await auditRes.json();
+      const auditJson = await auditRes.json().catch(() => ({ ok: false }));
 
-      if (!statusRes.ok || !statusJson.ok) {
-        sessionStorage.removeItem(SANDBOX_TOKEN_STORAGE_KEY);
-        navigate('/sandbox/login', { replace: true });
-        return;
-      }
-
+      setMustChangePassword(false);
       setStatusData(statusJson);
       setRemainingSeconds(statusJson.session?.remainingSeconds ?? 0);
       setCooldownSeconds(statusJson.deployment?.cooldownRemainingSeconds ?? 0);
@@ -171,7 +182,7 @@ export function SandboxPage() {
 
   // Countdown tick for 30-minute session TTL and 5-minute deploy cooldown
   useEffect(() => {
-    if (isVerifyingSession) return;
+    if (isVerifyingSession || mustChangePassword) return;
     const timer = setInterval(() => {
       setRemainingSeconds((prev) => {
         if (prev <= 1) {
@@ -185,7 +196,7 @@ export function SandboxPage() {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [isVerifyingSession, navigate]);
+  }, [isVerifyingSession, mustChangePassword, navigate]);
 
   const handleLogout = async () => {
     try {
@@ -198,6 +209,45 @@ export function SandboxPage() {
     } finally {
       sessionStorage.removeItem(SANDBOX_TOKEN_STORAGE_KEY);
       navigate('/sandbox/login', { replace: true });
+    }
+  };
+
+  const handleInitialPasswordChange = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentPasswordInput || !newPasswordInput || isChangingPassword) return;
+    setIsChangingPassword(true);
+    setPasswordChangeError(null);
+
+    try {
+      const activeCsrf = csrfToken || (await fetchCsrfToken());
+      const res = await fetch('/api/sandbox/auth/change-password', {
+        method: 'POST',
+        credentials: 'include',
+        headers: getSandboxAuthHeaders(activeCsrf),
+        body: JSON.stringify({
+          currentPassword: currentPasswordInput,
+          newPassword: newPasswordInput,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        setPasswordChangeError(data.message || 'Password rotation failed.');
+        await fetchCsrfToken();
+        return;
+      }
+
+      if (data.sessionToken) {
+        sessionStorage.setItem(SANDBOX_TOKEN_STORAGE_KEY, data.sessionToken);
+      }
+      setCurrentPasswordInput('');
+      setNewPasswordInput('');
+      setMustChangePassword(false);
+      await fetchCsrfToken();
+      await loadSandboxData();
+    } catch {
+      setPasswordChangeError('Unable to reach password change endpoint.');
+    } finally {
+      setIsChangingPassword(false);
     }
   };
 
@@ -276,8 +326,7 @@ export function SandboxPage() {
     }
   };
 
-  // Never render any Sandbox content until server-side session verification succeeds
-  if (isVerifyingSession || !statusData) {
+  if (isVerifyingSession) {
     return (
       <div
         dir="ltr"
@@ -289,6 +338,88 @@ export function SandboxPage() {
         </span>
       </div>
     );
+  }
+
+  // Forced Initial Password Rotation Screen (Defect 6: PASSWORD_CHANGE_REQUIRED)
+  if (mustChangePassword) {
+    return (
+      <div
+        dir="ltr"
+        className="min-h-screen w-screen bg-slate-950 text-slate-100 flex items-center justify-center p-6 font-sans"
+      >
+        <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-lg p-6 space-y-5">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-md bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
+              <KeyRound className="w-5 h-5" />
+            </div>
+            <div>
+              <h1 className="text-base font-bold text-white">
+                Mandatory Owner Password Rotation
+              </h1>
+              <p className="text-xs text-slate-400">
+                Bootstrap password detected. Rotate your password to unlock the Sandbox.
+              </p>
+            </div>
+          </div>
+
+          {passwordChangeError && (
+            <div className="p-3 rounded-md bg-rose-950/50 border border-rose-800 text-xs text-rose-200">
+              {passwordChangeError}
+            </div>
+          )}
+
+          <form onSubmit={handleInitialPasswordChange} className="space-y-4">
+            <div>
+              <label className="block text-xs font-medium text-slate-300 mb-1">
+                Current (Bootstrap) Password
+              </label>
+              <input
+                type="password"
+                value={currentPasswordInput}
+                onChange={(e) => setCurrentPasswordInput(e.target.value)}
+                required
+                className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-md text-xs text-white focus:outline-none focus:border-emerald-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-slate-300 mb-1">
+                New Permanent Password (min 12 chars)
+              </label>
+              <input
+                type="password"
+                value={newPasswordInput}
+                onChange={(e) => setNewPasswordInput(e.target.value)}
+                minLength={12}
+                required
+                className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-md text-xs text-white focus:outline-none focus:border-emerald-500"
+              />
+            </div>
+
+            <div className="flex items-center justify-between gap-3 pt-2">
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium rounded-md cursor-pointer"
+              >
+                Sign Out
+              </button>
+              <button
+                type="submit"
+                disabled={isChangingPassword || !currentPasswordInput || newPasswordInput.length < 12}
+                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-slate-950 font-bold text-xs rounded-md cursor-pointer"
+              >
+                {isChangingPassword ? 'Rotating Password...' : 'Rotate Password & Unlock'}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  if (!statusData) {
+    return null;
   }
 
   const minutesLeft = Math.floor(remainingSeconds / 60);
