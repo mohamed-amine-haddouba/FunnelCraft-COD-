@@ -2552,7 +2552,10 @@ export function createSandboxRouter(): Router {
       const { commandId, password } = parsed.data;
 
       // 2. Step-Up Authentication: Verify Owner Password on EVERY execution
-      const passwordValid = timingSafeVerifyPassword(owner, password);
+      
+      const dbUser = findUserByEmail(owner.email);
+      const passwordValid = dbUser ? timingSafeVerifyPassword(dbUser, password) : false;
+
       if (!passwordValid) {
         const elapsed = Date.now() - requestStart;
         recordAuditLog({
