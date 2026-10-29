@@ -2217,9 +2217,11 @@ async function startServer() {
     };
   };
 
-  // POST /api/paypal/create-order: Creates a PayPal order using ONLY server-verified database/plan prices
-  app.post('/api/paypal/create-order', optionalAuthMiddleware, async (req: AuthRequest, res: Response) => {
+  // POST /api/paypal/create-order: Creates a PayPal order using ONLY server-verified database/plan prices (Requires Authentication)
+  app.post('/api/paypal/create-order', authMiddleware, async (req: AuthRequest, res: Response) => {
     try {
+      console.log('[PAYPAL BACKEND] Auth user ID:', req.user?.id);
+
       // Strictly ignore any client-supplied amount/currency to prevent price tampering
       const {
         identifier,
@@ -2229,11 +2231,9 @@ async function startServer() {
         funnelId,
         bundleIndex,
         bundleQuantity,
-        userId: bodyUserId,
       } = req.body || {};
 
-      const resolvedUserId =
-        (typeof bodyUserId === 'string' && bodyUserId.trim()) || req.user?.id || undefined;
+      const resolvedUserId = req.user!.id;
       const normalizedPlanId = normalizePaidPlanId(planId || identifier);
 
       console.log('[PAYPAL] Creating order for plan:', planId || identifier || pageSlug);
@@ -2347,15 +2347,13 @@ async function startServer() {
     }
   });
 
-  // POST /api/paypal/capture-order/:orderId: Captures an approved PayPal order, verifies COMPLETED status & expected amount, and upgrades user plan in DB
-  app.post('/api/paypal/capture-order/:orderId', optionalAuthMiddleware, async (req: AuthRequest, res: Response) => {
+  // POST /api/paypal/capture-order/:orderId: Captures an approved PayPal order, verifies COMPLETED status & expected amount, and upgrades user plan in DB (Requires Authentication)
+  app.post('/api/paypal/capture-order/:orderId', authMiddleware, async (req: AuthRequest, res: Response) => {
     try {
       const orderId = (req.params.orderId || '').trim();
-      const bodyUserId = typeof req.body?.userId === 'string' ? req.body.userId.trim() : '';
-      const storedOrderPreCapture = expectedPayPalOrders.get(orderId);
-      const initialUserId = bodyUserId || req.user?.id || storedOrderPreCapture?.userId || 'unknown';
+      const authUserId = req.user!.id;
 
-      console.log('[PAYPAL] Capturing order:', orderId, 'for user:', initialUserId);
+      console.log('[PAYPAL] Capturing order:', orderId, 'for user:', authUserId);
 
       if (!orderId) {
         return res.status(400).json({
@@ -2458,9 +2456,8 @@ async function startServer() {
         });
       }
 
-      // Resolve target userId and planId for subscription upgrade
+      // Resolve target userId and planId for subscription upgrade (req.user.id is guaranteed by authMiddleware)
       const resolvedUserId =
-        bodyUserId ||
         req.user?.id ||
         storedOrder?.userId ||
         customIdMeta?.userId ||

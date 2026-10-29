@@ -296,14 +296,13 @@ export const PricingPage: React.FC<PricingPageProps> = ({
     setCheckoutError(null);
 
     try {
-      const authHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
-      if (token) {
-        authHeaders.Authorization = `Bearer ${token}`;
-      }
-
+      const activeToken = token || localStorage.getItem('funnelcraft_auth_token') || '';
       const createRes = await fetch('/api/paypal/create-order', {
         method: 'POST',
-        headers: authHeaders,
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${activeToken}`,
+        },
         body: JSON.stringify({
           userId: user?.id,
           identifier: selectedPaidTier.id,
@@ -778,6 +777,7 @@ export const PricingPage: React.FC<PricingPageProps> = ({
                         }}
                       >
                         <PayPalButtons
+                          forceReRender={[selectedPaidTier.id, billingCycle, token, user?.id]}
                           style={{
                             layout: 'vertical',
                             color: 'gold',
@@ -786,16 +786,15 @@ export const PricingPage: React.FC<PricingPageProps> = ({
                             height: 44,
                           }}
                           createOrder={async () => {
-                            const authHeaders: Record<string, string> = {
-                              'Content-Type': 'application/json',
-                            };
-                            if (token) {
-                              authHeaders.Authorization = `Bearer ${token}`;
-                            }
+                            const activeToken =
+                              token || localStorage.getItem('funnelcraft_auth_token') || '';
 
                             const res = await fetch('/api/paypal/create-order', {
                               method: 'POST',
-                              headers: authHeaders,
+                              headers: {
+                                'Content-Type': 'application/json',
+                                Authorization: `Bearer ${activeToken}`,
+                              },
                               body: JSON.stringify({
                                 userId: user?.id,
                                 identifier: selectedPaidTier.id,
@@ -813,18 +812,17 @@ export const PricingPage: React.FC<PricingPageProps> = ({
                             setIsProcessing(true);
                             setCheckoutError(null);
                             try {
-                              const authHeaders: Record<string, string> = {
-                                'Content-Type': 'application/json',
-                              };
-                              if (token) {
-                                authHeaders.Authorization = `Bearer ${token}`;
-                              }
+                              const activeToken =
+                                token || localStorage.getItem('funnelcraft_auth_token') || '';
 
                               const captureRes = await fetch(
                                 `/api/paypal/capture-order/${encodeURIComponent(data.orderID)}`,
                                 {
                                   method: 'POST',
-                                  headers: authHeaders,
+                                  headers: {
+                                    'Content-Type': 'application/json',
+                                    Authorization: `Bearer ${activeToken}`,
+                                  },
                                   body: JSON.stringify({
                                     userId: user?.id,
                                     identifier: selectedPaidTier.id,
