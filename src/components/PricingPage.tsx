@@ -19,6 +19,7 @@ import {
   AlertCircle,
   Loader2,
   X,
+  Tag,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { SubscriptionPlanId } from '../types/orders';
@@ -164,6 +165,22 @@ export const PricingPage: React.FC<PricingPageProps> = ({
     DEFAULT_EXCHANGE_RATES
   );
 
+  // Dynamic Pricing Tiers loaded from /api/plans (falls back to PRICING_TIERS)
+  const [pricingTiers, setPricingTiers] = useState<PricingTier[]>(PRICING_TIERS);
+
+  // Coupon Code & Server-Verified Discount State
+  const [couponInput, setCouponInput] = useState<string>('');
+  const [isApplyingCoupon, setIsApplyingCoupon] = useState<boolean>(false);
+  const [couponError, setCouponError] = useState<string | null>(null);
+  const [appliedCoupon, setAppliedCoupon] = useState<{
+    code: string;
+    originalPrice: number;
+    finalPrice: number;
+    discountAmount: number;
+    discountType?: 'percentage' | 'fixed';
+    discountValue?: number;
+  } | null>(null);
+
   // Processing & Feedback State
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [checkoutSuccess, setCheckoutSuccess] = useState<string | null>(null);
@@ -172,9 +189,61 @@ export const PricingPage: React.FC<PricingPageProps> = ({
 
   const checkoutSectionRef = useRef<HTMLDivElement>(null);
 
-  // Fetch active Moroccan banks & live exchange rates
+  // Fetch active Moroccan banks, dynamic plans, & live exchange rates
   useEffect(() => {
     let mounted = true;
+
+    fetch('/api/plans')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (mounted && data && Array.isArray(data.plans) && data.plans.length > 0) {
+          const dynamicMap = new Map<
+            string,
+            { id: string; name: string; priceMAD: number; features: string[] }
+          >();
+          for (const p of data.plans) {
+            if (p && typeof p.id === 'string') {
+              dynamicMap.set(p.id, p);
+            }
+          }
+          setPricingTiers((prev) =>
+            prev.map((tier) => {
+              const dyn = dynamicMap.get(tier.id);
+              if (!dyn) return tier;
+              return {
+                ...tier,
+                nameEn: dyn.name || tier.nameEn,
+                monthlyPriceMAD:
+                  typeof dyn.priceMAD === 'number' && dyn.priceMAD > 0
+                    ? dyn.priceMAD
+                    : tier.monthlyPriceMAD,
+                features:
+                  Array.isArray(dyn.features) && dyn.features.length > 0
+                    ? dyn.features
+                    : tier.features,
+              };
+            })
+          );
+          setSelectedPaidTier((prevSelected) => {
+            if (!prevSelected) return null;
+            const dyn = dynamicMap.get(prevSelected.id);
+            if (!dyn) return prevSelected;
+            return {
+              ...prevSelected,
+              nameEn: dyn.name || prevSelected.nameEn,
+              monthlyPriceMAD:
+                typeof dyn.priceMAD === 'number' && dyn.priceMAD > 0
+                  ? dyn.priceMAD
+                  : prevSelected.monthlyPriceMAD,
+              features:
+                Array.isArray(dyn.features) && dyn.features.length > 0
+                  ? dyn.features
+                  : prevSelected.features,
+            };
+          });
+        }
+      })
+      .catch(() => {});
 
     fetch('/api/settings/banks')
       .then((res) => {
@@ -237,6 +306,53 @@ export const PricingPage: React.FC<PricingPageProps> = ({
     return billingCycle === 'yearly' ? monthly * 12 : monthly;
   };
 
+  // Re-validate or clear applied coupon whenever selectedPaidTier or billingCycle changes
+  useEffect(() => {
+    setAppliedCoupon(null);
+    setCouponError(null);
+  }, [selectedPaidTier?.id, billingCycle]);
+
+  const handleApplyCoupon = async () => {
+    if (!selectedPaidTier || !couponInput.trim() || isApplyingCoupon) return;
+    setIsApplyingCoupon(true);
+    setCouponError(null);
+
+    try {
+      const res = await fetch('/api/apply-coupon', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          couponCode: couponInput.trim().toUpperCase(),
+          planId: selectedPaidTier.id,
+          billingCycle,
+        }),
+      });
+
+      const data = await res.json().catch(() => ({ valid: false, error: 'Invalid response' }));
+      if (!res.ok || !data.valid) {
+        setAppliedCoupon(null);
+        setCouponError(data.error || 'كود الكوبون غير صالح أو منتهي الصلاحية.');
+      } else {
+        setAppliedCoupon({
+          code: data.couponCode || couponInput.trim().toUpperCase(),
+          originalPrice: Number(data.originalPrice),
+          finalPrice: Number(data.finalPrice),
+          discountAmount: Number(data.discountAmount),
+          discountType: data.discountType,
+          discountValue: data.discountValue,
+        });
+        setCouponError(null);
+      }
+    } catch {
+      setAppliedCoupon(null);
+      setCouponError('تعذر التحقق من الكوبون حالياً. يرجى المحاولة مرة أخرى.');
+    } finally {
+      setIsApplyingCoupon(false);
+    }
+  };
+
   const handleChooseTier = (tier: PricingTier) => {
     setCheckoutError(null);
     setCheckoutSuccess(null);
@@ -285,7 +401,8 @@ export const PricingPage: React.FC<PricingPageProps> = ({
   const selectedBank: MoroccanBankAccount | undefined =
     banks.find((b) => b.id === selectedBankId) || banks[0];
 
-  const totalChargeMAD = selectedPaidTier ? getTotalBilledMAD(selectedPaidTier) : 179;
+  const baseChargeMAD = selectedPaidTier ? getTotalBilledMAD(selectedPaidTier) : 179;
+  const totalChargeMAD = appliedCoupon ? appliedCoupon.finalPrice : baseChargeMAD;
   const paypalSettlement = calculatePayPalUsdSettlement(totalChargeMAD, exchangeRates);
   const pendingPayment = userPayments?.find((p) => p.status === 'pending');
 
@@ -308,6 +425,7 @@ export const PricingPage: React.FC<PricingPageProps> = ({
           identifier: selectedPaidTier.id,
           planId: selectedPaidTier.id,
           billingCycle,
+          couponCode: appliedCoupon?.code || undefined,
         }),
       });
 
@@ -483,7 +601,7 @@ export const PricingPage: React.FC<PricingPageProps> = ({
 
         {/* 4 Pricing Tiers Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 items-stretch">
-          {PRICING_TIERS.map((tier) => {
+          {pricingTiers.map((tier) => {
             const Icon = tier.icon;
             const effectiveMonthlyMAD = getEffectivePriceMAD(tier);
             const isCurrentTier =
@@ -698,6 +816,82 @@ export const PricingPage: React.FC<PricingPageProps> = ({
                 </div>
               )}
 
+              {/* Coupon Code Input Box */}
+              <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-3">
+                <label className="block text-xs font-black text-slate-300 flex items-center gap-2">
+                  <Tag className="w-4 h-4 text-emerald-400" />
+                  <span>هل لديك كود خصم؟ (Have a coupon code?)</span>
+                </label>
+
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
+                  <input
+                    type="text"
+                    dir="ltr"
+                    value={couponInput}
+                    onChange={(e) =>
+                      setCouponInput(e.target.value.toUpperCase().replace(/[^A-Z0-9_-]/g, ''))
+                    }
+                    placeholder="Enter coupon code (e.g. WELCOME20)"
+                    className="flex-1 h-10 px-3.5 rounded-xl bg-slate-900 border border-slate-800 text-xs font-mono text-white uppercase focus:border-emerald-500 outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleApplyCoupon}
+                    disabled={isApplyingCoupon || !couponInput.trim()}
+                    className="h-10 px-5 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-slate-950 font-black text-xs transition flex items-center justify-center gap-2 cursor-pointer shrink-0"
+                  >
+                    {isApplyingCoupon ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <span>جاري التحقق...</span>
+                      </>
+                    ) : (
+                      <span>تطبيق (Apply)</span>
+                    )}
+                  </button>
+                  {appliedCoupon && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAppliedCoupon(null);
+                        setCouponInput('');
+                        setCouponError(null);
+                      }}
+                      className="h-10 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition cursor-pointer shrink-0"
+                    >
+                      إزالة
+                    </button>
+                  )}
+                </div>
+
+                {appliedCoupon && (
+                  <div className="p-3 rounded-xl bg-emerald-950/70 border border-emerald-500/40 text-emerald-300 text-xs font-bold flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                      <span>
+                        تم تطبيق الكوبون <strong className="font-mono">{appliedCoupon.code}</strong> بنجاح! خصم{' '}
+                        <strong className="font-mono">{appliedCoupon.discountAmount} درهم</strong>
+                      </span>
+                    </div>
+                    <div className="font-mono text-xs">
+                      <span className="line-through text-slate-400 mr-2">
+                        {appliedCoupon.originalPrice} MAD
+                      </span>
+                      <span className="text-emerald-400 font-black">
+                        {appliedCoupon.finalPrice} MAD (${paypalSettlement.formattedUSD} USD)
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {couponError && (
+                  <div className="p-2.5 rounded-xl bg-rose-950/70 border border-rose-500/40 text-rose-300 text-xs font-bold flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+                    <span>{couponError}</span>
+                  </div>
+                )}
+              </div>
+
               {/* Payment Method Tabs */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <button
@@ -777,7 +971,13 @@ export const PricingPage: React.FC<PricingPageProps> = ({
                         }}
                       >
                         <PayPalButtons
-                          forceReRender={[selectedPaidTier.id, billingCycle, token, user?.id]}
+                          forceReRender={[
+                            selectedPaidTier.id,
+                            billingCycle,
+                            appliedCoupon?.code || '',
+                            token,
+                            user?.id,
+                          ]}
                           style={{
                             layout: 'vertical',
                             color: 'gold',
@@ -800,6 +1000,7 @@ export const PricingPage: React.FC<PricingPageProps> = ({
                                 identifier: selectedPaidTier.id,
                                 planId: selectedPaidTier.id,
                                 billingCycle,
+                                couponCode: appliedCoupon?.code || undefined,
                               }),
                             });
                             const data = await res.json();
@@ -828,6 +1029,7 @@ export const PricingPage: React.FC<PricingPageProps> = ({
                                     identifier: selectedPaidTier.id,
                                     planId: selectedPaidTier.id,
                                     billingCycle,
+                                    couponCode: appliedCoupon?.code || undefined,
                                   }),
                                 }
                               );

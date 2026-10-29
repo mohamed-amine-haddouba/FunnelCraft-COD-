@@ -21,6 +21,11 @@ import {
   X,
   Copy,
   ClipboardPaste,
+  CreditCard,
+  Tag,
+  Plus,
+  Trash2,
+  Save,
 } from 'lucide-react';
 import { Terminal as XTerm } from 'xterm';
 import { FitAddon } from 'xterm-addon-fit';
@@ -94,6 +99,23 @@ interface AuditEntry {
   action: string;
   result: 'success' | 'failure' | 'blocked';
   metadata: Record<string, unknown>;
+}
+
+interface SandboxPlanConfig {
+  id: 'starter' | 'pro' | 'enterprise';
+  name: string;
+  priceMAD: number;
+  features: string[];
+}
+
+interface SandboxCoupon {
+  code: string;
+  discountType: 'percentage' | 'fixed';
+  discountValue: number;
+  maxUses: number;
+  currentUses: number;
+  expiresAt: string;
+  isActive: boolean;
 }
 
 interface SandboxStatusPayload {
@@ -239,6 +261,35 @@ export function SandboxPage() {
     hasSelection: false,
   });
 
+  // SaaS Management State (Dynamic Subscription Plans & Discount Coupons)
+  const [saasActiveTab, setSaasActiveTab] = useState<'plans' | 'coupons'>('plans');
+  const [editablePlans, setEditablePlans] = useState<
+    Array<{
+      id: 'starter' | 'pro' | 'enterprise';
+      name: string;
+      priceMAD: number;
+      featuresText: string;
+    }>
+  >([]);
+  const [isSavingPlans, setIsSavingPlans] = useState<boolean>(false);
+  const [plansFeedback, setPlansFeedback] = useState<{
+    type: 'success' | 'error';
+    message: string;
+  } | null>(null);
+
+  const [couponsList, setCouponsList] = useState<SandboxCoupon[]>([]);
+  const [newCouponCode, setNewCouponCode] = useState<string>('');
+  const [newCouponType, setNewCouponType] = useState<'percentage' | 'fixed'>('percentage');
+  const [newCouponValue, setNewCouponValue] = useState<string>('20');
+  const [newCouponMaxUses, setNewCouponMaxUses] = useState<string>('100');
+  const [newCouponExpiresAt, setNewCouponExpiresAt] = useState<string>('2026-12-31');
+  const [isCreatingCoupon, setIsCreatingCoupon] = useState<boolean>(false);
+  const [deletingCouponCode, setDeletingCouponCode] = useState<string | null>(null);
+  const [couponsFeedback, setCouponsFeedback] = useState<{
+    type: 'success' | 'error';
+    message: string;
+  } | null>(null);
+
   const fetchCsrfToken = useCallback(async () => {
     try {
       const res = await fetch('/api/sandbox/csrf', {
@@ -296,12 +347,206 @@ export function SandboxPage() {
       if (auditRes.ok && auditJson.ok && Array.isArray(auditJson.entries)) {
         setAuditEntries(auditJson.entries);
       }
+
+      // Load Dynamic Subscription Plans & Coupons in parallel
+      const [plansRes, couponsRes] = await Promise.all([
+        fetch('/api/sandbox/plans', {
+          method: 'GET',
+          credentials: 'include',
+          headers: getSandboxAuthHeaders(),
+        }),
+        fetch('/api/sandbox/coupons', {
+          method: 'GET',
+          credentials: 'include',
+          headers: getSandboxAuthHeaders(),
+        }),
+      ]);
+
+      const plansJson = await plansRes.json().catch(() => ({ ok: false }));
+      if (plansRes.ok && plansJson.ok && Array.isArray(plansJson.plans)) {
+        setEditablePlans(
+          (plansJson.plans as SandboxPlanConfig[]).map((p) => ({
+            id: p.id,
+            name: p.name,
+            priceMAD: p.priceMAD,
+            featuresText: Array.isArray(p.features) ? p.features.join('\n') : '',
+          }))
+        );
+      }
+
+      const couponsJson = await couponsRes.json().catch(() => ({ ok: false }));
+      if (couponsRes.ok && couponsJson.ok && Array.isArray(couponsJson.coupons)) {
+        setCouponsList(couponsJson.coupons as SandboxCoupon[]);
+      }
+
       setIsVerifyingSession(false);
     } catch {
       sessionStorage.removeItem(SANDBOX_TOKEN_STORAGE_KEY);
       navigate('/sandbox/login', { replace: true });
     }
   }, [navigate]);
+
+  const handleSavePlans = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (isSavingPlans) return;
+    setIsSavingPlans(true);
+    setPlansFeedback(null);
+
+    try {
+      const activeCsrf = csrfToken || (await fetchCsrfToken());
+      const payloadPlans: SandboxPlanConfig[] = editablePlans.map((p) => ({
+        id: p.id,
+        name: p.name.trim(),
+        priceMAD: Number(p.priceMAD),
+        features: p.featuresText
+          .split('\n')
+          .map((line) => line.trim())
+          .filter(Boolean),
+      }));
+
+      const res = await fetch('/api/sandbox/plans', {
+        method: 'PUT',
+        credentials: 'include',
+        headers: getSandboxAuthHeaders(activeCsrf),
+        body: JSON.stringify({ plans: payloadPlans }),
+      });
+
+      const data = await res.json().catch(() => ({ ok: false }));
+      if (!res.ok || !data.ok) {
+        setPlansFeedback({
+          type: 'error',
+          message: data.message || 'Failed to update subscription plans.',
+        });
+      } else {
+        if (Array.isArray(data.plans)) {
+          setEditablePlans(
+            (data.plans as SandboxPlanConfig[]).map((p) => ({
+              id: p.id,
+              name: p.name,
+              priceMAD: p.priceMAD,
+              featuresText: Array.isArray(p.features) ? p.features.join('\n') : '',
+            }))
+          );
+        }
+        setPlansFeedback({
+          type: 'success',
+          message: data.message || 'Subscription plans updated and persisted to data/plans.json.',
+        });
+      }
+      await fetchCsrfToken();
+      await loadSandboxData();
+    } catch {
+      setPlansFeedback({
+        type: 'error',
+        message: 'Network error while saving subscription plans.',
+      });
+    } finally {
+      setIsSavingPlans(false);
+    }
+  };
+
+  const handleCreateCoupon = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (isCreatingCoupon) return;
+    const cleanCode = newCouponCode.trim().toUpperCase();
+    if (!cleanCode) {
+      setCouponsFeedback({
+        type: 'error',
+        message: 'Please enter a coupon code (e.g., WELCOME20).',
+      });
+      return;
+    }
+
+    setIsCreatingCoupon(true);
+    setCouponsFeedback(null);
+
+    try {
+      const activeCsrf = csrfToken || (await fetchCsrfToken());
+      const expiresIso = newCouponExpiresAt.includes('T')
+        ? new Date(newCouponExpiresAt).toISOString()
+        : new Date(`${newCouponExpiresAt}T23:59:59Z`).toISOString();
+
+      const res = await fetch('/api/sandbox/coupons', {
+        method: 'POST',
+        credentials: 'include',
+        headers: getSandboxAuthHeaders(activeCsrf),
+        body: JSON.stringify({
+          code: cleanCode,
+          discountType: newCouponType,
+          discountValue: Number(newCouponValue),
+          maxUses: Number(newCouponMaxUses),
+          expiresAt: expiresIso,
+          isActive: true,
+        }),
+      });
+
+      const data = await res.json().catch(() => ({ ok: false }));
+      if (!res.ok || !data.ok) {
+        setCouponsFeedback({
+          type: 'error',
+          message: data.message || 'Failed to create coupon.',
+        });
+      } else {
+        setNewCouponCode('');
+        if (Array.isArray(data.coupons)) {
+          setCouponsList(data.coupons as SandboxCoupon[]);
+        }
+        setCouponsFeedback({
+          type: 'success',
+          message: data.message || `Coupon ${cleanCode} created successfully.`,
+        });
+      }
+      await fetchCsrfToken();
+      await loadSandboxData();
+    } catch {
+      setCouponsFeedback({
+        type: 'error',
+        message: 'Network error while creating coupon.',
+      });
+    } finally {
+      setIsCreatingCoupon(false);
+    }
+  };
+
+  const handleDeleteCoupon = async (code: string) => {
+    if (!code || deletingCouponCode) return;
+    setDeletingCouponCode(code);
+    setCouponsFeedback(null);
+
+    try {
+      const activeCsrf = csrfToken || (await fetchCsrfToken());
+      const res = await fetch(`/api/sandbox/coupons/${encodeURIComponent(code)}`, {
+        method: 'DELETE',
+        credentials: 'include',
+        headers: getSandboxAuthHeaders(activeCsrf),
+      });
+
+      const data = await res.json().catch(() => ({ ok: false }));
+      if (!res.ok || !data.ok) {
+        setCouponsFeedback({
+          type: 'error',
+          message: data.message || `Failed to delete coupon ${code}.`,
+        });
+      } else {
+        if (Array.isArray(data.coupons)) {
+          setCouponsList(data.coupons as SandboxCoupon[]);
+        }
+        setCouponsFeedback({
+          type: 'success',
+          message: data.message || `Coupon ${code} deleted.`,
+        });
+      }
+      await fetchCsrfToken();
+      await loadSandboxData();
+    } catch {
+      setCouponsFeedback({
+        type: 'error',
+        message: `Network error while deleting coupon ${code}.`,
+      });
+    } finally {
+      setDeletingCouponCode(null);
+    }
+  };
 
   useEffect(() => {
     fetchCsrfToken();
@@ -1926,6 +2171,354 @@ export function SandboxPage() {
               <span>Launch Secure Terminal</span>
             </button>
           </div>
+        </section>
+
+        {/* SaaS Management: Dynamic Subscription Plans & Discount Coupons */}
+        <section className="bg-slate-900 border border-slate-800 rounded-lg p-6 space-y-6">
+          <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-slate-800">
+            <div>
+              <h2 className="text-base font-bold text-white flex items-center gap-2">
+                <CreditCard className="w-5 h-5 text-emerald-400" />
+                <span>SaaS Management (Dynamic Subscription Plans & Discount Coupons)</span>
+              </h2>
+              <p className="text-xs text-slate-400 mt-1">
+                Manage live plan prices and feature lists (<code className="text-emerald-400 font-mono">data/plans.json</code>) and create or revoke promotional discount coupons (<code className="text-emerald-400 font-mono">data/coupons.json</code>). Protected by <code className="text-slate-300 font-mono">requireOwner</code> + <code className="text-slate-300 font-mono">requireCsrf</code>.
+              </p>
+            </div>
+
+            {/* Tabs: Plans vs Coupons */}
+            <div className="inline-flex rounded-md bg-slate-950 p-1 border border-slate-800">
+              <button
+                type="button"
+                onClick={() => setSaasActiveTab('plans')}
+                className={`px-3.5 py-1.5 rounded text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer ${
+                  saasActiveTab === 'plans'
+                    ? 'bg-emerald-600 text-slate-950'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                <CreditCard className="w-3.5 h-3.5" />
+                <span>Plans ({editablePlans.length})</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setSaasActiveTab('coupons')}
+                className={`px-3.5 py-1.5 rounded text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer ${
+                  saasActiveTab === 'coupons'
+                    ? 'bg-emerald-600 text-slate-950'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                <Tag className="w-3.5 h-3.5" />
+                <span>Coupons ({couponsList.length})</span>
+              </button>
+            </div>
+          </div>
+
+          {saasActiveTab === 'plans' ? (
+            <form onSubmit={handleSavePlans} className="space-y-5">
+              {plansFeedback && (
+                <div
+                  className={`p-3 rounded-md border text-xs font-mono ${
+                    plansFeedback.type === 'success'
+                      ? 'bg-emerald-950/40 border-emerald-800 text-emerald-200'
+                      : 'bg-rose-950/40 border-rose-800 text-rose-200'
+                  }`}
+                >
+                  {plansFeedback.message}
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {editablePlans.map((plan, index) => (
+                  <div
+                    key={plan.id}
+                    className="p-4 rounded-md bg-slate-950 border border-slate-800 space-y-3 flex flex-col justify-between"
+                  >
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[11px] font-mono uppercase">
+                          ID: {plan.id}
+                        </span>
+                        <span className="text-[11px] font-mono text-slate-400">
+                          Yearly: {Math.round(Number(plan.priceMAD || 0) * 0.8) * 12} MAD
+                        </span>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-medium text-slate-300 mb-1">
+                          Plan Display Name
+                        </label>
+                        <input
+                          type="text"
+                          value={plan.name}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setEditablePlans((prev) =>
+                              prev.map((item, i) => (i === index ? { ...item, name: val } : item))
+                            );
+                          }}
+                          required
+                          className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded text-xs text-white focus:outline-none focus:border-emerald-500"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-medium text-slate-300 mb-1">
+                          Monthly Price (MAD)
+                        </label>
+                        <input
+                          type="number"
+                          min={1}
+                          step="1"
+                          value={plan.priceMAD}
+                          onChange={(e) => {
+                            const val = Number(e.target.value);
+                            setEditablePlans((prev) =>
+                              prev.map((item, i) =>
+                                i === index ? { ...item, priceMAD: val } : item
+                              )
+                            );
+                          }}
+                          required
+                          className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded text-xs font-mono text-emerald-400 focus:outline-none focus:border-emerald-500"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-medium text-slate-300 mb-1">
+                          Features (One per line)
+                        </label>
+                        <textarea
+                          rows={5}
+                          value={plan.featuresText}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setEditablePlans((prev) =>
+                              prev.map((item, i) =>
+                                i === index ? { ...item, featuresText: val } : item
+                              )
+                            );
+                          }}
+                          className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded text-xs text-slate-200 focus:outline-none focus:border-emerald-500 font-sans"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex justify-end">
+                <button
+                  type="submit"
+                  disabled={isSavingPlans || editablePlans.length === 0}
+                  className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-slate-950 font-bold text-xs rounded-md transition flex items-center gap-2 cursor-pointer"
+                >
+                  {isSavingPlans ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Saving Plans...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-4 h-4" />
+                      <span>Save All Plans (PUT /api/sandbox/plans)</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          ) : (
+            <div className="space-y-6">
+              {couponsFeedback && (
+                <div
+                  className={`p-3 rounded-md border text-xs font-mono ${
+                    couponsFeedback.type === 'success'
+                      ? 'bg-emerald-950/40 border-emerald-800 text-emerald-200'
+                      : 'bg-rose-950/40 border-rose-800 text-rose-200'
+                  }`}
+                >
+                  {couponsFeedback.message}
+                </div>
+              )}
+
+              {/* Create Coupon Form */}
+              <form
+                onSubmit={handleCreateCoupon}
+                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3 bg-slate-950 border border-slate-800 rounded-md p-4 items-end"
+              >
+                <div className="lg:col-span-3">
+                  <label className="block text-xs font-medium text-slate-300 mb-1">
+                    Coupon Code
+                  </label>
+                  <input
+                    type="text"
+                    value={newCouponCode}
+                    onChange={(e) =>
+                      setNewCouponCode(e.target.value.toUpperCase().replace(/[^A-Z0-9_-]/g, ''))
+                    }
+                    placeholder="e.g. WELCOME20"
+                    required
+                    className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded text-xs font-mono text-white uppercase focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+
+                <div className="lg:col-span-2">
+                  <label className="block text-xs font-medium text-slate-300 mb-1">
+                    Discount Type
+                  </label>
+                  <select
+                    value={newCouponType}
+                    onChange={(e) =>
+                      setNewCouponType(e.target.value === 'fixed' ? 'fixed' : 'percentage')
+                    }
+                    className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded text-xs text-white focus:outline-none focus:border-emerald-500"
+                  >
+                    <option value="percentage">Percentage (%)</option>
+                    <option value="fixed">Fixed (MAD)</option>
+                  </select>
+                </div>
+
+                <div className="lg:col-span-2">
+                  <label className="block text-xs font-medium text-slate-300 mb-1">
+                    Value ({newCouponType === 'percentage' ? '%' : 'MAD'})
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={newCouponType === 'percentage' ? 99 : 10000}
+                    value={newCouponValue}
+                    onChange={(e) => setNewCouponValue(e.target.value)}
+                    required
+                    className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded text-xs font-mono text-emerald-400 focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+
+                <div className="lg:col-span-2">
+                  <label className="block text-xs font-medium text-slate-300 mb-1">
+                    Max Uses
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={newCouponMaxUses}
+                    onChange={(e) => setNewCouponMaxUses(e.target.value)}
+                    required
+                    className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded text-xs font-mono text-white focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+
+                <div className="lg:col-span-2">
+                  <label className="block text-xs font-medium text-slate-300 mb-1">
+                    Expiry Date
+                  </label>
+                  <input
+                    type="date"
+                    value={newCouponExpiresAt}
+                    onChange={(e) => setNewCouponExpiresAt(e.target.value)}
+                    required
+                    className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded text-xs font-mono text-white focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+
+                <div className="lg:col-span-1">
+                  <button
+                    type="submit"
+                    disabled={isCreatingCoupon || !newCouponCode.trim()}
+                    className="w-full py-2 px-3 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-slate-950 font-bold text-xs rounded transition flex items-center justify-center gap-1 cursor-pointer"
+                    title="Create Coupon"
+                  >
+                    {isCreatingCoupon ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <>
+                        <Plus className="w-4 h-4" />
+                        <span>Add</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+
+              {/* Existing Coupons Table */}
+              <div className="overflow-x-auto border border-slate-800 rounded-md">
+                <table className="w-full text-left border-collapse text-xs font-mono">
+                  <thead>
+                    <tr className="bg-slate-950 border-b border-slate-800 text-slate-400">
+                      <th className="py-2.5 px-3">CODE</th>
+                      <th className="py-2.5 px-3">DISCOUNT</th>
+                      <th className="py-2.5 px-3">USAGE (CURRENT / MAX)</th>
+                      <th className="py-2.5 px-3">EXPIRES AT</th>
+                      <th className="py-2.5 px-3">STATUS</th>
+                      <th className="py-2.5 px-3 text-right">ACTION</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800/60">
+                    {couponsList.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="py-6 text-center text-slate-500">
+                          No discount coupons configured.
+                        </td>
+                      </tr>
+                    ) : (
+                      couponsList.map((coupon) => {
+                        const isExpired = new Date(coupon.expiresAt).getTime() <= Date.now();
+                        const isExhausted = coupon.currentUses >= coupon.maxUses;
+                        const isEffectiveActive = coupon.isActive && !isExpired && !isExhausted;
+
+                        return (
+                          <tr key={coupon.code} className="hover:bg-slate-950/60">
+                            <td className="py-2.5 px-3 font-bold text-emerald-400">
+                              {coupon.code}
+                            </td>
+                            <td className="py-2.5 px-3 text-white">
+                              {coupon.discountType === 'percentage'
+                                ? `${coupon.discountValue}% OFF`
+                                : `${coupon.discountValue} MAD OFF`}
+                            </td>
+                            <td className="py-2.5 px-3 text-slate-300">
+                              {coupon.currentUses} / {coupon.maxUses}
+                            </td>
+                            <td className="py-2.5 px-3 text-slate-400">
+                              {new Date(coupon.expiresAt).toISOString().slice(0, 10)}
+                            </td>
+                            <td className="py-2.5 px-3">
+                              <span
+                                className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                                  isEffectiveActive
+                                    ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
+                                    : 'bg-rose-500/10 text-rose-400 border border-rose-500/30'
+                                }`}
+                              >
+                                {isEffectiveActive
+                                  ? 'ACTIVE'
+                                  : isExpired
+                                  ? 'EXPIRED'
+                                  : isExhausted
+                                  ? 'MAXED OUT'
+                                  : 'DISABLED'}
+                              </span>
+                            </td>
+                            <td className="py-2.5 px-3 text-right">
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteCoupon(coupon.code)}
+                                disabled={deletingCouponCode === coupon.code}
+                                className="px-2.5 py-1 bg-rose-950/80 hover:bg-rose-900 border border-rose-800 text-rose-200 rounded text-[11px] inline-flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                                <span>Delete</span>
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </section>
 
         {/* Security Audit Trail */}

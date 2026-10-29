@@ -25,6 +25,63 @@ const PAYMENTS_FILE = path.resolve(DATA_DIR, 'payments.json');
 const PAGES_FILE = path.resolve(DATA_DIR, 'pages.json');
 const ORDERS_FILE = path.resolve(DATA_DIR, 'orders.json');
 const SETTINGS_FILE = path.resolve(DATA_DIR, 'settings.json');
+const PLANS_FILE = path.resolve(DATA_DIR, 'plans.json');
+const COUPONS_FILE = path.resolve(DATA_DIR, 'coupons.json');
+
+export interface SubscriptionPlanConfig {
+  id: 'starter' | 'pro' | 'enterprise';
+  name: string;
+  nameAr?: string;
+  priceMAD: number;
+  features: string[];
+}
+
+export interface SaaSCoupon {
+  code: string;
+  discountType: 'percentage' | 'fixed';
+  discountValue: number;
+  maxUses: number;
+  currentUses: number;
+  expiresAt: string;
+  isActive: boolean;
+  createdAt?: string;
+}
+
+export const DEFAULT_SUBSCRIPTION_PLANS: SubscriptionPlanConfig[] = [
+  {
+    id: 'starter',
+    name: 'Starter Plan',
+    nameAr: 'باقة المبتدئين (Starter)',
+    priceMAD: 99,
+    features: ['3 صفحات', '500 طلب/شهر', 'بدون علامة مائية', 'إحصائيات أساسية'],
+  },
+  {
+    id: 'pro',
+    name: 'Pro Plan',
+    nameAr: 'باقة المحترفين (Pro)',
+    priceMAD: 179,
+    features: [
+      'صفحات غير محدودة',
+      'طلبات غير محدودة',
+      'إزالة العلامة المائية',
+      'دومين مخصص',
+      'ربط بيكسل الإعلانات',
+      'دعم فوري واتساب',
+    ],
+  },
+  {
+    id: 'enterprise',
+    name: 'Enterprise Plan',
+    nameAr: 'باقة الشركات (Enterprise)',
+    priceMAD: 349,
+    features: [
+      'كل ميزات Pro',
+      'مدير حساب مخصص',
+      'ربط شركات التوصيل API',
+      'تقارير متقدمة',
+    ],
+  },
+];
 
 export interface StoredUser extends UserProfile {
   password_hash: string;
@@ -125,6 +182,14 @@ export function ensureDataFiles(): void {
         updatedAt: new Date().toISOString(),
       };
       fs.writeFileSync(SETTINGS_FILE, JSON.stringify(initialSettings, null, 2), 'utf-8');
+    }
+
+    if (!fs.existsSync(PLANS_FILE)) {
+      fs.writeFileSync(PLANS_FILE, JSON.stringify(DEFAULT_SUBSCRIPTION_PLANS, null, 2), 'utf-8');
+    }
+
+    if (!fs.existsSync(COUPONS_FILE)) {
+      fs.writeFileSync(COUPONS_FILE, JSON.stringify([], null, 2), 'utf-8');
     }
 
     console.log('[BOOT] Data files verified (existing files preserved).');
@@ -1752,4 +1817,321 @@ export function deleteBankAccount(id: string): boolean {
   if (filtered.length === current.length) return false;
   return saveBankAccounts(filtered);
 }
+
+/* ---------------- DYNAMIC SUBSCRIPTION PLANS & COUPONS STORE ---------------- */
+
+export function getPlans(): SubscriptionPlanConfig[] {
+  try {
+    if (fs.existsSync(PLANS_FILE)) {
+      const raw = fs.readFileSync(PLANS_FILE, 'utf-8');
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed.map((p) => {
+          const fallback =
+            DEFAULT_SUBSCRIPTION_PLANS.find((d) => d.id === p.id) || DEFAULT_SUBSCRIPTION_PLANS[0];
+          return {
+            id: p.id as 'starter' | 'pro' | 'enterprise',
+            name: typeof p.name === 'string' && p.name.trim() ? p.name.trim() : fallback.name,
+            nameAr:
+              typeof p.nameAr === 'string' && p.nameAr.trim() ? p.nameAr.trim() : fallback.nameAr,
+            priceMAD:
+              typeof p.priceMAD === 'number' && Number.isFinite(p.priceMAD) && p.priceMAD > 0
+                ? Math.round(p.priceMAD * 100) / 100
+                : fallback.priceMAD,
+            features: Array.isArray(p.features)
+              ? p.features.map((f: unknown) => String(f ?? '').trim()).filter(Boolean)
+              : fallback.features,
+          };
+        });
+      }
+    }
+  } catch (err) {
+    console.warn('Failed to read plans.json, falling back to default plans:', err);
+  }
+  return DEFAULT_SUBSCRIPTION_PLANS.map((p) => ({ ...p, features: [...p.features] }));
+}
+
+export function savePlans(plansInput: SubscriptionPlanConfig[]): SubscriptionPlanConfig[] {
+  const current = getPlans();
+  const byId = new Map<string, SubscriptionPlanConfig>();
+  for (const c of current) {
+    byId.set(c.id, c);
+  }
+
+  for (const incoming of plansInput) {
+    if (!incoming || !['starter', 'pro', 'enterprise'].includes(incoming.id)) {
+      continue;
+    }
+    const existing =
+      byId.get(incoming.id) ||
+      DEFAULT_SUBSCRIPTION_PLANS.find((d) => d.id === incoming.id)!;
+
+    const cleanPrice = Number(incoming.priceMAD);
+    const cleanFeatures = Array.isArray(incoming.features)
+      ? incoming.features.map((f) => String(f ?? '').trim()).filter(Boolean)
+      : existing.features;
+
+    byId.set(incoming.id, {
+      id: incoming.id,
+      name:
+        typeof incoming.name === 'string' && incoming.name.trim()
+          ? incoming.name.trim()
+          : existing.name,
+      nameAr:
+        typeof incoming.nameAr === 'string' && incoming.nameAr.trim()
+          ? incoming.nameAr.trim()
+          : existing.nameAr,
+      priceMAD:
+        Number.isFinite(cleanPrice) && cleanPrice > 0
+          ? Math.round(cleanPrice * 100) / 100
+          : existing.priceMAD,
+      features: cleanFeatures.length > 0 ? cleanFeatures : existing.features,
+    });
+  }
+
+  const ordered: SubscriptionPlanConfig[] = (['starter', 'pro', 'enterprise'] as const).map(
+    (id) => byId.get(id) || DEFAULT_SUBSCRIPTION_PLANS.find((d) => d.id === id)!
+  );
+
+  if (!fs.existsSync(DATA_DIR)) {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+  }
+  fs.writeFileSync(PLANS_FILE, JSON.stringify(ordered, null, 2), 'utf-8');
+  return ordered;
+}
+
+export function getCoupons(): SaaSCoupon[] {
+  try {
+    if (fs.existsSync(COUPONS_FILE)) {
+      const raw = fs.readFileSync(COUPONS_FILE, 'utf-8');
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        return parsed
+          .filter((c) => c && typeof c.code === 'string' && c.code.trim())
+          .map((c) => ({
+            code: String(c.code).trim().toUpperCase(),
+            discountType: c.discountType === 'fixed' ? 'fixed' : 'percentage',
+            discountValue: Math.max(0, Number(c.discountValue) || 0),
+            maxUses: Math.max(1, Math.floor(Number(c.maxUses) || 1)),
+            currentUses: Math.max(0, Math.floor(Number(c.currentUses) || 0)),
+            expiresAt: String(c.expiresAt || new Date(Date.now() + 30 * 86400000).toISOString()),
+            isActive: c.isActive !== false,
+            createdAt: c.createdAt ? String(c.createdAt) : undefined,
+          }));
+      }
+    }
+  } catch (err) {
+    console.warn('Failed to read coupons.json:', err);
+  }
+  return [];
+}
+
+export function saveCoupons(coupons: SaaSCoupon[]): SaaSCoupon[] {
+  if (!fs.existsSync(DATA_DIR)) {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+  }
+  fs.writeFileSync(COUPONS_FILE, JSON.stringify(coupons, null, 2), 'utf-8');
+  return coupons;
+}
+
+export function createCoupon(input: {
+  code: string;
+  discountType: 'percentage' | 'fixed';
+  discountValue: number;
+  maxUses: number;
+  expiresAt: string;
+  isActive?: boolean;
+}): SaaSCoupon {
+  const normalizedCode = input.code.trim().toUpperCase();
+  if (!normalizedCode || !/^[A-Z0-9_-]{2,32}$/.test(normalizedCode)) {
+    throw new Error('Coupon code must be 2–32 characters (letters, numbers, dashes, or underscores).');
+  }
+
+  const discountType: 'percentage' | 'fixed' =
+    input.discountType === 'fixed' ? 'fixed' : 'percentage';
+  const discountValue = Number(input.discountValue);
+  if (!Number.isFinite(discountValue) || discountValue <= 0) {
+    throw new Error('Discount value must be greater than 0.');
+  }
+  if (discountType === 'percentage' && discountValue > 100) {
+    throw new Error('Percentage discount cannot exceed 100%.');
+  }
+
+  const maxUses = Math.floor(Number(input.maxUses));
+  if (!Number.isFinite(maxUses) || maxUses < 1) {
+    throw new Error('Max uses must be at least 1.');
+  }
+
+  const parsedExpiry = new Date(input.expiresAt);
+  if (Number.isNaN(parsedExpiry.getTime())) {
+    throw new Error('Invalid expiry date.');
+  }
+
+  const allCoupons = getCoupons();
+  const existingIdx = allCoupons.findIndex((c) => c.code === normalizedCode);
+
+  const newCoupon: SaaSCoupon = {
+    code: normalizedCode,
+    discountType,
+    discountValue: Math.round(discountValue * 100) / 100,
+    maxUses,
+    currentUses: existingIdx >= 0 ? allCoupons[existingIdx].currentUses : 0,
+    expiresAt: parsedExpiry.toISOString(),
+    isActive: input.isActive !== false,
+    createdAt: existingIdx >= 0 ? allCoupons[existingIdx].createdAt : new Date().toISOString(),
+  };
+
+  if (existingIdx >= 0) {
+    allCoupons[existingIdx] = newCoupon;
+  } else {
+    allCoupons.unshift(newCoupon);
+  }
+
+  saveCoupons(allCoupons);
+  return newCoupon;
+}
+
+export function deleteOrDisableCoupon(code: string): boolean {
+  const normalizedCode = (code || '').trim().toUpperCase();
+  if (!normalizedCode) return false;
+
+  const allCoupons = getCoupons();
+  const filtered = allCoupons.filter((c) => c.code !== normalizedCode);
+  if (filtered.length === allCoupons.length) {
+    return false;
+  }
+  saveCoupons(filtered);
+  return true;
+}
+
+export function incrementCouponUsage(code: string): SaaSCoupon | null {
+  const normalizedCode = (code || '').trim().toUpperCase();
+  if (!normalizedCode) return null;
+
+  const allCoupons = getCoupons();
+  const target = allCoupons.find((c) => c.code === normalizedCode);
+  if (!target) return null;
+
+  target.currentUses = (target.currentUses || 0) + 1;
+  if (target.currentUses >= target.maxUses) {
+    target.isActive = false;
+  }
+  saveCoupons(allCoupons);
+  return target;
+}
+
+export function validateAndCalculateCoupon(
+  couponCode: string,
+  planId: string,
+  billingCycle: 'monthly' | 'yearly' = 'monthly'
+):
+  | {
+      valid: true;
+      coupon: SaaSCoupon;
+      plan: SubscriptionPlanConfig;
+      originalPrice: number;
+      finalPrice: number;
+      discountAmount: number;
+      error?: undefined;
+    }
+  | {
+      valid: false;
+      coupon?: undefined;
+      plan?: SubscriptionPlanConfig;
+      originalPrice: number;
+      finalPrice: number;
+      discountAmount: number;
+      error: string;
+    } {
+  const cleanPlanId = (planId || '')
+    .trim()
+    .toLowerCase()
+    .replace(/_(monthly|yearly)$/, '')
+    .replace(/^plan:/, '')
+    .split(':')[0] as 'starter' | 'pro' | 'enterprise';
+
+  const plans = getPlans();
+  const plan = plans.find((p) => p.id === cleanPlanId);
+  if (!plan) {
+    return {
+      valid: false,
+      originalPrice: 0,
+      finalPrice: 0,
+      discountAmount: 0,
+      error: 'الباقة المحددة غير صالحة (Invalid subscription plan).',
+    };
+  }
+
+  const baseMonthlyMAD = plan.priceMAD;
+  const originalPrice =
+    billingCycle === 'yearly'
+      ? Math.round(baseMonthlyMAD * 0.8) * 12
+      : baseMonthlyMAD;
+
+  const normalizedCode = (couponCode || '').trim().toUpperCase();
+  if (!normalizedCode) {
+    return {
+      valid: false,
+      originalPrice,
+      finalPrice: originalPrice,
+      discountAmount: 0,
+      error: 'يرجى إدخال كود الخصم (Coupon code is required).',
+    };
+  }
+
+  const coupons = getCoupons();
+  const coupon = coupons.find((c) => c.code === normalizedCode);
+
+  if (!coupon || !coupon.isActive) {
+    return {
+      valid: false,
+      originalPrice,
+      finalPrice: originalPrice,
+      discountAmount: 0,
+      error: 'كود الخصم غير صالح أو غير مفعل (Invalid or inactive coupon code).',
+    };
+  }
+
+  const expiresMs = new Date(coupon.expiresAt).getTime();
+  if (Number.isNaN(expiresMs) || Date.now() > expiresMs) {
+    return {
+      valid: false,
+      originalPrice,
+      finalPrice: originalPrice,
+      discountAmount: 0,
+      error: 'انتهت صلاحية كود الخصم (Coupon has expired).',
+    };
+  }
+
+  if (coupon.currentUses >= coupon.maxUses) {
+    return {
+      valid: false,
+      originalPrice,
+      finalPrice: originalPrice,
+      discountAmount: 0,
+      error: 'تم استنفاد الحد الأقصى لاستخدام هذا الكوبون (Coupon usage limit reached).',
+    };
+  }
+
+  let rawDiscount = 0;
+  if (coupon.discountType === 'percentage') {
+    rawDiscount = Math.round(((originalPrice * coupon.discountValue) / 100) * 100) / 100;
+  } else {
+    rawDiscount = Math.round(coupon.discountValue * 100) / 100;
+  }
+
+  // Ensure finalPrice is at least 1 MAD so PayPal order creation succeeds with a positive amount
+  const finalPrice = Math.max(1, Math.round((originalPrice - rawDiscount) * 100) / 100);
+  const discountAmount = Math.max(0, Math.round((originalPrice - finalPrice) * 100) / 100);
+
+  return {
+    valid: true,
+    coupon,
+    plan,
+    originalPrice,
+    finalPrice,
+    discountAmount,
+  };
+}
+
 

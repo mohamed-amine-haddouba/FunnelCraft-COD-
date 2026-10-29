@@ -57,6 +57,9 @@ import {
   saveBankAccounts,
   upsertBankAccount,
   deleteBankAccount,
+  getPlans,
+  validateAndCalculateCoupon,
+  incrementCouponUsage,
   ensureDataFiles,
 } from './server/db';
 import {
@@ -1977,33 +1980,103 @@ async function startServer() {
     'SGD', 'HKD', 'NZD', 'RUB',
   ]);
 
-  // Trusted server-side subscription plan prices in MAD
-  const PLANS: Record<string, { id: string; name: string; monthlyPriceMAD: number; yearlyPriceMAD: number }> = {
-    starter: {
-      id: 'starter',
-      name: 'Starter Plan',
-      monthlyPriceMAD: 99,
-      yearlyPriceMAD: Math.round(99 * 0.8) * 12, // 948 MAD
-    },
-    pro: {
-      id: 'pro',
-      name: 'Pro Plan',
-      monthlyPriceMAD: 179,
-      yearlyPriceMAD: Math.round(179 * 0.8) * 12, // 1716 MAD
-    },
-    enterprise: {
-      id: 'enterprise',
-      name: 'Enterprise Plan',
-      monthlyPriceMAD: 349,
-      yearlyPriceMAD: Math.round(349 * 0.8) * 12, // 3348 MAD
-    },
-    starter_monthly: { id: 'starter', name: 'Starter Plan (Monthly)', monthlyPriceMAD: 99, yearlyPriceMAD: 99 },
-    starter_yearly: { id: 'starter', name: 'Starter Plan (Yearly)', monthlyPriceMAD: 948, yearlyPriceMAD: 948 },
-    pro_monthly: { id: 'pro', name: 'Pro Plan (Monthly)', monthlyPriceMAD: 179, yearlyPriceMAD: 179 },
-    pro_yearly: { id: 'pro', name: 'Pro Plan (Yearly)', monthlyPriceMAD: 1716, yearlyPriceMAD: 1716 },
-    enterprise_monthly: { id: 'enterprise', name: 'Enterprise Plan (Monthly)', monthlyPriceMAD: 349, yearlyPriceMAD: 349 },
-    enterprise_yearly: { id: 'enterprise', name: 'Enterprise Plan (Yearly)', monthlyPriceMAD: 3348, yearlyPriceMAD: 3348 },
+  // Helper to build trusted server-side subscription plan prices in MAD dynamically from data/plans.json
+  const getDynamicPlansMap = (): Record<
+    string,
+    { id: 'starter' | 'pro' | 'enterprise'; name: string; monthlyPriceMAD: number; yearlyPriceMAD: number; features: string[] }
+  > => {
+    const dynamicPlans = getPlans();
+    const map: Record<
+      string,
+      { id: 'starter' | 'pro' | 'enterprise'; name: string; monthlyPriceMAD: number; yearlyPriceMAD: number; features: string[] }
+    > = {};
+
+    for (const p of dynamicPlans) {
+      const monthly = Number(p.priceMAD);
+      const yearly = Math.round(monthly * 0.8) * 12;
+      map[p.id] = {
+        id: p.id,
+        name: p.name,
+        monthlyPriceMAD: monthly,
+        yearlyPriceMAD: yearly,
+        features: Array.isArray(p.features) ? p.features : [],
+      };
+      map[`${p.id}_monthly`] = {
+        id: p.id,
+        name: `${p.name} (Monthly)`,
+        monthlyPriceMAD: monthly,
+        yearlyPriceMAD: monthly,
+        features: Array.isArray(p.features) ? p.features : [],
+      };
+      map[`${p.id}_yearly`] = {
+        id: p.id,
+        name: `${p.name} (Yearly)`,
+        monthlyPriceMAD: yearly,
+        yearlyPriceMAD: yearly,
+        features: Array.isArray(p.features) ? p.features : [],
+      };
+    }
+
+    return map;
   };
+
+  // Public endpoint to fetch active dynamic subscription plans (Starter, Pro, Enterprise)
+  app.get('/api/plans', (_req: Request, res: Response) => {
+    try {
+      const plans = getPlans();
+      return res.status(200).json({
+        success: true,
+        plans,
+      });
+    } catch (err: any) {
+      return res.status(500).json({
+        success: false,
+        error: err?.message || 'Failed to load subscription plans.',
+      });
+    }
+  });
+
+  // Public endpoint to validate a coupon code and calculate the server-side discounted price
+  app.post('/api/apply-coupon', (req: Request, res: Response) => {
+    try {
+      const { couponCode, planId, billingCycle } = req.body || {};
+      const cycle: 'monthly' | 'yearly' = billingCycle === 'yearly' ? 'yearly' : 'monthly';
+      const validation = validateAndCalculateCoupon(
+        typeof couponCode === 'string' ? couponCode : '',
+        typeof planId === 'string' ? planId : '',
+        cycle
+      );
+
+      if (!validation.valid) {
+        return res.status(400).json({
+          valid: false,
+          error: validation.error,
+        });
+      }
+
+      const activeRates = exchangeRatesCache?.rates || DEFAULT_EXCHANGE_RATES;
+      const originalSettlement = calculatePayPalUsdSettlement(validation.originalPrice, activeRates);
+      const finalSettlement = calculatePayPalUsdSettlement(validation.finalPrice, activeRates);
+
+      return res.status(200).json({
+        valid: true,
+        originalPrice: validation.originalPrice,
+        finalPrice: validation.finalPrice,
+        discountAmount: validation.discountAmount,
+        originalPriceUSD: originalSettlement.amount,
+        finalPriceUSD: finalSettlement.amount,
+        formattedFinalUSD: finalSettlement.formattedUSD,
+        couponCode: validation.coupon.code,
+        discountType: validation.coupon.discountType,
+        discountValue: validation.coupon.discountValue,
+      });
+    } catch (err: any) {
+      return res.status(500).json({
+        valid: false,
+        error: err?.message || 'Failed to validate coupon code.',
+      });
+    }
+  });
 
   // Server-side registry of expected PayPal order amounts (OrderId -> Expected Amount & Metadata)
   const expectedPayPalOrders = new Map<
@@ -2012,6 +2085,9 @@ async function startServer() {
       expectedAmount: string;
       expectedCurrency: string;
       priceMAD: number;
+      originalPriceMAD: number;
+      discountAmountMAD: number;
+      couponCode?: string;
       identifier: string;
       sourceType: 'plan' | 'landing_page';
       userId?: string;
@@ -2020,6 +2096,9 @@ async function startServer() {
       createdAt: number;
     }
   >();
+
+  // Track PayPal order IDs whose coupon usage has already been incremented (prevents double-counting between capture & webhook)
+  const redeemedCouponOrders = new Set<string>();
 
   // Helper to normalize a planId string to a valid paid SubscriptionPlanId
   const normalizePaidPlanId = (raw: unknown): 'starter' | 'pro' | 'enterprise' | null => {
@@ -2059,12 +2138,16 @@ async function startServer() {
     identifier?: unknown;
     planId?: unknown;
     billingCycle?: unknown;
+    couponCode?: unknown;
     pageSlug?: unknown;
     funnelId?: unknown;
     bundleIndex?: unknown;
     bundleQuantity?: unknown;
   }): {
     priceMAD: number;
+    originalPriceMAD: number;
+    discountAmountMAD: number;
+    appliedCouponCode?: string;
     amountUSD: number;
     formattedValue: string;
     currencyCode: string;
@@ -2072,38 +2155,63 @@ async function startServer() {
     sourceType: 'plan' | 'landing_page';
   } | null => {
     const activeRates = exchangeRatesCache?.rates || DEFAULT_EXCHANGE_RATES;
+    const PLANS = getDynamicPlansMap();
     const rawPlanId = typeof payload.planId === 'string' ? payload.planId.trim().toLowerCase() : '';
     const rawIdentifier = typeof payload.identifier === 'string' ? payload.identifier.trim() : '';
     const rawPageSlug = typeof payload.pageSlug === 'string' ? payload.pageSlug.trim() : '';
     const rawFunnelId = typeof payload.funnelId === 'string' ? payload.funnelId.trim() : '';
-    const billingCycle = payload.billingCycle === 'yearly' ? 'yearly' : 'monthly';
+    const rawCouponCode =
+      typeof payload.couponCode === 'string' ? payload.couponCode.trim().toUpperCase() : '';
+    const billingCycle: 'monthly' | 'yearly' =
+      payload.billingCycle === 'yearly' ? 'yearly' : 'monthly';
 
     // 1. Check if this is a Subscription Plan checkout
     const candidatePlanKey = rawPlanId || (PLANS[rawIdentifier.toLowerCase()] ? rawIdentifier.toLowerCase() : '');
     if (candidatePlanKey && PLANS[candidatePlanKey]) {
       const plan = PLANS[candidatePlanKey];
+      const effectiveCycle: 'monthly' | 'yearly' = candidatePlanKey.endsWith('_yearly')
+        ? 'yearly'
+        : candidatePlanKey.endsWith('_monthly')
+          ? 'monthly'
+          : billingCycle;
       const isExplicitCycleKey = candidatePlanKey.endsWith('_monthly') || candidatePlanKey.endsWith('_yearly');
-      const priceMAD = isExplicitCycleKey
+      const basePriceMAD = isExplicitCycleKey
         ? plan.monthlyPriceMAD
-        : billingCycle === 'yearly'
+        : effectiveCycle === 'yearly'
           ? plan.yearlyPriceMAD
           : plan.monthlyPriceMAD;
 
-      if (!Number.isFinite(priceMAD) || priceMAD <= 0) {
+      if (!Number.isFinite(basePriceMAD) || basePriceMAD <= 0) {
         return null;
       }
 
-      const settlement = calculatePayPalUsdSettlement(priceMAD, activeRates);
+      let finalPriceMAD = basePriceMAD;
+      let discountAmountMAD = 0;
+      let appliedCouponCode: string | undefined = undefined;
+
+      if (rawCouponCode) {
+        const couponCheck = validateAndCalculateCoupon(rawCouponCode, plan.id, effectiveCycle);
+        if (couponCheck.valid) {
+          finalPriceMAD = couponCheck.finalPrice;
+          discountAmountMAD = couponCheck.discountAmount;
+          appliedCouponCode = couponCheck.coupon.code;
+        }
+      }
+
+      const settlement = calculatePayPalUsdSettlement(finalPriceMAD, activeRates);
       if (!Number.isFinite(settlement.amount) || settlement.amount <= 0) {
         return null;
       }
 
       return {
-        priceMAD,
+        priceMAD: finalPriceMAD,
+        originalPriceMAD: basePriceMAD,
+        discountAmountMAD,
+        appliedCouponCode,
         amountUSD: settlement.amount,
         formattedValue: settlement.amount.toFixed(2),
         currencyCode: 'USD',
-        identifier: `plan:${plan.id}:${billingCycle}`,
+        identifier: `plan:${plan.id}:${effectiveCycle}`,
         sourceType: 'plan',
       };
     }
@@ -2209,6 +2317,8 @@ async function startServer() {
 
     return {
       priceMAD,
+      originalPriceMAD: priceMAD,
+      discountAmountMAD: 0,
       amountUSD: settlement.amount,
       formattedValue: settlement.amount.toFixed(2),
       currencyCode: 'USD',
@@ -2217,7 +2327,7 @@ async function startServer() {
     };
   };
 
-  // POST /api/paypal/create-order: Creates a PayPal order using ONLY server-verified database/plan prices (Requires Authentication)
+  // POST /api/paypal/create-order: Creates a PayPal order using ONLY server-verified database/plan prices and validated coupons (Requires Authentication)
   app.post('/api/paypal/create-order', authMiddleware, async (req: AuthRequest, res: Response) => {
     try {
       console.log('[PAYPAL BACKEND] Auth user ID:', req.user?.id);
@@ -2227,6 +2337,7 @@ async function startServer() {
         identifier,
         planId,
         billingCycle,
+        couponCode,
         pageSlug,
         funnelId,
         bundleIndex,
@@ -2235,13 +2346,38 @@ async function startServer() {
 
       const resolvedUserId = req.user!.id;
       const normalizedPlanId = normalizePaidPlanId(planId || identifier);
+      const resolvedCycle: 'monthly' | 'yearly' = billingCycle === 'yearly' ? 'yearly' : 'monthly';
+      const cleanCouponCode =
+        typeof couponCode === 'string' && couponCode.trim()
+          ? couponCode.trim().toUpperCase()
+          : '';
 
-      console.log('[PAYPAL] Creating order for plan:', planId || identifier || pageSlug);
+      // If a couponCode was supplied for a subscription plan, strictly validate it on the server before order creation
+      if (cleanCouponCode && normalizedPlanId) {
+        const couponValidation = validateAndCalculateCoupon(
+          cleanCouponCode,
+          normalizedPlanId,
+          resolvedCycle
+        );
+        if (!couponValidation.valid) {
+          return res.status(400).json({
+            success: false,
+            error: couponValidation.error,
+          });
+        }
+      }
+
+      console.log(
+        '[PAYPAL] Creating order for plan:',
+        planId || identifier || pageSlug,
+        cleanCouponCode ? `| Coupon: ${cleanCouponCode}` : ''
+      );
 
       const resolvedOrder = resolveTrustedPayPalOrderPrice({
         identifier,
         planId,
-        billingCycle,
+        billingCycle: resolvedCycle,
+        couponCode: cleanCouponCode || undefined,
         pageSlug,
         funnelId,
         bundleIndex,
@@ -2273,13 +2409,13 @@ async function startServer() {
         : 'USD';
 
       const formattedValue = resolvedOrder.formattedValue;
-      const resolvedCycle: 'monthly' | 'yearly' = billingCycle === 'yearly' ? 'yearly' : 'monthly';
 
-      // Embed userId, planId, and expected amount in customId (max 127 chars in PayPal v2)
+      // Embed userId, planId, couponCode, and expected amount in customId (max 127 chars in PayPal v2)
       const customIdPayload = JSON.stringify({
         id: resolvedOrder.identifier,
         u: resolvedUserId || '',
         p: normalizedPlanId || '',
+        c: resolvedOrder.appliedCouponCode || '',
         amt: formattedValue,
         cur: normalizedCurrency,
       }).slice(0, 127);
@@ -2308,11 +2444,14 @@ async function startServer() {
         });
       }
 
-      // Record expected order amount & user/plan metadata on the server for verification during capture/webhook
+      // Record expected order amount, coupon metadata, & user/plan metadata on the server for verification during capture/webhook
       expectedPayPalOrders.set(result.id, {
         expectedAmount: formattedValue,
         expectedCurrency: normalizedCurrency,
         priceMAD: resolvedOrder.priceMAD,
+        originalPriceMAD: resolvedOrder.originalPriceMAD,
+        discountAmountMAD: resolvedOrder.discountAmountMAD,
+        couponCode: resolvedOrder.appliedCouponCode,
         identifier: resolvedOrder.identifier,
         sourceType: resolvedOrder.sourceType,
         userId: resolvedUserId,
@@ -2327,14 +2466,21 @@ async function startServer() {
         '| Amount:',
         formattedValue,
         normalizedCurrency,
+        '| PriceMAD:',
+        resolvedOrder.priceMAD,
+        resolvedOrder.appliedCouponCode ? `| Coupon: ${resolvedOrder.appliedCouponCode}` : '',
         '| User:',
-        resolvedUserId || 'guest'
+        resolvedUserId
       );
 
       return res.status(201).json({
         id: result.id,
         status: result.status,
         amount: resolvedOrder.amountUSD,
+        priceMAD: resolvedOrder.priceMAD,
+        originalPriceMAD: resolvedOrder.originalPriceMAD,
+        discountAmountMAD: resolvedOrder.discountAmountMAD,
+        couponCode: resolvedOrder.appliedCouponCode || null,
         currency: normalizedCurrency,
       });
     } catch (err: any) {
@@ -2347,7 +2493,7 @@ async function startServer() {
     }
   });
 
-  // POST /api/paypal/capture-order/:orderId: Captures an approved PayPal order, verifies COMPLETED status & expected amount, and upgrades user plan in DB (Requires Authentication)
+  // POST /api/paypal/capture-order/:orderId: Captures an approved PayPal order, verifies COMPLETED status & expected amount, increments coupon usage, and upgrades user plan in DB (Requires Authentication)
   app.post('/api/paypal/capture-order/:orderId', authMiddleware, async (req: AuthRequest, res: Response) => {
     try {
       const orderId = (req.params.orderId || '').trim();
@@ -2398,7 +2544,7 @@ async function startServer() {
 
       // Resolve expected server-side amount & metadata from:
       // 1) In-memory expectedPayPalOrders map
-      // 2) Re-evaluating identifier/pageSlug/planId from request body
+      // 2) Re-evaluating identifier/pageSlug/planId/couponCode from request body
       // 3) Embedded customId metadata on the PayPal purchaseUnit
       const storedOrder = expectedPayPalOrders.get(orderId);
       const reEvaluatedOrder = resolveTrustedPayPalOrderPrice(req.body || {});
@@ -2408,6 +2554,8 @@ async function startServer() {
         userId?: string;
         p?: string;
         planId?: string;
+        c?: string;
+        couponCode?: string;
         amt?: string;
         cur?: string;
       } | null = null;
@@ -2454,6 +2602,23 @@ async function startServer() {
           code: 'PRICE_TAMPERING_DETECTED',
           error: 'Security verification failed: Captured amount does not match the expected server-side price.',
         });
+      }
+
+      // Increment coupon usage (currentUses) if a coupon was used on this order (idempotent per orderId)
+      const usedCouponCode =
+        storedOrder?.couponCode ||
+        customIdMeta?.c ||
+        customIdMeta?.couponCode ||
+        (typeof req.body?.couponCode === 'string' ? req.body.couponCode.trim().toUpperCase() : '');
+
+      if (usedCouponCode && !redeemedCouponOrders.has(orderId)) {
+        redeemedCouponOrders.add(orderId);
+        const updatedCoupon = incrementCouponUsage(usedCouponCode);
+        if (updatedCoupon) {
+          console.log(
+            `[PAYPAL CAPTURE] Incremented coupon usage for ${updatedCoupon.code}: ${updatedCoupon.currentUses}/${updatedCoupon.maxUses}`
+          );
+        }
       }
 
       // Resolve target userId and planId for subscription upgrade (req.user.id is guaranteed by authMiddleware)
@@ -2516,6 +2681,7 @@ async function startServer() {
         status: 'COMPLETED',
         capturedAmount: Number(numericCaptured.toFixed(2)),
         capturedCurrency: expectedCurrencyStr,
+        couponCode: usedCouponCode || undefined,
         planId: resolvedPlanId || undefined,
         user: upgradedUser || undefined,
         payer: result.payer,
@@ -2657,6 +2823,8 @@ async function startServer() {
           userId?: string;
           p?: string;
           planId?: string;
+          c?: string;
+          couponCode?: string;
         } | null = null;
 
         if (typeof rawCustomId === 'string' && rawCustomId.trim().startsWith('{')) {
@@ -2668,6 +2836,22 @@ async function startServer() {
         }
 
         const storedOrder = paypalOrderId ? expectedPayPalOrders.get(paypalOrderId) : undefined;
+        const webhookCouponCode =
+          customMeta?.c ||
+          customMeta?.couponCode ||
+          storedOrder?.couponCode ||
+          '';
+
+        if (webhookCouponCode && paypalOrderId && !redeemedCouponOrders.has(paypalOrderId)) {
+          redeemedCouponOrders.add(paypalOrderId);
+          const updatedCoupon = incrementCouponUsage(webhookCouponCode);
+          if (updatedCoupon) {
+            console.log(
+              `[PAYPAL WEBHOOK] Incremented coupon usage for ${updatedCoupon.code}: ${updatedCoupon.currentUses}/${updatedCoupon.maxUses}`
+            );
+          }
+        }
+
         const webhookUserId =
           customMeta?.userId ||
           customMeta?.u ||

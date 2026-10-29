@@ -20,6 +20,12 @@ import {
   invalidateAllUserSessions,
   setOwnerMustChangePassword,
   bootstrapOwnerFromEnv,
+  getPlans,
+  savePlans,
+  getCoupons,
+  createCoupon,
+  deleteOrDisableCoupon,
+  SubscriptionPlanConfig,
   StoredUser,
 } from './db';
 import {
@@ -81,6 +87,9 @@ export type AuditAction =
   | 'server_command'
   | 'server_terminal_open'
   | 'server_terminal_close'
+  | 'plans_updated'
+  | 'coupon_created'
+  | 'coupon_deleted'
   | 'logout';
 
 export interface AuditLogEntry {
@@ -3068,6 +3077,197 @@ export function createSandboxRouter(): Router {
       } finally {
         releaseServerCommandLock();
       }
+    })
+  );
+
+  /* ---------------- SAAS MANAGEMENT: DYNAMIC PLANS & COUPONS (OWNER ONLY) ---------------- */
+
+  // GET /api/sandbox/plans — Fetch current dynamic subscription plans
+  router.get(
+    '/plans',
+    requireOwner,
+    asyncHandler(async (_req: SandboxAuthRequest, res: Response) => {
+      const plans = getPlans();
+      return sendUnifiedResponse(res, 200, {
+        ok: true,
+        code: 'PLANS_LOADED',
+        message: 'Subscription plans retrieved.',
+        plans,
+      });
+    })
+  );
+
+  // PUT /api/sandbox/plans — Update plan prices and features (Requires Owner + CSRF)
+  router.put(
+    '/plans',
+    requireOwner,
+    requireCsrf,
+    asyncHandler(async (req: SandboxAuthRequest, res: Response) => {
+      const owner = req.sandboxUser!;
+      const ip = getRequestIp(req);
+      const userAgent = String(req.headers['user-agent'] || 'unknown');
+
+      const body = req.body || {};
+      let incomingPlans: SubscriptionPlanConfig[] = [];
+
+      if (Array.isArray(body.plans)) {
+        incomingPlans = body.plans;
+      } else if (body && typeof body.id === 'string') {
+        incomingPlans = [body as SubscriptionPlanConfig];
+      } else {
+        return sendUnifiedResponse(res, 400, {
+          ok: false,
+          code: 'VALIDATION_ERROR',
+          message: 'Please provide a valid plans array or plan object.',
+        });
+      }
+
+      for (const p of incomingPlans) {
+        if (!p || !['starter', 'pro', 'enterprise'].includes(p.id)) {
+          return sendUnifiedResponse(res, 400, {
+            ok: false,
+            code: 'VALIDATION_ERROR',
+            message: 'Plan id must be starter, pro, or enterprise.',
+          });
+        }
+        const numericPrice = Number(p.priceMAD);
+        if (!Number.isFinite(numericPrice) || numericPrice <= 0) {
+          return sendUnifiedResponse(res, 400, {
+            ok: false,
+            code: 'VALIDATION_ERROR',
+            message: `Invalid priceMAD for plan "${p.id}". Must be greater than 0.`,
+          });
+        }
+      }
+
+      const updatedPlans = savePlans(incomingPlans);
+
+      recordAuditLog({
+        actorEmail: owner.email,
+        ip,
+        userAgent,
+        action: 'plans_updated',
+        result: 'success',
+        metadata: {
+          updatedPlanIds: incomingPlans.map((p) => p.id),
+        },
+      });
+
+      return sendUnifiedResponse(res, 200, {
+        ok: true,
+        code: 'PLANS_UPDATED',
+        message: 'Subscription plans updated successfully.',
+        plans: updatedPlans,
+      });
+    })
+  );
+
+  // GET /api/sandbox/coupons — List all discount coupons
+  router.get(
+    '/coupons',
+    requireOwner,
+    asyncHandler(async (_req: SandboxAuthRequest, res: Response) => {
+      const coupons = getCoupons();
+      return sendUnifiedResponse(res, 200, {
+        ok: true,
+        code: 'COUPONS_LOADED',
+        message: 'Coupons retrieved.',
+        coupons,
+      });
+    })
+  );
+
+  // POST /api/sandbox/coupons — Create or update a discount coupon (Requires Owner + CSRF)
+  router.post(
+    '/coupons',
+    requireOwner,
+    requireCsrf,
+    asyncHandler(async (req: SandboxAuthRequest, res: Response) => {
+      const owner = req.sandboxUser!;
+      const ip = getRequestIp(req);
+      const userAgent = String(req.headers['user-agent'] || 'unknown');
+
+      const { code, discountType, discountValue, maxUses, expiresAt, isActive } = req.body || {};
+
+      try {
+        const coupon = createCoupon({
+          code: String(code || ''),
+          discountType: discountType === 'fixed' ? 'fixed' : 'percentage',
+          discountValue: Number(discountValue),
+          maxUses: Number(maxUses),
+          expiresAt: String(expiresAt || ''),
+          isActive: isActive !== false,
+        });
+
+        recordAuditLog({
+          actorEmail: owner.email,
+          ip,
+          userAgent,
+          action: 'coupon_created',
+          result: 'success',
+          metadata: {
+            code: coupon.code,
+            discountType: coupon.discountType,
+            discountValue: coupon.discountValue,
+            maxUses: coupon.maxUses,
+            expiresAt: coupon.expiresAt,
+          },
+        });
+
+        return sendUnifiedResponse(res, 201, {
+          ok: true,
+          code: 'COUPON_CREATED',
+          message: `Coupon "${coupon.code}" created successfully.`,
+          coupon,
+          coupons: getCoupons(),
+        });
+      } catch (err: any) {
+        return sendUnifiedResponse(res, 400, {
+          ok: false,
+          code: 'VALIDATION_ERROR',
+          message: err?.message || 'Failed to create coupon.',
+        });
+      }
+    })
+  );
+
+  // DELETE /api/sandbox/coupons/:code — Delete a coupon (Requires Owner + CSRF)
+  router.delete(
+    '/coupons/:code',
+    requireOwner,
+    requireCsrf,
+    asyncHandler(async (req: SandboxAuthRequest, res: Response) => {
+      const owner = req.sandboxUser!;
+      const ip = getRequestIp(req);
+      const userAgent = String(req.headers['user-agent'] || 'unknown');
+      const couponCode = (req.params.code || '').trim().toUpperCase();
+
+      const deleted = deleteOrDisableCoupon(couponCode);
+      if (!deleted) {
+        return sendUnifiedResponse(res, 404, {
+          ok: false,
+          code: 'COUPON_NOT_FOUND',
+          message: `Coupon "${couponCode}" was not found.`,
+        });
+      }
+
+      recordAuditLog({
+        actorEmail: owner.email,
+        ip,
+        userAgent,
+        action: 'coupon_deleted',
+        result: 'success',
+        metadata: {
+          code: couponCode,
+        },
+      });
+
+      return sendUnifiedResponse(res, 200, {
+        ok: true,
+        code: 'COUPON_DELETED',
+        message: `Coupon "${couponCode}" deleted.`,
+        coupons: getCoupons(),
+      });
     })
   );
 
