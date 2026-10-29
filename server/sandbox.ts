@@ -3124,7 +3124,26 @@ function spawnBashTerminalProcess(
 
   try {
     const localRequire = createRequire(import.meta.url);
-    const ptyModule = localRequire('node-pty') as typeof import('node-pty');
+    const ptyModule = localRequire('node-pty') as {
+      spawn: (
+        file: string,
+        args: string[],
+        options: {
+          name?: string;
+          cols?: number;
+          rows?: number;
+          cwd?: string;
+          env?: Record<string, string>;
+        }
+      ) => {
+        pid: number;
+        write: (data: string) => void;
+        resize: (cols: number, rows: number) => void;
+        kill: (signal?: string) => void;
+        onData: (cb: (data: string) => void) => void;
+        onExit: (cb: (e: { exitCode: number; signal?: number }) => void) => void;
+      };
+    };
     const ptyProc = ptyModule.spawn(shell, [], {
       name: 'xterm-256color',
       cols,

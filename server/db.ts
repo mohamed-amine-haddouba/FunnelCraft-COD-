@@ -837,11 +837,21 @@ export function updateUserSubscription(
   user.subscription_tier = tier;
   if (status === 'active') {
     user.status = 'active';
+    if (tier === 'starter_tier') {
+      user.plan_id = 'starter';
+    } else if (tier === 'enterprise_tier') {
+      user.plan_id = 'enterprise';
+    } else if (!user.plan_id || user.plan_id === 'free') {
+      user.plan_id = 'pro';
+    }
+  } else if (status === 'free') {
+    user.plan_id = 'free';
   }
   if (stripeCustomerId) user.stripe_customer_id = stripeCustomerId;
   if (stripeSubscriptionId) user.stripe_subscription_id = stripeSubscriptionId;
   if (currentPeriodEnd) user.current_period_end = currentPeriodEnd;
 
+  users.set(userId, user);
   saveUsersToDisk(users);
   return toSafeProfile(user);
 }

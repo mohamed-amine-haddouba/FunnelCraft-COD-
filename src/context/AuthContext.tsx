@@ -103,7 +103,9 @@ interface AuthContextType {
   refreshUser: () => Promise<void>;
   checkCanPerformAction: () => { allowed: boolean; reason?: string };
   recordPageAction: () => Promise<boolean>;
-  upgradeToPro: () => Promise<{ success: boolean; url?: string; message?: string }>;
+  upgradeToPro: (
+    planId?: 'free' | 'starter' | 'pro' | 'enterprise'
+  ) => Promise<{ success: boolean; url?: string; message?: string; user?: UserProfile }>;
   submitManualPayment: (
     method: MoroccanPaymentMethod,
     reference: string,
@@ -823,8 +825,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return true;
   };
 
-  const upgradeToPro = async () => {
-    if (!token) {
+  const upgradeToPro = async (planId?: 'free' | 'starter' | 'pro' | 'enterprise') => {
+    const activeToken = token || localStorage.getItem(TOKEN_KEY);
+    if (!activeToken) {
       return { success: false, message: 'Please sign in or create a free account first.' };
     }
 
@@ -833,21 +836,25 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${activeToken}`,
         },
-        body: JSON.stringify({ returnUrl: window.location.origin }),
+        body: JSON.stringify({
+          returnUrl: window.location.origin,
+          planId: planId && planId !== 'free' ? planId : 'pro',
+        }),
       });
       const data = await res.json();
 
       if (data.success) {
-        if (data.simulated && data.user) {
+        if (data.user) {
           setUser(data.user);
-          return { success: true, message: data.message };
+          return { success: true, message: data.message, user: data.user };
         } else if (data.url) {
           window.location.href = data.url;
           return { success: true, url: data.url };
         }
       }
+      await fetchCurrentUser(activeToken);
       return { success: false, message: data.error || 'Upgrade failed.' };
     } catch (err: any) {
       return { success: false, message: err.message || 'Upgrade request failed.' };

@@ -135,7 +135,7 @@ export const PricingPage: React.FC<PricingPageProps> = ({
   onNavigateToTerms,
   onNavigateToPrivacy,
 }) => {
-  const { user, isPro, upgradeToPro, submitManualPayment, userPayments } = useAuth();
+  const { user, token, isPro, upgradeToPro, refreshUser, submitManualPayment, userPayments } = useAuth();
   const effectivePlan: SubscriptionPlanId =
     user?.plan_id && user.plan_id !== 'free'
       ? user.plan_id
@@ -168,6 +168,7 @@ export const PricingPage: React.FC<PricingPageProps> = ({
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [checkoutSuccess, setCheckoutSuccess] = useState<string | null>(null);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
+  const [runtimePayPalClientId, setRuntimePayPalClientId] = useState<string>('');
 
   const checkoutSectionRef = useRef<HTMLDivElement>(null);
 
@@ -205,6 +206,15 @@ export const PricingPage: React.FC<PricingPageProps> = ({
       .then((data) => {
         if (mounted && data && data.rates) {
           setExchangeRates(normalizeExchangeRates(data.rates));
+        }
+      })
+      .catch(() => {});
+
+    fetch('/api/paypal/config')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (mounted && data && typeof data.clientId === 'string' && data.clientId.trim()) {
+          setRuntimePayPalClientId(data.clientId.trim());
         }
       })
       .catch(() => {});
@@ -286,10 +296,16 @@ export const PricingPage: React.FC<PricingPageProps> = ({
     setCheckoutError(null);
 
     try {
+      const authHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) {
+        authHeaders.Authorization = `Bearer ${token}`;
+      }
+
       const createRes = await fetch('/api/paypal/create-order', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders,
         body: JSON.stringify({
+          userId: user?.id,
           identifier: selectedPaidTier.id,
           planId: selectedPaidTier.id,
           billingCycle,
@@ -301,7 +317,8 @@ export const PricingPage: React.FC<PricingPageProps> = ({
         // Still allow sandbox/simulated instant upgrade if PayPal keys are not configured in preview
       }
 
-      const upgradeRes = await upgradeToPro();
+      const upgradeRes = await upgradeToPro(selectedPaidTier.id);
+      await refreshUser();
       if (upgradeRes.success) {
         try {
           localStorage.setItem('funnelcraft_plan', selectedPaidTier.id);
@@ -371,7 +388,9 @@ export const PricingPage: React.FC<PricingPageProps> = ({
 
   const paypalClientId =
     (import.meta as unknown as { env?: Record<string, string> }).env
-      ?.VITE_PAYPAL_CLIENT_ID || 'test';
+      ?.VITE_PAYPAL_CLIENT_ID ||
+    runtimePayPalClientId ||
+    'test';
 
   return (
     <div
@@ -751,6 +770,7 @@ export const PricingPage: React.FC<PricingPageProps> = ({
                   <div className="max-w-md mx-auto space-y-4">
                     <div className="bg-white rounded-2xl p-4 shadow-inner">
                       <PayPalScriptProvider
+                        key={paypalClientId}
                         options={{
                           clientId: paypalClientId,
                           currency: 'USD',
@@ -766,10 +786,18 @@ export const PricingPage: React.FC<PricingPageProps> = ({
                             height: 44,
                           }}
                           createOrder={async () => {
+                            const authHeaders: Record<string, string> = {
+                              'Content-Type': 'application/json',
+                            };
+                            if (token) {
+                              authHeaders.Authorization = `Bearer ${token}`;
+                            }
+
                             const res = await fetch('/api/paypal/create-order', {
                               method: 'POST',
-                              headers: { 'Content-Type': 'application/json' },
+                              headers: authHeaders,
                               body: JSON.stringify({
+                                userId: user?.id,
                                 identifier: selectedPaidTier.id,
                                 planId: selectedPaidTier.id,
                                 billingCycle,
@@ -785,12 +813,20 @@ export const PricingPage: React.FC<PricingPageProps> = ({
                             setIsProcessing(true);
                             setCheckoutError(null);
                             try {
+                              const authHeaders: Record<string, string> = {
+                                'Content-Type': 'application/json',
+                              };
+                              if (token) {
+                                authHeaders.Authorization = `Bearer ${token}`;
+                              }
+
                               const captureRes = await fetch(
                                 `/api/paypal/capture-order/${encodeURIComponent(data.orderID)}`,
                                 {
                                   method: 'POST',
-                                  headers: { 'Content-Type': 'application/json' },
+                                  headers: authHeaders,
                                   body: JSON.stringify({
+                                    userId: user?.id,
                                     identifier: selectedPaidTier.id,
                                     planId: selectedPaidTier.id,
                                     billingCycle,
@@ -807,8 +843,15 @@ export const PricingPage: React.FC<PricingPageProps> = ({
                                   captureData.error || 'تعذر التحقق من قيمة الدفع عبر PayPal.'
                                 );
                               }
-                              const upg = await upgradeToPro();
-                              if (upg.success) {
+
+                              console.log('[PAYPAL FRONTEND] Capture success, now upgrading plan...');
+
+                              // Refresh authenticated user session (already upgraded in capture-order) and invoke upgradeToPro fallback
+                              await refreshUser();
+                              const upg = await upgradeToPro(selectedPaidTier.id);
+                              await refreshUser();
+
+                              if (captureData.user || upg.success) {
                                 try {
                                   localStorage.setItem('funnelcraft_plan', selectedPaidTier.id);
                                 } catch (_) {}
