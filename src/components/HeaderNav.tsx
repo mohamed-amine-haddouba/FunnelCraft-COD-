@@ -26,6 +26,12 @@ import {
   Scale,
   FileText,
   ChevronDown,
+  Monitor,
+  Tablet,
+  Smartphone,
+  Undo2,
+  Redo2,
+  ArrowRight,
 } from 'lucide-react';
 import { ALL_PRESET_TEMPLATES } from '../data/defaultTemplates';
 import { useAuth } from '../context/AuthContext';
@@ -80,11 +86,17 @@ interface Props {
 
 export const HeaderNav: React.FC<Props> = ({
   pageData,
+  viewport,
+  canUndo,
+  canRedo,
   saveStatus = 'idle',
   activeView,
   onViewChange,
   pendingOrdersCount = 0,
+  onViewportChange,
   onToggleCustomerLiveView,
+  onUndo,
+  onRedo,
   onSavePage,
   onOpenMyPagesModal,
   onOpenPublishModal,
@@ -133,10 +145,9 @@ export const HeaderNav: React.FC<Props> = ({
   ];
 
   return (
-    <header className="bg-slate-950 text-white border-b border-slate-800/90 shrink-0 select-none z-40 relative w-full">
-      {/* Single Compact Row: h-14 flex-nowrap items-center justify-between px-4 gap-2 overflow-x-hidden */}
-      <div className="flex h-14 flex-nowrap items-center justify-between px-4 gap-2 overflow-x-hidden w-full">
-        {/* 1. Brand (Right in RTL): Logo + "CodWorth" (hidden on small screens) */}
+    <header className="bg-slate-900 text-white border-b border-slate-800 shrink-0 select-none z-40 relative w-full shadow-md">
+      <div className="flex h-14 flex-nowrap items-center justify-between px-3 sm:px-4 gap-2 overflow-x-hidden w-full">
+        {/* 1. Brand + Back to Dashboard (Right in RTL) */}
         <div className="flex items-center gap-2 shrink-0">
           <button
             type="button"
@@ -147,84 +158,161 @@ export const HeaderNav: React.FC<Props> = ({
             <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center shadow-sm shadow-emerald-500/20 group-hover:scale-105 transition shrink-0">
               <Sparkles className="w-4 h-4 text-slate-950" />
             </div>
-            <span className="hidden sm:inline font-black tracking-tight text-sm text-white whitespace-nowrap">
+            <span className="hidden md:inline font-black tracking-tight text-sm text-white whitespace-nowrap">
               CodWorth
             </span>
           </button>
+
+          {currentTab === 'builder' && (
+            <button
+              type="button"
+              onClick={() => handleNavigateTab('orders')}
+              title="Back to Dashboard (لوحة التحكم والطلبات)"
+              className="hidden lg:inline-flex items-center gap-1.5 h-8 px-2.5 rounded-lg bg-slate-800/90 hover:bg-slate-800 border border-slate-700/80 text-slate-200 hover:text-white text-[11px] font-bold transition cursor-pointer"
+            >
+              <ArrowRight className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+              <span>لوحة التحكم</span>
+            </button>
+          )}
         </div>
 
-        {/* 2. Primary Navigation (Center): "Builder", "Orders", "Analytics" */}
-        <nav className="flex items-center justify-center gap-1 bg-slate-900/90 p-1 rounded-xl border border-slate-800 min-w-0 shrink-0">
-          <button
-            type="button"
-            onClick={() => handleNavigateTab('builder')}
-            title={t.navBuilder}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer whitespace-nowrap shrink-0 ${
-              currentTab === 'builder'
-                ? 'bg-emerald-500 text-slate-950 shadow-xs'
-                : 'text-slate-300 hover:text-white hover:bg-slate-800/70'
-            }`}
-          >
-            <Store className="w-3.5 h-3.5 shrink-0" />
-            <span>{t.navBuilder}</span>
-          </button>
+        {/* 2. Primary Navigation + Builder Viewport & Undo/Redo Controls (Center) */}
+        <div className="flex items-center gap-2 min-w-0 shrink-0">
+          <nav className="flex items-center justify-center gap-1 bg-slate-950/80 p-1 rounded-xl border border-slate-800 min-w-0 shrink-0">
+            <button
+              type="button"
+              onClick={() => handleNavigateTab('builder')}
+              title={t.navBuilder}
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer whitespace-nowrap shrink-0 ${
+                currentTab === 'builder'
+                  ? 'bg-emerald-500 text-slate-950 shadow-xs'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-800/70'
+              }`}
+            >
+              <Store className="w-3.5 h-3.5 shrink-0" />
+              <span>{t.navBuilder}</span>
+            </button>
 
-          <button
-            type="button"
-            onClick={() => handleNavigateTab('orders')}
-            title={t.navOrders}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer whitespace-nowrap shrink-0 relative ${
-              currentTab === 'orders'
-                ? 'bg-emerald-500 text-slate-950 shadow-xs'
-                : 'text-slate-300 hover:text-white hover:bg-slate-800/70'
-            }`}
-          >
-            <ShoppingBag className="w-3.5 h-3.5 shrink-0" />
-            <span>{t.navOrders}</span>
-            {pendingOrdersCount > 0 && (
-              <span
-                className={`px-1.5 py-0.2 text-[10px] font-black rounded-full font-mono shrink-0 ${
-                  currentTab === 'orders'
-                    ? 'bg-slate-950 text-emerald-400'
-                    : 'bg-rose-500 text-white'
+            <button
+              type="button"
+              onClick={() => handleNavigateTab('orders')}
+              title={t.navOrders}
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer whitespace-nowrap shrink-0 relative ${
+                currentTab === 'orders'
+                  ? 'bg-emerald-500 text-slate-950 shadow-xs'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-800/70'
+              }`}
+            >
+              <ShoppingBag className="w-3.5 h-3.5 shrink-0" />
+              <span>{t.navOrders}</span>
+              {pendingOrdersCount > 0 && (
+                <span
+                  className={`px-1.5 py-0.2 text-[10px] font-black rounded-full font-mono shrink-0 ${
+                    currentTab === 'orders'
+                      ? 'bg-slate-950 text-emerald-400'
+                      : 'bg-rose-500 text-white'
+                  }`}
+                >
+                  {pendingOrdersCount}
+                </span>
+              )}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleNavigateTab('analytics')}
+              title={t.navAnalytics}
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer whitespace-nowrap shrink-0 ${
+                currentTab === 'analytics'
+                  ? 'bg-emerald-500 text-slate-950 shadow-xs'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-800/70'
+              }`}
+            >
+              <BarChart3 className="w-3.5 h-3.5 shrink-0" />
+              <span>{t.navAnalytics}</span>
+            </button>
+          </nav>
+
+          {/* Viewport Toggle (Desktop/Tablet/Mobile) & Undo/Redo in Top Bar */}
+          {currentTab === 'builder' && (
+            <div className="hidden xl:flex items-center gap-1.5 bg-slate-950/80 p-1 rounded-xl border border-slate-800" dir="ltr">
+              <button
+                type="button"
+                onClick={() => onViewportChange('desktop')}
+                className={`p-1.5 rounded-lg transition cursor-pointer ${
+                  viewport === 'desktop'
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : 'text-slate-400 hover:text-white'
                 }`}
+                title="Desktop Viewport"
               >
-                {pendingOrdersCount}
-              </span>
-            )}
-          </button>
+                <Monitor className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => onViewportChange('tablet')}
+                className={`p-1.5 rounded-lg transition cursor-pointer ${
+                  viewport === 'tablet'
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+                title="Tablet Viewport"
+              >
+                <Tablet className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => onViewportChange('mobile')}
+                className={`p-1.5 rounded-lg transition cursor-pointer ${
+                  viewport === 'mobile'
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+                title="Mobile Viewport"
+              >
+                <Smartphone className="w-3.5 h-3.5" />
+              </button>
 
-          <button
-            type="button"
-            onClick={() => handleNavigateTab('analytics')}
-            title={t.navAnalytics}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer whitespace-nowrap shrink-0 ${
-              currentTab === 'analytics'
-                ? 'bg-emerald-500 text-slate-950 shadow-xs'
-                : 'text-slate-300 hover:text-white hover:bg-slate-800/70'
-            }`}
-          >
-            <BarChart3 className="w-3.5 h-3.5 shrink-0" />
-            <span>{t.navAnalytics}</span>
-          </button>
-        </nav>
+              <div className="w-px h-4 bg-slate-800 mx-0.5" />
 
-        {/* 3. Secondary Actions (Left in RTL): Icon-only Builder Tools + User Avatar Dropdown */}
+              <button
+                type="button"
+                disabled={!canUndo}
+                onClick={onUndo}
+                className="p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 disabled:opacity-30 transition cursor-pointer"
+                title={t.undo}
+              >
+                <Undo2 className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                disabled={!canRedo}
+                onClick={onRedo}
+                className="p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 disabled:opacity-30 transition cursor-pointer"
+                title={t.redo}
+              >
+                <Redo2 className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* 3. Secondary Actions (Left in RTL): Builder Tools + Prominent Publish Button + User Avatar */}
         <div className="flex items-center gap-1.5 shrink-0">
           {currentTab === 'builder' && (
-            <div className="flex items-center gap-1 shrink-0">
-              {/* My Pages (Icon-only with tooltip) */}
+            <div className="flex items-center gap-1.5 shrink-0">
+              {/* My Pages */}
               <button
                 type="button"
                 onClick={onOpenMyPagesModal}
                 title={t.myPages}
                 aria-label={t.myPages}
-                className="w-8 h-8 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 flex items-center justify-center text-slate-300 hover:text-emerald-400 transition cursor-pointer shrink-0"
+                className="w-8 h-8 rounded-lg bg-slate-800/90 hover:bg-slate-800 border border-slate-700/80 flex items-center justify-center text-slate-300 hover:text-emerald-400 transition cursor-pointer shrink-0"
               >
                 <FolderKanban className="w-4 h-4 shrink-0" />
               </button>
 
-              {/* Templates (Icon-only with tooltip) */}
+              {/* Templates */}
               <button
                 type="button"
                 onClick={() => {
@@ -233,23 +321,24 @@ export const HeaderNav: React.FC<Props> = ({
                 }}
                 title={t.templates}
                 aria-label={t.templates}
-                className="w-8 h-8 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 flex items-center justify-center text-slate-300 hover:text-teal-400 transition cursor-pointer shrink-0"
+                className="w-8 h-8 rounded-lg bg-slate-800/90 hover:bg-slate-800 border border-slate-700/80 flex items-center justify-center text-slate-300 hover:text-teal-400 transition cursor-pointer shrink-0"
               >
                 <Globe className="w-4 h-4 shrink-0" />
               </button>
 
-              {/* AI Generate (Icon-only with tooltip) */}
+              {/* AI Generate / Import Product Modal */}
               <button
                 type="button"
                 onClick={onOpenAiModal}
                 title={t.aiGenerate}
                 aria-label={t.aiGenerate}
-                className="w-8 h-8 rounded-lg bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white shadow-xs flex items-center justify-center transition cursor-pointer shrink-0"
+                className="h-8 px-2.5 rounded-lg bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white shadow-xs flex items-center gap-1.5 text-xs font-bold transition cursor-pointer shrink-0"
               >
-                <Wand2 className="w-4 h-4 shrink-0" />
+                <Wand2 className="w-3.5 h-3.5 shrink-0" />
+                <span className="hidden md:inline">AI / استيراد</span>
               </button>
 
-              {/* Save (Icon-only with tooltip) */}
+              {/* Save */}
               <button
                 type="button"
                 onClick={onSavePage}
@@ -266,7 +355,7 @@ export const HeaderNav: React.FC<Props> = ({
                     ? 'bg-emerald-950/60 border-emerald-700/60 text-emerald-400'
                     : saveStatus === 'unsaved'
                     ? 'bg-amber-950/50 border-amber-700/60 text-amber-300 hover:bg-amber-900/50'
-                    : 'bg-slate-900 hover:bg-slate-800 border-slate-800 text-slate-200'
+                    : 'bg-slate-800/90 hover:bg-slate-800 border-slate-700/80 text-slate-200'
                 }`}
               >
                 {saveStatus === 'saving' ? (
@@ -278,29 +367,28 @@ export const HeaderNav: React.FC<Props> = ({
                 )}
               </button>
 
-              {/* Publish (Icon-only with tooltip) */}
+              {/* Prominent Publish Button (Emerald Gradient) */}
               <button
                 type="button"
                 onClick={onOpenPublishModal}
                 title={isCurrentPagePublished ? t.published : t.publish}
                 aria-label={isCurrentPagePublished ? t.published : t.publish}
-                className={`w-8 h-8 rounded-lg flex items-center justify-center transition cursor-pointer shadow-xs shrink-0 ${
-                  isCurrentPagePublished
-                    ? 'bg-emerald-500 hover:bg-emerald-400 text-slate-950'
-                    : 'bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-slate-950'
-                }`}
+                className="h-8 px-3 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-xs flex items-center gap-1.5 transition cursor-pointer shadow-md shadow-emerald-500/20 shrink-0"
               >
-                <Rocket className="w-4 h-4 shrink-0" />
+                <Rocket className="w-3.5 h-3.5 shrink-0" />
+                <span className="hidden sm:inline">
+                  {isCurrentPagePublished ? t.published : t.publish}
+                </span>
               </button>
 
-              {/* Customer Live Storefront View (Icon-only with tooltip) */}
+              {/* Customer Live Storefront View */}
               {onToggleCustomerLiveView && (
                 <button
                   type="button"
                   onClick={onToggleCustomerLiveView}
                   title={t.customerLiveView}
                   aria-label={t.customerLiveView}
-                  className="w-8 h-8 rounded-lg bg-slate-900 hover:bg-slate-800 text-emerald-400 border border-slate-800 flex items-center justify-center transition cursor-pointer shrink-0"
+                  className="w-8 h-8 rounded-lg bg-slate-800/90 hover:bg-slate-800 text-emerald-400 border border-slate-700/80 flex items-center justify-center transition cursor-pointer shrink-0"
                 >
                   <ExternalLink className="w-4 h-4 shrink-0" />
                 </button>

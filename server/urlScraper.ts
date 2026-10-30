@@ -3,13 +3,15 @@
  * Supports AliExpress, Alibaba, Shopify, YouCan, and general e-commerce stores.
  */
 
+import { scrapeProductData } from './scraper';
+
 export interface ProductSpecification {
   label: string;
   value: string;
 }
 
 export interface ScrapedProduct {
-  platform: 'AliExpress' | 'Alibaba' | 'Shopify' | 'YouCan' | 'Amazon' | 'E-Commerce Store';
+  platform: 'AliExpress' | 'Alibaba' | 'Shopify' | 'YouCan' | 'Amazon' | 'Jumia' | 'Noon' | 'E-Commerce Store';
   title: string;
   description: string;
   price?: number;
@@ -187,6 +189,27 @@ export async function scrapeProductFromUrl(targetUrl: string): Promise<ScrapedPr
   const val = validateProductUrl(targetUrl);
   if (!val.isValid || !val.url) {
     throw new Error(val.error || 'Invalid product URL.');
+  }
+
+  try {
+    const deepData = await scrapeProductData(targetUrl);
+    if (deepData && deepData.images && deepData.images.length > 0) {
+      return {
+        platform: deepData.platform,
+        title: deepData.title,
+        description: deepData.description,
+        price: deepData.price,
+        originalPrice: deepData.originalPrice,
+        currency: deepData.currency,
+        images: deepData.images,
+        features: deepData.features,
+        specifications: deepData.specifications,
+        niche: deepData.niche,
+        rawUrl: deepData.rawUrl,
+      };
+    }
+  } catch (err) {
+    console.warn('Deep scraper delegation notice, continuing with fallback:', err);
   }
 
   const url = val.url;

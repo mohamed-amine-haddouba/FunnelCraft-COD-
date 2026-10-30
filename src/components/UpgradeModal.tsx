@@ -100,11 +100,7 @@ const TIERS: TierOption[] = [
   },
 ];
 
-declare global {
-  interface Window {
-    paypal?: any;
-  }
-}
+const getPaypalGlobal = (): any => (typeof window !== 'undefined' ? (window as any).paypal : undefined);
 
 export const UpgradeModal: React.FC<Props> = ({
   isOpen,
@@ -190,7 +186,8 @@ export const UpgradeModal: React.FC<Props> = ({
     const clientId = 'test'; // Standard live/sandbox test client ID, or from env
     const scriptId = 'paypal-sdk-script';
 
-    if (window.paypal) {
+    const paypalSdk = getPaypalGlobal();
+    if (paypalSdk) {
       setIsPaypalSdkLoaded(true);
       return;
     }
@@ -215,7 +212,8 @@ export const UpgradeModal: React.FC<Props> = ({
 
   // Render PayPal Buttons into container when ready
   useEffect(() => {
-    if (!isOpen || !isPaypalSdkLoaded || !window.paypal || paymentMethod !== 'paypal') return;
+    const paypalSdk = getPaypalGlobal();
+    if (!isOpen || !isPaypalSdkLoaded || !paypalSdk || paymentMethod !== 'paypal') return;
     const container = paypalContainerRef.current;
     if (!container) return;
 
@@ -234,7 +232,7 @@ export const UpgradeModal: React.FC<Props> = ({
     setIsPaypalRendering(true);
 
     try {
-      buttonsInstance = window.paypal.Buttons({
+      buttonsInstance = paypalSdk.Buttons({
         style: {
           layout: 'vertical',
           color: 'gold',

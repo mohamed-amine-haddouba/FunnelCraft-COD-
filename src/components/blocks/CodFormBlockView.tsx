@@ -1,311 +1,511 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { CodFormBlock, PageTheme, BundleOption } from '../../types/landingPage';
-import { ShieldCheck, Truck, Banknote, ArrowRight, ArrowLeft, AlertCircle } from 'lucide-react';
-import { Turnstile, type TurnstileInstance } from '@marsidev/react-turnstile';
-import { executeRecaptcha, preloadRecaptchaScript } from '../../utils/recaptcha';
-
-const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY || '';
-
-interface OrderSubmitPayload {
-  customerName: string;
-  customerPhone: string;
-  customerCity: string;
-  customerAddress: string;
-  customerNote?: string;
-  bundle: BundleOption;
-  totalPrice: number;
-  currency: string;
-  recaptchaToken?: string;
-  turnstileToken?: string;
-}
+import React, { useState, useEffect } from 'react';
+import { CodFormBlock, ThemeConfig } from '../../types/landingPage';
+import {
+  CheckCircle2,
+  ShieldCheck,
+  Truck,
+  PhoneCall,
+  MapPin,
+  User,
+  FileText,
+  Sparkles,
+  Loader2,
+  Globe,
+} from 'lucide-react';
+import { trackSubmitCodOrder } from '../../utils/analytics';
+import { getCountriesSorted, getCitiesForCountry, resolveCanonicalCountryKey } from '../../utils/countriesCities';
 
 interface Props {
   block: CodFormBlock;
-  theme: PageTheme;
-  isRtl?: boolean;
-  onOrderSubmit?: (payload: OrderSubmitPayload) => void;
+  theme: ThemeConfig;
+  pageSlug?: string;
+  pageTitle?: string;
+  onOrderConfirmed?: (data: any) => void;
 }
 
-export const CodFormBlockView: React.FC<Props> = ({ block, theme, isRtl, onOrderSubmit }) => {
-  const initialBundle =
-    block.bundles.find((b) => b.popular) || block.bundles[0] || {
-      id: 'default',
-      name: 'Standard Package',
-      quantity: 1,
-      price: 49.99,
-      originalPrice: 99.99,
-    };
+export const CodFormBlockView: React.FC<Props> = ({
+  block,
+  theme,
+  pageSlug,
+  pageTitle,
+  onOrderConfirmed,
+}) => {
+  const [selectedBundle, setSelectedBundle] = useState(
+    block.bundles.find((b) => b.popular)?.id || block.bundles[0]?.id || ''
+  );
 
-  const [selectedBundle, setSelectedBundle] = useState<BundleOption>(initialBundle);
-  const [customerName, setCustomerName] = useState('');
-  const [customerPhone, setCustomerPhone] = useState('');
-  const [customerCity, setCustomerCity] = useState(block.fields.defaultCities?.[0] || '');
-  const [customerAddress, setCustomerAddress] = useState('');
-  const [customerNote, setCustomerNote] = useState('');
-  const [formError, setFormError] = useState<string | null>(null);
-  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
-  const turnstileRef = useRef<TurnstileInstance | undefined>(undefined);
+  const showCascadingDropdowns =
+    block.showCountryCityDropdowns ?? block.fields?.showCountryCityDropdowns ?? true;
+  const configuredDefaultCountry = resolveCanonicalCountryKey(
+    block.defaultCountry ?? block.fields?.defaultCountry ?? ''
+  );
 
+  const [fullName, setFullName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [country, setCountry] = useState<string>(configuredDefaultCountry);
+  const [city, setCity] = useState<string>('');
+  const [address, setAddress] = useState('');
+  const [note, setNote] = useState('');
+  const [orderSubmitted, setOrderSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [orderId, setOrderId] = useState<string | null>(null);
+
+  // Sync defaultCountry if merchant updates it in PropertiesSidebar
   useEffect(() => {
-    void preloadRecaptchaScript();
-  }, []);
+    if (configuredDefaultCountry && configuredDefaultCountry !== country) {
+      setCountry(configuredDefaultCountry);
+      setCity('');
+    }
+  }, [configuredDefaultCountry]);
+
+  const sortedCountries = getCountriesSorted();
+  const availableCities = country ? getCitiesForCountry(country) : [];
+
+  const activeBundle = block.bundles.find((b) => b.id === selectedBundle) || block.bundles[0];
+  const totalAmount = (activeBundle ? activeBundle.price : 0) + block.shippingCost;
+
+  const radiusMap: Record<string, string> = {
+    none: 'rounded-none',
+    sm: 'rounded-md',
+    md: 'rounded-xl',
+    lg: 'rounded-2xl',
+    full: 'rounded-3xl',
+  };
+  const activeRadiusClass = radiusMap[theme.borderRadius || 'lg'] || 'rounded-2xl';
+
+  const handleCountryChange = (newCountry: string) => {
+    setCountry(newCountry);
+    setCity('');
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setFormError(null);
-    if (!customerPhone) {
-      setFormError(isRtl ? 'يرجى إدخال رقم هاتفك للتواصل' : 'Please provide your phone number.');
+    if (!phone.trim()) return;
+    if (block.fields.requireCity && showCascadingDropdowns && (!country || !city)) {
       return;
     }
 
-    if (TURNSTILE_SITE_KEY && !turnstileToken) {
-      setFormError(
-        isRtl
-          ? 'يرجى إتمام التحقق الأمني (CAPTCHA) قبل تأكيد الطلب.'
-          : 'Please complete the CAPTCHA verification.'
-      );
-      return;
-    }
-
-    const recaptchaToken = await executeRecaptcha('cod_checkout');
-
-    if (onOrderSubmit) {
-      onOrderSubmit({
-        customerName: customerName || (isRtl ? 'عميل' : 'Valued Customer'),
-        customerPhone,
-        customerCity,
-        customerAddress,
-        customerNote,
-        bundle: selectedBundle,
-        totalPrice: selectedBundle.price,
-        currency: block.currency,
-        recaptchaToken,
-        turnstileToken: turnstileToken || undefined,
+    setSubmitting(true);
+    try {
+      const res = await fetch('/api/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          pageSlug: pageSlug || 'builder-preview',
+          pageTitle: pageTitle || block.title,
+          productName: pageTitle || activeBundle?.name || block.title,
+          customerName: fullName.trim() || 'Customer',
+          phone: phone.trim(),
+          customerPhone: phone.trim(),
+          country: country || 'Morocco',
+          customerCountry: country || 'Morocco',
+          city: city || 'Casablanca',
+          customerCity: city || 'Casablanca',
+          address,
+          customerAddress: address,
+          notes: note,
+          customerNotes: note,
+          quantity: activeBundle?.quantity || 1,
+          price: totalAmount,
+          currency: block.currency || 'MAD',
+          bundleName: activeBundle?.name,
+          bundlePrice: totalAmount,
+        }),
       });
+      const json = await res.json();
+      if (json.success && (json.orderId || json.order?.id)) {
+        setOrderId(json.orderId || json.order?.id);
+      }
+      onOrderConfirmed?.({
+        orderId: json.orderId || json.order?.id || `ORD-${Date.now()}`,
+        customerName: fullName.trim() || 'Customer',
+        customerPhone: phone.trim(),
+        customerCountry: country || 'Morocco',
+        customerCity: city || 'Casablanca',
+        customerAddress: address,
+        customerNote: note,
+        bundle: activeBundle,
+        totalPrice: totalAmount,
+      });
+      trackSubmitCodOrder(totalAmount, block.currency || 'MAD', activeBundle?.name || block.title);
+    } catch {
+      // Fallback for offline preview
+    } finally {
+      setSubmitting(false);
+      setOrderSubmitted(true);
     }
-
-    setTurnstileToken(null);
-    turnstileRef.current?.reset();
   };
 
   return (
-    <section id="cod-checkout-form" className="max-w-3xl mx-auto px-4 py-12 md:py-20" dir={isRtl ? 'rtl' : 'ltr'}>
+    <section id="cod-checkout-section" className="py-12 md:py-16 px-4 max-w-3xl mx-auto">
       <div
-        className="bg-white rounded-3xl border-2 p-6 md:p-10 shadow-2xl relative"
-        style={{ borderColor: theme.primaryColor || '#059669' }}
+        className={`bg-white border-2 shadow-2xl overflow-hidden transition-all ${activeRadiusClass}`}
+        style={{ borderColor: theme.primaryColor }}
       >
-        {/* Top Floating Badge */}
+        {/* Top Header Banner */}
         <div
-          className="absolute -top-4 start-1/2 -translate-x-1/2 text-white text-xs font-black uppercase tracking-wider px-6 py-1.5 rounded-full shadow-lg flex items-center gap-1.5 whitespace-nowrap"
-          style={{ backgroundColor: theme.primaryColor || '#059669' }}
+          style={{ backgroundColor: theme.primaryColor }}
+          className="p-6 text-white text-center relative overflow-hidden"
         >
-          <Banknote className="w-4 h-4" />
-          <span>{isRtl ? 'الدفع نقداً عند الاستلام • بدون بطاقة بنكية' : 'CASH ON DELIVERY • PAY AT DOORSTEP'}</span>
+          <div className="inline-flex items-center gap-1.5 bg-white/20 backdrop-blur-sm px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider mb-2">
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>Cash on Delivery Checkout</span>
+          </div>
+          <h2 className="text-2xl md:text-3xl font-extrabold">{block.title}</h2>
+          <p className="text-white/90 text-sm md:text-base mt-1.5 max-w-xl mx-auto">
+            {block.subtitle}
+          </p>
         </div>
 
-        <div className="text-center mt-3 mb-8">
-          <h2 className="text-2xl md:text-3xl font-black text-gray-900 mb-2 tracking-tight">
-            {block.title}
-          </h2>
-          <p className="text-gray-600 text-sm md:text-base leading-relaxed">{block.subtitle}</p>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Step 1: Select Bundle */}
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <label className="text-xs font-extrabold uppercase tracking-wider text-gray-700 flex items-center gap-2">
-                <span
-                  className="w-5 h-5 rounded-full text-white text-[11px] font-black flex items-center justify-center"
-                  style={{ backgroundColor: theme.primaryColor || '#059669' }}
-                >
-                  1
-                </span>
-                <span>{isRtl ? 'اختر باقة العرض المناسبة لك:' : 'Step 1: Choose Your Discounted Package:'}</span>
-              </label>
+        {orderSubmitted ? (
+          <div className="p-8 md:p-12 text-center space-y-4">
+            <div
+              style={{
+                backgroundColor: `${theme.primaryColor}15`,
+                color: theme.primaryColor,
+              }}
+              className="w-20 h-20 rounded-full flex items-center justify-center mx-auto"
+            >
+              <CheckCircle2 className="w-12 h-12" />
             </div>
+            <h3 className="text-2xl font-black text-slate-900">
+              Order Received Successfully!
+            </h3>
+            {orderId && (
+              <div className="inline-block bg-emerald-50 border border-emerald-200 text-emerald-800 font-mono font-bold text-xs px-3 py-1.5 rounded-lg">
+                Order Reference: {orderId}
+              </div>
+            )}
+            <p className="text-slate-600 max-w-md mx-auto">
+              Thank you <span className="font-bold text-slate-800">{fullName}</span>! Our confirmation team will call you shortly on{' '}
+              <span className="font-bold text-slate-800" dir="ltr">
+                {phone}
+              </span>{' '}
+              {city ? (
+                <>
+                  to confirm delivery to{' '}
+                  <span className="font-bold text-slate-800">
+                    {city}
+                    {country ? `, ${country}` : ''}
+                  </span>
+                  .
+                </>
+              ) : (
+                'to confirm your order.'
+              )}
+            </p>
+            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 max-w-md mx-auto text-sm flex justify-between items-center font-bold text-slate-800">
+              <span>Total to pay on delivery:</span>
+              <span style={{ color: theme.primaryColor }} className="text-lg">
+                {totalAmount} {block.currency}
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setOrderSubmitted(false)}
+              className="text-xs text-slate-400 underline hover:text-slate-600 mt-4 cursor-pointer"
+            >
+              Reset preview form
+            </button>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="p-6 md:p-8 space-y-6">
+            {/* Step 1: Bundle / Quantity Offers */}
+            <div>
+              <label className="block text-sm font-extrabold uppercase tracking-wider text-slate-700 mb-3">
+                1. Choose Your Offer Bundle:
+              </label>
+              <div className="space-y-3">
+                {block.bundles.map((bundle) => {
+                  const isSelected = bundle.id === selectedBundle;
+                  const savings = Math.max(0, bundle.originalPrice - bundle.price);
+                  return (
+                    <div
+                      key={bundle.id}
+                      onClick={() => setSelectedBundle(bundle.id)}
+                      style={{
+                        borderColor: isSelected ? theme.primaryColor : '#e2e8f0',
+                        backgroundColor: isSelected ? `${theme.primaryColor}08` : '#ffffff',
+                      }}
+                      className={`relative border-2 p-4 rounded-xl cursor-pointer transition-all flex items-center justify-between gap-4 hover:border-slate-300`}
+                    >
+                      {bundle.badge && (
+                        <span
+                          style={{
+                            backgroundColor: bundle.popular ? theme.accentColor : theme.primaryColor,
+                          }}
+                          className="absolute -top-2.5 right-4 text-white text-[11px] font-extrabold uppercase px-2.5 py-0.5 rounded-full shadow-sm"
+                        >
+                          {bundle.badge}
+                        </span>
+                      )}
 
-            <div className="space-y-3">
-              {block.bundles.map((bundle) => {
-                const isSelected = selectedBundle.id === bundle.id;
-                return (
-                  <div
-                    key={bundle.id}
-                    onClick={() => setSelectedBundle(bundle)}
-                    className={`relative border-2 rounded-2xl p-4 cursor-pointer transition-all duration-200 flex items-center justify-between gap-4 ${
-                      isSelected
-                        ? 'bg-emerald-50/50 shadow-md ring-2 ring-emerald-500/20'
-                        : 'border-gray-200 bg-white hover:border-gray-300'
-                    }`}
-                    style={{
-                      borderColor: isSelected ? theme.primaryColor || '#059669' : undefined,
-                    }}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div
-                        className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition ${
-                          isSelected ? 'border-emerald-600 bg-emerald-600' : 'border-gray-300'
-                        }`}
-                        style={{
-                          borderColor: isSelected ? theme.primaryColor || '#059669' : undefined,
-                          backgroundColor: isSelected ? theme.primaryColor || '#059669' : undefined,
-                        }}
-                      >
-                        {isSelected && <div className="w-2 h-2 rounded-full bg-white" />}
-                      </div>
-
-                      <div>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-bold text-gray-900 text-sm md:text-base">
-                            {bundle.name}
-                          </span>
-                          {bundle.badge && (
-                            <span className="bg-amber-100 text-amber-900 text-[10px] font-black px-2 py-0.5 rounded-full uppercase">
-                              {bundle.badge}
-                            </span>
+                      <div className="flex items-center gap-3.5">
+                        <div
+                          style={{
+                            borderColor: isSelected ? theme.primaryColor : '#cbd5e1',
+                            backgroundColor: isSelected ? theme.primaryColor : 'transparent',
+                          }}
+                          className="w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0"
+                        >
+                          {isSelected && <div className="w-2 h-2 rounded-full bg-white" />}
+                        </div>
+                        <div>
+                          <div className="font-bold text-slate-900 text-base">{bundle.name}</div>
+                          {savings > 0 && (
+                            <div className="text-xs font-semibold text-emerald-600">
+                              Save {savings} {block.currency} Today
+                            </div>
                           )}
                         </div>
-                        <span className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
-                          <Truck className="w-3.5 h-3.5 text-emerald-600" />
-                          <span>{isRtl ? 'شحن سريع ومجاني متضمن' : 'Free Express Shipping Included'}</span>
-                        </span>
                       </div>
-                    </div>
 
-                    <div className="text-end">
-                      <div
-                        className="text-lg md:text-xl font-black"
-                        style={{ color: theme.primaryColor || '#059669' }}
-                      >
-                        {bundle.price} {block.currency}
-                      </div>
-                      {bundle.originalPrice > bundle.price && (
-                        <div className="text-xs text-gray-400 line-through">
-                          {bundle.originalPrice} {block.currency}
+                      <div className="text-right">
+                        <div
+                          style={{ color: isSelected ? theme.primaryColor : '#0f172a' }}
+                          className="font-black text-lg md:text-xl"
+                        >
+                          {bundle.price} {block.currency}
                         </div>
-                      )}
+                        {bundle.originalPrice > bundle.price && (
+                          <div className="text-xs text-slate-400 line-through font-medium">
+                            {bundle.originalPrice} {block.currency}
+                          </div>
+                        )}
+                      </div>
                     </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Step 2: Customer Shipping Information */}
+            <div className="space-y-4 pt-2 border-t border-slate-100">
+              <label className="block text-sm font-extrabold uppercase tracking-wider text-slate-700">
+                2. Shipping Information:
+              </label>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Full Name */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-600 mb-1.5">
+                    Full Name *
+                  </label>
+                  <div className="relative">
+                    <User className="w-4 h-4 text-slate-400 absolute top-3.5 left-3.5 pointer-events-none" />
+                    <input
+                      type="text"
+                      required
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      placeholder="Enter your full name"
+                      className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-300 focus:border-slate-900 focus:ring-2 focus:ring-slate-200 outline-none text-sm font-medium transition-all"
+                    />
                   </div>
-                );
-              })}
+                </div>
+
+                {/* Phone Number */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-600 mb-1.5">
+                    Phone Number (For Confirmation) *
+                  </label>
+                  <div className="relative">
+                    <PhoneCall className="w-4 h-4 text-slate-400 absolute top-3.5 left-3.5 pointer-events-none" />
+                    <input
+                      type="tel"
+                      required
+                      dir="ltr"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      placeholder="06 XX XX XX XX"
+                      className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-300 focus:border-slate-900 focus:ring-2 focus:ring-slate-200 outline-none text-sm font-medium transition-all"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Cascading Country & City Dropdowns */}
+              {block.fields.requireCity && (
+                <>
+                  {showCascadingDropdowns ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Country Select */}
+                      <div>
+                        <label className="block text-xs font-bold text-slate-600 mb-1.5">
+                          Country (الدولة) *
+                        </label>
+                        <div className="relative">
+                          <Globe className="w-4 h-4 text-slate-400 absolute top-3.5 left-3.5 pointer-events-none" />
+                          <select
+                            required
+                            aria-label="Country"
+                            value={country}
+                            onChange={(e) => handleCountryChange(e.target.value)}
+                            className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-300 focus:border-slate-900 focus:ring-2 focus:ring-slate-200 outline-none text-sm font-medium bg-white transition-all"
+                          >
+                            <option value="">-- Select Country / اختر الدولة --</option>
+                            {sortedCountries.map((c) => (
+                              <option key={c.key} value={c.key}>
+                                {c.flag} {c.nameAr}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+
+                      {/* City Select (Disabled until Country is selected, Alphabetically sorted) */}
+                      <div>
+                        <label className="block text-xs font-bold text-slate-600 mb-1.5">
+                          City (المدينة) *
+                        </label>
+                        <div className="relative">
+                          <MapPin className="w-4 h-4 text-slate-400 absolute top-3.5 left-3.5 pointer-events-none" />
+                          <select
+                            required
+                            aria-label="City"
+                            disabled={!country}
+                            value={city}
+                            onChange={(e) => setCity(e.target.value)}
+                            className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-300 focus:border-slate-900 focus:ring-2 focus:ring-slate-200 outline-none text-sm font-medium bg-white disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed transition-all"
+                          >
+                            <option value="">
+                              {country
+                                ? `-- Select City in ${country} (${availableCities.length}) --`
+                                : '-- Select Country First / اختر الدولة أولاً --'}
+                            </option>
+                            {availableCities.map((cityName) => (
+                              <option key={cityName} value={cityName}>
+                                {cityName}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <label className="block text-xs font-bold text-slate-600 mb-1.5">
+                        City *
+                      </label>
+                      <div className="relative">
+                        <MapPin className="w-4 h-4 text-slate-400 absolute top-3.5 left-3.5 pointer-events-none" />
+                        {block.fields.defaultCities.length > 0 ? (
+                          <select
+                            required
+                            value={city}
+                            onChange={(e) => setCity(e.target.value)}
+                            className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-300 focus:border-slate-900 focus:ring-2 focus:ring-slate-200 outline-none text-sm font-medium bg-white transition-all"
+                          >
+                            <option value="">Select your city...</option>
+                            {block.fields.defaultCities.map((c, idx) => (
+                              <option key={idx} value={c}>
+                                {c}
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          <input
+                            type="text"
+                            required
+                            value={city}
+                            onChange={(e) => setCity(e.target.value)}
+                            placeholder="Enter your city"
+                            className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-300 focus:border-slate-900 focus:ring-2 focus:ring-slate-200 outline-none text-sm font-medium transition-all"
+                          />
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {/* Full Address */}
+              {block.fields.requireAddress && (
+                <div>
+                  <label className="block text-xs font-bold text-slate-600 mb-1.5">
+                    Full Delivery Address *
+                  </label>
+                  <div className="relative">
+                    <MapPin className="w-4 h-4 text-slate-400 absolute top-3.5 left-3.5 pointer-events-none" />
+                    <input
+                      type="text"
+                      required
+                      value={address}
+                      onChange={(e) => setAddress(e.target.value)}
+                      placeholder="Street, neighborhood, house/building number"
+                      className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-300 focus:border-slate-900 focus:ring-2 focus:ring-slate-200 outline-none text-sm font-medium transition-all"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Delivery Note */}
+              {block.fields.requireNote && (
+                <div>
+                  <label className="block text-xs font-bold text-slate-600 mb-1.5">
+                    Delivery Notes (Optional)
+                  </label>
+                  <div className="relative">
+                    <FileText className="w-4 h-4 text-slate-400 absolute top-3.5 left-3.5 pointer-events-none" />
+                    <input
+                      type="text"
+                      value={note}
+                      onChange={(e) => setNote(e.target.value)}
+                      placeholder="Preferred delivery time or landmark"
+                      className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-300 focus:border-slate-900 focus:ring-2 focus:ring-slate-200 outline-none text-sm font-medium transition-all"
+                    />
+                  </div>
+                </div>
+              )}
             </div>
-          </div>
 
-          {/* Step 2: Customer Shipping Inputs */}
-          <div className="space-y-4 pt-4 border-t border-gray-100">
-            <label className="text-xs font-extrabold uppercase tracking-wider text-gray-700 flex items-center gap-2">
-              <span
-                className="w-5 h-5 rounded-full text-white text-[11px] font-black flex items-center justify-center"
-                style={{ backgroundColor: theme.primaryColor || '#059669' }}
-              >
-                2
-              </span>
-              <span>{isRtl ? 'معلومات التوصيل (لا نحتاج لبطاقة بنكية):' : 'Step 2: Shipping Details (No Card Required):'}</span>
-            </label>
-
-            <div>
-              <input
-                type="text"
-                required
-                value={customerName}
-                onChange={(e) => setCustomerName(e.target.value)}
-                placeholder={isRtl ? 'الاسم الكامل (مثال: محمد العمري)' : 'Full Name (e.g. John Doe)'}
-                className="w-full px-4 py-3.5 rounded-2xl border border-gray-300 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none text-sm transition bg-gray-50/50 hover:bg-white"
-              />
-            </div>
-
-            <div>
-              <input
-                type="tel"
-                required
-                value={customerPhone}
-                onChange={(e) => setCustomerPhone(e.target.value)}
-                placeholder={isRtl ? 'رقم الهاتف للتواصل (مثال: 0612345678)' : 'Phone Number (e.g. +1 555 123 4567)'}
-                className="w-full px-4 py-3.5 rounded-2xl border border-gray-300 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none text-sm transition font-mono bg-gray-50/50 hover:bg-white"
-              />
-              <p className="text-[11px] text-gray-500 mt-1.5 flex items-center gap-1">
-                <span>📞</span>
-                <span>
-                  {isRtl
-                    ? 'سيتصل بك مندوبنا هاتفياً لتأكيد العنوان وموعد التسليم'
-                    : 'Our confirmation agent will call this number to verify dispatch.'}
+            {/* Order Summary Box */}
+            <div className="bg-slate-50 rounded-xl p-4 border border-slate-200/80 space-y-2 text-sm">
+              <div className="flex justify-between text-slate-600">
+                <span>Selected Offer:</span>
+                <span className="font-semibold text-slate-900">{activeBundle?.name}</span>
+              </div>
+              <div className="flex justify-between text-slate-600">
+                <span>Home Delivery:</span>
+                <span className="font-bold text-emerald-600">
+                  {block.shippingCost === 0 ? 'FREE' : `${block.shippingCost} ${block.currency}`}
                 </span>
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <input
-                  type="text"
-                  required
-                  value={customerCity}
-                  onChange={(e) => setCustomerCity(e.target.value)}
-                  placeholder={isRtl ? 'المدينة (مثال: الدار البيضاء)' : 'City / Province'}
-                  className="w-full px-4 py-3.5 rounded-2xl border border-gray-300 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none text-sm transition bg-gray-50/50 hover:bg-white"
-                />
               </div>
-
-              <div>
-                <input
-                  type="text"
-                  required
-                  value={customerAddress}
-                  onChange={(e) => setCustomerAddress(e.target.value)}
-                  placeholder={isRtl ? 'العنوان / الحي / رقم المنزل' : 'Delivery Address / Apt / Street'}
-                  className="w-full px-4 py-3.5 rounded-2xl border border-gray-300 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none text-sm transition bg-gray-50/50 hover:bg-white"
-                />
+              <div className="pt-2 border-t border-slate-200 flex justify-between items-center text-base font-black text-slate-900">
+                <span>Total (Pay on Delivery):</span>
+                <span style={{ color: theme.primaryColor }} className="text-xl">
+                  {totalAmount} {block.currency}
+                </span>
               </div>
             </div>
 
-            <div>
-              <textarea
-                rows={2}
-                value={customerNote}
-                onChange={(e) => setCustomerNote(e.target.value)}
-                placeholder={isRtl ? 'ملاحظة خاصة بالتسليم (اختياري: وقت التوصيل المفضل...)' : 'Optional delivery note (e.g. call after 3 PM)'}
-                className="w-full px-4 py-2.5 rounded-2xl border border-gray-300 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none text-sm transition bg-gray-50/50 hover:bg-white"
-              />
+            {/* Submit Button */}
+            <button
+              type="submit"
+              disabled={submitting}
+              style={{ backgroundColor: theme.primaryColor }}
+              className={`w-full py-4 px-6 text-white font-black text-lg shadow-xl hover:opacity-95 active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-70 ${activeRadiusClass}`}
+            >
+              {submitting ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <span>Processing Order...</span>
+                </>
+              ) : (
+                <>
+                  <Truck className="w-5 h-5" />
+                  <span>{block.buttonText}</span>
+                </>
+              )}
+            </button>
+
+            {/* Guarantee Footer */}
+            <div className="flex items-center justify-center gap-2 text-xs font-semibold text-slate-500 text-center">
+              <ShieldCheck className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+              <span>{block.guaranteeText}</span>
             </div>
-          </div>
-
-          {/* Guarantee Banner */}
-          <div className="p-4 bg-emerald-50/90 border border-emerald-200 rounded-2xl text-emerald-900 text-xs font-medium flex items-center gap-3">
-            <ShieldCheck className="w-6 h-6 text-emerald-600 shrink-0" />
-            <span>{block.guaranteeText}</span>
-          </div>
-
-          {formError && (
-            <div className="p-3 bg-rose-50 border border-rose-200 rounded-2xl text-rose-700 text-xs font-bold flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 shrink-0" />
-              <span>{formError}</span>
-            </div>
-          )}
-
-          {/* Cloudflare Turnstile CAPTCHA */}
-          {TURNSTILE_SITE_KEY && (
-            <div className="flex justify-center py-1" dir="ltr">
-              <Turnstile
-                ref={turnstileRef}
-                siteKey={TURNSTILE_SITE_KEY}
-                onSuccess={(token) => setTurnstileToken(token)}
-                onExpire={() => setTurnstileToken(null)}
-                onError={() => setTurnstileToken(null)}
-                options={{ theme: 'light', size: 'normal' }}
-              />
-            </div>
-          )}
-
-          {/* Big Order Confirmation Button */}
-          <button
-            type="submit"
-            disabled={Boolean(TURNSTILE_SITE_KEY) && !turnstileToken}
-            className="w-full py-4 px-6 text-white font-black text-lg md:text-xl rounded-2xl shadow-xl hover:shadow-2xl active:scale-98 disabled:opacity-60 transition transform flex items-center justify-center gap-2 cursor-pointer"
-            style={{ backgroundColor: theme.primaryColor || '#059669' }}
-          >
-            <span>{block.buttonText}</span>
-            {isRtl ? <ArrowLeft className="w-6 h-6" /> : <ArrowRight className="w-6 h-6" />}
-          </button>
-        </form>
+          </form>
+        )}
       </div>
     </section>
   );

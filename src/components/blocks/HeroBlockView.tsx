@@ -1,142 +1,268 @@
-import React, { useState } from 'react';
-import { HeroBlock, PageTheme, ViewportMode } from '../../types/landingPage';
-import { Star, ShieldCheck, Truck, Check, ArrowRight, ArrowLeft } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { HeroBlock, ThemeConfig } from '../../types/landingPage';
+import { Star, CheckCircle2, ShoppingBag, ShieldCheck, ChevronLeft, ChevronRight, Layers, Sparkles } from 'lucide-react';
 
 interface Props {
   block: HeroBlock;
-  theme: PageTheme;
-  viewport?: ViewportMode;
-  isRtl?: boolean;
-  onCtaClick?: () => void;
+  theme: ThemeConfig;
 }
 
-export const HeroBlockView: React.FC<Props> = ({ block, theme, viewport = 'desktop', isRtl, onCtaClick }) => {
-  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
-  const isMobile = viewport === 'mobile';
-  const isTablet = viewport === 'tablet';
+export const HeroBlockView: React.FC<Props> = ({ block, theme }) => {
+  const images =
+    Array.isArray(block.images) && block.images.length > 0
+      ? block.images
+      : ['https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=1000&q=80'];
 
-  const images = block.images && block.images.length > 0
-    ? block.images
-    : ['https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?auto=format&fit=crop&w=1000&q=80'];
+  const [activeImg, setActiveImg] = useState(0);
 
-  const discountPercent =
-    block.priceOriginal && block.priceDiscounted
+  // Reset active image index if block.images array changes
+  useEffect(() => {
+    if (activeImg >= images.length) {
+      setActiveImg(0);
+    }
+  }, [images.length, activeImg]);
+
+  const discountPercentage =
+    block.priceOriginal > block.priceDiscounted
       ? Math.round(((block.priceOriginal - block.priceDiscounted) / block.priceOriginal) * 100)
-      : 50;
+      : 0;
+
+  const radiusMap: Record<string, string> = {
+    none: 'rounded-none',
+    sm: 'rounded-md',
+    md: 'rounded-xl',
+    lg: 'rounded-2xl',
+    full: 'rounded-3xl',
+  };
+  const activeRadiusClass = radiusMap[theme.borderRadius || 'lg'] || 'rounded-2xl';
+
+  const scrollToForm = () => {
+    const formEl = document.getElementById('cod-checkout-section');
+    if (formEl) {
+      formEl.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
+  const handlePrevImage = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setActiveImg((prev) => (prev - 1 + images.length) % images.length);
+  };
+
+  const handleNextImage = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setActiveImg((prev) => (prev + 1) % images.length);
+  };
+
+  const displayFeatures =
+    Array.isArray(block.features) && block.features.length > 0
+      ? block.features
+      : Array.isArray(block.trustPoints)
+      ? block.trustPoints
+      : [];
+
+  const displaySpecs = Array.isArray(block.specifications) ? block.specifications : [];
 
   return (
-    <section className={`mx-auto ${isMobile ? 'px-3 py-6' : 'max-w-6xl px-4 py-8 md:py-16'}`} dir={isRtl ? 'rtl' : 'ltr'}>
-      <div className={isMobile || isTablet ? 'flex flex-col gap-6' : 'grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center'}>
-        {/* Gallery */}
-        <div className={isMobile || isTablet ? 'w-full space-y-3' : 'lg:col-span-6 space-y-4'}>
-          <div className="relative rounded-3xl overflow-hidden bg-gray-100 shadow-xl border border-gray-200 aspect-square group">
-            <img
-              src={images[selectedImageIndex]}
-              alt={block.headline}
-              className="w-full h-full object-cover transition duration-300 group-hover:scale-105"
-            />
-            <span className="absolute top-4 start-4 bg-red-600 text-white font-black text-xs px-3.5 py-1.5 rounded-full uppercase tracking-wider shadow-lg">
-              -{discountPercent}% OFF
-            </span>
-            <div className="absolute bottom-4 end-4 bg-black/60 backdrop-blur-md text-white text-[11px] font-semibold px-3 py-1 rounded-full">
-              Cash on Delivery Available
-            </div>
-          </div>
-
-          {images.length > 1 && (
-            <div className="flex gap-2.5 overflow-x-auto pb-1 scrollbar-thin">
-              {images.map((img, idx) => (
-                <button
-                  key={idx}
-                  type="button"
-                  onClick={() => setSelectedImageIndex(idx)}
-                  className={`relative ${isMobile ? 'w-16 h-16' : 'w-20 h-20'} rounded-2xl overflow-hidden shrink-0 border-2 transition ${
-                    selectedImageIndex === idx
-                      ? 'border-emerald-500 ring-2 ring-emerald-500/30'
-                      : 'border-transparent opacity-70 hover:opacity-100'
-                  }`}
+    <section className="py-10 md:py-16 px-4 max-w-6xl mx-auto">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
+        {/* Image Gallery Column */}
+        <div className="lg:col-span-6 order-1 lg:order-2">
+          <div className="relative group">
+            <div
+              className={`overflow-hidden border border-slate-200 shadow-xl bg-slate-100 aspect-square relative ${activeRadiusClass}`}
+            >
+              <img
+                src={images[activeImg] || images[0]}
+                alt={block.headline}
+                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                referrerPolicy="no-referrer"
+              />
+              {discountPercentage > 0 && (
+                <div
+                  style={{ backgroundColor: theme.accentColor }}
+                  className="absolute top-4 left-4 text-white font-extrabold px-3.5 py-1.5 rounded-full text-sm shadow-lg"
                 >
-                  <img src={img} alt={`View ${idx + 1}`} className="w-full h-full object-cover" />
-                </button>
-              ))}
+                  -{discountPercentage}% OFF
+                </div>
+              )}
+
+              {images.length > 1 && (
+                <>
+                  <button
+                    type="button"
+                    onClick={handlePrevImage}
+                    aria-label="Previous image"
+                    className="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-slate-900/70 hover:bg-slate-900 text-white flex items-center justify-center shadow-lg transition-all cursor-pointer"
+                  >
+                    <ChevronLeft className="w-5 h-5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleNextImage}
+                    aria-label="Next image"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-slate-900/70 hover:bg-slate-900 text-white flex items-center justify-center shadow-lg transition-all cursor-pointer"
+                  >
+                    <ChevronRight className="w-5 h-5" />
+                  </button>
+                  <div className="absolute bottom-3 right-3 bg-slate-900/75 backdrop-blur-sm text-white text-xs font-bold px-2.5 py-1 rounded-md">
+                    {activeImg + 1} / {images.length}
+                  </div>
+                </>
+              )}
             </div>
-          )}
+
+            {/* Thumbnails Gallery Strip */}
+            {images.length > 1 && (
+              <div className="flex gap-2.5 mt-3 overflow-x-auto pb-1.5">
+                {images.map((img, idx) => (
+                  <button
+                    key={`${img}-${idx}`}
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setActiveImg(idx);
+                    }}
+                    className={`w-16 h-16 md:w-20 md:h-20 rounded-lg overflow-hidden border-2 transition-all flex-shrink-0 cursor-pointer ${
+                      activeImg === idx
+                        ? 'scale-105 shadow-md ring-2 ring-offset-1'
+                        : 'border-transparent opacity-65 hover:opacity-100'
+                    }`}
+                    style={{
+                      borderColor: activeImg === idx ? theme.primaryColor : 'transparent',
+                    }}
+                  >
+                    <img
+                      src={img}
+                      alt={`${block.headline} thumbnail ${idx + 1}`}
+                      className="w-full h-full object-cover"
+                      referrerPolicy="no-referrer"
+                    />
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* Content & Offer */}
-        <div className={isMobile || isTablet ? 'w-full space-y-4' : 'lg:col-span-6 space-y-6'}>
-          {block.badge && (
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] font-bold tracking-wide">
-              <span>{block.badge}</span>
-            </div>
-          )}
-
-          <h1 className={`${isMobile ? 'text-2xl font-black leading-tight' : 'text-3xl md:text-5xl font-black leading-tight'} text-gray-900 tracking-tight`}>
-            {block.headline}
-          </h1>
-
-          <p className={`${isMobile ? 'text-sm' : 'text-base md:text-lg'} text-gray-600 leading-relaxed font-normal`}>
-            {block.subheadline}
-          </p>
-
-          {/* Pricing Box */}
-          <div className="p-5 rounded-2xl bg-gradient-to-r from-gray-50 to-white border border-gray-200 shadow-sm space-y-3">
-            <div className="flex items-baseline gap-3 flex-wrap">
-              <span className="text-3xl md:text-4xl font-black text-emerald-600">
-                {block.priceDiscounted} {block.currency}
+        {/* Product Copy, Description, Features, Specs & CTA Column */}
+        <div className="lg:col-span-6 order-2 lg:order-1 flex flex-col justify-center">
+          {/* Top Badge & Rating */}
+          <div className="flex flex-wrap items-center gap-3 mb-4">
+            {block.badge && (
+              <span
+                style={{
+                  backgroundColor: `${theme.primaryColor}18`,
+                  color: theme.primaryColor,
+                }}
+                className="px-3.5 py-1 rounded-full text-xs md:text-sm font-bold tracking-wide"
+              >
+                {block.badge}
               </span>
-              <span className="text-xl text-gray-400 line-through">
-                {block.priceOriginal} {block.currency}
-              </span>
-              <span className="bg-emerald-100 text-emerald-800 text-xs font-extrabold px-3 py-1 rounded-lg">
-                Save {discountPercent}% Today
-              </span>
-            </div>
-
-            <div className="flex items-center gap-2 text-sm text-gray-600 border-t border-gray-100 pt-3">
-              <div className="flex text-amber-400">
+            )}
+            <div className="flex items-center gap-1.5 text-amber-500 text-sm font-semibold">
+              <div className="flex">
                 {[...Array(5)].map((_, i) => (
                   <Star key={i} className="w-4 h-4 fill-amber-400 text-amber-400" />
                 ))}
               </div>
-              <span className="font-bold text-gray-900">{block.rating || 4.9}/5</span>
-              <span className="text-gray-400">({block.reviewCount || 2400}+ Verified Reviews)</span>
+              <span className="text-slate-800 font-bold">{block.rating}</span>
+              <span className="text-slate-500 text-xs">({block.reviewCount.toLocaleString()}+)</span>
             </div>
           </div>
 
-          {/* Primary CTA */}
-          <div className="space-y-3">
-            <button
-              type="button"
-              onClick={onCtaClick}
-              className="w-full py-4 px-8 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-lg md:text-xl rounded-2xl shadow-xl hover:shadow-2xl transition transform active:scale-95 flex items-center justify-center gap-3 cursor-pointer group"
-              style={{ backgroundColor: theme.primaryColor || '#059669' }}
-            >
-              <span>{block.ctaText}</span>
-              {isRtl ? (
-                <ArrowLeft className="w-6 h-6 transition-transform group-hover:-translate-x-1" />
-              ) : (
-                <ArrowRight className="w-6 h-6 transition-transform group-hover:translate-x-1" />
-              )}
-            </button>
-            <p className="text-center text-xs text-gray-500 font-medium">
-              {block.ctaSubtext}
-            </p>
+          {/* Headline */}
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-slate-900 leading-tight mb-4">
+            {block.headline}
+          </h1>
+
+          {/* Full Description / Subheadline */}
+          <p className="text-base md:text-lg text-slate-600 leading-relaxed mb-6 whitespace-pre-line">
+            {block.description || block.subheadline}
+          </p>
+
+          {/* Price Box */}
+          <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-4 mb-6 flex items-center justify-between flex-wrap gap-4">
+            <div>
+              <span className="text-xs uppercase tracking-wider text-slate-400 font-semibold block mb-0.5">
+                Special Offer Price
+              </span>
+              <div className="flex items-baseline gap-3">
+                <span
+                  style={{ color: theme.primaryColor }}
+                  className="text-3xl md:text-4xl font-black tracking-tight"
+                >
+                  {block.priceDiscounted} {block.currency}
+                </span>
+                {block.priceOriginal > block.priceDiscounted && (
+                  <span className="text-lg text-slate-400 line-through font-medium">
+                    {block.priceOriginal} {block.currency}
+                  </span>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center gap-2 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-2 rounded-xl">
+              <ShieldCheck className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+              <span>Pay Cash on Delivery</span>
+            </div>
           </div>
 
-          {/* Bullet points */}
-          {block.trustPoints && block.trustPoints.length > 0 && (
-            <ul className="space-y-2.5 pt-2 border-t border-gray-100">
-              {block.trustPoints.map((pt, idx) => (
-                <li key={idx} className="flex items-center gap-3 text-sm font-medium text-gray-700">
-                  <div className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
-                    <Check className="w-3.5 h-3.5" />
-                  </div>
-                  <span>{pt}</span>
-                </li>
+          {/* Extracted Features / Bullet Points */}
+          {displayFeatures.length > 0 && (
+            <div className="space-y-2.5 mb-6">
+              <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">
+                <Sparkles className="w-3.5 h-3.5" style={{ color: theme.primaryColor }} />
+                <span>Key Highlights & Benefits</span>
+              </div>
+              {displayFeatures.map((point, index) => (
+                <div key={index} className="flex items-start gap-2.5">
+                  <CheckCircle2
+                    style={{ color: theme.primaryColor }}
+                    className="w-5 h-5 flex-shrink-0 mt-0.5"
+                  />
+                  <span className="text-slate-700 font-medium text-sm md:text-base">{point}</span>
+                </div>
               ))}
-            </ul>
+            </div>
           )}
+
+          {/* Extracted Specifications Grid */}
+          {displaySpecs.length > 0 && (
+            <div className="mb-7 bg-slate-50/90 border border-slate-200/80 rounded-xl p-3.5">
+              <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-500 mb-2.5">
+                <Layers className="w-3.5 h-3.5" style={{ color: theme.primaryColor }} />
+                <span>Technical Specifications</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {displaySpecs.slice(0, 6).map((spec, idx) => (
+                  <div
+                    key={idx}
+                    className="flex items-center justify-between gap-2 bg-white border border-slate-200/70 rounded-lg px-2.5 py-1.5 text-xs"
+                  >
+                    <span className="font-semibold text-slate-500 truncate">{spec.label}:</span>
+                    <span className="font-bold text-slate-800 truncate">{spec.value}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Primary CTA Button */}
+          <div>
+            <button
+              type="button"
+              onClick={scrollToForm}
+              style={{ backgroundColor: theme.primaryColor }}
+              className={`w-full py-4 px-6 text-white font-bold text-lg shadow-lg hover:opacity-95 active:scale-[0.99] transition-all flex items-center justify-center gap-3 cursor-pointer ${activeRadiusClass}`}
+            >
+              <ShoppingBag className="w-5 h-5" />
+              <span>{block.ctaText}</span>
+            </button>
+            {block.ctaSubtext && (
+              <p className="text-center text-xs md:text-sm text-slate-500 mt-2.5 font-medium">
+                {block.ctaSubtext}
+              </p>
+            )}
+          </div>
         </div>
       </div>
     </section>

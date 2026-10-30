@@ -15,8 +15,12 @@ export type BlockType =
 
 export interface BlockStyleSettings {
   blockBgColor?: string;
+  textColorOverride?: string;
   textAlign?: 'right' | 'center' | 'left';
   blockPadding?: number;
+  blockMarginY?: number;
+  fontSizeScale?: number;
+  borderRadiusPx?: number;
 }
 
 export interface PromoBarBlock extends BlockStyleSettings {
@@ -37,6 +41,9 @@ export interface HeroBlock extends BlockStyleSettings {
   badge: string;
   headline: string;
   subheadline: string;
+  description?: string;
+  features?: string[];
+  specifications?: Array<{ label: string; value: string }>;
   priceOriginal: number;
   priceDiscounted: number;
   currency: string;
@@ -117,11 +124,15 @@ export interface CodFormBlock extends BlockStyleSettings {
   shippingCost: number;
   guaranteeText: string;
   buttonText: string;
+  showCountryCityDropdowns?: boolean;
+  defaultCountry?: string;
   fields: {
     requireAddress: boolean;
     requireCity: boolean;
     requireNote: boolean;
     defaultCities: string[];
+    showCountryCityDropdowns?: boolean;
+    defaultCountry?: string;
   };
 }
 
@@ -185,6 +196,8 @@ export interface PageTheme {
   sectionSpacing: 'compact' | 'normal' | 'spacious';
 }
 
+export type ThemeConfig = PageTheme;
+
 export interface LandingPageData {
   id: string;
   title: string;
@@ -203,4 +216,5 @@ export interface LandingPageData {
 }
 
 export type ViewportMode = 'desktop' | 'tablet' | 'mobile';
+
 

@@ -1,19 +1,5 @@
-import React from 'react';
-import '@fontsource/cairo/400.css';
-import '@fontsource/cairo/700.css';
-import '@fontsource/tajawal/400.css';
-import '@fontsource/tajawal/700.css';
-import '@fontsource/inter/400.css';
-import '@fontsource/inter/700.css';
-import '@fontsource/poppins/400.css';
-import '@fontsource/poppins/700.css';
-import {
-  LandingPageData,
-  LandingPageBlock,
-  ViewportMode,
-  BundleOption,
-  PageTheme,
-} from '../types/landingPage';
+import React, { useState } from 'react';
+import { LandingPageData, LandingPageBlock, BlockType } from '../types/landingPage';
 import { PromoBarBlockView } from './blocks/PromoBarBlockView';
 import { HeroBlockView } from './blocks/HeroBlockView';
 import { ProblemSolutionBlockView } from './blocks/ProblemSolutionBlockView';
@@ -23,386 +9,373 @@ import { CodFormBlockView } from './blocks/CodFormBlockView';
 import { FaqBlockView } from './blocks/FaqBlockView';
 import { FloatingCtaBlockView } from './blocks/FloatingCtaBlockView';
 import { TrustBadgesBlockView } from './blocks/TrustBadgesBlockView';
-import { ArrowUp, ArrowDown, Copy, Trash2 } from 'lucide-react';
-import { OrderConfirmationData } from './OrderSuccessModal';
+import {
+  ArrowUp,
+  ArrowDown,
+  Trash2,
+  Copy,
+  GripVertical,
+  MousePointerClick,
+  Plus,
+} from 'lucide-react';
+import { CustomerLandingPage } from './CustomerLandingPage';
+
+export interface OrderConfirmationData {
+  orderId: string;
+  customerName: string;
+  customerPhone: string;
+  customerCountry?: string;
+  customerCity?: string;
+  customerAddress?: string;
+  bundleName?: string;
+  bundlePrice?: number | string;
+}
 
 interface Props {
-  pageData: LandingPageData;
-  viewport: ViewportMode;
+  data?: LandingPageData;
+  pageData?: LandingPageData;
   selectedBlockId: string | null;
-  isPreviewMode: boolean;
   onSelectBlock: (id: string | null) => void;
-  onMoveBlock: (index: number, direction: 'up' | 'down') => void;
-  onDuplicateBlock: (index: number) => void;
-  onDeleteBlock: (index: number) => void;
-  onOrderConfirmed: (data: OrderConfirmationData) => void;
+  onMoveBlock: (index: any, direction: 'up' | 'down') => void;
+  onDeleteBlock: (index: any) => void;
+  onDuplicateBlock?: (index: any) => void;
+  onDropBlock?: (type: BlockType, index?: number) => void;
+  onReorderBlocks?: (fromIndex: number, toIndex: number) => void;
+  onOrderConfirmed?: (data: any) => void;
+  previewMode?: 'desktop' | 'tablet' | 'mobile';
+  viewport?: 'desktop' | 'tablet' | 'mobile';
+  isLivePreview?: boolean;
+  isPreviewMode?: boolean;
 }
 
-function resolveFontFamilyCss(fontFamily?: PageTheme['fontFamily']): string {
-  switch (fontFamily) {
-    case 'Cairo':
-      return "'Cairo', sans-serif";
-    case 'Tajawal':
-      return "'Tajawal', sans-serif";
-    case 'Inter':
-      return "'Inter', sans-serif";
-    case 'Poppins':
-      return "'Poppins', sans-serif";
-    case 'System':
-      return "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
-    default:
-      return "'Cairo', sans-serif";
-  }
-}
-
-function resolveFontSizeScale(fontSize?: PageTheme['fontSize']): {
-  baseSize: string;
-  zoomScale: number;
-} {
-  switch (fontSize) {
-    case 'sm':
-      return { baseSize: '14px', zoomScale: 0.92 };
-    case 'lg':
-      return { baseSize: '17px', zoomScale: 1.06 };
-    case 'xl':
-      return { baseSize: '19px', zoomScale: 1.12 };
-    case 'base':
-    default:
-      return { baseSize: '16px', zoomScale: 1 };
-  }
-}
-
-function resolveBorderRadiusPx(borderRadius?: PageTheme['borderRadius']): string {
-  switch (borderRadius) {
-    case 'none':
-      return '0px';
-    case 'sm':
-      return '6px';
-    case 'md':
-      return '12px';
-    case 'lg':
-      return '20px';
-    case 'full':
-      return '32px';
-    default:
-      return '16px';
-  }
-}
-
-function resolveSectionSpacingRem(sectionSpacing?: PageTheme['sectionSpacing']): string {
-  switch (sectionSpacing) {
-    case 'compact':
-      return '0.75rem';
-    case 'spacious':
-      return '3rem';
-    case 'normal':
-    default:
-      return '1.75rem';
-  }
-}
+const BLOCK_TYPE_NAMES: Record<string, string> = {
+  'promo-bar': 'Promo Bar',
+  hero: 'Hero Section',
+  'problem-solution': 'Problem & Solution',
+  features: 'Features Grid',
+  'social-proof': 'Customer Reviews',
+  'cod-form': 'COD Checkout Form',
+  faq: 'FAQ Section',
+  'floating-cta': 'Sticky Mobile CTA',
+  'trust-badges': 'Trust Badges',
+};
 
 export const CanvasRenderer: React.FC<Props> = ({
+  data: propData,
   pageData,
-  viewport,
   selectedBlockId,
-  isPreviewMode,
   onSelectBlock,
   onMoveBlock,
-  onDuplicateBlock,
   onDeleteBlock,
+  onDuplicateBlock,
+  onDropBlock,
+  onReorderBlocks,
   onOrderConfirmed,
+  previewMode: propPreviewMode,
+  viewport,
+  isLivePreview: propIsLivePreview,
+  isPreviewMode,
 }) => {
-  const isRtl = pageData.direction === 'rtl' || pageData.language === 'ar';
-  const fontFamilyCss = resolveFontFamilyCss(pageData.theme.fontFamily);
-  const { baseSize, zoomScale } = resolveFontSizeScale(pageData.theme.fontSize);
-  const radiusPx = resolveBorderRadiusPx(pageData.theme.borderRadius);
-  const sectionGapRem = resolveSectionSpacingRem(pageData.theme.sectionSpacing);
-  const themeBgColor = pageData.theme.backgroundColor || '#ffffff';
-  const themeTextColor = pageData.theme.textColor || '#0f172a';
+  const data = (propData || pageData)!;
+  const previewMode = propPreviewMode || viewport || 'desktop';
+  const isLivePreview = propIsLivePreview ?? isPreviewMode ?? false;
 
-  // Scroll to checkout form helper
-  const handleScrollToCheckout = () => {
-    const el = document.getElementById('cod-checkout-form');
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth' });
-    }
-  };
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const [draggedBlockIndex, setDraggedBlockIndex] = useState<number | null>(null);
 
-  const handleCodSubmit = (payload: {
-    customerName: string;
-    customerPhone: string;
-    customerCity: string;
-    customerAddress: string;
-    customerNote?: string;
-    bundle: BundleOption;
-    totalPrice: number;
-    currency: string;
-    recaptchaToken?: string;
-    turnstileToken?: string;
-  }) => {
-    const orderId = `#COD-${Math.floor(10000 + Math.random() * 90000)}`;
-    onOrderConfirmed({
-      orderId,
-      ...payload,
-    });
-  };
-
-  // Viewport container sizing
-  const getViewportWrapperStyle = () => {
-    switch (viewport) {
-      case 'mobile':
-        return 'w-[390px] min-h-[844px] shadow-2xl rounded-[44px] border-[10px] border-gray-900 bg-white overflow-hidden my-8 ring-1 ring-gray-900/10 transition-all duration-300';
-      case 'tablet':
-        return 'w-[768px] min-h-[1024px] shadow-2xl rounded-[32px] border-[12px] border-gray-800 bg-white overflow-hidden my-8 transition-all duration-300';
-      case 'desktop':
-      default:
-        return 'w-full min-h-screen bg-white transition-all duration-300 shadow-sm';
-    }
+  const fontClassMap: Record<string, string> = {
+    Inter: 'font-sans',
+    Poppins: 'font-poppins',
+    Cairo: 'font-cairo',
+    Tajawal: 'font-tajawal',
+    Montserrat: 'font-montserrat',
+    System: 'font-sans',
   };
 
   const renderBlockContent = (block: LandingPageBlock) => {
     switch (block.type) {
       case 'promo-bar':
-        return <PromoBarBlockView block={block} isRtl={isRtl} />;
+        return <PromoBarBlockView block={block} isRtl={data.direction === 'rtl'} />;
       case 'hero':
-        return (
-          <HeroBlockView
-            block={block}
-            theme={pageData.theme}
-            viewport={viewport}
-            isRtl={isRtl}
-            onCtaClick={handleScrollToCheckout}
-          />
-        );
+        return <HeroBlockView block={block} theme={data.theme} />;
       case 'problem-solution':
-        return (
-          <ProblemSolutionBlockView block={block} theme={pageData.theme} isRtl={isRtl} />
-        );
+        return <ProblemSolutionBlockView block={block} theme={data.theme} />;
       case 'features':
-        return <FeaturesBlockView block={block} theme={pageData.theme} isRtl={isRtl} />;
+        return <FeaturesBlockView block={block} theme={data.theme} />;
       case 'social-proof':
-        return <SocialProofBlockView block={block} theme={pageData.theme} isRtl={isRtl} />;
+        return <SocialProofBlockView block={block} theme={data.theme} />;
       case 'cod-form':
         return (
           <CodFormBlockView
             block={block}
-            theme={pageData.theme}
-            isRtl={isRtl}
-            onOrderSubmit={handleCodSubmit}
+            theme={data.theme}
+            pageSlug={data.slug || data.id}
+            pageTitle={data.title}
+            onOrderConfirmed={onOrderConfirmed}
           />
         );
       case 'faq':
-        return <FaqBlockView block={block} theme={pageData.theme} isRtl={isRtl} />;
+        return <FaqBlockView block={block} theme={data.theme} />;
       case 'floating-cta':
-        return (
-          <FloatingCtaBlockView
-            block={block}
-            theme={pageData.theme}
-            isRtl={isRtl}
-            onCtaClick={handleScrollToCheckout}
-          />
-        );
+        return <FloatingCtaBlockView block={block} theme={data.theme} />;
       case 'trust-badges':
-        return <TrustBadgesBlockView block={block} theme={pageData.theme} isRtl={isRtl} />;
+        return <TrustBadgesBlockView block={block} theme={data.theme} />;
       default:
         return null;
     }
   };
 
-  const getBlockFriendlyName = (type: string) => {
-    switch (type) {
-      case 'promo-bar':
-        return 'شريط الإعلان العلوي';
-      case 'hero':
-        return 'القسم الرئيسي (Hero)';
-      case 'problem-solution':
-        return 'المشكلة والحل';
-      case 'features':
-        return 'مميزات المنتج';
-      case 'social-proof':
-        return 'تقييمات الزبناء';
-      case 'cod-form':
-        return 'استمارة الدفع عند الاستلام';
-      case 'faq':
-        return 'الأسئلة الشائعة';
-      case 'floating-cta':
-        return 'زر الشراء العائم';
-      case 'trust-badges':
-        return 'شارات الثقة والضمان';
-      default:
-        return 'قسم الصفحة';
+  const containerWidthClass =
+    previewMode === 'mobile'
+      ? 'max-w-[390px] my-6 rounded-[36px] border-[10px] border-slate-900 shadow-2xl overflow-hidden'
+      : previewMode === 'tablet'
+      ? 'max-w-[768px] my-6 rounded-[24px] border-[8px] border-slate-800 shadow-2xl overflow-hidden'
+      : 'w-full max-w-[1220px] my-6 rounded-2xl border border-slate-200/90 shadow-xl';
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    if (isLivePreview) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = draggedBlockIndex !== null ? 'move' : 'copy';
+    if (dragOverIndex !== index) {
+      setDragOverIndex(index);
     }
   };
 
-  const canvasCssVariables: React.CSSProperties = {
-    fontFamily: fontFamilyCss,
-    fontSize: baseSize,
-    backgroundColor: themeBgColor,
-    color: themeTextColor,
-    ['--cw-font-family' as string]: fontFamilyCss,
-    ['--cw-font-size' as string]: baseSize,
-    ['--cw-font-scale' as string]: String(zoomScale),
-    ['--cw-radius' as string]: radiusPx,
-    ['--cw-section-spacing' as string]: sectionGapRem,
-    ['--cw-bg-color' as string]: themeBgColor,
-    ['--cw-text-color' as string]: themeTextColor,
-    ['--cw-primary-color' as string]: pageData.theme.primaryColor,
-    ['--cw-secondary-color' as string]: pageData.theme.secondaryColor,
+  const handleDrop = (e: React.DragEvent, index: number) => {
+    if (isLivePreview) return;
+    e.preventDefault();
+    setDragOverIndex(null);
+
+    const reorderFrom = e.dataTransfer.getData('application/x-funnelcraft-reorder-index');
+    if (reorderFrom !== '' && onReorderBlocks) {
+      const fromIdx = parseInt(reorderFrom, 10);
+      if (!Number.isNaN(fromIdx) && fromIdx !== index) {
+        onReorderBlocks(fromIdx, index);
+      }
+      setDraggedBlockIndex(null);
+      return;
+    }
+
+    const blockType = e.dataTransfer.getData('application/x-funnelcraft-block') as BlockType;
+    if (blockType && onDropBlock) {
+      onDropBlock(blockType, index);
+    }
+    setDraggedBlockIndex(null);
   };
 
   return (
     <div
-      className="flex-1 min-w-0 min-h-0 h-full overflow-y-auto overflow-x-hidden bg-gray-100/90 flex flex-col items-center p-0 md:p-6 pb-20 transition-all duration-300"
-      onClick={(e) => {
-        // If clicking canvas background, unselect block
-        if (e.target === e.currentTarget && !isPreviewMode) {
-          onSelectBlock(null);
-        }
+      className="flex-1 bg-[#f8fafc] overflow-y-auto flex justify-center items-start min-h-[calc(100vh-3.5rem)] px-2 sm:px-6 transition-all relative"
+      style={{
+        backgroundColor: '#f8fafc',
+        backgroundImage: 'radial-gradient(#cbd5e1 1.25px, transparent 1.25px)',
+        backgroundSize: '20px 20px',
       }}
+      onClick={() => !isLivePreview && onSelectBlock(null)}
     >
-      {/* Dynamic real-time design system overrides scoped to the canvas */}
-      <style>{`
-        .cw-canvas-theme {
-          font-family: var(--cw-font-family) !important;
-          font-size: var(--cw-font-size);
-          color: var(--cw-text-color);
-          background-color: var(--cw-bg-color);
-        }
-        .cw-canvas-theme * {
-          font-family: inherit;
-        }
-        .cw-canvas-theme button,
-        .cw-canvas-theme input,
-        .cw-canvas-theme select,
-        .cw-canvas-theme textarea,
-        .cw-canvas-theme .rounded-xl,
-        .cw-canvas-theme .rounded-2xl,
-        .cw-canvas-theme .rounded-3xl,
-        .cw-canvas-theme .rounded-lg {
-          border-radius: var(--cw-radius) !important;
-        }
-        .cw-canvas-block-overrides section,
-        .cw-canvas-block-overrides > div {
-          background-color: inherit !important;
-        }
-      `}</style>
-
-      {/* Device wrapper */}
       <div
-        className={`${getViewportWrapperStyle()} cw-canvas-theme`}
-        style={canvasCssVariables}
-        dir={isRtl ? 'rtl' : 'ltr'}
+        dir={data.direction}
+        style={{
+          backgroundColor: data.theme.backgroundColor,
+          color: data.theme.textColor,
+        }}
+        className={`${containerWidthClass} ${
+          fontClassMap[data.theme.fontFamily] || 'font-sans'
+        } transition-all duration-300 bg-white min-h-[82vh] relative`}
+        onDragOver={(e) => {
+          if (!isLivePreview && data.blocks.length === 0) {
+            e.preventDefault();
+            setDragOverIndex(0);
+          }
+        }}
+        onDrop={(e) => {
+          if (!isLivePreview && data.blocks.length === 0) {
+            handleDrop(e, 0);
+          }
+        }}
       >
-        {/* Mobile Notch Bar */}
-        {viewport === 'mobile' && (
-          <div className="w-full bg-gray-900 text-white pt-2 pb-1 px-7 flex justify-between items-center text-[10px] font-semibold select-none">
-            <span>9:41</span>
-            <div className="w-24 h-4 bg-black rounded-full mx-auto" />
-            <div className="flex items-center gap-1">
-              <span>5G</span>
-              <div className="w-4 h-2.5 border border-white rounded-sm flex items-center p-0.5">
-                <div className="w-full h-full bg-white rounded-2xs" />
-              </div>
+        {isLivePreview && data.scrapedData ? (
+          <CustomerLandingPage
+            product={data.scrapedData}
+            pageSlug={data.slug || data.id}
+            funnelId={data.id}
+          />
+        ) : data.blocks.length === 0 ? (
+          <div className="p-20 text-center text-slate-400">
+            <div className="w-16 h-16 rounded-2xl bg-blue-50 border-2 border-dashed border-blue-300 flex items-center justify-center mx-auto mb-4 text-blue-600">
+              <Plus className="w-8 h-8" />
             </div>
+            <p className="text-lg font-bold text-slate-700">Canvas is Empty</p>
+            <p className="text-sm mt-1">
+              Drag & drop blocks from the left toolbar or import a product URL to start building.
+            </p>
           </div>
-        )}
+        ) : (
+          data.blocks.map((block, index) => {
+            const isSelected = !isLivePreview && selectedBlockId === block.id;
+            const isFirst = index === 0;
+            const isLast = index === data.blocks.length - 1;
+            const isDragTarget = !isLivePreview && dragOverIndex === index;
 
-        {/* Blocks container */}
-        <div
-          className="relative flex flex-col"
-          style={{
-            gap: sectionGapRem,
-            zoom: zoomScale,
-          }}
-        >
-          {pageData.blocks.map((block, idx) => {
-            const isSelected = selectedBlockId === block.id && !isPreviewMode;
-            const hasBlockBg = Boolean(block.blockBgColor);
-            const hasCustomPadding = typeof block.blockPadding === 'number';
-            const blockWrapperStyle: React.CSSProperties = {
-              backgroundColor: block.blockBgColor || undefined,
-              textAlign: block.textAlign || undefined,
-              paddingTop: hasCustomPadding ? `${(block.blockPadding ?? 0) * 4}px` : undefined,
-              paddingBottom: hasCustomPadding ? `${(block.blockPadding ?? 0) * 4}px` : undefined,
-            };
+            const customStyles: React.CSSProperties = {};
+            if (block.blockBgColor) customStyles.backgroundColor = block.blockBgColor;
+            if (block.textColorOverride) customStyles.color = block.textColorOverride;
+            if (block.textAlign) customStyles.textAlign = block.textAlign;
+            if (block.blockPadding !== undefined) {
+              customStyles.paddingTop = `${block.blockPadding}px`;
+              customStyles.paddingBottom = `${block.blockPadding}px`;
+            }
+            if (block.blockMarginY !== undefined) {
+              customStyles.marginTop = `${block.blockMarginY}px`;
+              customStyles.marginBottom = `${block.blockMarginY}px`;
+            }
+            if (block.fontSizeScale !== undefined && block.fontSizeScale !== 100) {
+              customStyles.fontSize = `${block.fontSizeScale}%`;
+            }
+            if (block.borderRadiusPx !== undefined) {
+              customStyles.borderRadius = `${block.borderRadiusPx}px`;
+            }
 
             return (
               <div
                 key={block.id}
+                onDragOver={(e) => handleDragOver(e, index)}
+                onDragLeave={() => setDragOverIndex(null)}
+                onDrop={(e) => handleDrop(e, index)}
                 onClick={(e) => {
-                  if (!isPreviewMode) {
+                  if (!isLivePreview) {
                     e.stopPropagation();
                     onSelectBlock(block.id);
                   }
                 }}
-                style={blockWrapperStyle}
-                className={`relative group transition-all duration-150 ${
-                  hasBlockBg ? 'cw-canvas-block-overrides' : ''
-                } ${!isPreviewMode ? 'cursor-pointer' : ''} ${
+                style={customStyles}
+                className={`relative group/block transition-all duration-150 ${
+                  !isLivePreview ? 'cursor-pointer' : ''
+                } ${
                   isSelected
-                    ? 'ring-2 ring-emerald-500 ring-offset-2 z-20'
-                    : !isPreviewMode
-                    ? 'hover:ring-1 hover:ring-emerald-300/80 hover:ring-offset-1'
+                    ? 'outline-2 outline-blue-600 -outline-offset-2 z-20 bg-blue-50/5 shadow-[0_0_0_4px_rgba(37,99,235,0.12)]'
+                    : !isLivePreview
+                    ? 'hover:outline-2 hover:outline-blue-500/80 hover:-outline-offset-2'
                     : ''
                 }`}
               >
-                {/* Floating Editor Controls Toolbar */}
-                {isSelected && (
+                {/* Drop zone indicator bar */}
+                {isDragTarget && (
+                  <div className="h-1.5 bg-blue-600 w-full flex items-center justify-center relative z-30">
+                    <span className="bg-blue-600 text-white text-[10px] font-bold px-2.5 py-0.5 rounded-full shadow">
+                      Drop block here
+                    </span>
+                  </div>
+                )}
+
+                {/* Sleek Framer/Webflow-Style Floating Toolbar Above Selected Block */}
+                {isSelected && !isLivePreview && (
                   <div
-                    className="absolute -top-9 start-3 z-30 flex items-center gap-1 bg-gray-900 text-white text-xs py-1 px-2.5 rounded-lg shadow-xl animate-in fade-in"
-                    onClick={(e) => e.stopPropagation()}
                     dir="ltr"
+                    onClick={(e) => e.stopPropagation()}
+                    className={`absolute ${
+                      isFirst ? 'top-2' : '-top-11'
+                    } left-1/2 -translate-x-1/2 z-40 flex items-center gap-1 bg-slate-900/95 backdrop-blur-md text-white px-2 py-1.5 rounded-xl shadow-2xl border border-slate-700/80 animate-in fade-in zoom-in-95 duration-150`}
                   >
-                    <span className="font-semibold text-[11px] text-emerald-400 me-2 border-r border-gray-700 pe-2">
-                      {getBlockFriendlyName(block.type)}
+                    {/* Drag Handle */}
+                    <div
+                      draggable
+                      onDragStart={(e) => {
+                        setDraggedBlockIndex(index);
+                        e.dataTransfer.setData('application/x-funnelcraft-reorder-index', String(index));
+                        e.dataTransfer.effectAllowed = 'move';
+                      }}
+                      onDragEnd={() => {
+                        setDraggedBlockIndex(null);
+                        setDragOverIndex(null);
+                      }}
+                      title="Drag to reorder block"
+                      className="p-1 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white cursor-grab active:cursor-grabbing flex items-center gap-1"
+                    >
+                      <GripVertical className="w-3.5 h-3.5 text-blue-400" />
+                    </div>
+
+                    {/* Block Type Badge */}
+                    <span className="text-[11px] font-bold tracking-wide px-2 py-0.5 bg-blue-500/20 text-blue-300 border border-blue-400/30 rounded-md whitespace-nowrap">
+                      {BLOCK_TYPE_NAMES[block.type] || block.type}
                     </span>
 
+                    <div className="h-4 w-px bg-slate-700 mx-0.5" />
+
+                    {/* Move Up */}
                     <button
                       type="button"
-                      disabled={idx === 0}
-                      onClick={() => onMoveBlock(idx, 'up')}
+                      disabled={isFirst}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onMoveBlock(index, 'up');
+                      }}
+                      className="p-1.5 hover:bg-slate-800 rounded-lg disabled:opacity-30 transition-colors cursor-pointer"
                       title="Move Up"
-                      className="p-1 hover:bg-gray-800 rounded disabled:opacity-30 disabled:hover:bg-transparent"
                     >
                       <ArrowUp className="w-3.5 h-3.5" />
                     </button>
 
+                    {/* Move Down */}
                     <button
                       type="button"
-                      disabled={idx === pageData.blocks.length - 1}
-                      onClick={() => onMoveBlock(idx, 'down')}
+                      disabled={isLast}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onMoveBlock(index, 'down');
+                      }}
+                      className="p-1.5 hover:bg-slate-800 rounded-lg disabled:opacity-30 transition-colors cursor-pointer"
                       title="Move Down"
-                      className="p-1 hover:bg-gray-800 rounded disabled:opacity-30 disabled:hover:bg-transparent"
                     >
                       <ArrowDown className="w-3.5 h-3.5" />
                     </button>
 
-                    <button
-                      type="button"
-                      onClick={() => onDuplicateBlock(idx)}
-                      title="Duplicate Block"
-                      className="p-1 hover:bg-gray-800 rounded"
-                    >
-                      <Copy className="w-3.5 h-3.5" />
-                    </button>
+                    {/* Duplicate */}
+                    {onDuplicateBlock && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onDuplicateBlock(index);
+                        }}
+                        className="p-1.5 hover:bg-blue-500/20 text-blue-300 rounded-lg transition-colors cursor-pointer"
+                        title="Duplicate Block"
+                      >
+                        <Copy className="w-3.5 h-3.5" />
+                      </button>
+                    )}
 
+                    {/* Delete */}
                     <button
                       type="button"
-                      onClick={() => onDeleteBlock(idx)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDeleteBlock(index);
+                      }}
+                      className="p-1.5 hover:bg-rose-500/20 text-rose-400 rounded-lg transition-colors cursor-pointer"
                       title="Delete Block"
-                      className="p-1 hover:bg-red-600 rounded text-red-400 hover:text-white"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 )}
 
-                {/* Render the block view */}
+                {/* Subtle Blue Hover Pill when hovering unselected blocks */}
+                {!isSelected && !isLivePreview && (
+                  <div
+                    dir="ltr"
+                    className="opacity-0 group-hover/block:opacity-100 transition-opacity absolute top-2 right-2 z-20 bg-blue-600 text-white text-[10px] font-bold px-2.5 py-1 rounded-md flex items-center gap-1 pointer-events-none shadow-md"
+                  >
+                    <MousePointerClick className="w-3 h-3" />
+                    <span>{BLOCK_TYPE_NAMES[block.type] || block.type}</span>
+                  </div>
+                )}
+
                 {renderBlockContent(block)}
               </div>
             );
-          })}
-        </div>
+          })
+        )}
       </div>
     </div>
   );

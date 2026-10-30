@@ -10,6 +10,7 @@ export interface CustomerOrder {
   funnelId?: string;
   customerName: string;
   customerPhone: string;
+  customerCountry?: string;
   customerCity: string;
   customerAddress?: string;
   customerNotes?: string;

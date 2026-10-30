@@ -36,6 +36,7 @@ import {
   calculatePayPalUsdSettlement,
   normalizeExchangeRates,
 } from '../utils/currencyAndBanks';
+import { getCountriesSorted, getCitiesForCountry } from '../utils/countriesCities';
 import type {
   ScrapedProduct,
   ScrapedBundle,
@@ -167,8 +168,17 @@ export const CustomerLandingPage: React.FC<CustomerLandingPageProps> = ({
 
   const [customerName, setCustomerName] = useState<string>('');
   const [phone, setPhone] = useState<string>('');
+  const [country, setCountry] = useState<string>('');
   const [city, setCity] = useState<string>('');
   const [address, setAddress] = useState<string>('');
+
+  const sortedCountries = useMemo(() => getCountriesSorted(), []);
+  const availableCities = useMemo(() => (country ? getCitiesForCountry(country) : []), [country]);
+
+  const handleCountryChange = (newCountry: string) => {
+    setCountry(newCountry);
+    setCity('');
+  };
 
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
@@ -271,17 +281,18 @@ export const CustomerLandingPage: React.FC<CustomerLandingPageProps> = ({
 
     const trimmedName = customerName.trim();
     const trimmedPhone = phone.trim();
+    const trimmedCountry = country.trim();
     const trimmedCity = city.trim();
     const trimmedAddress = address.trim();
 
-    if (!trimmedName || !trimmedPhone || !trimmedCity || !trimmedAddress) {
-      setErrorMessage('المرجو ملء جميع الخانات المطلوبة لتأكيد طلبك.');
+    if (!trimmedName || !trimmedPhone || !trimmedCountry || !trimmedCity || !trimmedAddress) {
+      setErrorMessage('المرجو ملء جميع الخانات المطلوبة (بما فيها الدولة والمدينة) لتأكيد طلبك.');
       return;
     }
 
-    const phoneRegex = /^(05|06|07|\+212|212)[0-9\s-]{8,12}$/;
+    const phoneRegex = /^[+]?[0-9\s-]{8,16}$/;
     if (!phoneRegex.test(trimmedPhone)) {
-      setErrorMessage('المرجو إدخال رقم هاتف مغربي صحيح (مثال: 0612345678).');
+      setErrorMessage('المرجو إدخال رقم هاتف صحيح (مثال: 0612345678).');
       return;
     }
 
@@ -317,13 +328,18 @@ export const CustomerLandingPage: React.FC<CustomerLandingPageProps> = ({
           quantity: finalQuantity,
           customerName: trimmedName,
           phone: trimmedPhone,
+          customerPhone: trimmedPhone,
+          country: trimmedCountry,
+          customerCountry: trimmedCountry,
           city: trimmedCity,
+          customerCity: trimmedCity,
           address: trimmedAddress,
+          customerAddress: trimmedAddress,
           variant: formattedVariantString,
           pageSlug: pageSlug || undefined,
           funnelId: funnelId || undefined,
           userId: userId || undefined,
-          notes: `العرض المختار: ${activeBundle.label} | المواصفات: ${formattedVariantString}`,
+          notes: `الدولة: ${trimmedCountry} | العرض المختار: ${activeBundle.label} | المواصفات: ${formattedVariantString}`,
           recaptchaToken,
           turnstileToken: turnstileToken || undefined,
         }),
@@ -410,10 +426,13 @@ export const CustomerLandingPage: React.FC<CustomerLandingPageProps> = ({
                 {isPayPalPaid ? 'مدفوع بالكامل (PayPal)' : 'الدفع عند الاستلام (COD)'}
               </span>
             </div>
-            {city && (
+            {(country || city) && (
               <div className="flex items-center justify-between border-b border-slate-200 pb-2.5">
-                <span className="text-slate-500">المدينة:</span>
-                <span className="font-bold text-slate-800">{city}</span>
+                <span className="text-slate-500">الدولة / المدينة:</span>
+                <span className="font-bold text-slate-800">
+                  {country ? `${country} - ` : ''}
+                  {city}
+                </span>
               </div>
             )}
             <div className="flex items-center justify-between pt-1">
@@ -858,46 +877,77 @@ export const CustomerLandingPage: React.FC<CustomerLandingPageProps> = ({
                     </div>
                   </div>
 
-                  {/* City & Address */}
+                  {/* Cascading Country & City Dropdowns */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                        المدينة <span className="text-rose-500">*</span>
+                        الدولة (Country) <span className="text-rose-500">*</span>
                       </label>
                       <div className="relative">
-                        <MapPin className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                        <input
-                          type="text"
+                        <Globe className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                        <select
                           required
-                          list="moroccan-cities-list"
-                          value={city}
-                          onChange={(e) => setCity(e.target.value)}
-                          placeholder="اختر أو اكتب مدينتك"
+                          aria-label="الدولة"
+                          data-testid="live-cod-country-select"
+                          value={country}
+                          onChange={(e) => handleCountryChange(e.target.value)}
                           className="w-full pr-10 pl-3 py-3 rounded-xl border border-slate-300 bg-slate-50/60 focus:bg-white focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 outline-none text-sm font-medium transition"
-                        />
-                        <datalist id="moroccan-cities-list">
-                          {MOROCCAN_CITIES.map((c) => (
-                            <option key={c} value={c} />
+                        >
+                          <option value="">-- اختر الدولة --</option>
+                          {sortedCountries.map((c) => (
+                            <option key={c.key} value={c.key}>
+                              {c.flag} {c.nameAr}
+                            </option>
                           ))}
-                        </datalist>
+                        </select>
                       </div>
                     </div>
 
                     <div>
                       <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                        العنوان الكامل / الحي <span className="text-rose-500">*</span>
+                        المدينة (City) <span className="text-rose-500">*</span>
                       </label>
                       <div className="relative">
-                        <Home className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                        <input
-                          type="text"
+                        <MapPin className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                        <select
                           required
-                          value={address}
-                          onChange={(e) => setAddress(e.target.value)}
-                          placeholder="الحي، الشارع، رقم المنزل..."
-                          className="w-full pr-10 pl-3 py-3 rounded-xl border border-slate-300 bg-slate-50/60 focus:bg-white focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 outline-none text-sm font-medium transition"
-                        />
+                          aria-label="المدينة"
+                          data-testid="live-cod-city-select"
+                          disabled={!country}
+                          value={city}
+                          onChange={(e) => setCity(e.target.value)}
+                          className="w-full pr-10 pl-3 py-3 rounded-xl border border-slate-300 bg-slate-50/60 focus:bg-white focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 outline-none text-sm font-medium disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed transition"
+                        >
+                          <option value="">
+                            {country
+                              ? `-- اختر المدينة (${availableCities.length}) --`
+                              : '-- اختر الدولة أولاً --'}
+                          </option>
+                          {availableCities.map((cityName) => (
+                            <option key={cityName} value={cityName}>
+                              {cityName}
+                            </option>
+                          ))}
+                        </select>
                       </div>
+                    </div>
+                  </div>
+
+                  {/* Full Delivery Address */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                      العنوان الكامل / الحي <span className="text-rose-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <Home className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      <input
+                        type="text"
+                        required
+                        value={address}
+                        onChange={(e) => setAddress(e.target.value)}
+                        placeholder="الحي، الشارع، رقم المنزل..."
+                        className="w-full pr-10 pl-3 py-3 rounded-xl border border-slate-300 bg-slate-50/60 focus:bg-white focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 outline-none text-sm font-medium transition"
+                      />
                     </div>
                   </div>
                 </div>
@@ -1100,7 +1150,8 @@ export const CustomerLandingPage: React.FC<CustomerLandingPageProps> = ({
                               customerName.trim() || payerFullName || 'زبون PayPal';
                             const resolvedPhone =
                               phone.trim() || captureData.payer?.emailAddress || 'PayPal';
-                            const resolvedCity = city.trim() || 'الدار البيضاء';
+                            const resolvedCountry = country.trim() || 'Morocco';
+                            const resolvedCity = city.trim() || 'Casablanca';
                             const resolvedAddress = address.trim() || 'تم الدفع عبر PayPal';
 
                             const orderResponse = await fetch('/api/orders', {
@@ -1114,8 +1165,13 @@ export const CustomerLandingPage: React.FC<CustomerLandingPageProps> = ({
                                 quantity: finalQuantity,
                                 customerName: resolvedName,
                                 phone: resolvedPhone,
+                                customerPhone: resolvedPhone,
+                                country: resolvedCountry,
+                                customerCountry: resolvedCountry,
                                 city: resolvedCity,
+                                customerCity: resolvedCity,
                                 address: resolvedAddress,
+                                customerAddress: resolvedAddress,
                                 variant: formattedVariantString,
                                 pageSlug: pageSlug || undefined,
                                 funnelId: funnelId || undefined,
@@ -1124,7 +1180,7 @@ export const CustomerLandingPage: React.FC<CustomerLandingPageProps> = ({
                                 status: 'paid',
                                 currency: verifiedCurrency,
                                 paypalOrderId: data.orderID,
-                                notes: `مدفوع عبر PayPal (${data.orderID}) — ${verifiedAmount.toFixed(2)} ${verifiedCurrency} | العرض: ${activeBundle.label} | المواصفات: ${formattedVariantString}`,
+                                notes: `مدفوع عبر PayPal (${data.orderID}) — ${verifiedAmount.toFixed(2)} ${verifiedCurrency} | الدولة: ${resolvedCountry} | العرض: ${activeBundle.label} | المواصفات: ${formattedVariantString}`,
                               }),
                             });
 

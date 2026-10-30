@@ -1,6 +1,18 @@
 import dotenv from 'dotenv';
+import { GoogleGenAI } from '@google/genai';
 
 dotenv.config();
+
+const geminiClient = process.env.GEMINI_API_KEY
+  ? new GoogleGenAI({
+      apiKey: process.env.GEMINI_API_KEY,
+      httpOptions: {
+        headers: {
+          'User-Agent': 'aistudio-build',
+        },
+      },
+    })
+  : null;
 
 export type SupportedPlatform =
   | 'Shopify'
@@ -237,25 +249,76 @@ function stripHtmlTags(raw: string): string {
     .trim();
 }
 
-function normalizeHighResImageUrl(rawUrl: string, baseOrigin: string): string | null {
+export function normalizeHighResImageUrl(rawUrl: string, baseOrigin: string): string | null {
   if (!rawUrl || typeof rawUrl !== 'string') return null;
   let clean = rawUrl.trim().replace(/&amp;/g, '&');
-  if (clean.startsWith('data:') || clean.endsWith('.svg') || clean.includes('1x1') || clean.includes('pixel')) {
+
+  // If srcset-style string was passed, pick the highest resolution entry
+  if (clean.includes(',') && /\s\d+[wx]\b/i.test(clean)) {
+    const candidates = clean
+      .split(',')
+      .map((part) => {
+        const tokens = part.trim().split(/\s+/);
+        const urlPart = tokens[0] || '';
+        const sizeToken = tokens[1] || '';
+        const weight = parseInt(sizeToken.replace(/[^\d]/g, ''), 10) || 1;
+        return { urlPart, weight };
+      })
+      .filter((c) => Boolean(c.urlPart))
+      .sort((a, b) => b.weight - a.weight);
+    if (candidates.length > 0) {
+      clean = candidates[0].urlPart;
+    }
+  } else if (/\s\d+[wx]$/i.test(clean)) {
+    clean = clean.replace(/\s+\d+[wx]$/i, '').trim();
+  }
+
+  if (
+    !clean ||
+    clean.startsWith('data:') ||
+    clean.startsWith('blob:') ||
+    /\.svg(\?|$)/i.test(clean) ||
+    /\.gif(\?|$)/i.test(clean)
+  ) {
     return null;
   }
+
+  // Filter out icons, logos, payment badges, flags, avatars, and tiny tracking pixels
+  if (
+    /(?:1x1|pixel|spacer|blank|placeholder|spinner|loader|loading|avatar|favicon|sprite|badge|payment|trustbadge|visa|mastercard|paypal|amex|apple-pay|google-pay|flag|logo|icon[-_]|[-_]icon|stars|rating)/i.test(
+      clean
+    )
+  ) {
+    return null;
+  }
+
+  // Reject explicitly tiny dimension query params (e.g. ?width=32 or ?w=40)
+  const smallWidthMatch = clean.match(/[?&](?:w|width|h|height)=(\d{1,3})(?:&|$)/i);
+  if (smallWidthMatch && parseInt(smallWidthMatch[1], 10) > 0 && parseInt(smallWidthMatch[1], 10) < 90) {
+    return null;
+  }
+
   if (clean.startsWith('//')) {
     clean = 'https:' + clean;
   } else if (clean.startsWith('/')) {
-    clean = baseOrigin + clean;
+    clean = baseOrigin.replace(/\/+$/, '') + clean;
   }
   if (!clean.startsWith('http://') && !clean.startsWith('https://')) {
     return null;
   }
-  // Upgrade thumbnail suffixes for Shopify, AliExpress, Amazon, Jumia, and Noon
+
+  // Upgrade thumbnail suffixes for AliExpress, Shopify, Amazon, WooCommerce, Jumia, and Noon
   clean = clean
-    .replace(/_(50x50|100x100|160x160|240x240|300x300|480x480|600x600)(\.[a-zA-Z0-9]+)(\?.*)?$/, '$2$3')
-    .replace(/\.jpg_\d+x\d+[^.]*\.jpg/i, '.jpg')
-    .replace(/\._AC_[A-Z0-9,_]+_\./, '.');
+    .replace(/\.jpg_\d+x\d+[^.]*\.jpg(\?.*)?$/i, '.jpg')
+    .replace(/\.png_\d+x\d+[^.]*\.png(\?.*)?$/i, '.png')
+    .replace(
+      /_(16x16|32x32|50x50|64x64|80x80|100x100|120x120|160x160|180x180|200x200|240x240|300x300|360x360|400x400|480x480|540x540|600x600|720x720|small|compact|medium|large|grande|thumb|pico|icon)(\.[a-zA-Z0-9]+)(\?.*)?$/i,
+      '$2$3'
+    )
+    .replace(/-\d{2,3}x\d{2,3}(\.[a-zA-Z0-9]+)(\?.*)?$/i, '$1$2')
+    .replace(/_\.webp$/i, '')
+    .replace(/\._AC_[A-Z0-9,_]+_\./g, '.')
+    .replace(/\._S[A-Z0-9,_]+_\./g, '.');
 
   return clean;
 }
@@ -524,15 +587,23 @@ async function tryShopifyOrJsonEndpoint(url: URL): Promise<Partial<ScrapedProduc
 }
 
 /**
- * Layer 2: Extract Schema.org JSON-LD (Product, AggregateRating, Review, FAQPage)
+ * Layer 1: Extract Schema.org JSON-LD (<script type="application/ld+json">) & Embedded Product JSON
+ * Extracts Product schema (name, description, image array, price, variants, brand, specs, reviews, FAQs).
  */
-function parseJsonLdFromHtml(html: string, baseOrigin: string): Partial<ScrapedProduct> {
+export function parseJsonLdFromHtml(html: string, baseOrigin: string): Partial<ScrapedProduct> {
   const result: Partial<ScrapedProduct> = {
     images: [],
     variants: [],
     specifications: [],
     reviews: [],
     faqs: [],
+  };
+
+  const pushUniqueImage = (rawCandidate: string) => {
+    const norm = normalizeHighResImageUrl(rawCandidate, baseOrigin);
+    if (norm && result.images && !result.images.includes(norm)) {
+      result.images.push(norm);
+    }
   };
 
   const scriptRegex = /<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
@@ -559,58 +630,146 @@ function parseJsonLdFromHtml(html: string, baseOrigin: string): Partial<ScrapedP
       collectNodes(parsed);
 
       for (const node of nodes) {
-        const nodeType = String(node['@type'] || '').toLowerCase();
+        const rawType = node['@type'];
+        const nodeType = Array.isArray(rawType)
+          ? rawType.map(String).join(' ').toLowerCase()
+          : String(rawType || '').toLowerCase();
 
         if (nodeType.includes('product')) {
           if (typeof node.name === 'string' && !result.title) {
             result.title = stripHtmlTags(node.name);
           }
           if (typeof node.description === 'string' && !result.description) {
-            result.description = stripHtmlTags(node.description).slice(0, 900);
+            result.description = stripHtmlTags(node.description).slice(0, 1500);
           }
 
-          // Images
-          const imgField = node.image;
-          const imgCandidates: string[] = [];
-          if (typeof imgField === 'string') {
-            imgCandidates.push(imgField);
-          } else if (Array.isArray(imgField)) {
-            for (const entry of imgField) {
-              if (typeof entry === 'string') imgCandidates.push(entry);
-              else if (isRecord(entry) && typeof entry.url === 'string') imgCandidates.push(entry.url);
+          // Extract image array from image / images / photos / logo-free media
+          const imgFields = [node.image, node.images, node.photo, node.photos];
+          for (const imgField of imgFields) {
+            if (!imgField) continue;
+            if (typeof imgField === 'string') {
+              pushUniqueImage(imgField);
+            } else if (Array.isArray(imgField)) {
+              for (const entry of imgField) {
+                if (typeof entry === 'string') {
+                  pushUniqueImage(entry);
+                } else if (isRecord(entry)) {
+                  const candidate =
+                    (typeof entry.url === 'string' && entry.url) ||
+                    (typeof entry.contentUrl === 'string' && entry.contentUrl) ||
+                    (typeof entry.src === 'string' && entry.src) ||
+                    '';
+                  if (candidate) pushUniqueImage(candidate);
+                }
+              }
+            } else if (isRecord(imgField)) {
+              const candidate =
+                (typeof imgField.url === 'string' && imgField.url) ||
+                (typeof imgField.contentUrl === 'string' && imgField.contentUrl) ||
+                '';
+              if (candidate) pushUniqueImage(candidate);
             }
-          } else if (isRecord(imgField) && typeof imgField.url === 'string') {
-            imgCandidates.push(imgField.url);
           }
 
-          for (const candidate of imgCandidates) {
-            const norm = normalizeHighResImageUrl(candidate, baseOrigin);
-            if (norm && result.images && !result.images.includes(norm)) {
-              result.images.push(norm);
-            }
-          }
+          // Offers / Price & Variants inside Offers or hasVariant
+          const rawOffers = node.offers;
+          const offerList: Record<string, unknown>[] = Array.isArray(rawOffers)
+            ? rawOffers.filter(isRecord)
+            : isRecord(rawOffers)
+            ? [rawOffers]
+            : [];
 
-          // Offers / Price
-          const offers = Array.isArray(node.offers) ? node.offers[0] : node.offers;
-          if (isRecord(offers)) {
-            const rawPriceVal = Number(offers.price ?? offers.lowPrice ?? 0);
-            const rawCurrency = String(offers.priceCurrency || 'MAD');
-            if (Number.isFinite(rawPriceVal) && rawPriceVal > 0) {
+          if (offerList.length > 0) {
+            const primaryOffer = offerList[0];
+            const rawPriceVal = Number(
+              primaryOffer.price ??
+                primaryOffer.lowPrice ??
+                (isRecord(primaryOffer.priceSpecification) ? primaryOffer.priceSpecification.price : 0) ??
+                0
+            );
+            const rawCurrency = String(
+              primaryOffer.priceCurrency ??
+                (isRecord(primaryOffer.priceSpecification)
+                  ? primaryOffer.priceSpecification.priceCurrency
+                  : 'MAD') ??
+                'MAD'
+            );
+            if (Number.isFinite(rawPriceVal) && rawPriceVal > 0 && !result.price) {
               result.price = convertToMadPrice(rawPriceVal, rawCurrency);
               result.originalPrice = Math.round(result.price * 1.45);
             }
+
+            // Extract variant names from multiple offers if present
+            if (offerList.length > 1) {
+              const offerNames = offerList
+                .map((o) => (typeof o.name === 'string' ? stripHtmlTags(o.name) : ''))
+                .filter((n) => Boolean(n) && n !== result.title);
+              if (offerNames.length > 1) {
+                result.variants?.push({
+                  name: 'النسخة / الخيار (Variant)',
+                  options: Array.from(new Set(offerNames)).slice(0, 6),
+                });
+              }
+            }
           }
 
-          // Brand / SKU specs
+          // ProductGroup / hasVariant extraction
+          const variantNodes = Array.isArray(node.hasVariant)
+            ? node.hasVariant.filter(isRecord)
+            : Array.isArray(node.model)
+            ? node.model.filter(isRecord)
+            : [];
+          if (variantNodes.length > 0) {
+            const variantLabels: string[] = [];
+            for (const vNode of variantNodes) {
+              if (typeof vNode.name === 'string') {
+                variantLabels.push(stripHtmlTags(vNode.name));
+              }
+              if (typeof vNode.image === 'string') {
+                pushUniqueImage(vNode.image);
+              } else if (isRecord(vNode.image) && typeof vNode.image.url === 'string') {
+                pushUniqueImage(vNode.image.url);
+              }
+            }
+            if (variantLabels.length > 0) {
+              result.variants?.push({
+                name: 'الموديل / الخيار (Options)',
+                options: Array.from(new Set(variantLabels)).slice(0, 6),
+              });
+            }
+          }
+
+          // Brand / SKU / Category specs
           if (isRecord(node.brand) && typeof node.brand.name === 'string') {
             result.specifications?.push({
               label: 'العلامة التجارية (Brand)',
-              value: node.brand.name,
+              value: stripHtmlTags(node.brand.name),
             });
           } else if (typeof node.brand === 'string') {
             result.specifications?.push({
               label: 'العلامة التجارية (Brand)',
-              value: node.brand,
+              value: stripHtmlTags(node.brand),
+            });
+          }
+
+          if (typeof node.sku === 'string' && node.sku.trim()) {
+            result.specifications?.push({
+              label: 'رمز المنتج (SKU)',
+              value: stripHtmlTags(node.sku),
+            });
+          }
+
+          if (typeof node.color === 'string' && node.color.trim()) {
+            result.specifications?.push({
+              label: 'اللون (Color)',
+              value: stripHtmlTags(node.color),
+            });
+          }
+
+          if (typeof node.material === 'string' && node.material.trim()) {
+            result.specifications?.push({
+              label: 'الخامة / المادة (Material)',
+              value: stripHtmlTags(node.material),
             });
           }
 
@@ -675,9 +834,117 @@ function parseJsonLdFromHtml(html: string, baseOrigin: string): Partial<ScrapedP
 }
 
 /**
- * Layer 3 & 4: OpenGraph Meta Tags & Deep HTML DOM Extraction
+ * Layer 2 Helper: DOM Selector Heuristics for Product Image Galleries
+ * Targets common e-commerce gallery structures:
+ * .product-gallery img, .swiper-slide img, .glide__slide img, .product__media img,
+ * .woocommerce-product-gallery img, img[data-src], img[data-zoom-image], [data-large_image], srcset, etc.
  */
-function parseOpenGraphAndDom(html: string, baseOrigin: string): Partial<ScrapedProduct> {
+export function extractGalleryImagesFromDom(html: string, baseOrigin: string): string[] {
+  const images: string[] = [];
+
+  const pushCandidate = (candidate: string | undefined) => {
+    if (!candidate) return;
+    const norm = normalizeHighResImageUrl(candidate, baseOrigin);
+    if (norm && !images.includes(norm) && images.length < 12) {
+      images.push(norm);
+    }
+  };
+
+  // 1. Prioritize gallery/slider container blocks (.product-gallery, .swiper-slide, .glide__slide, .product__media, .woocommerce-product-gallery, .product-single__photos, .fotorama, .slick-slide)
+  const galleryBlockRegex =
+    /<(?:div|ul|section|figure|li)[^>]+class=["'][^"']*(?:product-gallery|swiper-slide|swiper-wrapper|glide__slide|glide__track|product__media|product-media|woocommerce-product-gallery|product-single__photo|product-images|fotorama|slick-slide|carousel-inner|gallery-item)[^"']*["'][^>]*>([\s\S]*?)<\/(?:div|ul|section|figure|li)>/gi;
+
+  let blockMatch: RegExpExecArray | null;
+  while ((blockMatch = galleryBlockRegex.exec(html)) !== null) {
+    const segment = blockMatch[0];
+    extractImageAttributesFromHtmlSegment(segment, pushCandidate);
+  }
+
+  // 2. Scan all <img>, <source>, and zoom <a> tags across the page with high-res data attributes first
+  extractImageAttributesFromHtmlSegment(html, pushCandidate);
+
+  // 3. Scan embedded JSON image arrays in script tags (e.g. Shopify media array, AliExpress imagePathList, YouCan images)
+  const jsonImageArrayRegex = /"(?:images|imagePathList|gallery|media|photos)"\s*:\s*\[([^\]]{10,4000})\]/gi;
+  let jsonArrMatch: RegExpExecArray | null;
+  while ((jsonArrMatch = jsonImageArrayRegex.exec(html)) !== null && images.length < 12) {
+    const inner = jsonArrMatch[1] || '';
+    const urlMatches = inner.match(/https?:\\?\/\\?\/[^"'\s,]+?\.(?:jpg|jpeg|png|webp)(?:\?[^"'\s,]*)?/gi);
+    if (urlMatches) {
+      for (const rawMatch of urlMatches) {
+        pushCandidate(rawMatch.replace(/\\\//g, '/'));
+      }
+    }
+  }
+
+  return images;
+}
+
+function extractImageAttributesFromHtmlSegment(
+  segment: string,
+  pushCandidate: (url: string | undefined) => void
+): void {
+  // High-resolution zoom & lazy-loading attributes in priority order
+  const highResAttrRegex =
+    /<(?:img|a|source|div)[^>]+?(?:data-zoom-image|data-large_image|data-master|data-high-res-src|data-full-src|data-zoom|data-original|data-src|data-lazy-src|data-lazy|data-srcset|srcset|src)=["']([^"']+)["'][^>]*>/gi;
+
+  const priorityAttributes = [
+    'data-zoom-image',
+    'data-large_image',
+    'data-master',
+    'data-high-res-src',
+    'data-full-src',
+    'data-zoom',
+    'data-original',
+    'data-srcset',
+    'srcset',
+    'data-src',
+    'data-lazy-src',
+    'data-lazy',
+    'src',
+  ];
+
+  // Match all img/source tags and inspect their attributes in priority order
+  const tagRegex = /<(?:img|source)\b[^>]*>/gi;
+  let tagMatch: RegExpExecArray | null;
+  while ((tagMatch = tagRegex.exec(segment)) !== null) {
+    const tag = tagMatch[0];
+    // Skip explicit tiny thumbnails or hidden tracking images by width/height attribute
+    const widthAttr = tag.match(/\bwidth=["']?(\d{1,3})["']?/i);
+    const heightAttr = tag.match(/\bheight=["']?(\d{1,3})["']?/i);
+    if (
+      (widthAttr && parseInt(widthAttr[1], 10) > 0 && parseInt(widthAttr[1], 10) < 65) ||
+      (heightAttr && parseInt(heightAttr[1], 10) > 0 && parseInt(heightAttr[1], 10) < 65)
+    ) {
+      continue;
+    }
+    // Skip elements whose class/alt/id clearly indicates logo, icon, payment badge, or avatar
+    if (/\b(?:class|id|alt)=["'][^"']*(?:logo|icon|avatar|payment|flag|badge|trust|spinner|loader)[^"']*["']/i.test(tag)) {
+      continue;
+    }
+
+    for (const attr of priorityAttributes) {
+      const attrRegex = new RegExp(`\\b${attr}=["']([^"']+)["']`, 'i');
+      const m = tag.match(attrRegex);
+      if (m && m[1]) {
+        pushCandidate(m[1]);
+      }
+    }
+  }
+
+  // Also check any standalone elements with data-zoom-image / data-large_image
+  let zoomMatch: RegExpExecArray | null;
+  while ((zoomMatch = highResAttrRegex.exec(segment)) !== null) {
+    if (zoomMatch[1]) {
+      pushCandidate(zoomMatch[1]);
+    }
+  }
+}
+
+/**
+ * Layer 1 (OpenGraph) & Layer 2 (DOM Selector Heuristics)
+ * Parses og:image, og:title, og:description, gallery images, full description blocks, features, and spec tables.
+ */
+export function parseOpenGraphAndDom(html: string, baseOrigin: string): Partial<ScrapedProduct> {
   const getMetaContent = (attrName: string): string => {
     const regex1 = new RegExp(
       `<meta[^>]+(?:property|name|itemprop)=["']${attrName}["'][^>]+content=["']([^"']+)["']`,
@@ -690,6 +957,20 @@ function parseOpenGraphAndDom(html: string, baseOrigin: string): Partial<Scraped
     return (html.match(regex1)?.[1] || html.match(regex2)?.[1] || '').trim();
   };
 
+  const getAllMetaContents = (attrName: string): string[] => {
+    const results: string[] = [];
+    const regex = new RegExp(
+      `<meta[^>]+(?:(?:property|name|itemprop)=["']${attrName}["'][^>]+content=["']([^"']+)["']|content=["']([^"']+)["'][^>]+(?:property|name|itemprop)=["']${attrName}["'])`,
+      'gi'
+    );
+    let m: RegExpExecArray | null;
+    while ((m = regex.exec(html)) !== null) {
+      const val = (m[1] || m[2] || '').trim();
+      if (val && !results.includes(val)) results.push(val);
+    }
+    return results;
+  };
+
   const ogTitle =
     getMetaContent('og:title') ||
     getMetaContent('twitter:title') ||
@@ -699,14 +980,22 @@ function parseOpenGraphAndDom(html: string, baseOrigin: string): Partial<Scraped
 
   const title = stripHtmlTags(ogTitle).replace(/\s*[-–|].*$/, '').trim();
 
+  // Extract both OpenGraph description and full product description container if available
   const ogDesc =
     getMetaContent('og:description') ||
     getMetaContent('description') ||
     getMetaContent('twitter:description') ||
     '';
-  const description = stripHtmlTags(ogDesc).slice(0, 900);
 
-  // Price from meta or regex
+  const domDescMatch = html.match(
+    /<(?:div|section)[^>]+(?:id|class)=["'][^"']*(?:product-description|product__description|description-content|woocommerce-Tabs-panel--description|tab-description|rte)[^"']*["'][^>]*>([\s\S]{40,3500}?)<\/(?:div|section)>/i
+  );
+  const domDescText = domDescMatch?.[1] ? stripHtmlTags(domDescMatch[1]) : '';
+  const combinedDesc =
+    domDescText.length > stripHtmlTags(ogDesc).length ? domDescText : stripHtmlTags(ogDesc);
+  const description = combinedDesc.slice(0, 1500);
+
+  // Price from meta or DOM regex
   const rawPriceMeta =
     getMetaContent('product:price:amount') ||
     getMetaContent('og:price:amount') ||
@@ -729,7 +1018,7 @@ function parseOpenGraphAndDom(html: string, baseOrigin: string): Partial<Scraped
     }
   }
 
-  // Extract all high-res images from OG + DOM
+  // Extract all high-res images from OpenGraph (og:image, og:image:secure_url, twitter:image) + Layer 2 DOM Gallery Heuristics
   const images: string[] = [];
   const pushImage = (candidate: string) => {
     const norm = normalizeHighResImageUrl(candidate, baseOrigin);
@@ -738,22 +1027,36 @@ function parseOpenGraphAndDom(html: string, baseOrigin: string): Partial<Scraped
     }
   };
 
-  const ogImg = getMetaContent('og:image') || getMetaContent('twitter:image');
-  if (ogImg) pushImage(ogImg);
-
-  const imgTagRegex = /<img[^>]+(?:data-src|data-zoom-image|data-large_image|src)=["']([^"']+)["'][^>]*>/gi;
-  let imgMatch: RegExpExecArray | null;
-  while ((imgMatch = imgTagRegex.exec(html)) !== null && images.length < 10) {
-    if (imgMatch[1]) pushImage(imgMatch[1]);
+  for (const metaKey of ['og:image:secure_url', 'og:image', 'twitter:image']) {
+    for (const metaImg of getAllMetaContents(metaKey)) {
+      pushImage(metaImg);
+    }
   }
 
-  // Extract specifications from HTML tables (<tr><th>/<td>)
+  const domGalleryImages = extractGalleryImagesFromDom(html, baseOrigin);
+  for (const galleryImg of domGalleryImages) {
+    if (!images.includes(galleryImg) && images.length < 12) {
+      images.push(galleryImg);
+    }
+  }
+
+  // Extract specifications from HTML tables (<tr><th>/<td>) and definition lists (<dl><dt><dd>)
   const specifications: ScrapedSpecification[] = [];
   const rowRegex = /<tr[^>]*>\s*<(?:th|td)[^>]*>([\s\S]*?)<\/(?:th|td)>\s*<td[^>]*>([\s\S]*?)<\/td>\s*<\/tr>/gi;
   let rowMatch: RegExpExecArray | null;
-  while ((rowMatch = rowRegex.exec(html)) !== null && specifications.length < 8) {
+  while ((rowMatch = rowRegex.exec(html)) !== null && specifications.length < 10) {
     const label = stripHtmlTags(rowMatch[1] || '');
     const value = stripHtmlTags(rowMatch[2] || '');
+    if (label && value && label.length < 60 && value.length < 180) {
+      specifications.push({ label, value });
+    }
+  }
+
+  const dlRegex = /<dt[^>]*>([\s\S]*?)<\/dt>\s*<dd[^>]*>([\s\S]*?)<\/dd>/gi;
+  let dlMatch: RegExpExecArray | null;
+  while ((dlMatch = dlRegex.exec(html)) !== null && specifications.length < 10) {
+    const label = stripHtmlTags(dlMatch[1] || '');
+    const value = stripHtmlTags(dlMatch[2] || '');
     if (label && value && label.length < 60 && value.length < 180) {
       specifications.push({ label, value });
     }
@@ -763,9 +1066,13 @@ function parseOpenGraphAndDom(html: string, baseOrigin: string): Partial<Scraped
   const features: string[] = [];
   const liRegex = /<li[^>]*>([\s\S]*?)<\/li>/gi;
   let liMatch: RegExpExecArray | null;
-  while ((liMatch = liRegex.exec(html)) !== null && features.length < 6) {
+  while ((liMatch = liRegex.exec(html)) !== null && features.length < 8) {
     const text = stripHtmlTags(liMatch[1] || '');
-    if (text.length >= 18 && text.length <= 130 && !/cookie|privacy|login|cart|menu|home/i.test(text)) {
+    if (
+      text.length >= 18 &&
+      text.length <= 160 &&
+      !/cookie|privacy|login|sign in|cart|checkout|menu|home|account|copyright|terms|shipping policy/i.test(text)
+    ) {
       if (!features.includes(text)) {
         features.push(text);
       }
@@ -781,6 +1088,130 @@ function parseOpenGraphAndDom(html: string, baseOrigin: string): Partial<Scraped
     specifications,
     features,
   };
+}
+
+/**
+ * Layer 3: AI-Powered Fallback (Gemini API)
+ * When DOM/JSON-LD extraction fails to find sufficient images or descriptions, sends the cleaned raw HTML
+ * to Gemini with the prompt:
+ * "Extract all product images, titles, features, and specifications from this raw e-commerce HTML. Return ONLY a JSON array."
+ */
+export async function extractWithGeminiFallback(
+  rawHtml: string,
+  baseOrigin: string
+): Promise<Partial<ScrapedProduct> | null> {
+  if (!geminiClient || !rawHtml || !rawHtml.trim()) {
+    return null;
+  }
+
+  try {
+    // Prepare compact HTML snippet preserving <meta>, <script type="application/ld+json">, <img>, <h1>, <h2>, <ul>, <table>, <p>
+    const compactHtml = rawHtml
+      .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+      .replace(/<svg[^>]*>[\s\S]*?<\/svg>/gi, '')
+      .replace(/<script(?![^>]*application\/ld\+json)[^>]*>[\s\S]*?<\/script>/gi, '')
+      .replace(/\s+/g, ' ')
+      .slice(0, 28000);
+
+    const prompt = `Extract all product images, titles, features, and specifications from this raw e-commerce HTML. Return ONLY a JSON array.
+Each element in the JSON array should be an object with:
+- "title": string
+- "description": string
+- "price": number (optional)
+- "images": string[] (all high-resolution product gallery image URLs)
+- "features": string[] (key product benefits and bullet points)
+- "specifications": Array<{ "label": string, "value": string }>
+
+Raw e-commerce HTML:
+${compactHtml}`;
+
+    const response = await geminiClient.models.generateContent({
+      model: 'gemini-3.8-flash',
+      contents: prompt,
+      config: {
+        responseMimeType: 'application/json',
+      },
+    });
+
+    const text = response.text?.trim() || '';
+    if (!text) return null;
+
+    const parsed: unknown = JSON.parse(text);
+    const items: Record<string, unknown>[] = Array.isArray(parsed)
+      ? parsed.filter(isRecord)
+      : isRecord(parsed)
+      ? [parsed]
+      : [];
+
+    if (items.length === 0) return null;
+
+    const extractedImages: string[] = [];
+    const extractedFeatures: string[] = [];
+    const extractedSpecs: ScrapedSpecification[] = [];
+    let extractedTitle = '';
+    let extractedDescription = '';
+    let extractedPrice: number | undefined;
+
+    for (const item of items) {
+      if (!extractedTitle && typeof item.title === 'string' && item.title.trim()) {
+        extractedTitle = stripHtmlTags(item.title.trim());
+      }
+      if (!extractedDescription && typeof item.description === 'string' && item.description.trim()) {
+        extractedDescription = stripHtmlTags(item.description.trim());
+      }
+      if (!extractedPrice && typeof item.price === 'number' && item.price > 0) {
+        extractedPrice = convertToMadPrice(item.price, 'MAD');
+      }
+
+      const rawImgs = item.images ?? item.image;
+      if (Array.isArray(rawImgs)) {
+        for (const rawImg of rawImgs) {
+          if (typeof rawImg === 'string') {
+            const norm = normalizeHighResImageUrl(rawImg, baseOrigin);
+            if (norm && !extractedImages.includes(norm)) {
+              extractedImages.push(norm);
+            }
+          }
+        }
+      } else if (typeof rawImgs === 'string') {
+        const norm = normalizeHighResImageUrl(rawImgs, baseOrigin);
+        if (norm && !extractedImages.includes(norm)) {
+          extractedImages.push(norm);
+        }
+      }
+
+      if (Array.isArray(item.features)) {
+        for (const feat of item.features) {
+          if (typeof feat === 'string' && feat.trim() && !extractedFeatures.includes(feat.trim())) {
+            extractedFeatures.push(stripHtmlTags(feat.trim()));
+          }
+        }
+      }
+
+      if (Array.isArray(item.specifications)) {
+        for (const spec of item.specifications) {
+          if (isRecord(spec) && typeof spec.label === 'string' && spec.value !== undefined) {
+            extractedSpecs.push({
+              label: stripHtmlTags(spec.label),
+              value: stripHtmlTags(String(spec.value)),
+            });
+          }
+        }
+      }
+    }
+
+    return {
+      title: extractedTitle || undefined,
+      description: extractedDescription || undefined,
+      price: extractedPrice,
+      images: extractedImages,
+      features: extractedFeatures,
+      specifications: extractedSpecs,
+    };
+  } catch (err) {
+    console.warn('Layer 3 Gemini HTML extraction fallback warning:', err);
+    return null;
+  }
 }
 
 /**
@@ -868,7 +1299,9 @@ async function enrichWithGeminiAi(
 
 /**
  * Main Multi-Layer Product Scraper Entrypoint
- * Layers: Shopify/YouCan JSON -> Schema.org JSON-LD -> OpenGraph Meta -> HTML DOM -> Provider-Agnostic AI Enrichment & Moroccan COD Defaults
+ * - Layer 1: JSON-LD (<script type="application/ld+json">), Shopify/YouCan JSON & OpenGraph Meta
+ * - Layer 2: DOM Selector Heuristics (.product-gallery img, .swiper-slide img, .glide__slide img, img[data-src], img[data-zoom-image], etc.)
+ * - Layer 3: AI-Powered Fallback (Gemini API raw HTML extraction) when images or descriptions are insufficient
  */
 export async function scrapeProductData(url: string): Promise<ScrapedProduct> {
   const validation = validateProductUrl(url);
@@ -879,13 +1312,13 @@ export async function scrapeProductData(url: string): Promise<ScrapedProduct> {
   const parsedUrl = validation.url;
   let platform = detectPlatform(parsedUrl);
 
-  // Layer 1: Try Shopify / JSON endpoint
+  // Layer 1A: Try Shopify / JSON endpoint
   const shopifyData = await tryShopifyOrJsonEndpoint(parsedUrl);
   if (shopifyData?.platform) {
     platform = shopifyData.platform;
   }
 
-  // Fetch raw HTML for Layer 2 (JSON-LD), Layer 3 (OpenGraph), and Layer 4 (DOM)
+  // Fetch raw HTML for Layer 1 (JSON-LD & OpenGraph), Layer 2 (DOM Heuristics), and Layer 3 (Gemini Fallback)
   let html = '';
   try {
     const response = await fetch(parsedUrl.toString(), {
@@ -895,7 +1328,7 @@ export async function scrapeProductData(url: string): Promise<ScrapedProduct> {
         Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
         'Accept-Language': 'ar-MA,ar;q=0.9,fr-MA,fr;q=0.8,en;q=0.7',
       },
-      signal: AbortSignal.timeout(8000),
+      signal: AbortSignal.timeout(9000),
     });
 
     if (response.ok) {
@@ -910,8 +1343,43 @@ export async function scrapeProductData(url: string): Promise<ScrapedProduct> {
     else if (/youcan\.shop|youcan/i.test(html)) platform = 'YouCan';
   }
 
+  // Layer 1B & Layer 2: Parse JSON-LD, OpenGraph, and DOM Gallery Selector Heuristics
   const jsonLdData = html ? parseJsonLdFromHtml(html, parsedUrl.origin) : {};
   const ogDomData = html ? parseOpenGraphAndDom(html, parsedUrl.origin) : {};
+
+  // Merge images across Layer 1 & Layer 2 without duplicates
+  const combinedImages: string[] = [];
+  for (const list of [shopifyData?.images, jsonLdData.images, ogDomData.images]) {
+    if (Array.isArray(list)) {
+      for (const img of list) {
+        if (img && !combinedImages.includes(img)) {
+          combinedImages.push(img);
+        }
+      }
+    }
+  }
+
+  let extractedDesc =
+    shopifyData?.description ||
+    jsonLdData.description ||
+    ogDomData.description ||
+    '';
+
+  // Layer 3: AI-Powered Fallback (Gemini API) if DOM/JSON-LD extraction found insufficient images (< 2) or description (< 60 chars)
+  let geminiFallbackData: Partial<ScrapedProduct> | null = null;
+  if (html && (combinedImages.length < 2 || extractedDesc.length < 60)) {
+    geminiFallbackData = await extractWithGeminiFallback(html, parsedUrl.origin);
+    if (geminiFallbackData?.images) {
+      for (const aiImg of geminiFallbackData.images) {
+        if (aiImg && !combinedImages.includes(aiImg)) {
+          combinedImages.push(aiImg);
+        }
+      }
+    }
+    if (!extractedDesc && geminiFallbackData?.description) {
+      extractedDesc = geminiFallbackData.description;
+    }
+  }
 
   // Fallback title derived from URL slug if store blocked HTML
   const slugFallbackTitle = decodeURIComponent(
@@ -935,39 +1403,34 @@ export async function scrapeProductData(url: string): Promise<ScrapedProduct> {
     (!isErrorTitle(shopifyData?.title) && shopifyData?.title) ||
     (!isErrorTitle(jsonLdData.title) && jsonLdData.title) ||
     (!isErrorTitle(ogDomData.title) && ogDomData.title) ||
+    (!isErrorTitle(geminiFallbackData?.title) && geminiFallbackData?.title) ||
     safeSlugFallback ||
     'منتج احترافي أصلي للمغرب';
 
   const rawTitle = candidateTitle;
 
   const rawDescription =
-    shopifyData?.description ||
-    jsonLdData.description ||
-    ogDomData.description ||
+    extractedDesc ||
     `اكتشف ${rawTitle} الأصلي المصمم بأعلى معايير الجودة، متوفر الآن مع توصيل سريع لجميع المدن المغربية والدفع نقداً عند الاستلام.`;
 
   const niche = inferNiche(`${rawTitle} ${rawDescription} ${parsedUrl.pathname}`);
 
-  // Merge images across all layers without duplicates
-  const combinedImages: string[] = [];
-  for (const list of [shopifyData?.images, jsonLdData.images, ogDomData.images]) {
-    if (Array.isArray(list)) {
-      for (const img of list) {
-        if (img && !combinedImages.includes(img)) {
-          combinedImages.push(img);
-        }
+  // Only append niche stock fallbacks if no product images could be extracted at all
+  if (combinedImages.length === 0) {
+    const fallbackImages = NICHE_IMAGE_FALLBACKS[niche] || NICHE_IMAGE_FALLBACKS['Smart Gadgets & Electronics'];
+    for (const fallbackImg of fallbackImages) {
+      if (!combinedImages.includes(fallbackImg)) {
+        combinedImages.push(fallbackImg);
       }
     }
   }
 
-  const fallbackImages = NICHE_IMAGE_FALLBACKS[niche] || NICHE_IMAGE_FALLBACKS['Smart Gadgets & Electronics'];
-  for (const fallbackImg of fallbackImages) {
-    if (combinedImages.length < 4 && !combinedImages.includes(fallbackImg)) {
-      combinedImages.push(fallbackImg);
-    }
-  }
-
-  const basePriceMad = shopifyData?.price || jsonLdData.price || ogDomData.price || 249;
+  const basePriceMad =
+    shopifyData?.price ||
+    jsonLdData.price ||
+    ogDomData.price ||
+    geminiFallbackData?.price ||
+    249;
   const originalPriceMad =
     shopifyData?.originalPrice ||
     jsonLdData.originalPrice ||
@@ -989,11 +1452,15 @@ export async function scrapeProductData(url: string): Promise<ScrapedProduct> {
     ...(shopifyData?.specifications || []),
     ...(jsonLdData.specifications || []),
     ...(ogDomData.specifications || []),
+    ...(geminiFallbackData?.specifications || []),
   ];
 
   let reviews: ScrapedReview[] = [...(jsonLdData.reviews || [])];
   let faqs: ScrapedFaq[] = [...(jsonLdData.faqs || [])];
-  let features: string[] = [...(ogDomData.features || [])];
+  let features: string[] = [
+    ...(ogDomData.features || []),
+    ...(geminiFallbackData?.features || []),
+  ];
   let finalTitle = rawTitle;
   let finalDescription = rawDescription;
 
@@ -1057,11 +1524,11 @@ export async function scrapeProductData(url: string): Promise<ScrapedProduct> {
     price: basePriceMad,
     originalPrice: originalPriceMad,
     currency: 'MAD',
-    images: combinedImages.slice(0, 10),
-    features: features.slice(0, 6),
+    images: combinedImages.slice(0, 12),
+    features: features.slice(0, 8),
     variants,
     bundles,
-    specifications: specifications.slice(0, 8),
+    specifications: specifications.slice(0, 10),
     reviews: reviews.slice(0, 6),
     faqs: faqs.slice(0, 6),
     niche,

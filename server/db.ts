@@ -1686,6 +1686,7 @@ export interface CustomerOrder {
   funnelId?: string;
   customerName: string;
   customerPhone: string;
+  customerCountry?: string;
   customerCity: string;
   customerAddress?: string;
   customerNotes?: string;
@@ -1809,6 +1810,8 @@ export function getGlobalPlatformStats() {
 export function recordCodOrder(orderData: {
   customerName: string;
   phone: string;
+  country?: string;
+  customerCountry?: string;
   city?: string;
   address?: string;
   productName?: string;
@@ -1866,6 +1869,8 @@ export function recordCodOrder(orderData: {
       ? 'paid'
       : 'pending';
 
+  const resolvedCountry = (orderData.customerCountry || orderData.country || 'Morocco').trim();
+
   const newOrder: CustomerOrder = {
     id: orderId,
     userId: resolvedUserId,
@@ -1875,6 +1880,7 @@ export function recordCodOrder(orderData: {
     pageSlug: orderData.pageSlug || '',
     customerName: (orderData.customerName || 'زبون').trim(),
     customerPhone: (orderData.phone || '').trim(),
+    customerCountry: resolvedCountry,
     customerCity: (orderData.city || 'الدار البيضاء').trim(),
     customerAddress: orderData.address?.trim() || '',
     customerNotes: orderData.notes?.trim() || '',

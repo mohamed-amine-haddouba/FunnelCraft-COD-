@@ -144,9 +144,15 @@ function buildBlocksFromScrapedProduct(
     {
       id: `block-hero-${timestamp}`,
       type: 'hero',
-      badge: `⭐ الأكثر مبيعاً في المغرب (${scraped.platform})`,
+      badge: `⭐ الأكثر مبيعاً (${scraped.platform})`,
       headline: scraped.title,
-      subheadline: scraped.description,
+      subheadline:
+        scraped.description && scraped.description.length > 180
+          ? `${scraped.description.slice(0, 180)}...`
+          : scraped.description,
+      description: scraped.description,
+      features: Array.isArray(scraped.features) ? scraped.features : [],
+      specifications: Array.isArray(scraped.specifications) ? scraped.specifications : [],
       priceOriginal: scraped.originalPrice,
       priceDiscounted: scraped.price,
       currency: scraped.currency || 'MAD',
@@ -165,7 +171,7 @@ function buildBlocksFromScrapedProduct(
           ? scraped.features.slice(0, 4)
           : [
               'منتج أصلي عالي الجودة ومفحوص قبل الإرسال',
-              'توصيل سريع لباب المنزل في جميع المدن المغربية',
+              'توصيل سريع لباب المنزل في جميع المدن',
               'لا تدفع أي درهم حتى تتوصل بالمنتج وتتحقق منه',
             ],
     },
@@ -196,6 +202,8 @@ function buildBlocksFromScrapedProduct(
       shippingCost: 0,
       guaranteeText: 'ضمان 100%: عاين طلبك عند الاستلام قبل الدفع للموزع.',
       buttonText: 'تأكيد الطلب الآن (الدفع عند الاستلام)',
+      showCountryCityDropdowns: true,
+      defaultCountry: 'المغرب (Morocco)',
       bundles: (Array.isArray(scraped.bundles) && scraped.bundles.length > 0
         ? scraped.bundles
         : [
@@ -506,11 +514,13 @@ function BuilderWorkspace() {
       const freshPageData = buildBlocksFromScrapedProduct(scrapedProduct, pageData.theme);
       updatePageDataWithHistory(() => freshPageData);
 
-      setBuilderRenderMode('scraped');
-      setSelectedBlockId(null);
+      setBuilderRenderMode('blocks');
+      setSelectedBlockId(freshPageData.blocks.find((b) => b.type === 'hero')?.id || null);
       setSaveStatus('unsaved');
       setScrapeUrl('');
-      setScrapeSuccessToast(`تم استيراد "${scrapedProduct.title}" وتجهيز صفحة الهبوط بنجاح!`);
+      setScrapeSuccessToast(
+        `تم استيراد "${scrapedProduct.title}" (${scrapedProduct.images?.length || 1} صور) وتجهيز صفحة الهبوط بنجاح!`
+      );
       setTimeout(() => {
         setScrapeSuccessToast(null);
       }, 5000);

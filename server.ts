@@ -2578,6 +2578,8 @@ async function startServer() {
         customerName,
         phone,
         customerPhone,
+        country,
+        customerCountry,
         city,
         customerCity,
         address,
@@ -2625,7 +2627,8 @@ async function startServer() {
       const order = recordCodOrder({
         customerName: sanitizeInput(customerName || (isPayPal ? 'زبون PayPal' : 'زبون'), 100) || 'زبون',
         phone: effectivePhone,
-        city: sanitizeInput(city || customerCity || 'الدار البيضاء', 80) || 'الدار البيضاء',
+        customerCountry: sanitizeInput(customerCountry || country || 'Morocco', 80) || 'Morocco',
+        city: sanitizeInput(city || customerCity || 'Casablanca', 80) || 'Casablanca',
         address: sanitizeInput(address || customerAddress || '', 250),
         productName: sanitizeInput(productName || 'منتج مميز', 160) || 'منتج مميز',
         price: price || 299,
@@ -2651,7 +2654,7 @@ async function startServer() {
           <p style="margin: 6px 0;"><strong>💳 طريقة الدفع:</strong> ${order.paymentMethod === 'paypal' ? 'PayPal (مدفوع)' : 'الدفع عند الاستلام (COD)'}</p>
           <p style="margin: 6px 0;"><strong>👤 اسم الزبون:</strong> ${order.customerName}</p>
           <p style="margin: 6px 0;"><strong>📱 هاتف الزبون:</strong> <span dir="ltr">${order.customerPhone}</span></p>
-          <p style="margin: 6px 0;"><strong>🏙️ المدينة / العنوان:</strong> ${order.customerCity}${order.customerAddress ? ` - ${order.customerAddress}` : ''}</p>
+          <p style="margin: 6px 0;"><strong>🌍 الدولة / المدينة:</strong> ${order.customerCountry ? `${order.customerCountry} - ` : ''}${order.customerCity}${order.customerAddress ? ` - ${order.customerAddress}` : ''}</p>
           ${order.storeName || order.userEmail ? `<p style="margin: 6px 0;"><strong>🏪 المتجر / التاجر:</strong> ${order.storeName || ''} ${order.userEmail ? `(${order.userEmail})` : ''}</p>` : ''}
         </div>
         `
@@ -4610,11 +4613,20 @@ export function mapAnalystToLandingPageData(
         Math.round(cleanSellingPrice * 1.6);
   const currency = analyst.price?.currency || (isRtl ? 'MAD' : '$');
 
+  // Merge all unique high-res images from both scraped gallery and AI analyst
+  const mergedImages: string[] = [];
+  for (const list of [scraped.images, analyst.heroImages]) {
+    if (Array.isArray(list)) {
+      for (const img of list) {
+        if (img && !mergedImages.includes(img)) {
+          mergedImages.push(img);
+        }
+      }
+    }
+  }
   const images =
-    analyst.heroImages && analyst.heroImages.length > 0
-      ? analyst.heroImages
-      : scraped.images && scraped.images.length > 0
-      ? scraped.images
+    mergedImages.length > 0
+      ? mergedImages
       : [
           'https://images.unsplash.com/photo-1546868871-7041f2a55e12?w=800&auto=format&fit=crop&q=80',
           'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800&auto=format&fit=crop&q=80',
@@ -4670,6 +4682,13 @@ export function mapAnalystToLandingPageData(
           },
         ];
 
+  const heroTrustPoints =
+    scraped.features && scraped.features.length > 0
+      ? scraped.features.slice(0, 4)
+      : isRtl
+      ? ['دفع عند الاستلام', 'معاينة قبل الأداء', 'ضمان 12 شهر']
+      : ['Pay on Delivery', 'Inspect Before Paying', '1-Year Warranty'];
+
   return {
     id: `funnel-${Date.now()}`,
     title: analyst.productName || scraped.title || 'Product Funnel',
@@ -4706,10 +4725,17 @@ export function mapAnalystToLandingPageData(
         badge: analyst.badge || (isRtl ? '⭐ المنتج الأكثر طلباً وتقييماً' : '⭐ Best Seller 2026'),
         headline: analyst.productName || scraped.title,
         subheadline:
+          scraped.description ||
           analyst.tagline ||
           (isRtl
             ? 'اطلب الآن واستفد من التوصيل المجاني والدفع عند الاستلام'
             : 'Order now with free doorstep cash-on-delivery and money-back guarantee'),
+        description: scraped.description || analyst.tagline,
+        features: scraped.features || features.map((f) => `${f.title}: ${f.description}`),
+        specifications:
+          analyst.specifications && analyst.specifications.length > 0
+            ? analyst.specifications
+            : scraped.specifications || [],
         priceOriginal: cleanOrigPrice,
         priceDiscounted: cleanSellingPrice,
         currency,
@@ -4718,9 +4744,7 @@ export function mapAnalystToLandingPageData(
         ctaSubtext: isRtl ? 'توصيل مجاني وسريع لجميع المدن' : 'Free inspection before payment',
         rating: 4.9,
         reviewCount: 420,
-        trustPoints: isRtl
-          ? ['دفع عند الاستلام', 'معاينة قبل الأداء', 'ضمان 12 شهر']
-          : ['Pay on Delivery', 'Inspect Before Paying', '1-Year Warranty'],
+        trustPoints: heroTrustPoints,
       },
       {
         id: 'ps-1',
@@ -4764,13 +4788,17 @@ export function mapAnalystToLandingPageData(
         buttonText:
           analyst.codFormConfig?.buttonText ||
           (isRtl ? 'تأكيد الطلب والدفع عند الاستلام ➔' : 'Confirm Order & Pay on Delivery ➔'),
+        showCountryCityDropdowns: true,
+        defaultCountry: 'Morocco',
         fields: {
           requireAddress: true,
           requireCity: true,
           requireNote: false,
+          showCountryCityDropdowns: true,
+          defaultCountry: 'Morocco',
           defaultCities: isRtl
             ? ['الدار البيضاء', 'الرباط', 'مراكش', 'طنجة', 'فاس', 'أكادير']
-            : ['New York', 'Los Angeles', 'Chicago', 'Houston', 'Miami'],
+            : ['Casablanca', 'Rabat', 'Marrakech', 'Tangier', 'Fes', 'Agadir'],
         },
         bundles: [
           {
