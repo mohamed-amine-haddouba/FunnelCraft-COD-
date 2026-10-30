@@ -94,24 +94,110 @@ dotenv.config();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Initialize PayPal Server SDK Client & OrdersController
-const PAYPAL_CLIENT_ID = process.env.PAYPAL_CLIENT_ID || '';
-const PAYPAL_CLIENT_SECRET = process.env.PAYPAL_CLIENT_SECRET || '';
-const paypalEnvironment =
-  process.env.PAYPAL_ENVIRONMENT === 'production' || process.env.NODE_ENV === 'production'
-    ? PayPalEnvironment.Production
-    : PayPalEnvironment.Sandbox;
+// Helper to strip accidental surrounding quotes or whitespace from .env values
+function cleanEnvValue(raw: string | undefined): string {
+  if (!raw) return '';
+  return raw.trim().replace(/^['"]|['"]$/g, '').trim();
+}
 
-const paypalClient = new PayPalClient({
-  clientCredentialsAuthCredentials: {
-    oAuthClientId: PAYPAL_CLIENT_ID,
-    oAuthClientSecret: PAYPAL_CLIENT_SECRET,
-  },
-  timeout: 0,
-  environment: paypalEnvironment,
-});
+// Dynamically read PayPal configuration from process.env (supports PAYPAL_ENVIRONMENT=live or production)
+function getPayPalRuntimeConfig() {
+  const clientId = cleanEnvValue(process.env.PAYPAL_CLIENT_ID || process.env.VITE_PAYPAL_CLIENT_ID);
+  const clientSecret = cleanEnvValue(process.env.PAYPAL_CLIENT_SECRET);
+  const webhookId = cleanEnvValue(process.env.PAYPAL_WEBHOOK_ID);
+  const rawEnv = cleanEnvValue(process.env.PAYPAL_ENVIRONMENT).toLowerCase();
 
-const paypalOrdersController = new OrdersController(paypalClient);
+  // Accept 'live', 'production', or 'prod' (or fallback to NODE_ENV === 'production' when PAYPAL_ENVIRONMENT is unset)
+  const isLive =
+    rawEnv === 'live' ||
+    rawEnv === 'production' ||
+    rawEnv === 'prod' ||
+    (!rawEnv && cleanEnvValue(process.env.NODE_ENV).toLowerCase() === 'production');
+
+  const sdkEnvironment = isLive ? PayPalEnvironment.Production : PayPalEnvironment.Sandbox;
+  const environmentLabel: 'live' | 'sandbox' = isLive ? 'live' : 'sandbox';
+  const apiBaseUrl = isLive ? 'https://api-m.paypal.com' : 'https://api-m.sandbox.paypal.com';
+
+  const client = new PayPalClient({
+    clientCredentialsAuthCredentials: {
+      oAuthClientId: clientId,
+      oAuthClientSecret: clientSecret,
+    },
+    timeout: 0,
+    environment: sdkEnvironment,
+  });
+
+  const ordersController = new OrdersController(client);
+
+  return {
+    clientId,
+    clientSecret,
+    webhookId,
+    rawEnv: rawEnv || '(unset)',
+    isLive,
+    sdkEnvironment,
+    environmentLabel,
+    apiBaseUrl,
+    ordersController,
+  };
+}
+
+// Extract structured error details from @paypal/paypal-server-sdk ApiError or standard Error
+function extractPayPalErrorDetails(err: any): {
+  statusCode: number;
+  errorCode: string;
+  debugId: string;
+  message: string;
+  rawResult: unknown;
+} {
+  const statusCode =
+    err instanceof PayPalApiError && typeof err.statusCode === 'number'
+      ? err.statusCode
+      : typeof err?.statusCode === 'number'
+        ? err.statusCode
+        : 500;
+
+  let parsedBody: Record<string, any> | null = null;
+  if (err?.result && typeof err.result === 'object') {
+    parsedBody = err.result as Record<string, any>;
+  } else if (typeof err?.body === 'string') {
+    try {
+      parsedBody = JSON.parse(err.body);
+    } catch {
+      parsedBody = null;
+    }
+  }
+
+  const issue =
+    parsedBody?.details?.[0]?.issue ||
+    parsedBody?.name ||
+    parsedBody?.error ||
+    err?.name ||
+    'PAYPAL_API_ERROR';
+
+  const description =
+    parsedBody?.details?.[0]?.description ||
+    parsedBody?.message ||
+    parsedBody?.error_description ||
+    err?.message ||
+    'PayPal API request failed.';
+
+  const debugId = String(parsedBody?.debug_id || err?.headers?.['paypal-debug-id'] || 'none');
+
+  return {
+    statusCode: statusCode >= 400 && statusCode < 600 ? statusCode : 500,
+    errorCode: String(issue),
+    debugId,
+    message: `[${issue}] ${description}${debugId !== 'none' ? ` (debug_id: ${debugId})` : ''}`,
+    rawResult: parsedBody || err?.body || err?.message,
+  };
+}
+
+// Log PayPal configuration immediately at module initialization
+const initialPayPalConfig = getPayPalRuntimeConfig();
+console.log(
+  `[PAYPAL STARTUP] Environment: ${initialPayPalConfig.environmentLabel.toUpperCase()} (raw PAYPAL_ENVIRONMENT="${initialPayPalConfig.rawEnv}") | API Host: ${initialPayPalConfig.apiBaseUrl} | Client ID Prefix: "${initialPayPalConfig.clientId ? `${initialPayPalConfig.clientId.slice(0, 10)}...` : 'MISSING'}" | Secret Loaded: ${Boolean(initialPayPalConfig.clientSecret)} | Webhook ID Loaded: ${Boolean(initialPayPalConfig.webhookId)}`
+);
 
 // Initialize Gemini SDK with recommended user-agent header
 const ai = new GoogleGenAI({
@@ -2123,13 +2209,12 @@ async function startServer() {
 
   // Public endpoint to expose active PayPal Client ID & Environment to the frontend SDK
   app.get('/api/paypal/config', (_req: Request, res: Response) => {
+    const ppConfig = getPayPalRuntimeConfig();
     return res.json({
       success: true,
-      clientId: PAYPAL_CLIENT_ID || process.env.VITE_PAYPAL_CLIENT_ID || 'test',
-      environment:
-        process.env.PAYPAL_ENVIRONMENT === 'production' || process.env.NODE_ENV === 'production'
-          ? 'production'
-          : 'sandbox',
+      clientId: ppConfig.clientId,
+      environment: ppConfig.environmentLabel,
+      apiBaseUrl: ppConfig.apiBaseUrl,
     });
   });
 
@@ -2328,385 +2413,439 @@ async function startServer() {
   };
 
   // POST /api/paypal/create-order: Creates a PayPal order using ONLY server-verified database/plan prices and validated coupons (Requires Authentication)
-  app.post('/api/paypal/create-order', authMiddleware, async (req: AuthRequest, res: Response) => {
-    try {
-      console.log('[PAYPAL BACKEND] Auth user ID:', req.user?.id);
-
-      // Strictly ignore any client-supplied amount/currency to prevent price tampering
-      const {
-        identifier,
-        planId,
-        billingCycle,
-        couponCode,
-        pageSlug,
-        funnelId,
-        bundleIndex,
-        bundleQuantity,
-      } = req.body || {};
-
-      const resolvedUserId = req.user!.id;
-      const normalizedPlanId = normalizePaidPlanId(planId || identifier);
-      const resolvedCycle: 'monthly' | 'yearly' = billingCycle === 'yearly' ? 'yearly' : 'monthly';
-      const cleanCouponCode =
-        typeof couponCode === 'string' && couponCode.trim()
-          ? couponCode.trim().toUpperCase()
-          : '';
-
-      // If a couponCode was supplied for a subscription plan, strictly validate it on the server before order creation
-      if (cleanCouponCode && normalizedPlanId) {
-        const couponValidation = validateAndCalculateCoupon(
-          cleanCouponCode,
-          normalizedPlanId,
-          resolvedCycle
-        );
-        if (!couponValidation.valid) {
-          return res.status(400).json({
-            success: false,
-            error: couponValidation.error,
-          });
-        }
-      }
-
+  app.post(
+    '/api/paypal/create-order',
+    (req: AuthRequest, res: Response, next: NextFunction) => {
+      const ppConfig = getPayPalRuntimeConfig();
       console.log(
-        '[PAYPAL] Creating order for plan:',
-        planId || identifier || pageSlug,
-        cleanCouponCode ? `| Coupon: ${cleanCouponCode}` : ''
+        `[PAYPAL BACKEND] Incoming POST /api/paypal/create-order | Env: ${ppConfig.environmentLabel.toUpperCase()} | ClientID: ${ppConfig.clientId.slice(0, 10)}... | HasAuthHeader: ${Boolean(req.headers.authorization)} | Body:`,
+        JSON.stringify(req.body || {})
       );
+      return authMiddleware(req, res, next);
+    },
+    async (req: AuthRequest, res: Response) => {
+      try {
+        const ppConfig = getPayPalRuntimeConfig();
+        console.log('[PAYPAL BACKEND] Auth user ID:', req.user?.id);
 
-      const resolvedOrder = resolveTrustedPayPalOrderPrice({
-        identifier,
-        planId,
-        billingCycle: resolvedCycle,
-        couponCode: cleanCouponCode || undefined,
-        pageSlug,
-        funnelId,
-        bundleIndex,
-        bundleQuantity,
-      });
-
-      if (!resolvedOrder || !Number.isFinite(resolvedOrder.amountUSD) || resolvedOrder.amountUSD <= 0) {
-        console.error('[PAYPAL] Invalid or unknown product/plan identifier:', {
+        // Strictly ignore any client-supplied amount/currency to prevent price tampering
+        const {
           identifier,
           planId,
+          billingCycle,
+          couponCode,
           pageSlug,
+          funnelId,
+          bundleIndex,
+          bundleQuantity,
+        } = req.body || {};
+
+        const resolvedUserId = req.user!.id;
+        const normalizedPlanId = normalizePaidPlanId(planId || identifier);
+        const resolvedCycle: 'monthly' | 'yearly' = billingCycle === 'yearly' ? 'yearly' : 'monthly';
+        const cleanCouponCode =
+          typeof couponCode === 'string' && couponCode.trim()
+            ? couponCode.trim().toUpperCase()
+            : '';
+
+        // If a couponCode was supplied for a subscription plan, strictly validate it on the server before order creation
+        if (cleanCouponCode && normalizedPlanId) {
+          const couponValidation = validateAndCalculateCoupon(
+            cleanCouponCode,
+            normalizedPlanId,
+            resolvedCycle
+          );
+          if (!couponValidation.valid) {
+            console.warn('[PAYPAL BACKEND] Coupon validation failed during create-order:', {
+              cleanCouponCode,
+              normalizedPlanId,
+              error: couponValidation.error,
+            });
+            return res.status(400).json({
+              success: false,
+              error: couponValidation.error,
+            });
+          }
+        }
+
+        console.log(
+          '[PAYPAL] Creating order for plan:',
+          planId || identifier || pageSlug,
+          cleanCouponCode ? `| Coupon: ${cleanCouponCode}` : ''
+        );
+
+        const resolvedOrder = resolveTrustedPayPalOrderPrice({
+          identifier,
+          planId,
+          billingCycle: resolvedCycle,
+          couponCode: cleanCouponCode || undefined,
+          pageSlug,
+          funnelId,
+          bundleIndex,
+          bundleQuantity,
         });
-        return res.status(400).json({
-          success: false,
-          error: 'Invalid or unknown product/plan identifier. Unable to resolve a valid server-side price.',
-        });
-      }
 
-      if (!PAYPAL_CLIENT_ID || !PAYPAL_CLIENT_SECRET) {
-        console.error('[PAYPAL] Missing PAYPAL_CLIENT_ID or PAYPAL_CLIENT_SECRET in environment.');
-        return res.status(500).json({
-          success: false,
-          error: 'PayPal credentials (PAYPAL_CLIENT_ID / PAYPAL_CLIENT_SECRET) are not configured on the server.',
-        });
-      }
+        if (!resolvedOrder || !Number.isFinite(resolvedOrder.amountUSD) || resolvedOrder.amountUSD <= 0) {
+          console.error('[PAYPAL] Invalid or unknown product/plan identifier:', {
+            identifier,
+            planId,
+            pageSlug,
+          });
+          return res.status(400).json({
+            success: false,
+            error: 'Invalid or unknown product/plan identifier. Unable to resolve a valid server-side price.',
+          });
+        }
 
-      const normalizedCurrency = PAYPAL_SUPPORTED_CURRENCIES.has(resolvedOrder.currencyCode)
-        ? resolvedOrder.currencyCode
-        : 'USD';
+        if (!ppConfig.clientId || !ppConfig.clientSecret) {
+          console.error('[PAYPAL] Missing PAYPAL_CLIENT_ID or PAYPAL_CLIENT_SECRET in environment.');
+          return res.status(500).json({
+            success: false,
+            error: 'PayPal credentials (PAYPAL_CLIENT_ID / PAYPAL_CLIENT_SECRET) are not configured on the server.',
+          });
+        }
 
-      const formattedValue = resolvedOrder.formattedValue;
+        const normalizedCurrency = PAYPAL_SUPPORTED_CURRENCIES.has(resolvedOrder.currencyCode)
+          ? resolvedOrder.currencyCode
+          : 'USD';
 
-      // Embed userId, planId, couponCode, and expected amount in customId (max 127 chars in PayPal v2)
-      const customIdPayload = JSON.stringify({
-        id: resolvedOrder.identifier,
-        u: resolvedUserId || '',
-        p: normalizedPlanId || '',
-        c: resolvedOrder.appliedCouponCode || '',
-        amt: formattedValue,
-        cur: normalizedCurrency,
-      }).slice(0, 127);
+        const formattedValue = resolvedOrder.formattedValue;
 
-      const { result, statusCode } = await paypalOrdersController.createOrder({
-        body: {
-          intent: CheckoutPaymentIntent.Capture,
-          purchaseUnits: [
-            {
-              customId: customIdPayload,
-              amount: {
-                currencyCode: normalizedCurrency,
-                value: formattedValue,
+        // Embed userId, planId, couponCode, and expected amount in customId (max 127 chars in PayPal v2)
+        const customIdPayload = JSON.stringify({
+          id: resolvedOrder.identifier,
+          u: resolvedUserId || '',
+          p: normalizedPlanId || '',
+          c: resolvedOrder.appliedCouponCode || '',
+          amt: formattedValue,
+          cur: normalizedCurrency,
+        }).slice(0, 127);
+
+        const { result, statusCode } = await ppConfig.ordersController.createOrder({
+          body: {
+            intent: CheckoutPaymentIntent.Capture,
+            purchaseUnits: [
+              {
+                customId: customIdPayload,
+                amount: {
+                  currencyCode: normalizedCurrency,
+                  value: formattedValue,
+                },
               },
-            },
-          ],
-        },
-        prefer: 'return=minimal',
-      });
+            ],
+          },
+          prefer: 'return=minimal',
+        });
 
-      if (!result || !result.id) {
-        console.error('[PAYPAL] Order creation returned no order ID:', result);
-        return res.status(statusCode || 500).json({
+        if (!result || !result.id) {
+          console.error('[PAYPAL] Order creation returned no order ID:', result);
+          return res.status(statusCode || 500).json({
+            success: false,
+            error: 'Failed to create PayPal order: Missing order ID in response.',
+          });
+        }
+
+        // Record expected order amount, coupon metadata, & user/plan metadata on the server for verification during capture/webhook
+        expectedPayPalOrders.set(result.id, {
+          expectedAmount: formattedValue,
+          expectedCurrency: normalizedCurrency,
+          priceMAD: resolvedOrder.priceMAD,
+          originalPriceMAD: resolvedOrder.originalPriceMAD,
+          discountAmountMAD: resolvedOrder.discountAmountMAD,
+          couponCode: resolvedOrder.appliedCouponCode,
+          identifier: resolvedOrder.identifier,
+          sourceType: resolvedOrder.sourceType,
+          userId: resolvedUserId,
+          planId: normalizedPlanId || undefined,
+          billingCycle: resolvedCycle,
+          createdAt: Date.now(),
+        });
+
+        console.log(
+          '[PAYPAL] Order created successfully:',
+          result.id,
+          '| Env:',
+          ppConfig.environmentLabel.toUpperCase(),
+          '| Amount:',
+          formattedValue,
+          normalizedCurrency,
+          '| PriceMAD:',
+          resolvedOrder.priceMAD,
+          resolvedOrder.appliedCouponCode ? `| Coupon: ${resolvedOrder.appliedCouponCode}` : '',
+          '| User:',
+          resolvedUserId
+        );
+
+        return res.status(201).json({
+          id: result.id,
+          status: result.status,
+          amount: resolvedOrder.amountUSD,
+          priceMAD: resolvedOrder.priceMAD,
+          originalPriceMAD: resolvedOrder.originalPriceMAD,
+          discountAmountMAD: resolvedOrder.discountAmountMAD,
+          couponCode: resolvedOrder.appliedCouponCode || null,
+          currency: normalizedCurrency,
+          environment: ppConfig.environmentLabel,
+        });
+      } catch (err: any) {
+        const ppErr = extractPayPalErrorDetails(err);
+        console.error('[PAYPAL CREATE-ORDER ERROR]', {
+          statusCode: ppErr.statusCode,
+          errorCode: ppErr.errorCode,
+          debugId: ppErr.debugId,
+          message: ppErr.message,
+          raw: ppErr.rawResult,
+        });
+        return res.status(ppErr.statusCode).json({
           success: false,
-          error: 'Failed to create PayPal order: Missing order ID in response.',
+          error: ppErr.message,
+          paypalErrorCode: ppErr.errorCode,
+          paypalDebugId: ppErr.debugId,
         });
       }
-
-      // Record expected order amount, coupon metadata, & user/plan metadata on the server for verification during capture/webhook
-      expectedPayPalOrders.set(result.id, {
-        expectedAmount: formattedValue,
-        expectedCurrency: normalizedCurrency,
-        priceMAD: resolvedOrder.priceMAD,
-        originalPriceMAD: resolvedOrder.originalPriceMAD,
-        discountAmountMAD: resolvedOrder.discountAmountMAD,
-        couponCode: resolvedOrder.appliedCouponCode,
-        identifier: resolvedOrder.identifier,
-        sourceType: resolvedOrder.sourceType,
-        userId: resolvedUserId,
-        planId: normalizedPlanId || undefined,
-        billingCycle: resolvedCycle,
-        createdAt: Date.now(),
-      });
-
-      console.log(
-        '[PAYPAL] Order created successfully:',
-        result.id,
-        '| Amount:',
-        formattedValue,
-        normalizedCurrency,
-        '| PriceMAD:',
-        resolvedOrder.priceMAD,
-        resolvedOrder.appliedCouponCode ? `| Coupon: ${resolvedOrder.appliedCouponCode}` : '',
-        '| User:',
-        resolvedUserId
-      );
-
-      return res.status(201).json({
-        id: result.id,
-        status: result.status,
-        amount: resolvedOrder.amountUSD,
-        priceMAD: resolvedOrder.priceMAD,
-        originalPriceMAD: resolvedOrder.originalPriceMAD,
-        discountAmountMAD: resolvedOrder.discountAmountMAD,
-        couponCode: resolvedOrder.appliedCouponCode || null,
-        currency: normalizedCurrency,
-      });
-    } catch (err: any) {
-      console.error('PayPal Create Order Error:', err);
-      const statusCode = err instanceof PayPalApiError ? err.statusCode : 500;
-      return res.status(statusCode || 500).json({
-        success: false,
-        error: err?.result?.message || err?.message || 'Failed to create PayPal order.',
-      });
     }
-  });
+  );
 
   // POST /api/paypal/capture-order/:orderId: Captures an approved PayPal order, verifies COMPLETED status & expected amount, increments coupon usage, and upgrades user plan in DB (Requires Authentication)
-  app.post('/api/paypal/capture-order/:orderId', authMiddleware, async (req: AuthRequest, res: Response) => {
-    try {
-      const orderId = (req.params.orderId || '').trim();
-      const authUserId = req.user!.id;
+  app.post(
+    '/api/paypal/capture-order/:orderId',
+    (req: AuthRequest, res: Response, next: NextFunction) => {
+      console.log(
+        `[PAYPAL BACKEND] Incoming POST /api/paypal/capture-order/${req.params.orderId} | HasAuthHeader: ${Boolean(req.headers.authorization)}`
+      );
+      return authMiddleware(req, res, next);
+    },
+    async (req: AuthRequest, res: Response) => {
+      try {
+        const ppConfig = getPayPalRuntimeConfig();
+        const orderId = (req.params.orderId || '').trim();
+        const authUserId = req.user!.id;
 
-      console.log('[PAYPAL] Capturing order:', orderId, 'for user:', authUserId);
-
-      if (!orderId) {
-        return res.status(400).json({
-          success: false,
-          error: 'Order ID parameter is required.',
-        });
-      }
-
-      if (!PAYPAL_CLIENT_ID || !PAYPAL_CLIENT_SECRET) {
-        console.error('[PAYPAL] Missing PAYPAL_CLIENT_ID or PAYPAL_CLIENT_SECRET during capture.');
-        return res.status(500).json({
-          success: false,
-          error: 'PayPal credentials (PAYPAL_CLIENT_ID / PAYPAL_CLIENT_SECRET) are not configured on the server.',
-        });
-      }
-
-      const { result, statusCode } = await paypalOrdersController.captureOrder({
-        id: orderId,
-        prefer: 'return=representation',
-      });
-
-      const captureStatus =
-        result?.status ||
-        result?.purchaseUnits?.[0]?.payments?.captures?.[0]?.status;
-
-      if (captureStatus !== 'COMPLETED') {
-        console.warn('[PAYPAL CAPTURE] Non-COMPLETED status for order:', orderId, 'Status:', captureStatus);
-        return res.status(400).json({
-          success: false,
-          status: captureStatus || 'UNKNOWN',
-          error: `PayPal order capture status is ${captureStatus || 'incomplete'}, expected COMPLETED.`,
-          details: result,
-        });
-      }
-
-      // Extract the actual captured amount and currency returned by PayPal
-      const captureObj = result?.purchaseUnits?.[0]?.payments?.captures?.[0];
-      const capturedAmountValue =
-        captureObj?.amount?.value ?? result?.purchaseUnits?.[0]?.amount?.value;
-      const capturedCurrencyCode =
-        captureObj?.amount?.currencyCode ?? result?.purchaseUnits?.[0]?.amount?.currencyCode ?? 'USD';
-
-      // Resolve expected server-side amount & metadata from:
-      // 1) In-memory expectedPayPalOrders map
-      // 2) Re-evaluating identifier/pageSlug/planId/couponCode from request body
-      // 3) Embedded customId metadata on the PayPal purchaseUnit
-      const storedOrder = expectedPayPalOrders.get(orderId);
-      const reEvaluatedOrder = resolveTrustedPayPalOrderPrice(req.body || {});
-      let customIdMeta: {
-        id?: string;
-        u?: string;
-        userId?: string;
-        p?: string;
-        planId?: string;
-        c?: string;
-        couponCode?: string;
-        amt?: string;
-        cur?: string;
-      } | null = null;
-      const rawCustomId =
-        captureObj?.customId || result?.purchaseUnits?.[0]?.customId;
-      if (typeof rawCustomId === 'string' && rawCustomId.startsWith('{')) {
-        try {
-          customIdMeta = JSON.parse(rawCustomId);
-        } catch (_e) {
-          customIdMeta = null;
-        }
-      }
-
-      const expectedAmountStr =
-        storedOrder?.expectedAmount ||
-        reEvaluatedOrder?.formattedValue ||
-        customIdMeta?.amt;
-      const expectedCurrencyStr =
-        storedOrder?.expectedCurrency ||
-        reEvaluatedOrder?.currencyCode ||
-        customIdMeta?.cur ||
-        'USD';
-
-      const numericCaptured = Number(capturedAmountValue);
-      const numericExpected = Number(expectedAmountStr);
-
-      if (
-        !Number.isFinite(numericCaptured) ||
-        numericCaptured <= 0 ||
-        !Number.isFinite(numericExpected) ||
-        numericExpected <= 0 ||
-        numericCaptured.toFixed(2) !== numericExpected.toFixed(2) ||
-        String(capturedCurrencyCode).toUpperCase() !== String(expectedCurrencyStr).toUpperCase()
-      ) {
-        console.error('[SECURITY] PayPal Capture Price Mismatch Detected:', {
+        console.log(
+          '[PAYPAL] Capturing order:',
           orderId,
-          capturedAmountValue,
-          capturedCurrencyCode,
-          expectedAmountStr,
-          expectedCurrencyStr,
+          'for user:',
+          authUserId,
+          '| Env:',
+          ppConfig.environmentLabel.toUpperCase()
+        );
+
+        if (!orderId) {
+          return res.status(400).json({
+            success: false,
+            error: 'Order ID parameter is required.',
+          });
+        }
+
+        if (!ppConfig.clientId || !ppConfig.clientSecret) {
+          console.error('[PAYPAL] Missing PAYPAL_CLIENT_ID or PAYPAL_CLIENT_SECRET during capture.');
+          return res.status(500).json({
+            success: false,
+            error: 'PayPal credentials (PAYPAL_CLIENT_ID / PAYPAL_CLIENT_SECRET) are not configured on the server.',
+          });
+        }
+
+        const { result, statusCode } = await ppConfig.ordersController.captureOrder({
+          id: orderId,
+          prefer: 'return=representation',
         });
-        return res.status(400).json({
+
+        const captureStatus =
+          result?.status ||
+          result?.purchaseUnits?.[0]?.payments?.captures?.[0]?.status;
+
+        if (captureStatus !== 'COMPLETED') {
+          console.warn('[PAYPAL CAPTURE] Non-COMPLETED status for order:', orderId, 'Status:', captureStatus);
+          return res.status(400).json({
+            success: false,
+            status: captureStatus || 'UNKNOWN',
+            error: `PayPal order capture status is ${captureStatus || 'incomplete'}, expected COMPLETED.`,
+            details: result,
+          });
+        }
+
+        // Extract the actual captured amount and currency returned by PayPal
+        const captureObj = result?.purchaseUnits?.[0]?.payments?.captures?.[0];
+        const capturedAmountValue =
+          captureObj?.amount?.value ?? result?.purchaseUnits?.[0]?.amount?.value;
+        const capturedCurrencyCode =
+          captureObj?.amount?.currencyCode ?? result?.purchaseUnits?.[0]?.amount?.currencyCode ?? 'USD';
+
+        // Resolve expected server-side amount & metadata from:
+        // 1) In-memory expectedPayPalOrders map
+        // 2) Re-evaluating identifier/pageSlug/planId/couponCode from request body
+        // 3) Embedded customId metadata on the PayPal purchaseUnit
+        const storedOrder = expectedPayPalOrders.get(orderId);
+        const reEvaluatedOrder = resolveTrustedPayPalOrderPrice(req.body || {});
+        let customIdMeta: {
+          id?: string;
+          u?: string;
+          userId?: string;
+          p?: string;
+          planId?: string;
+          c?: string;
+          couponCode?: string;
+          amt?: string;
+          cur?: string;
+        } | null = null;
+        const rawCustomId =
+          captureObj?.customId || result?.purchaseUnits?.[0]?.customId;
+        if (typeof rawCustomId === 'string' && rawCustomId.startsWith('{')) {
+          try {
+            customIdMeta = JSON.parse(rawCustomId);
+          } catch (_e) {
+            customIdMeta = null;
+          }
+        }
+
+        const expectedAmountStr =
+          storedOrder?.expectedAmount ||
+          reEvaluatedOrder?.formattedValue ||
+          customIdMeta?.amt;
+        const expectedCurrencyStr =
+          storedOrder?.expectedCurrency ||
+          reEvaluatedOrder?.currencyCode ||
+          customIdMeta?.cur ||
+          'USD';
+
+        const numericCaptured = Number(capturedAmountValue);
+        const numericExpected = Number(expectedAmountStr);
+
+        if (
+          !Number.isFinite(numericCaptured) ||
+          numericCaptured <= 0 ||
+          !Number.isFinite(numericExpected) ||
+          numericExpected <= 0 ||
+          numericCaptured.toFixed(2) !== numericExpected.toFixed(2) ||
+          String(capturedCurrencyCode).toUpperCase() !== String(expectedCurrencyStr).toUpperCase()
+        ) {
+          console.error('[SECURITY] PayPal Capture Price Mismatch Detected:', {
+            orderId,
+            capturedAmountValue,
+            capturedCurrencyCode,
+            expectedAmountStr,
+            expectedCurrencyStr,
+          });
+          return res.status(400).json({
+            success: false,
+            code: 'PRICE_TAMPERING_DETECTED',
+            error: 'Security verification failed: Captured amount does not match the expected server-side price.',
+          });
+        }
+
+        // Increment coupon usage (currentUses) if a coupon was used on this order (idempotent per orderId)
+        const usedCouponCode =
+          storedOrder?.couponCode ||
+          customIdMeta?.c ||
+          customIdMeta?.couponCode ||
+          (typeof req.body?.couponCode === 'string' ? req.body.couponCode.trim().toUpperCase() : '');
+
+        if (usedCouponCode && !redeemedCouponOrders.has(orderId)) {
+          redeemedCouponOrders.add(orderId);
+          const updatedCoupon = incrementCouponUsage(usedCouponCode);
+          if (updatedCoupon) {
+            console.log(
+              `[PAYPAL CAPTURE] Incremented coupon usage for ${updatedCoupon.code}: ${updatedCoupon.currentUses}/${updatedCoupon.maxUses}`
+            );
+          }
+        }
+
+        // Resolve target userId and planId for subscription upgrade (req.user.id is guaranteed by authMiddleware)
+        const resolvedUserId =
+          req.user?.id ||
+          storedOrder?.userId ||
+          customIdMeta?.userId ||
+          customIdMeta?.u ||
+          '';
+        const resolvedPlanId =
+          normalizePaidPlanId(req.body?.planId) ||
+          normalizePaidPlanId(req.body?.identifier) ||
+          storedOrder?.planId ||
+          normalizePaidPlanId(customIdMeta?.planId) ||
+          normalizePaidPlanId(customIdMeta?.p) ||
+          normalizePaidPlanId(storedOrder?.identifier) ||
+          normalizePaidPlanId(customIdMeta?.id);
+
+        let upgradedUser: ReturnType<typeof toSafeProfile> | null = null;
+
+        if (resolvedUserId && resolvedPlanId) {
+          const existingUser = findUserById(resolvedUserId);
+          if (existingUser) {
+            console.log('[PAYPAL CAPTURE] Upgrading user:', resolvedUserId, 'to plan:', resolvedPlanId);
+
+            // 1. Update user's plan_id ('starter' | 'pro' | 'enterprise') and subscription_status ('active')
+            updateUserPlan(resolvedUserId, resolvedPlanId);
+
+            // 2. Also record PayPal subscription metadata & period end
+            const tier =
+              resolvedPlanId === 'starter'
+                ? 'starter_tier'
+                : resolvedPlanId === 'enterprise'
+                  ? 'enterprise_tier'
+                  : 'pro_monthly';
+            const cycleDays =
+              req.body?.billingCycle === 'yearly' || storedOrder?.billingCycle === 'yearly'
+                ? 365
+                : 30;
+
+            upgradedUser = updateUserSubscription(
+              resolvedUserId,
+              'active',
+              tier,
+              `paypal_${result.payer?.payerId || 'payer'}`,
+              `paypal_order_${orderId}`,
+              new Date(Date.now() + cycleDays * 24 * 60 * 60 * 1000).toISOString()
+            );
+          } else {
+            console.warn('[PAYPAL CAPTURE] User ID not found in DB:', resolvedUserId);
+          }
+        }
+
+        // Clean up stored order after successful verification & upgrade
+        expectedPayPalOrders.delete(orderId);
+
+        return res.status(statusCode || 200).json({
+          success: true,
+          id: result.id,
+          status: 'COMPLETED',
+          capturedAmount: Number(numericCaptured.toFixed(2)),
+          capturedCurrency: expectedCurrencyStr,
+          couponCode: usedCouponCode || undefined,
+          planId: resolvedPlanId || undefined,
+          user: upgradedUser || undefined,
+          payer: result.payer,
+          purchaseUnits: result.purchaseUnits,
+          order: result,
+        });
+      } catch (err: any) {
+        const ppErr = extractPayPalErrorDetails(err);
+        console.error('[PAYPAL CAPTURE-ORDER ERROR]', {
+          statusCode: ppErr.statusCode,
+          errorCode: ppErr.errorCode,
+          debugId: ppErr.debugId,
+          message: ppErr.message,
+          raw: ppErr.rawResult,
+        });
+        return res.status(ppErr.statusCode).json({
           success: false,
-          code: 'PRICE_TAMPERING_DETECTED',
-          error: 'Security verification failed: Captured amount does not match the expected server-side price.',
+          error: ppErr.message,
+          paypalErrorCode: ppErr.errorCode,
+          paypalDebugId: ppErr.debugId,
         });
       }
-
-      // Increment coupon usage (currentUses) if a coupon was used on this order (idempotent per orderId)
-      const usedCouponCode =
-        storedOrder?.couponCode ||
-        customIdMeta?.c ||
-        customIdMeta?.couponCode ||
-        (typeof req.body?.couponCode === 'string' ? req.body.couponCode.trim().toUpperCase() : '');
-
-      if (usedCouponCode && !redeemedCouponOrders.has(orderId)) {
-        redeemedCouponOrders.add(orderId);
-        const updatedCoupon = incrementCouponUsage(usedCouponCode);
-        if (updatedCoupon) {
-          console.log(
-            `[PAYPAL CAPTURE] Incremented coupon usage for ${updatedCoupon.code}: ${updatedCoupon.currentUses}/${updatedCoupon.maxUses}`
-          );
-        }
-      }
-
-      // Resolve target userId and planId for subscription upgrade (req.user.id is guaranteed by authMiddleware)
-      const resolvedUserId =
-        req.user?.id ||
-        storedOrder?.userId ||
-        customIdMeta?.userId ||
-        customIdMeta?.u ||
-        '';
-      const resolvedPlanId =
-        normalizePaidPlanId(req.body?.planId) ||
-        normalizePaidPlanId(req.body?.identifier) ||
-        storedOrder?.planId ||
-        normalizePaidPlanId(customIdMeta?.planId) ||
-        normalizePaidPlanId(customIdMeta?.p) ||
-        normalizePaidPlanId(storedOrder?.identifier) ||
-        normalizePaidPlanId(customIdMeta?.id);
-
-      let upgradedUser: ReturnType<typeof toSafeProfile> | null = null;
-
-      if (resolvedUserId && resolvedPlanId) {
-        const existingUser = findUserById(resolvedUserId);
-        if (existingUser) {
-          console.log('[PAYPAL CAPTURE] Upgrading user:', resolvedUserId, 'to plan:', resolvedPlanId);
-
-          // 1. Update user's plan_id ('starter' | 'pro' | 'enterprise') and subscription_status ('active')
-          updateUserPlan(resolvedUserId, resolvedPlanId);
-
-          // 2. Also record PayPal subscription metadata & period end
-          const tier =
-            resolvedPlanId === 'starter'
-              ? 'starter_tier'
-              : resolvedPlanId === 'enterprise'
-                ? 'enterprise_tier'
-                : 'pro_monthly';
-          const cycleDays =
-            req.body?.billingCycle === 'yearly' || storedOrder?.billingCycle === 'yearly'
-              ? 365
-              : 30;
-
-          upgradedUser = updateUserSubscription(
-            resolvedUserId,
-            'active',
-            tier,
-            `paypal_${result.payer?.payerId || 'payer'}`,
-            `paypal_order_${orderId}`,
-            new Date(Date.now() + cycleDays * 24 * 60 * 60 * 1000).toISOString()
-          );
-        } else {
-          console.warn('[PAYPAL CAPTURE] User ID not found in DB:', resolvedUserId);
-        }
-      }
-
-      // Clean up stored order after successful verification & upgrade
-      expectedPayPalOrders.delete(orderId);
-
-      return res.status(statusCode || 200).json({
-        success: true,
-        id: result.id,
-        status: 'COMPLETED',
-        capturedAmount: Number(numericCaptured.toFixed(2)),
-        capturedCurrency: expectedCurrencyStr,
-        couponCode: usedCouponCode || undefined,
-        planId: resolvedPlanId || undefined,
-        user: upgradedUser || undefined,
-        payer: result.payer,
-        purchaseUnits: result.purchaseUnits,
-        order: result,
-      });
-    } catch (err: any) {
-      console.error('PayPal Capture Order Error:', err);
-      const statusCode = err instanceof PayPalApiError ? err.statusCode : 500;
-      return res.status(statusCode || 500).json({
-        success: false,
-        error: err?.result?.message || err?.message || 'Failed to capture PayPal order.',
-      });
     }
-  });
+  );
 
   // POST /api/paypal/webhook: Handles PayPal Webhook events (e.g., PAYMENT.CAPTURE.COMPLETED)
   app.post('/api/paypal/webhook', async (req: Request, res: Response) => {
     try {
+      const ppConfig = getPayPalRuntimeConfig();
       const transmissionId = req.header('paypal-transmission-id');
       const transmissionTime = req.header('paypal-transmission-time');
       const transmissionSig = req.header('paypal-transmission-sig');
       const certUrl = req.header('paypal-cert-url');
       const authAlgo = req.header('paypal-auth-algo');
-      const webhookId = (process.env.PAYPAL_WEBHOOK_ID || '').trim();
+      const webhookId = ppConfig.webhookId;
 
       const event = req.body;
       if (!event || !event.event_type) {
@@ -2714,7 +2853,12 @@ async function startServer() {
         return res.status(400).json({ success: false, error: 'Invalid PayPal webhook payload.' });
       }
 
-      console.log('[PAYPAL WEBHOOK] Received event:', event.event_type);
+      console.log(
+        '[PAYPAL WEBHOOK] Received event:',
+        event.event_type,
+        '| Env:',
+        ppConfig.environmentLabel.toUpperCase()
+      );
 
       // Strict Signature Verification using PAYPAL_WEBHOOK_ID
       let verificationStatus = 'UNVERIFIED';
@@ -2737,7 +2881,7 @@ async function startServer() {
         });
       }
 
-      if (!PAYPAL_CLIENT_ID || !PAYPAL_CLIENT_SECRET) {
+      if (!ppConfig.clientId || !ppConfig.clientSecret) {
         verificationStatus = 'MISSING_PAYPAL_CREDENTIALS';
         console.log('[PAYPAL WEBHOOK] Verification status:', verificationStatus);
         return res.status(500).json({
@@ -2746,12 +2890,9 @@ async function startServer() {
         });
       }
 
-      const baseUrl =
-        paypalEnvironment === PayPalEnvironment.Production
-          ? 'https://api-m.paypal.com'
-          : 'https://api-m.sandbox.paypal.com';
+      const baseUrl = ppConfig.apiBaseUrl;
 
-      const basicAuth = Buffer.from(`${PAYPAL_CLIENT_ID}:${PAYPAL_CLIENT_SECRET}`).toString('base64');
+      const basicAuth = Buffer.from(`${ppConfig.clientId}:${ppConfig.clientSecret}`).toString('base64');
       const tokenRes = await fetch(`${baseUrl}/v1/oauth2/token`, {
         method: 'POST',
         headers: {
@@ -3415,7 +3556,11 @@ Return ONLY a valid JSON object matching this exact schema (no markdown outside 
   setupSandboxTerminalWebSocket(httpServer);
 
   httpServer.listen(PORT, '0.0.0.0', () => {
+    const ppStartup = getPayPalRuntimeConfig();
     console.log(`CodWorth Builder & Billing Server running on http://0.0.0.0:${PORT}`);
+    console.log(
+      `[PAYPAL RUNTIME] PAYPAL_ENVIRONMENT="${ppStartup.rawEnv}" -> Resolved Mode: ${ppStartup.environmentLabel.toUpperCase()} (${ppStartup.apiBaseUrl}) | PAYPAL_CLIENT_ID(first 10): "${ppStartup.clientId ? ppStartup.clientId.slice(0, 10) : 'MISSING'}"`
+    );
   });
 }
 

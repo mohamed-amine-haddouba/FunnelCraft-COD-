@@ -186,6 +186,8 @@ export const PricingPage: React.FC<PricingPageProps> = ({
   const [checkoutSuccess, setCheckoutSuccess] = useState<string | null>(null);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [runtimePayPalClientId, setRuntimePayPalClientId] = useState<string>('');
+  const [runtimePayPalEnv, setRuntimePayPalEnv] = useState<'live' | 'sandbox'>('sandbox');
+  const [isPayPalConfigLoaded, setIsPayPalConfigLoaded] = useState<boolean>(false);
 
   const checkoutSectionRef = useRef<HTMLDivElement>(null);
 
@@ -282,11 +284,23 @@ export const PricingPage: React.FC<PricingPageProps> = ({
     fetch('/api/paypal/config')
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
-        if (mounted && data && typeof data.clientId === 'string' && data.clientId.trim()) {
-          setRuntimePayPalClientId(data.clientId.trim());
+        if (!mounted) return;
+        if (data && typeof data.clientId === 'string' && data.clientId.trim()) {
+          setRuntimePayPalClientId(data.clientId.trim().replace(/^['"]|['"]$/g, ''));
         }
+        if (data && (data.environment === 'live' || data.environment === 'production')) {
+          setRuntimePayPalEnv('live');
+        } else {
+          setRuntimePayPalEnv('sandbox');
+        }
+        setIsPayPalConfigLoaded(true);
       })
-      .catch(() => {});
+      .catch((err) => {
+        console.error('[PAYPAL FRONTEND] Failed to load /api/paypal/config:', err);
+        if (mounted) {
+          setIsPayPalConfigLoaded(true);
+        }
+      });
 
     return () => {
       mounted = false;
@@ -503,11 +517,20 @@ export const PricingPage: React.FC<PricingPageProps> = ({
     }
   };
 
-  const paypalClientId =
+  const buildTimePayPalClientId = (
     (import.meta as unknown as { env?: Record<string, string> }).env
-      ?.VITE_PAYPAL_CLIENT_ID ||
-    runtimePayPalClientId ||
-    'test';
+      ?.VITE_PAYPAL_CLIENT_ID || ''
+  )
+    .trim()
+    .replace(/^['"]|['"]$/g, '');
+
+  // Prefer server-verified runtime Client ID (from /api/paypal/config) over build-time VITE_PAYPAL_CLIENT_ID, and never use 'test' or empty string in Live mode
+  const paypalClientId = (runtimePayPalClientId || buildTimePayPalClientId).trim();
+  const isValidPayPalClientId =
+    Boolean(paypalClientId) &&
+    paypalClientId !== 'test' &&
+    paypalClientId !== 'sb' &&
+    paypalClientId !== 'undefined';
 
   return (
     <div
@@ -962,63 +985,58 @@ export const PricingPage: React.FC<PricingPageProps> = ({
                   {/* Official PayPal Script Provider & Buttons */}
                   <div className="max-w-md mx-auto space-y-4">
                     <div className="bg-white rounded-2xl p-4 shadow-inner">
-                      <PayPalScriptProvider
-                        key={paypalClientId}
-                        options={{
-                          clientId: paypalClientId,
-                          currency: 'USD',
-                          intent: 'capture',
-                        }}
-                      >
-                        <PayPalButtons
-                          forceReRender={[
-                            selectedPaidTier.id,
-                            billingCycle,
-                            appliedCoupon?.code || '',
-                            token,
-                            user?.id,
-                          ]}
-                          style={{
-                            layout: 'vertical',
-                            color: 'gold',
-                            shape: 'rect',
-                            label: 'paypal',
-                            height: 44,
+                      {!isPayPalConfigLoaded ? (
+                        <div className="py-6 flex items-center justify-center gap-2 text-slate-600 text-xs font-bold">
+                          <Loader2 className="w-4 h-4 animate-spin text-emerald-600" />
+                          <span>جاري تهيئة بوابة الدفع PayPal...</span>
+                        </div>
+                      ) : !isValidPayPalClientId ? (
+                        <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-bold text-center">
+                          معرّف PayPal Client ID غير مضبوط بشكل صحيح على الخادم (PAYPAL_CLIENT_ID / VITE_PAYPAL_CLIENT_ID).
+                        </div>
+                      ) : (
+                        <PayPalScriptProvider
+                          key={`${paypalClientId}_${runtimePayPalEnv}`}
+                          options={{
+                            clientId: paypalClientId,
+                            currency: 'USD',
+                            intent: 'capture',
+                            components: 'buttons',
                           }}
-                          createOrder={async () => {
-                            const activeToken =
-                              token || localStorage.getItem('funnelcraft_auth_token') || '';
+                        >
+                          <PayPalButtons
+                            forceReRender={[
+                              selectedPaidTier.id,
+                              billingCycle,
+                              appliedCoupon?.code || '',
+                              token,
+                              user?.id,
+                              paypalClientId,
+                            ]}
+                            style={{
+                              layout: 'vertical',
+                              color: 'gold',
+                              shape: 'rect',
+                              label: 'paypal',
+                              height: 44,
+                            }}
+                            createOrder={async () => {
+                              setCheckoutError(null);
+                              try {
+                                const activeToken =
+                                  token || localStorage.getItem('funnelcraft_auth_token') || '';
 
-                            const res = await fetch('/api/paypal/create-order', {
-                              method: 'POST',
-                              headers: {
-                                'Content-Type': 'application/json',
-                                Authorization: `Bearer ${activeToken}`,
-                              },
-                              body: JSON.stringify({
-                                userId: user?.id,
-                                identifier: selectedPaidTier.id,
-                                planId: selectedPaidTier.id,
-                                billingCycle,
-                                couponCode: appliedCoupon?.code || undefined,
-                              }),
-                            });
-                            const data = await res.json();
-                            if (!res.ok || !data.id) {
-                              throw new Error(data.error || 'Failed to create PayPal order');
-                            }
-                            return data.id;
-                          }}
-                          onApprove={async (data) => {
-                            setIsProcessing(true);
-                            setCheckoutError(null);
-                            try {
-                              const activeToken =
-                                token || localStorage.getItem('funnelcraft_auth_token') || '';
+                                if (!activeToken) {
+                                  const authMsg =
+                                    'يرجى تسجيل الدخول أولاً قبل إتمام الدفع عبر PayPal.';
+                                  console.error(
+                                    '[PAYPAL FRONTEND] createOrder aborted: Missing auth token.'
+                                  );
+                                  setCheckoutError(authMsg);
+                                  throw new Error(authMsg);
+                                }
 
-                              const captureRes = await fetch(
-                                `/api/paypal/capture-order/${encodeURIComponent(data.orderID)}`,
-                                {
+                                const res = await fetch('/api/paypal/create-order', {
                                   method: 'POST',
                                   headers: {
                                     'Content-Type': 'application/json',
@@ -1031,47 +1049,129 @@ export const PricingPage: React.FC<PricingPageProps> = ({
                                     billingCycle,
                                     couponCode: appliedCoupon?.code || undefined,
                                   }),
+                                });
+
+                                const data = await res.json().catch(() => ({}));
+                                if (!res.ok || !data || typeof data.id !== 'string' || !data.id.trim()) {
+                                  const errMsg =
+                                    data?.error ||
+                                    `Failed to create PayPal order (HTTP ${res.status})`;
+                                  console.error('[PAYPAL FRONTEND] createOrder backend failure:', {
+                                    status: res.status,
+                                    responseData: data,
+                                    clientIdPrefix: paypalClientId.slice(0, 10),
+                                    environment: runtimePayPalEnv,
+                                  });
+                                  setCheckoutError(errMsg);
+                                  throw new Error(errMsg);
                                 }
-                              );
-                              const captureData = await captureRes.json().catch(() => ({}));
-                              if (
-                                !captureRes.ok ||
-                                !captureData.success ||
-                                captureData.status !== 'COMPLETED'
-                              ) {
-                                throw new Error(
-                                  captureData.error || 'تعذر التحقق من قيمة الدفع عبر PayPal.'
+
+                                console.log(
+                                  '[PAYPAL FRONTEND] Order created:',
+                                  data.id,
+                                  '| Env:',
+                                  data.environment || runtimePayPalEnv
                                 );
-                              }
-
-                              console.log('[PAYPAL FRONTEND] Capture success, now upgrading plan...');
-
-                              // Refresh authenticated user session (already upgraded in capture-order) and invoke upgradeToPro fallback
-                              await refreshUser();
-                              const upg = await upgradeToPro(selectedPaidTier.id);
-                              await refreshUser();
-
-                              if (captureData.user || upg.success) {
-                                try {
-                                  localStorage.setItem('funnelcraft_plan', selectedPaidTier.id);
-                                } catch (_) {}
-                                onUpgradeSuccess(selectedPaidTier.id);
-                                setCheckoutSuccess(
-                                  `🎉 تم تأكيد دفعتك عبر PayPal وتفعيل ${selectedPaidTier.nameAr} بنجاح!`
+                                return data.id;
+                              } catch (err: unknown) {
+                                console.error(
+                                  '[PAYPAL FRONTEND] Exception inside createOrder callback:',
+                                  err
                                 );
+                                const msg =
+                                  err instanceof Error
+                                    ? err.message
+                                    : 'Failed to initialize PayPal order.';
+                                setCheckoutError(msg);
+                                throw err;
                               }
-                            } catch (err: unknown) {
-                              setCheckoutError(
+                            }}
+                            onApprove={async (data) => {
+                              setIsProcessing(true);
+                              setCheckoutError(null);
+                              try {
+                                const activeToken =
+                                  token || localStorage.getItem('funnelcraft_auth_token') || '';
+
+                                const captureRes = await fetch(
+                                  `/api/paypal/capture-order/${encodeURIComponent(data.orderID)}`,
+                                  {
+                                    method: 'POST',
+                                    headers: {
+                                      'Content-Type': 'application/json',
+                                      Authorization: `Bearer ${activeToken}`,
+                                    },
+                                    body: JSON.stringify({
+                                      userId: user?.id,
+                                      identifier: selectedPaidTier.id,
+                                      planId: selectedPaidTier.id,
+                                      billingCycle,
+                                      couponCode: appliedCoupon?.code || undefined,
+                                    }),
+                                  }
+                                );
+                                const captureData = await captureRes.json().catch(() => ({}));
+                                if (
+                                  !captureRes.ok ||
+                                  !captureData.success ||
+                                  captureData.status !== 'COMPLETED'
+                                ) {
+                                  console.error('[PAYPAL FRONTEND] captureOrder failure:', {
+                                    status: captureRes.status,
+                                    captureData,
+                                  });
+                                  throw new Error(
+                                    captureData.error || 'تعذر التحقق من قيمة الدفع عبر PayPal.'
+                                  );
+                                }
+
+                                console.log(
+                                  '[PAYPAL FRONTEND] Capture success, now upgrading plan...'
+                                );
+
+                                // Refresh authenticated user session (already upgraded in capture-order) and invoke upgradeToPro fallback
+                                await refreshUser();
+                                const upg = await upgradeToPro(selectedPaidTier.id);
+                                await refreshUser();
+
+                                if (captureData.user || upg.success) {
+                                  try {
+                                    localStorage.setItem('funnelcraft_plan', selectedPaidTier.id);
+                                  } catch (_) {}
+                                  onUpgradeSuccess(selectedPaidTier.id);
+                                  setCheckoutSuccess(
+                                    `🎉 تم تأكيد دفعتك عبر PayPal وتفعيل ${selectedPaidTier.nameAr} بنجاح!`
+                                  );
+                                }
+                              } catch (err: unknown) {
+                                console.error(
+                                  '[PAYPAL FRONTEND] Exception inside onApprove callback:',
+                                  err
+                                );
+                                setCheckoutError(
+                                  err instanceof Error
+                                    ? err.message
+                                    : 'تعذر تأكيد عملية الدفع عبر PayPal.'
+                                );
+                              } finally {
+                                setIsProcessing(false);
+                              }
+                            }}
+                            onError={(err) => {
+                              console.error('[PAYPAL SDK onError]', err);
+                              const sdkErrMsg =
                                 err instanceof Error
                                   ? err.message
-                                  : 'تعذر تأكيد عملية الدفع عبر PayPal.'
+                                  : typeof err === 'object' && err !== null && 'message' in err
+                                    ? String((err as { message?: unknown }).message)
+                                    : String(err || 'Unknown PayPal SDK error');
+                              setCheckoutError(
+                                `خطأ من بوابة PayPal: ${sdkErrMsg}`
                               );
-                            } finally {
-                              setIsProcessing(false);
-                            }
-                          }}
-                        />
-                      </PayPalScriptProvider>
+                            }}
+                          />
+                        </PayPalScriptProvider>
+                      )}
                     </div>
 
                     {/* Instant PayPal Sandbox / Direct Checkout Button for quick verification */}
