@@ -26,6 +26,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { SubscriptionPlanId } from '../types/orders';
 import { useLanguage } from '../i18n/translations';
+import { UserIpTransparencyWidget } from './Dashboard';
 
 interface SettingsPageProps {
   isOpen?: boolean;
@@ -628,6 +629,11 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
               <span>{isSaving ? t.saving : t.saveSettings}</span>
             </button>
           </div>
+
+          {/* Task 4: User IP Transparency & Last Login Forensics */}
+          <div className="pt-3 border-t border-slate-800">
+            <UserIpTransparencyWidget />
+          </div>
         </form>
       )}
 
@@ -996,6 +1002,9 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
               {isTwoFactorEnabled ? '2FA Active ✓' : t.enable2fa}
             </button>
           </div>
+
+          {/* Task 4: User IP Transparency & Last Login Forensics */}
+          <UserIpTransparencyWidget />
         </div>
       )}
     </div>

@@ -26,6 +26,15 @@ import {
   validateAndNormalizeCustomDomain,
 } from '../src/utils/planLimits';
 import { generateStandaloneHtml } from '../src/utils/htmlExporter';
+import {
+  SecurityLoginAuditEntry,
+  SecurityAuthMethod,
+  SecurityLoginStatus,
+  MAX_SECURITY_LOGIN_AUDIT_ENTRIES,
+  capSecurityAuditEntries,
+  redactForensicSensitiveData,
+  parseUserAgentInfo,
+} from '../src/utils/ipAndForensics';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -37,6 +46,7 @@ const ORDERS_FILE = path.resolve(DATA_DIR, 'orders.json');
 const SETTINGS_FILE = path.resolve(DATA_DIR, 'settings.json');
 const PLANS_FILE = path.resolve(DATA_DIR, 'plans.json');
 const COUPONS_FILE = path.resolve(DATA_DIR, 'coupons.json');
+const SECURITY_LOGIN_AUDIT_FILE = path.resolve(DATA_DIR, 'security_login_audit.json');
 
 export interface SubscriptionPlanConfig {
   id: 'starter' | 'pro' | 'enterprise';
@@ -200,6 +210,10 @@ export function ensureDataFiles(): void {
 
     if (!fs.existsSync(COUPONS_FILE)) {
       fs.writeFileSync(COUPONS_FILE, JSON.stringify([], null, 2), 'utf-8');
+    }
+
+    if (!fs.existsSync(SECURITY_LOGIN_AUDIT_FILE)) {
+      fs.writeFileSync(SECURITY_LOGIN_AUDIT_FILE, JSON.stringify([], null, 2), 'utf-8');
     }
 
     console.log('[BOOT] Data files verified (existing files preserved).');
@@ -2423,5 +2437,144 @@ export function validateAndCalculateCoupon(
     discountAmount,
   };
 }
+
+/* ---------------- FORENSIC LOGIN AUDIT LOG (data/security_login_audit.json) ---------------- */
+
+function loadSecurityLoginAuditFromDisk(): SecurityLoginAuditEntry[] {
+  try {
+    if (!fs.existsSync(SECURITY_LOGIN_AUDIT_FILE)) {
+      return [];
+    }
+    const raw = fs.readFileSync(SECURITY_LOGIN_AUDIT_FILE, 'utf-8');
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) {
+      return capSecurityAuditEntries(parsed as SecurityLoginAuditEntry[], MAX_SECURITY_LOGIN_AUDIT_ENTRIES);
+    }
+  } catch (err) {
+    console.warn('[SECURITY AUDIT] Failed to read data/security_login_audit.json:', err);
+  }
+  return [];
+}
+
+let securityLoginAuditLogs: SecurityLoginAuditEntry[] = loadSecurityLoginAuditFromDisk();
+
+function saveSecurityLoginAuditToDisk(entries: SecurityLoginAuditEntry[]): void {
+  try {
+    if (!fs.existsSync(DATA_DIR)) {
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+    }
+    const capped = capSecurityAuditEntries(entries, MAX_SECURITY_LOGIN_AUDIT_ENTRIES);
+    const tmpFile = `${SECURITY_LOGIN_AUDIT_FILE}.tmp.${process.pid}`;
+    fs.writeFileSync(tmpFile, JSON.stringify(capped, null, 2), { encoding: 'utf-8', mode: 0o600 });
+    fs.renameSync(tmpFile, SECURITY_LOGIN_AUDIT_FILE);
+  } catch (err) {
+    console.error('[SECURITY AUDIT] Failed to write data/security_login_audit.json:', err);
+  }
+}
+
+/**
+ * Appends a redacted forensic authentication entry to data/security_login_audit.json
+ * and enforces the 5,000-entry rolling cap to prevent disk bloat.
+ */
+export function recordSecurityLoginAudit(params: {
+  userEmail: string;
+  ipAddress: string;
+  location?: string;
+  userAgent: string;
+  authMethod: SecurityAuthMethod;
+  status: SecurityLoginStatus;
+  failureReason?: string | null;
+}): SecurityLoginAuditEntry {
+  const uaInfo = parseUserAgentInfo(params.userAgent);
+  const rawEntry: SecurityLoginAuditEntry = {
+    id: `sec-login-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`,
+    timestamp: new Date().toISOString(),
+    userEmail: (params.userEmail || 'unknown').trim().toLowerCase().slice(0, 254),
+    ipAddress: (params.ipAddress || '0.0.0.0').trim().slice(0, 64),
+    location: params.location ? String(params.location).trim().slice(0, 100) : 'Public Network',
+    userAgent: uaInfo.userAgent,
+    deviceSummary: uaInfo.deviceSummary,
+    authMethod: params.authMethod,
+    status: params.status,
+    failureReason:
+      params.status === 'FAILED'
+        ? (params.failureReason || 'authentication_failed').trim().slice(0, 120)
+        : null,
+  };
+
+  const sanitizedEntry = redactForensicSensitiveData(
+    rawEntry as unknown as Record<string, unknown>
+  ) as unknown as SecurityLoginAuditEntry;
+
+  securityLoginAuditLogs = capSecurityAuditEntries(
+    [sanitizedEntry, ...loadSecurityLoginAuditFromDisk()],
+    MAX_SECURITY_LOGIN_AUDIT_ENTRIES
+  );
+  saveSecurityLoginAuditToDisk(securityLoginAuditLogs);
+
+  return sanitizedEntry;
+}
+
+/**
+ * Retrieves forensic login audit entries for the Owner's Security & Forensics panel.
+ */
+export function getSecurityLoginAuditLogs(options?: {
+  limit?: number;
+  search?: string;
+  status?: 'ALL' | 'SUCCESS' | 'FAILED';
+}): SecurityLoginAuditEntry[] {
+  securityLoginAuditLogs = loadSecurityLoginAuditFromDisk();
+  let filtered = securityLoginAuditLogs;
+
+  if (options?.status && (options.status === 'SUCCESS' || options.status === 'FAILED')) {
+    filtered = filtered.filter((entry) => entry.status === options.status);
+  }
+
+  if (options?.search && options.search.trim()) {
+    const q = options.search.trim().toLowerCase();
+    filtered = filtered.filter(
+      (entry) =>
+        entry.userEmail.toLowerCase().includes(q) ||
+        entry.ipAddress.toLowerCase().includes(q) ||
+        (entry.failureReason && entry.failureReason.toLowerCase().includes(q)) ||
+        (entry.deviceSummary && entry.deviceSummary.toLowerCase().includes(q))
+    );
+  }
+
+  const maxLimit = Math.min(
+    MAX_SECURITY_LOGIN_AUDIT_ENTRIES,
+    Math.max(1, Number(options?.limit) || 500)
+  );
+  return filtered.slice(0, maxLimit);
+}
+
+/**
+ * Updates a user's lastLoginIp, lastLoginAt, lastLoginLocation, and lastLoginUserAgent
+ * upon successful authentication.
+ */
+export function recordUserLoginMetadata(
+  userId: string,
+  ipAddress: string,
+  location?: string,
+  userAgent?: string
+): UserProfile | null {
+  const user = users.get(userId);
+  if (!user) return null;
+
+  user.lastLoginIp = (ipAddress || '0.0.0.0').trim();
+  user.lastLoginAt = new Date().toISOString();
+  if (location) {
+    user.lastLoginLocation = location.trim();
+  }
+  if (userAgent) {
+    const uaInfo = parseUserAgentInfo(userAgent);
+    user.lastLoginUserAgent = uaInfo.deviceSummary;
+  }
+
+  users.set(userId, user);
+  saveUsersToDisk(users);
+  return toSafeProfile(user);
+}
+
 
 

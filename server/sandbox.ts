@@ -25,9 +25,17 @@ import {
   getCoupons,
   createCoupon,
   deleteOrDisableCoupon,
+  getAllUsers,
+  recordSecurityLoginAudit,
+  getSecurityLoginAuditLogs,
+  recordUserLoginMetadata,
   SubscriptionPlanConfig,
   StoredUser,
 } from './db';
+import {
+  getClientIp,
+  resolveClientGeoLocation,
+} from '../src/utils/ipAndForensics';
 import {
   sendSandboxResetEmail,
   sendSandboxTestEmail,
@@ -419,11 +427,7 @@ export function clearAuditLogsForTest(): void {
 /* ---------------- CLIENT IP & COOKIE HELPERS ---------------- */
 
 export function getRequestIp(req: Request): string {
-  const forwarded = req.headers['x-forwarded-for'];
-  if (typeof forwarded === 'string' && forwarded.trim()) {
-    return forwarded.split(',')[0].trim();
-  }
-  return req.ip || req.socket?.remoteAddress || '127.0.0.1';
+  return getClientIp(req);
 }
 
 export function parseCookies(cookieHeader: string | undefined): Record<string, string> {
@@ -1785,6 +1789,7 @@ export function createSandboxRouter(): Router {
       const normalizedEmail = email.toLowerCase().trim();
 
       const gate = checkLoginAllowed(ip, normalizedEmail);
+      const clientLocation = resolveClientGeoLocation(req, ip);
       if (!gate.allowed) {
         recordAuditLog({
           actorEmail: normalizedEmail,
@@ -1796,6 +1801,15 @@ export function createSandboxRouter(): Router {
             reason: gate.reason,
             retryAfterSeconds: gate.retryAfterSeconds,
           },
+        });
+        recordSecurityLoginAudit({
+          userEmail: normalizedEmail,
+          ipAddress: ip,
+          location: clientLocation,
+          userAgent: String(userAgent),
+          authMethod: 'sandbox_owner',
+          status: 'FAILED',
+          failureReason: gate.reason === 'locked' ? 'account_locked' : 'rate_limited',
         });
         await enforceMinimumDuration(startNs, 90);
         return sendUnifiedResponse(res, 429, {
@@ -1831,6 +1845,19 @@ export function createSandboxRouter(): Router {
             lockedOut: failureState.lockedOut,
             rateLimited: failureState.rateLimited,
           },
+        });
+        recordSecurityLoginAudit({
+          userEmail: normalizedEmail,
+          ipAddress: ip,
+          location: clientLocation,
+          userAgent: String(userAgent),
+          authMethod: 'sandbox_owner',
+          status: 'FAILED',
+          failureReason: failureState.lockedOut
+            ? 'account_locked'
+            : !candidateUser || !passwordMatches
+            ? 'invalid_password'
+            : 'unauthorized_non_owner',
         });
         await enforceMinimumDuration(startNs, 90);
         return sendUnifiedResponse(res, 401, {
@@ -1869,6 +1896,17 @@ export function createSandboxRouter(): Router {
       if (usedCsrf) {
         bindCsrfTokenToSession(usedCsrf, rawToken);
       }
+
+      recordUserLoginMetadata(candidateUser.id, ip, clientLocation, String(userAgent));
+      recordSecurityLoginAudit({
+        userEmail: candidateUser.email,
+        ipAddress: ip,
+        location: clientLocation,
+        userAgent: String(userAgent),
+        authMethod: 'sandbox_owner',
+        status: 'SUCCESS',
+        failureReason: null,
+      });
 
       recordAuditLog({
         actorEmail: candidateUser.email,
@@ -2335,6 +2373,45 @@ export function createSandboxRouter(): Router {
       code: 'OK',
       message: 'Audit log entries retrieved.',
       entries: getAuditLogs(100),
+    });
+  });
+
+  // 10b. GET /api/sandbox/security-logs — Owner-only Global Forensic Login Audit & Merchant IP Visibility
+  router.get('/security-logs', requireOwner, (req: SandboxAuthRequest, res: Response) => {
+    const search = typeof req.query.search === 'string' ? req.query.search : undefined;
+    const statusParam =
+      typeof req.query.status === 'string' ? req.query.status.toUpperCase() : 'ALL';
+    const statusFilter: 'ALL' | 'SUCCESS' | 'FAILED' =
+      statusParam === 'SUCCESS' || statusParam === 'FAILED' ? statusParam : 'ALL';
+    const limit = Math.min(5000, Math.max(1, Number(req.query.limit) || 500));
+
+    const logs = getSecurityLoginAuditLogs({
+      limit,
+      search,
+      status: statusFilter,
+    });
+
+    const merchants = getAllUsers().map((u) => ({
+      id: u.id,
+      email: u.email,
+      fullName: u.full_name,
+      storeName: u.store_name || '—',
+      role: u.role,
+      planId: u.plan_id || 'free',
+      status: u.status || 'active',
+      lastLoginIp: u.lastLoginIp || null,
+      lastLoginAt: u.lastLoginAt || null,
+      lastLoginLocation: u.lastLoginLocation || null,
+      lastLoginUserAgent: u.lastLoginUserAgent || null,
+    }));
+
+    return sendUnifiedResponse(res, 200, {
+      ok: true,
+      code: 'SECURITY_LOGS_LOADED',
+      message: 'Forensic security login audit logs retrieved.',
+      logs,
+      merchants,
+      maxRetainedEntries: 5000,
     });
   });
 
@@ -3460,11 +3537,10 @@ function extractWsSandboxSession(req: IncomingMessage): {
 }
 
 function extractWsClientIp(req: IncomingMessage): string {
-  const xff = req.headers['x-forwarded-for'];
-  if (typeof xff === 'string' && xff.trim()) {
-    return xff.split(',')[0].trim();
-  }
-  return req.socket?.remoteAddress || '0.0.0.0';
+  return getClientIp({
+    headers: req.headers as Record<string, string | string[] | undefined>,
+    socket: req.socket,
+  });
 }
 
 export function setupSandboxTerminalWebSocket(httpServer: HttpServer): WebSocketServer {

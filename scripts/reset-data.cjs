@@ -27,6 +27,7 @@ const FILES = {
   coupons: path.join(DATA_DIR, 'coupons.json'),
   plans: path.join(DATA_DIR, 'plans.json'),
   auditLogs: path.join(DATA_DIR, 'sandbox_audit.json'),
+  securityLoginAudit: path.join(DATA_DIR, 'security_login_audit.json'),
   payments: path.join(DATA_DIR, 'payments.json'),
   sandboxSessions: path.join(DATA_DIR, 'sandbox_sessions.json'),
   sandboxResetTokens: path.join(DATA_DIR, 'sandbox_reset_tokens.json'),
@@ -213,6 +214,13 @@ function runFactoryReset() {
   writeJsonAtomic(FILES.auditLogs, []);
   console.log(
     `[RESET] Cleared ${auditCount} audit log entries in data/sandbox_audit.json (reset to []).`
+  );
+
+  const existingSecLoginAudit = readJsonSafe(FILES.securityLoginAudit, []);
+  const secLoginAuditCount = Array.isArray(existingSecLoginAudit) ? existingSecLoginAudit.length : 0;
+  writeJsonAtomic(FILES.securityLoginAudit, []);
+  console.log(
+    `[RESET] Cleared ${secLoginAuditCount} forensic login audit entries in data/security_login_audit.json (reset to []).`
   );
 
   // Clean any rotated audit log archives (sandbox_audit.*.json)

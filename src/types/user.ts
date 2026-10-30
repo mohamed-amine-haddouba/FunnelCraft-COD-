@@ -24,6 +24,10 @@ export interface UserProfile {
   stripe_customer_id?: string;
   stripe_subscription_id?: string;
   current_period_end?: string;
+  lastLoginIp?: string;
+  lastLoginAt?: string;
+  lastLoginLocation?: string;
+  lastLoginUserAgent?: string;
 }
 
 export type MoroccanPaymentMethod = 'CIH' | 'Attijariwafa' | 'BanquePopulaire' | 'CashPlus' | 'Wafacash';

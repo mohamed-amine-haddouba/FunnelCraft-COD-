@@ -713,11 +713,20 @@ export const AdminOwnerDashboard: React.FC<Props> = ({ onImpersonateSuccess }) =
                               </div>
                             </td>
 
-                            {/* Contact info */}
+                            {/* Contact info + Forensic Last Login IP & Timestamp (Task 3.3) */}
                             <td className="py-2.5 px-3">
                               <div className="text-[11px] text-slate-300 flex flex-col gap-0.5">
                                 <span className="font-mono">{u.email}</span>
                                 <span className="text-slate-400 font-mono text-[10px]">{u.phone || 'غير محدد'}</span>
+                                <div className="mt-1 pt-1 border-t border-slate-800/80 flex flex-col gap-0.5 text-[10px] font-mono" dir="ltr">
+                                  <span className="text-emerald-400">
+                                    IP: {u.lastLoginIp || 'No IP recorded'}
+                                    {u.lastLoginLocation ? ` (${u.lastLoginLocation})` : ''}
+                                  </span>
+                                  <span className="text-slate-400">
+                                    Last Login: {u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleString() : '—'}
+                                  </span>
+                                </div>
                               </div>
                             </td>
 

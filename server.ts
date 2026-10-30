@@ -67,6 +67,9 @@ import {
   validateAndCalculateCoupon,
   incrementCouponUsage,
   ensureDataFiles,
+  recordSecurityLoginAudit,
+  getSecurityLoginAuditLogs,
+  recordUserLoginMetadata,
 } from './server/db';
 import {
   DEFAULT_EXCHANGE_RATES,
@@ -81,9 +84,15 @@ import {
   checkFeatureAccess,
   validateAndNormalizeCustomDomain,
 } from './src/utils/planLimits';
+import {
+  getClientIp,
+  resolveClientGeoLocation,
+  parseUserAgentInfo,
+} from './src/utils/ipAndForensics';
 import dns from 'node:dns/promises';
 import crypto from 'crypto';
 import cors from 'cors';
+import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import { scrapeProductFromUrl, validateProductUrl, ScrapedProduct } from './server/urlScraper';
 import { scrapeProductData } from './server/scraper';
@@ -275,13 +284,35 @@ function sanitizeInput(val: unknown, maxLength: number = 500): string {
 
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 10, // Max 10 login attempts per 15 mins per IP
+  max: 5, // Strict max 5 login attempts per 15 mins per IP
   standardHeaders: true,
   legacyHeaders: false,
+  keyGenerator: (req) => getClientIp(req),
+  validate: false,
   statusCode: 429,
-  message: {
-    success: false,
-    error: 'تم تجاوز الحد الأقصى لمحاولات تسجيل الدخول (10 محاولات). يرجى الانتظار 15 دقيقة قبل المحاولة مجدداً.',
+  handler: (req, res) => {
+    const ip = getClientIp(req);
+    const email =
+      typeof req.body?.email === 'string' && req.body.email.trim()
+        ? req.body.email.trim().toLowerCase()
+        : 'unknown';
+    recordSecurityLoginAudit({
+      userEmail: email,
+      ipAddress: ip,
+      location: resolveClientGeoLocation(req, ip),
+      userAgent: String(req.headers['user-agent'] || 'unknown'),
+      authMethod: req.originalUrl.includes('/sandbox/') ? 'sandbox_owner' : 'password',
+      status: 'FAILED',
+      failureReason: 'rate_limited_5_per_15m',
+    });
+    res.status(429).json({
+      success: false,
+      ok: false,
+      code: 'RATE_LIMITED',
+      error:
+        'تم تجاوز الحد الأقصى لمحاولات تسجيل الدخول (5 محاولات خلال 15 دقيقة). يرجى الانتظار 15 دقيقة قبل المحاولة مجدداً.',
+      message: 'Too many login attempts (max 5 per 15 minutes). Please try again later.',
+    });
   },
 });
 
@@ -290,6 +321,8 @@ const verifyOtpLimiter = rateLimit({
   max: 5, // Max 5 OTP verification attempts per 15 mins per IP
   standardHeaders: true,
   legacyHeaders: false,
+  keyGenerator: (req) => getClientIp(req),
+  validate: false,
   statusCode: 429,
   message: {
     success: false,
@@ -302,6 +335,8 @@ const forgotPasswordLimiter = rateLimit({
   max: 3, // Max 3 password reset requests per 1 hour per IP
   standardHeaders: true,
   legacyHeaders: false,
+  keyGenerator: (req) => getClientIp(req),
+  validate: false,
   statusCode: 429,
   message: {
     success: false,
@@ -313,6 +348,22 @@ async function startServer() {
   const app = express();
   const PORT = Number(process.env.PORT) || 3000;
 
+  // Task 1: Trust Nginx Reverse Proxy so req.ip reflects the real client IP
+  app.set('trust proxy', 1);
+
+  // Task 5: Helmet security headers to block clickjacking, MIME sniffing, and XSS
+  app.use(
+    helmet({
+      contentSecurityPolicy: false,
+      crossOriginEmbedderPolicy: false,
+      crossOriginOpenerPolicy: false,
+      frameguard: { action: 'sameorigin' },
+      noSniff: true,
+      xssFilter: true,
+      referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+    })
+  );
+
   // CORS Configuration (supports codworth.me, localhost, and preview URLs)
   app.use(
     cors({
@@ -322,10 +373,11 @@ async function startServer() {
     })
   );
 
-  // Security Headers Middleware
+  // Explicit Security Headers Middleware
   app.use((_req: Request, res: Response, next: NextFunction) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+    res.setHeader('X-XSS-Protection', '1; mode=block');
     res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
     next();
   });
@@ -337,7 +389,8 @@ async function startServer() {
     res.json({ status: 'ok', serverTime: new Date().toISOString() });
   });
 
-  // Owner-Only Sandbox API & Server-Side Route Guard
+  // Strict rate-limiter on /api/sandbox/auth/login (5 attempts per 15 mins per IP) + Owner-Only Sandbox API
+  app.use('/api/sandbox/auth/login', loginLimiter);
   app.use('/api/sandbox', createSandboxRouter());
   app.get('/sandbox', sandboxPageServerGuard);
 
@@ -377,20 +430,16 @@ async function startServer() {
   };
 
   const extractDeviceInfo = (req: Request) => {
-    const userAgent = req.headers['user-agent'] || '';
-    let browser = 'Chrome';
-    if (userAgent.includes('Firefox')) browser = 'Firefox';
-    else if (userAgent.includes('Safari') && !userAgent.includes('Chrome')) browser = 'Safari';
-    else if (userAgent.includes('Edge')) browser = 'Edge';
-
-    let os = 'Windows';
-    if (userAgent.includes('Macintosh') || userAgent.includes('Mac OS')) os = 'macOS';
-    else if (userAgent.includes('iPhone') || userAgent.includes('iPad')) os = 'iOS';
-    else if (userAgent.includes('Android')) os = 'Android';
-    else if (userAgent.includes('Linux')) os = 'Linux';
-
-    const ip = req.ip || (req.headers['x-forwarded-for'] as string) || '196.200.180.14 (Casablanca, MA)';
-    return { browser, os, ip: ip.includes('::') ? '196.200.180.14 (Casablanca, MA)' : ip };
+    const uaInfo = parseUserAgentInfo(req.headers['user-agent']);
+    const ip = getClientIp(req);
+    const location = resolveClientGeoLocation(req, ip);
+    return {
+      browser: uaInfo.browser,
+      os: uaInfo.os,
+      ip,
+      location,
+      userAgent: uaInfo.userAgent,
+    };
   };
 
   // 1. Sign Up / Merchant Registration
@@ -507,18 +556,31 @@ async function startServer() {
     }
   });
 
-  // 2. Merchant & Super Admin Login (Protected by loginLimiter)
+  // 2. Merchant & Super Admin Login (Protected by loginLimiter: max 5 attempts / 15m / IP)
   app.post('/api/auth/login', loginLimiter, async (req: Request, res: Response) => {
     const { email, password, simulate2fa, recaptchaToken, turnstileToken, captchaToken } = req.body;
+    const clientIp = getClientIp(req);
+    const clientLocation = resolveClientGeoLocation(req, clientIp);
+    const rawUserAgent = String(req.headers['user-agent'] || 'Unknown User-Agent');
+    const candidateEmail = typeof email === 'string' ? email.trim().toLowerCase() : 'unknown';
 
     const isCaptchaValid = await verifyCaptchaToken({
       recaptchaToken: recaptchaToken || req.body['g-recaptcha-response'],
       turnstileToken: turnstileToken || req.body['cf-turnstile-response'],
       captchaToken,
-      remoteIp: extractClientIp(req),
+      remoteIp: clientIp,
       expectedAction: 'login',
     });
     if (!isCaptchaValid) {
+      recordSecurityLoginAudit({
+        userEmail: candidateEmail,
+        ipAddress: clientIp,
+        location: clientLocation,
+        userAgent: rawUserAgent,
+        authMethod: 'password',
+        status: 'FAILED',
+        failureReason: 'captcha_verification_failed',
+      });
       return res.status(400).json({
         success: false,
         error: 'فشل التحقق الأمني (CAPTCHA). يرجى المحاولة مرة أخرى.',
@@ -526,12 +588,46 @@ async function startServer() {
     }
 
     if (!email || !password) {
+      recordSecurityLoginAudit({
+        userEmail: candidateEmail,
+        ipAddress: clientIp,
+        location: clientLocation,
+        userAgent: rawUserAgent,
+        authMethod: 'password',
+        status: 'FAILED',
+        failureReason: 'missing_credentials',
+      });
       return res.status(400).json({ success: false, error: 'Email and password are required.' });
     }
 
     const user = findUserByEmail(email);
     if (!user || !verifyPassword(user, password)) {
+      recordSecurityLoginAudit({
+        userEmail: candidateEmail,
+        ipAddress: clientIp,
+        location: clientLocation,
+        userAgent: rawUserAgent,
+        authMethod: 'password',
+        status: 'FAILED',
+        failureReason: 'invalid_password',
+      });
       return res.status(401).json({ success: false, error: 'البريد الإلكتروني أو كلمة المرور غير صحيحة.' });
+    }
+
+    if (user.status === 'suspended') {
+      recordSecurityLoginAudit({
+        userEmail: user.email,
+        ipAddress: clientIp,
+        location: clientLocation,
+        userAgent: rawUserAgent,
+        authMethod: 'password',
+        status: 'FAILED',
+        failureReason: 'account_suspended',
+      });
+      return res.status(403).json({
+        success: false,
+        error: 'تم تعليق هذا الحساب مؤقتاً. يرجى التواصل مع إدارة المنصة.',
+      });
     }
 
     // Standard 2FA workflow for all users (including Super Admin)
@@ -582,10 +678,21 @@ async function startServer() {
       });
     }
 
+    const updatedProfile = recordUserLoginMetadata(user.id, clientIp, clientLocation, rawUserAgent);
+    recordSecurityLoginAudit({
+      userEmail: user.email,
+      ipAddress: clientIp,
+      location: clientLocation,
+      userAgent: rawUserAgent,
+      authMethod: 'password',
+      status: 'SUCCESS',
+      failureReason: null,
+    });
+
     const token = createSession(user.id);
     return res.json({
       success: true,
-      user: toSafeProfile(user),
+      user: updatedProfile || toSafeProfile(user),
       token,
       message: 'Successfully logged in.',
     });
@@ -661,7 +768,21 @@ async function startServer() {
   // 4. Verify 6-digit OTP Code (Strict verification, max 5 attempts, protected by verifyOtpLimiter)
   app.post('/api/auth/verify-otp', verifyOtpLimiter, (req: Request, res: Response) => {
     const { userId, email, code } = req.body;
+    const clientIp = getClientIp(req);
+    const clientLocation = resolveClientGeoLocation(req, clientIp);
+    const rawUserAgent = String(req.headers['user-agent'] || 'Unknown User-Agent');
+    const candidateEmail = typeof email === 'string' && email.trim() ? email.trim().toLowerCase() : 'unknown';
+
     if (!code || code.toString().trim().length !== 6) {
+      recordSecurityLoginAudit({
+        userEmail: candidateEmail,
+        ipAddress: clientIp,
+        location: clientLocation,
+        userAgent: rawUserAgent,
+        authMethod: 'password',
+        status: 'FAILED',
+        failureReason: 'otp_invalid_format',
+      });
       return res.status(400).json({ success: false, error: 'الرمز يجب أن يتكون من 6 أرقام.' });
     }
 
@@ -670,6 +791,15 @@ async function startServer() {
     const record = storeKey ? activeOtps.get(storeKey) : undefined;
 
     if (!record) {
+      recordSecurityLoginAudit({
+        userEmail: candidateEmail,
+        ipAddress: clientIp,
+        location: clientLocation,
+        userAgent: rawUserAgent,
+        authMethod: 'password',
+        status: 'FAILED',
+        failureReason: 'otp_expired_or_missing',
+      });
       return res.status(400).json({
         success: false,
         error: 'انتهت صلاحية رمز التحقق أو لم يتم طلبه بعد. يرجى طلب رمز جديد.',
@@ -678,12 +808,30 @@ async function startServer() {
 
     if (Date.now() > record.expiresAt) {
       if (storeKey) activeOtps.delete(storeKey);
+      recordSecurityLoginAudit({
+        userEmail: record.email || candidateEmail,
+        ipAddress: clientIp,
+        location: clientLocation,
+        userAgent: rawUserAgent,
+        authMethod: 'password',
+        status: 'FAILED',
+        failureReason: 'otp_expired',
+      });
       return res.status(400).json({ success: false, error: 'انتهت صلاحية الرمز (صالح لمدة 5 دقائق).' });
     }
 
     record.attempts += 1;
     if (record.attempts > 5) {
       if (storeKey) activeOtps.delete(storeKey);
+      recordSecurityLoginAudit({
+        userEmail: record.email || candidateEmail,
+        ipAddress: clientIp,
+        location: clientLocation,
+        userAgent: rawUserAgent,
+        authMethod: 'password',
+        status: 'FAILED',
+        failureReason: 'otp_max_attempts_exceeded',
+      });
       return res.status(429).json({
         success: false,
         error: 'تم تجاوز الحد الأقصى للمحاولات (5 محاولات). تم إبطال الرمز لحماية حسابك، يرجى طلب رمز جديد.',
@@ -693,6 +841,15 @@ async function startServer() {
     // Strict code match - no on-screen bypass shortcuts
     if (record.code !== cleanCode) {
       const remaining = Math.max(0, 5 - record.attempts);
+      recordSecurityLoginAudit({
+        userEmail: record.email || candidateEmail,
+        ipAddress: clientIp,
+        location: clientLocation,
+        userAgent: rawUserAgent,
+        authMethod: 'password',
+        status: 'FAILED',
+        failureReason: 'otp_failed',
+      });
       return res.status(400).json({
         success: false,
         error: `رمز التحقق غير صحيح. تبقى لك ${remaining} ${remaining === 1 ? 'محاولة' : 'محاولات'}.`,
@@ -707,18 +864,32 @@ async function startServer() {
       return res.status(404).json({ success: false, error: 'User not found.' });
     }
 
+    const updatedProfile = recordUserLoginMetadata(user.id, clientIp, clientLocation, rawUserAgent);
+    recordSecurityLoginAudit({
+      userEmail: user.email,
+      ipAddress: clientIp,
+      location: clientLocation,
+      userAgent: rawUserAgent,
+      authMethod: 'password',
+      status: 'SUCCESS',
+      failureReason: null,
+    });
+
     const token = createSession(user.id);
     return res.json({
       success: true,
       token,
-      user: toSafeProfile(user),
+      user: updatedProfile || toSafeProfile(user),
       message: 'تم التحقق بنجاح!',
     });
   });
 
   // 5. Google Sign-In & Merchant Session Creation (Verified JWT via google-auth-library)
-  app.post('/api/auth/google', async (req: Request, res: Response) => {
+  app.post('/api/auth/google', loginLimiter, async (req: Request, res: Response) => {
     const { credential } = req.body;
+    const clientIp = getClientIp(req);
+    const clientLocation = resolveClientGeoLocation(req, clientIp);
+    const rawUserAgent = String(req.headers['user-agent'] || 'Unknown User-Agent');
 
     if (!isGoogleAuthConfigured()) {
       return res.status(503).json({
@@ -728,6 +899,15 @@ async function startServer() {
     }
 
     if (!credential || typeof credential !== 'string') {
+      recordSecurityLoginAudit({
+        userEmail: 'google_oauth_attempt',
+        ipAddress: clientIp,
+        location: clientLocation,
+        userAgent: rawUserAgent,
+        authMethod: 'google_oauth',
+        status: 'FAILED',
+        failureReason: 'missing_google_credential',
+      });
       return res.status(400).json({
         success: false,
         error: 'رمز التحقق من Google (credential) مطلوب.',
@@ -803,14 +983,34 @@ async function startServer() {
         });
       }
 
+      const updatedProfile = recordUserLoginMetadata(user.id, clientIp, clientLocation, rawUserAgent);
+      recordSecurityLoginAudit({
+        userEmail: user.email,
+        ipAddress: clientIp,
+        location: clientLocation,
+        userAgent: rawUserAgent,
+        authMethod: 'google_oauth',
+        status: 'SUCCESS',
+        failureReason: null,
+      });
+
       const token = createSession(user.id);
       return res.json({
         success: true,
-        user: toSafeProfile(user),
+        user: updatedProfile || toSafeProfile(user),
         token,
         message: 'Successfully authenticated with Google!',
       });
     } catch (err: any) {
+      recordSecurityLoginAudit({
+        userEmail: 'google_oauth_attempt',
+        ipAddress: clientIp,
+        location: clientLocation,
+        userAgent: rawUserAgent,
+        authMethod: 'google_oauth',
+        status: 'FAILED',
+        failureReason: 'invalid_google_credential',
+      });
       return res.status(401).json({
         success: false,
         error: err.message || 'فشل التحقق من حساب Google.',
@@ -891,8 +1091,58 @@ async function startServer() {
     return res.json({
       success: true,
       user: req.user,
+      currentIp: getClientIp(req),
     });
   });
+
+  // 8b. User IP Transparency & Security Context Endpoint
+  const handleGetSecurityContext = (req: AuthRequest, res: Response) => {
+    const currentIp = getClientIp(req);
+    const currentLocation = resolveClientGeoLocation(req, currentIp);
+    const uaInfo = parseUserAgentInfo(req.headers['user-agent']);
+
+    const dbUser = req.user ? findUserById(req.user.id) : undefined;
+    const userRecentLogins = dbUser
+      ? getSecurityLoginAuditLogs({ limit: 5, search: dbUser.email, status: 'SUCCESS' }).filter(
+          (entry) => entry.userEmail.toLowerCase() === dbUser.email.toLowerCase()
+        )
+      : [];
+
+    return res.json({
+      ok: true,
+      success: true,
+      currentIp,
+      currentLocation,
+      currentDevice: uaInfo.deviceSummary,
+      currentUserAgent: uaInfo.userAgent,
+      recordedAt: new Date().toISOString(),
+      securityNotice:
+        'This IP is recorded for security purposes to protect your account from unauthorized access.',
+      securityNoticeAr:
+        'يتم تسجيل عنوان الـ IP هذا لأغراض أمنية لحماية حسابك ومتجرك من أي وصول غير مصرح به.',
+      lastLogin: dbUser
+        ? {
+            ip: dbUser.lastLoginIp || userRecentLogins[0]?.ipAddress || currentIp,
+            ipAddress: dbUser.lastLoginIp || userRecentLogins[0]?.ipAddress || currentIp,
+            timestamp: dbUser.lastLoginAt || userRecentLogins[0]?.timestamp || dbUser.created_at,
+            location:
+              dbUser.lastLoginLocation || userRecentLogins[0]?.location || currentLocation,
+            userAgent:
+              dbUser.lastLoginUserAgent ||
+              userRecentLogins[0]?.userAgent ||
+              uaInfo.userAgent,
+            device:
+              dbUser.lastLoginUserAgent ||
+              userRecentLogins[0]?.deviceSummary ||
+              uaInfo.deviceSummary,
+          }
+        : null,
+      recentLogins: userRecentLogins,
+    });
+  };
+
+  app.get('/api/auth/security-context', optionalAuthMiddleware, handleGetSecurityContext);
+  app.get('/api/user/ip-transparency', optionalAuthMiddleware, handleGetSecurityContext);
 
   // 9. Logout
   app.post('/api/auth/logout', authMiddleware, (req: AuthRequest, res: Response) => {

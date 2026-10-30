@@ -26,6 +26,10 @@ import {
   Plus,
   Trash2,
   Save,
+  Search,
+  Globe,
+  Monitor,
+  Users,
 } from 'lucide-react';
 import { Terminal as XTerm } from 'xterm';
 import { FitAddon } from 'xterm-addon-fit';
@@ -99,6 +103,33 @@ interface AuditEntry {
   action: string;
   result: 'success' | 'failure' | 'blocked';
   metadata: Record<string, unknown>;
+}
+
+interface SecurityLoginAuditEntry {
+  id: string;
+  timestamp: string;
+  userEmail: string;
+  ipAddress: string;
+  location?: string;
+  userAgent: string;
+  deviceInfo?: string;
+  authMethod: 'password' | 'google_oauth' | 'sandbox_owner';
+  status: 'SUCCESS' | 'FAILED';
+  failureReason?: string;
+}
+
+interface SandboxMerchantIpSummary {
+  id: string;
+  email: string;
+  fullName: string;
+  storeName: string;
+  role: string;
+  planId: string;
+  status: string;
+  lastLoginIp: string | null;
+  lastLoginAt: string | null;
+  lastLoginLocation: string | null;
+  lastLoginUserAgent: string | null;
 }
 
 interface SandboxPlanConfig {
@@ -290,6 +321,13 @@ export function SandboxPage() {
     message: string;
   } | null>(null);
 
+  // Forensic Security & Login Audit State (Task 3: Owner-Only Global Login Log + Merchant IP Visibility)
+  const [securityLoginLogs, setSecurityLoginLogs] = useState<SecurityLoginAuditEntry[]>([]);
+  const [merchantIpSummaries, setMerchantIpSummaries] = useState<SandboxMerchantIpSummary[]>([]);
+  const [securityLogSearch, setSecurityLogSearch] = useState<string>('');
+  const [securityLogStatusFilter, setSecurityLogStatusFilter] = useState<'ALL' | 'SUCCESS' | 'FAILED'>('ALL');
+  const [securitySubTab, setSecuritySubTab] = useState<'login_audit' | 'merchant_ips'>('login_audit');
+
   const fetchCsrfToken = useCallback(async () => {
     try {
       const res = await fetch('/api/sandbox/csrf', {
@@ -348,14 +386,19 @@ export function SandboxPage() {
         setAuditEntries(auditJson.entries);
       }
 
-      // Load Dynamic Subscription Plans & Coupons in parallel
-      const [plansRes, couponsRes] = await Promise.all([
+      // Load Dynamic Subscription Plans, Coupons & Forensic Security Login Logs in parallel
+      const [plansRes, couponsRes, securityLogsRes] = await Promise.all([
         fetch('/api/sandbox/plans', {
           method: 'GET',
           credentials: 'include',
           headers: getSandboxAuthHeaders(),
         }),
         fetch('/api/sandbox/coupons', {
+          method: 'GET',
+          credentials: 'include',
+          headers: getSandboxAuthHeaders(),
+        }),
+        fetch('/api/sandbox/security-logs', {
           method: 'GET',
           credentials: 'include',
           headers: getSandboxAuthHeaders(),
@@ -377,6 +420,16 @@ export function SandboxPage() {
       const couponsJson = await couponsRes.json().catch(() => ({ ok: false }));
       if (couponsRes.ok && couponsJson.ok && Array.isArray(couponsJson.coupons)) {
         setCouponsList(couponsJson.coupons as SandboxCoupon[]);
+      }
+
+      const securityLogsJson = await securityLogsRes.json().catch(() => ({ ok: false }));
+      if (securityLogsRes.ok && securityLogsJson.ok) {
+        if (Array.isArray(securityLogsJson.logs)) {
+          setSecurityLoginLogs(securityLogsJson.logs as SecurityLoginAuditEntry[]);
+        }
+        if (Array.isArray(securityLogsJson.merchants)) {
+          setMerchantIpSummaries(securityLogsJson.merchants as SandboxMerchantIpSummary[]);
+        }
       }
 
       setIsVerifyingSession(false);
@@ -2517,6 +2570,261 @@ export function SandboxPage() {
                   </tbody>
                 </table>
               </div>
+            </div>
+          )}
+        </section>
+
+        {/* Task 3: Security & Login Audit (Forensic Global Login Log + Merchant IP Visibility) */}
+        <section
+          className="bg-slate-900 border border-slate-800 rounded-lg p-6 space-y-5"
+          data-testid="security-login-audit-section"
+        >
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-slate-800">
+            <div>
+              <h2 className="text-base font-bold text-white flex items-center gap-2">
+                <Shield className="w-5 h-5 text-emerald-400" />
+                <span>Security &amp; Login Audit</span>
+                <span className="px-2 py-0.5 text-[10px] font-mono rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+                  ZERO-TRUST FORENSICS (MAX 5,000 ENTRIES)
+                </span>
+              </h2>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Real-time authentication forensics across Password, Google OAuth, and Sandbox Owner logins (`data/security_login_audit.json`), plus Merchant Public IP visibility.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setSecuritySubTab('login_audit')}
+                className={`px-3 py-1.5 rounded text-xs font-mono font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                  securitySubTab === 'login_audit'
+                    ? 'bg-emerald-500 text-slate-950'
+                    : 'bg-slate-950 text-slate-400 border border-slate-800 hover:text-white'
+                }`}
+              >
+                <Globe className="w-3.5 h-3.5" />
+                <span>Global Login Log ({securityLoginLogs.length})</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setSecuritySubTab('merchant_ips')}
+                className={`px-3 py-1.5 rounded text-xs font-mono font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                  securitySubTab === 'merchant_ips'
+                    ? 'bg-emerald-500 text-slate-950'
+                    : 'bg-slate-950 text-slate-400 border border-slate-800 hover:text-white'
+                }`}
+              >
+                <Users className="w-3.5 h-3.5" />
+                <span>Merchant IP Visibility ({merchantIpSummaries.length})</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Search & Status Filter Bar */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-slate-950 border border-slate-800 rounded-md p-3">
+            <div className="relative flex-1">
+              <Search className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                value={securityLogSearch}
+                onChange={(e) => setSecurityLogSearch(e.target.value)}
+                placeholder="Filter by User Email or Public IP Address (e.g. naadianajah2020@gmail.com or 196.200...)"
+                className="w-full pl-9 pr-3 py-1.5 bg-slate-900 border border-slate-800 rounded text-xs font-mono text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+              />
+            </div>
+
+            {securitySubTab === 'login_audit' && (
+              <div className="flex items-center gap-1.5">
+                {(['ALL', 'SUCCESS', 'FAILED'] as const).map((statusOption) => (
+                  <button
+                    key={statusOption}
+                    type="button"
+                    onClick={() => setSecurityLogStatusFilter(statusOption)}
+                    className={`px-2.5 py-1.5 rounded text-[11px] font-mono font-bold transition cursor-pointer ${
+                      securityLogStatusFilter === statusOption
+                        ? statusOption === 'SUCCESS'
+                          ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                          : statusOption === 'FAILED'
+                          ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
+                          : 'bg-slate-800 text-white border border-slate-700'
+                        : 'bg-slate-900 text-slate-400 border border-slate-800 hover:text-slate-200'
+                    }`}
+                  >
+                    {statusOption}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {securitySubTab === 'login_audit' ? (
+            <div className="overflow-x-auto border border-slate-800 rounded-md">
+              <table className="w-full text-left border-collapse text-xs font-mono">
+                <thead>
+                  <tr className="bg-slate-950 border-b border-slate-800 text-slate-400">
+                    <th className="py-2.5 px-3">TIMESTAMP</th>
+                    <th className="py-2.5 px-3">USER EMAIL</th>
+                    <th className="py-2.5 px-3">PUBLIC IP</th>
+                    <th className="py-2.5 px-3">DEVICE (USER-AGENT)</th>
+                    <th className="py-2.5 px-3">AUTH METHOD</th>
+                    <th className="py-2.5 px-3">STATUS</th>
+                    <th className="py-2.5 px-3">REASON</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800/60">
+                  {(() => {
+                    const q = securityLogSearch.trim().toLowerCase();
+                    const filteredLogs = securityLoginLogs.filter((item) => {
+                      if (
+                        securityLogStatusFilter !== 'ALL' &&
+                        item.status !== securityLogStatusFilter
+                      ) {
+                        return false;
+                      }
+                      if (!q) return true;
+                      return (
+                        String(item.userEmail || '').toLowerCase().includes(q) ||
+                        String(item.ipAddress || '').toLowerCase().includes(q) ||
+                        String(item.failureReason || '').toLowerCase().includes(q)
+                      );
+                    });
+
+                    if (filteredLogs.length === 0) {
+                      return (
+                        <tr>
+                          <td colSpan={7} className="py-6 text-center text-slate-500">
+                            No forensic login audit entries match the current filter.
+                          </td>
+                        </tr>
+                      );
+                    }
+
+                    return filteredLogs.slice(0, 250).map((entry) => (
+                      <tr key={entry.id} className="hover:bg-slate-950/60">
+                        <td className="py-2.5 px-3 text-slate-400 whitespace-nowrap">
+                          {entry.timestamp}
+                        </td>
+                        <td className="py-2.5 px-3 text-white font-semibold">
+                          {entry.userEmail}
+                        </td>
+                        <td className="py-2.5 px-3 text-emerald-300 whitespace-nowrap">
+                          <span>{entry.ipAddress}</span>
+                          {entry.location && (
+                            <span className="ml-1.5 text-[10px] text-slate-400">
+                              ({entry.location})
+                            </span>
+                          )}
+                        </td>
+                        <td
+                          className="py-2.5 px-3 text-slate-300 max-w-xs truncate"
+                          title={entry.userAgent}
+                        >
+                          <span className="inline-flex items-center gap-1">
+                            <Monitor className="w-3 h-3 text-slate-400 shrink-0" />
+                            <span>{entry.deviceInfo || entry.userAgent}</span>
+                          </span>
+                        </td>
+                        <td className="py-2.5 px-3">
+                          <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-200 border border-slate-700 text-[10px] uppercase">
+                            {entry.authMethod}
+                          </span>
+                        </td>
+                        <td className="py-2.5 px-3">
+                          <span
+                            className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                              entry.status === 'SUCCESS'
+                                ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+                                : 'bg-rose-500/15 text-rose-400 border border-rose-500/30'
+                            }`}
+                          >
+                            {entry.status}
+                          </span>
+                        </td>
+                        <td className="py-2.5 px-3 text-slate-400">
+                          {entry.failureReason || (entry.status === 'SUCCESS' ? 'authenticated' : '—')}
+                        </td>
+                      </tr>
+                    ));
+                  })()}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="overflow-x-auto border border-slate-800 rounded-md">
+              <table className="w-full text-left border-collapse text-xs font-mono">
+                <thead>
+                  <tr className="bg-slate-950 border-b border-slate-800 text-slate-400">
+                    <th className="py-2.5 px-3">MERCHANT EMAIL</th>
+                    <th className="py-2.5 px-3">STORE &amp; PLAN</th>
+                    <th className="py-2.5 px-3">LAST LOGIN IP</th>
+                    <th className="py-2.5 px-3">LAST LOGIN TIME</th>
+                    <th className="py-2.5 px-3">DEVICE / USER-AGENT</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800/60">
+                  {(() => {
+                    const q = securityLogSearch.trim().toLowerCase();
+                    const filteredMerchants = merchantIpSummaries.filter((m) => {
+                      if (!q) return true;
+                      return (
+                        String(m.email || '').toLowerCase().includes(q) ||
+                        String(m.lastLoginIp || '').toLowerCase().includes(q) ||
+                        String(m.storeName || '').toLowerCase().includes(q)
+                      );
+                    });
+
+                    if (filteredMerchants.length === 0) {
+                      return (
+                        <tr>
+                          <td colSpan={5} className="py-6 text-center text-slate-500">
+                            No merchants match the current Email / IP filter.
+                          </td>
+                        </tr>
+                      );
+                    }
+
+                    return filteredMerchants.map((merchant) => (
+                      <tr key={merchant.id} className="hover:bg-slate-950/60">
+                        <td className="py-2.5 px-3 text-white font-semibold">
+                          <div>{merchant.email}</div>
+                          <div className="text-[10px] text-slate-400">{merchant.fullName}</div>
+                        </td>
+                        <td className="py-2.5 px-3 text-slate-300">
+                          <span>{merchant.storeName || '—'}</span>
+                          <span className="ml-2 px-1.5 py-0.5 rounded bg-slate-800 text-emerald-300 text-[10px] uppercase">
+                            {merchant.planId}
+                          </span>
+                        </td>
+                        <td className="py-2.5 px-3 text-emerald-400 font-bold">
+                          {merchant.lastLoginIp ? (
+                            <>
+                              <span>{merchant.lastLoginIp}</span>
+                              {merchant.lastLoginLocation && (
+                                <span className="ml-1.5 text-[10px] text-slate-400 font-normal">
+                                  ({merchant.lastLoginLocation})
+                                </span>
+                              )}
+                            </>
+                          ) : (
+                            <span className="text-slate-500 font-normal">No recorded IP yet</span>
+                          )}
+                        </td>
+                        <td className="py-2.5 px-3 text-slate-300 whitespace-nowrap">
+                          {merchant.lastLoginAt || '—'}
+                        </td>
+                        <td
+                          className="py-2.5 px-3 text-slate-400 max-w-xs truncate"
+                          title={merchant.lastLoginUserAgent || ''}
+                        >
+                          {merchant.lastLoginUserAgent || '—'}
+                        </td>
+                      </tr>
+                    ));
+                  })()}
+                </tbody>
+              </table>
             </div>
           )}
         </section>
