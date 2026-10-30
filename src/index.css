@@ -15,4 +15,34 @@
   visibility: hidden !important;
 }
 
+/* Force dropdown options to be readable in dark mode */
+select option {
+  background-color: #ffffff !important;
+  color: #1e293b !important;
+}
 
+select {
+  color: #1e293b !important;
+  background-color: #f8fafc !important;
+}
+
+/* Force all inputs in the properties sidebar to have dark readable text */
+aside input,
+aside textarea,
+.sidebar input,
+.sidebar textarea,
+[data-sidebar] input,
+[data-sidebar] textarea,
+input[type="text"],
+input[type="number"],
+textarea {
+  color: #1e293b !important; /* text-slate-800 */
+  background-color: #ffffff !important;
+}
+
+aside input::placeholder,
+aside textarea::placeholder,
+input[type="text"]::placeholder,
+textarea::placeholder {
+  color: #94a3b8 !important; /* text-slate-400 */
+}

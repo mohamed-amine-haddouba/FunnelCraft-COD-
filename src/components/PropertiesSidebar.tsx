@@ -168,6 +168,17 @@ export const ColorWithHexInput: React.FC<{
   return (
     <div>
       <div className="flex items-center justify-between mb-1">
+        <button
+          onClick={() => {
+            if (onDeleteBlock && selectedBlockIndex !== undefined && selectedBlockIndex !== -1) {
+              onDeleteBlock(selectedBlockIndex);
+            }
+          }}
+          className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg transition-colors ml-2"
+          title="حذف القسم (Delete Block)"
+        >
+          <Trash2 className="w-4 h-4" />
+        </button>
         <label className="text-[11px] font-bold text-slate-700">{label}</label>
         {value && (
           <button
@@ -318,7 +329,7 @@ const BlockStyleAccordions: React.FC<{
                   onClick={() => onUpdate({ ...block, textAlign: opt.value })}
                   className={`h-8 px-2 rounded-lg border text-[11px] font-bold flex items-center justify-center gap-1 transition cursor-pointer ${
                     active
-                      ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                      ? 'bg-blue-600 text-slate-800 border-blue-600 shadow-xs'
                       : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
                   }`}
                 >
@@ -662,7 +673,7 @@ export const PropertiesSidebar: React.FC<Props> = ({
                       }
                       className={`h-7.5 px-1.5 rounded-lg border text-[10px] font-bold transition cursor-pointer ${
                         active
-                          ? 'bg-blue-600 text-white border-blue-600 shadow-2xs'
+                          ? 'bg-blue-600 text-slate-800 border-blue-600 shadow-2xs'
                           : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
                       }`}
                     >
@@ -707,7 +718,7 @@ export const PropertiesSidebar: React.FC<Props> = ({
                       }
                       className={`h-8 px-1.5 rounded-lg border text-[10px] font-bold transition cursor-pointer ${
                         active
-                          ? 'bg-blue-600 text-white border-blue-600 shadow-2xs'
+                          ? 'bg-blue-600 text-slate-800 border-blue-600 shadow-2xs'
                           : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
                       }`}
                     >
@@ -737,7 +748,7 @@ export const PropertiesSidebar: React.FC<Props> = ({
                       }
                       className={`h-7.5 px-1 rounded-lg border text-[10px] font-bold transition cursor-pointer ${
                         active
-                          ? 'bg-blue-600 text-white border-blue-600 shadow-2xs'
+                          ? 'bg-blue-600 text-slate-800 border-blue-600 shadow-2xs'
                           : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
                       }`}
                     >
@@ -883,7 +894,7 @@ export const PropertiesSidebar: React.FC<Props> = ({
                   type="button"
                   onClick={handleSavePixelsToCloud}
                   disabled={savingPixels}
-                  className="w-full py-1.5 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] transition cursor-pointer disabled:opacity-50"
+                  className="w-full py-1.5 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-slate-800 font-bold text-[11px] transition cursor-pointer disabled:opacity-50"
                 >
                   {savingPixels ? 'جاري حفظ البيكسل...' : 'حفظ وتفعيل البيكسل'}
                 </button>
@@ -1692,7 +1703,7 @@ const CodFormEditor: React.FC<{
                 }}
                 className={`h-8 px-2 py-1 rounded-lg text-[10px] font-bold shrink-0 cursor-pointer ${
                   bundle.popular
-                    ? 'bg-emerald-600 text-white'
+                    ? 'bg-emerald-600 text-slate-800'
                     : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
                 }`}
               >

@@ -1517,6 +1517,20 @@ export async function scrapeProductData(url: string): Promise<ScrapedProduct> {
     faqs = buildDefaultFaqs(finalTitle);
   }
 
+  // --- AliExpress Full Gallery Extraction ---
+  let finalImages = combinedImages;
+  if (url.includes('aliexpress.com') || url.includes('aliexpress.us')) {
+    try {
+      const { extractAliExpressImages } = await import('./aliScraper');
+      const aliImages = await extractAliExpressImages(html, url);
+      if (aliImages.length > 0) {
+        finalImages = aliImages;
+      }
+    } catch (err) {
+      console.error('[SCRAPER] AliExpress extraction failed:', err);
+    }
+  }
+
   return {
     platform,
     title: finalTitle,
@@ -1524,7 +1538,7 @@ export async function scrapeProductData(url: string): Promise<ScrapedProduct> {
     price: basePriceMad,
     originalPrice: originalPriceMad,
     currency: 'MAD',
-    images: combinedImages.slice(0, 12),
+    images: finalImages.slice(0, 12),
     features: features.slice(0, 8),
     variants,
     bundles,
