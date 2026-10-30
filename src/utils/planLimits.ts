@@ -17,6 +17,7 @@ export interface PlanCapabilities {
   canUseCustomDomain: boolean;
   canUsePixels: boolean;
   canUseApiIntegrations: boolean;
+  canExportOrders: boolean;
   canRemoveWatermark: boolean;
   canUseProBlocks: boolean;
   prioritySupport: boolean;
@@ -79,6 +80,7 @@ export function getPlanCapabilities(
       canUseCustomDomain: true,
       canUsePixels: true,
       canUseApiIntegrations: true,
+      canExportOrders: true,
       canRemoveWatermark: true,
       canUseProBlocks: true,
       prioritySupport: true,
@@ -96,6 +98,7 @@ export function getPlanCapabilities(
         canUseCustomDomain: true,
         canUsePixels: true,
         canUseApiIntegrations: true,
+        canExportOrders: true,
         canRemoveWatermark: true,
         canUseProBlocks: true,
         prioritySupport: true,
@@ -107,7 +110,8 @@ export function getPlanCapabilities(
         maxPages: Infinity,
         canUseCustomDomain: true,
         canUsePixels: true,
-        canUseApiIntegrations: false,
+        canUseApiIntegrations: true,
+        canExportOrders: true,
         canRemoveWatermark: true,
         canUseProBlocks: true,
         prioritySupport: false,
@@ -120,6 +124,7 @@ export function getPlanCapabilities(
         canUseCustomDomain: false,
         canUsePixels: false,
         canUseApiIntegrations: false,
+        canExportOrders: false,
         canRemoveWatermark: true,
         canUseProBlocks: false,
         prioritySupport: false,
@@ -133,6 +138,7 @@ export function getPlanCapabilities(
         canUseCustomDomain: false,
         canUsePixels: false,
         canUseApiIntegrations: false,
+        canExportOrders: false,
         canRemoveWatermark: false,
         canUseProBlocks: false,
         prioritySupport: false,
@@ -241,11 +247,11 @@ export function checkFeatureAccess(
         code: 'API_INTEGRATIONS_FORBIDDEN',
         feature,
         effectivePlan: caps.effectivePlan,
-        requiredPlan: 'enterprise',
+        requiredPlan: 'pro',
         maxPages: caps.maxPages,
         currentPagesCount,
-        message: 'API & Custom Webhook integrations require the Enterprise plan.',
-        messageAr: 'ربط واجهات البرمجة (API Integrations) يتطلب باقة Enterprise.',
+        message: 'Order export & delivery carrier API integrations require the Pro or Enterprise plan.',
+        messageAr: 'تصدير الطلبات والربط مع شركات التوصيل (API Integrations) يتطلب باقة Pro أو Enterprise.',
       };
     }
   }

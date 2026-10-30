@@ -51,6 +51,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   const {
     user,
     planId,
+    capabilities,
     isPro,
     canUseCustomDomain,
     userPages,
@@ -64,7 +65,15 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
     logout,
   } = useAuth();
   const { t, dir, isRtl, language } = useLanguage();
-  const isProUser = canUseCustomDomain || currentPlan === 'pro' || currentPlan === 'enterprise' || isPro;
+  const isProUser =
+    capabilities.canUseCustomDomain ||
+    canUseCustomDomain ||
+    user?.role === 'admin' ||
+    user?.plan_id === 'pro' ||
+    user?.plan_id === 'enterprise' ||
+    currentPlan === 'pro' ||
+    currentPlan === 'enterprise' ||
+    isPro;
 
   // Active sub-tab
   const [activeTab, setActiveTab] = useState<'profile' | 'domain' | 'security'>(initialTab);
@@ -725,35 +734,48 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
               )}
             </div>
 
-            {/* Domain Input + Status Badge + Save & Verify Actions */}
-            <div className="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-3">
+            {/* Domain Input + Prominent Visual Status Badges + Save & Verify Actions */}
+            <div className="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-3.5">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <label className="text-xs font-semibold text-slate-300">
                   {language === 'ar' ? 'اسم النطاق المخصص (Custom Domain FQDN)' : 'Custom Domain Name (FQDN)'}
                 </label>
 
-                {/* Real Domain Status Badge */}
+                {/* Prominent Color-Coded Visual Status Badges */}
                 {domainStatus === 'active' && (
-                  <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 font-semibold flex items-center gap-1">
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                    <span>{language === 'ar' ? 'نشط ومتصل (Active)' : 'Active & Verified'}</span>
+                  <span
+                    data-testid="domain-status-badge"
+                    className="text-xs px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-bold flex items-center gap-1.5 shadow-sm shadow-emerald-500/10"
+                  >
+                    <span>🟢</span>
+                    <span>Active (نشط ومتصل)</span>
                   </span>
                 )}
                 {domainStatus === 'pending_dns' && (
-                  <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30 font-semibold flex items-center gap-1">
-                    <RefreshCw className="w-3 h-3" />
-                    <span>{language === 'ar' ? 'في انتظار التحقق من DNS (Pending DNS)' : 'Pending DNS Verification'}</span>
+                  <span
+                    data-testid="domain-status-badge"
+                    className="text-xs px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 font-bold flex items-center gap-1.5 shadow-sm shadow-amber-500/10"
+                  >
+                    <span>🟡</span>
+                    <span>Pending (في انتظار DNS)</span>
                   </span>
                 )}
                 {domainStatus === 'error' && (
-                  <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-rose-500/15 text-rose-400 border border-rose-500/30 font-semibold flex items-center gap-1">
-                    <AlertCircle className="w-3.5 h-3.5" />
-                    <span>{language === 'ar' ? 'خطأ في إعدادات DNS (DNS Error)' : 'DNS Verification Error'}</span>
+                  <span
+                    data-testid="domain-status-badge"
+                    className="text-xs px-3 py-1 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/40 font-bold flex items-center gap-1.5 shadow-sm shadow-rose-500/10"
+                  >
+                    <span>🔴</span>
+                    <span>Error (فشل التحقق)</span>
                   </span>
                 )}
                 {domainStatus === 'not_connected' && (
-                  <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700 font-medium">
-                    {language === 'ar' ? 'غير متصل (Not Connected)' : 'Not Connected'}
+                  <span
+                    data-testid="domain-status-badge"
+                    className="text-xs px-3 py-1 rounded-full bg-slate-800/90 text-slate-300 border border-slate-700 font-bold flex items-center gap-1.5"
+                  >
+                    <span>⚪</span>
+                    <span>Not Connected (غير متصل)</span>
                   </span>
                 )}
               </div>
@@ -807,10 +829,10 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                 )}
               </div>
 
-              {/* Live DNS Feedback Box */}
+              {/* Clean Live DNS Feedback Box */}
               {domainFeedback && (
                 <div
-                  className={`p-3 rounded-xl border text-xs space-y-1.5 ${
+                  className={`p-3 rounded-xl border text-xs ${
                     domainFeedback.type === 'success'
                       ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
                       : domainFeedback.type === 'error'
@@ -826,11 +848,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                     )}
                     <span dir="ltr" className="text-left">{domainFeedback.message}</span>
                   </div>
-                  {domainFeedback.resolvedRecords && (
-                    <div className="text-[11px] font-mono text-slate-300 pt-1 border-t border-white/10" dir="ltr">
-                      Resolved A: [{domainFeedback.resolvedRecords.a.join(', ') || 'none'}] | Resolved CNAME: [{domainFeedback.resolvedRecords.cname.join(', ') || 'none'}]
-                    </div>
-                  )}
                 </div>
               )}
             </div>
@@ -843,60 +860,128 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                   : 'Required DNS Records at your Domain Registrar (Cloudflare, Namecheap, GoDaddy):'}
               </div>
 
-              <div className="space-y-2 font-mono text-xs" dir="ltr">
-                {/* Option 1: A Record for Root Domain (@) */}
-                <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-900 border border-slate-800 rounded-lg p-2.5">
+              <div className="space-y-2.5 font-mono text-xs" dir="ltr">
+                {/* Option 1: A Record for Root Domain (@) with 1-Click Copy Button next to 217.160.116.237 */}
+                <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-900 border border-slate-800 rounded-lg p-3">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-400 font-bold">A Record</span>
                     <span className="text-slate-400">Host:</span>
                     <span className="text-white font-bold">@</span>
                     <span className="text-slate-600">|</span>
                     <span className="text-slate-400">Value / IP:</span>
-                    <span className="text-emerald-300 font-bold">217.160.116.237</span>
+                    <code className="px-2 py-0.5 rounded bg-slate-950 border border-emerald-500/30 text-emerald-300 font-bold">
+                      217.160.116.237
+                    </code>
+                    <button
+                      type="button"
+                      onClick={handleCopyIp}
+                      data-testid="copy-vps-ip-btn"
+                      className="text-slate-200 hover:text-white px-2.5 py-1 rounded-md bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 transition cursor-pointer inline-flex items-center gap-1.5"
+                      title="Copy 217.160.116.237"
+                    >
+                      {hasCopiedIp ? (
+                        <span className="text-[11px] text-emerald-400 font-sans font-bold">✓ {t.copied}</span>
+                      ) : (
+                        <>
+                          <Copy className="w-3.5 h-3.5 text-emerald-400" />
+                          <span className="font-sans text-[11px] font-semibold">
+                            {language === 'ar' ? 'نسخ (Copy)' : 'Copy'}
+                          </span>
+                        </>
+                      )}
+                    </button>
                   </div>
-                  <button
-                    type="button"
-                    onClick={handleCopyIp}
-                    className="text-slate-400 hover:text-white px-2 py-1 rounded bg-slate-800/80 hover:bg-slate-800 transition cursor-pointer flex items-center gap-1"
-                  >
-                    {hasCopiedIp ? (
-                      <span className="text-[11px] text-emerald-400 font-sans font-bold">{t.copied}</span>
-                    ) : (
-                      <>
-                        <Copy className="w-3.5 h-3.5" />
-                        <span className="font-sans text-[11px]">Copy IP</span>
-                      </>
-                    )}
-                  </button>
                 </div>
 
-                {/* Option 2: CNAME Record for Subdomain (www or shop) */}
-                <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-900 border border-slate-800 rounded-lg p-2.5">
+                {/* Option 2: CNAME Record for Subdomain (www or shop) with 1-Click Copy Button next to domains.codworth.me */}
+                <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-900 border border-slate-800 rounded-lg p-3">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="px-2 py-0.5 rounded bg-indigo-500/15 text-indigo-400 font-bold">CNAME</span>
                     <span className="text-slate-400">Host:</span>
                     <span className="text-white font-bold">www (or subdomain)</span>
                     <span className="text-slate-600">|</span>
                     <span className="text-slate-400">Target:</span>
-                    <span className="text-indigo-300 font-bold">domains.codworth.me</span>
+                    <code className="px-2 py-0.5 rounded bg-slate-950 border border-indigo-500/30 text-indigo-300 font-bold">
+                      domains.codworth.me
+                    </code>
+                    <button
+                      type="button"
+                      onClick={handleCopyCname}
+                      data-testid="copy-cname-target-btn"
+                      className="text-slate-200 hover:text-white px-2.5 py-1 rounded-md bg-indigo-500/15 hover:bg-indigo-500/25 border border-indigo-500/30 transition cursor-pointer inline-flex items-center gap-1.5"
+                      title="Copy domains.codworth.me"
+                    >
+                      {hasCopiedCname ? (
+                        <span className="text-[11px] text-emerald-400 font-sans font-bold">✓ {t.copied}</span>
+                      ) : (
+                        <>
+                          <Copy className="w-3.5 h-3.5 text-indigo-400" />
+                          <span className="font-sans text-[11px] font-semibold">
+                            {language === 'ar' ? 'نسخ (Copy)' : 'Copy'}
+                          </span>
+                        </>
+                      )}
+                    </button>
                   </div>
-                  <button
-                    type="button"
-                    onClick={handleCopyCname}
-                    className="text-slate-400 hover:text-white px-2 py-1 rounded bg-slate-800/80 hover:bg-slate-800 transition cursor-pointer flex items-center gap-1"
-                    title={t.copyCname}
-                  >
-                    {hasCopiedCname ? (
-                      <span className="text-[11px] text-emerald-400 font-sans font-bold">{t.copied}</span>
-                    ) : (
-                      <>
-                        <Copy className="w-3.5 h-3.5" />
-                        <span className="font-sans text-[11px]">Copy CNAME</span>
-                      </>
-                    )}
-                  </button>
                 </div>
               </div>
+
+              {/* Collapsible Developer Diagnostic Section (<details>) */}
+              <details
+                className="group bg-slate-900/90 border border-slate-800 rounded-xl overflow-hidden text-xs mt-2"
+                data-testid="dns-developer-diagnostics"
+              >
+                <summary className="px-3.5 py-2.5 cursor-pointer select-none font-semibold text-slate-300 hover:text-white flex items-center justify-between transition">
+                  <span className="flex items-center gap-2">
+                    <ChevronRight className="w-3.5 h-3.5 text-emerald-400 transition-transform group-open:rotate-90" />
+                    <span>تفاصيل تقنية للمطورين (Raw DNS Diagnostic Info)</span>
+                  </span>
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-950 text-slate-400 border border-slate-800">
+                    DNS Lookup
+                  </span>
+                </summary>
+
+                <div className="p-3.5 border-t border-slate-800 bg-slate-950 font-mono text-[11px] text-slate-300 space-y-2" dir="ltr">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div className="p-2.5 rounded-lg bg-slate-900/90 border border-slate-800">
+                      <div className="text-slate-400 text-[10px] mb-1">Expected DNS Targets</div>
+                      <div>A (@): <span className="text-emerald-400 font-bold">217.160.116.237</span></div>
+                      <div>CNAME (www): <span className="text-indigo-400 font-bold">domains.codworth.me</span></div>
+                    </div>
+
+                    <div className="p-2.5 rounded-lg bg-slate-900/90 border border-slate-800">
+                      <div className="text-slate-400 text-[10px] mb-1">Live Resolved DNS Records</div>
+                      <div>
+                        Resolved A:{' '}
+                        <span className="text-white font-bold">
+                          [{domainFeedback?.resolvedRecords?.a?.join(', ') || 'none'}]
+                        </span>
+                      </div>
+                      <div>
+                        Resolved CNAME:{' '}
+                        <span className="text-white font-bold">
+                          [{domainFeedback?.resolvedRecords?.cname?.join(', ') || 'none'}]
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <pre className="p-2.5 rounded-lg bg-slate-900 border border-slate-800 text-[10px] text-slate-400 overflow-x-auto">
+                    {JSON.stringify(
+                      {
+                        domain: customDomain || null,
+                        status: domainStatus,
+                        expectedA: '217.160.116.237',
+                        expectedCname: 'domains.codworth.me',
+                        resolvedA: domainFeedback?.resolvedRecords?.a || [],
+                        resolvedCname: domainFeedback?.resolvedRecords?.cname || [],
+                      },
+                      null,
+                      2
+                    )}
+                  </pre>
+                </div>
+              </details>
             </div>
           </div>
         </div>

@@ -8,7 +8,7 @@ import {
   PagePixelsConfig,
   CustomDomainStatus,
 } from '../types/user';
-import { getPlanCapabilities, PlanTier } from '../utils/planLimits';
+import { getPlanCapabilities, PlanCapabilities, PlanTier } from '../utils/planLimits';
 
 interface AuthContextType {
   user: UserProfile | null;
@@ -16,6 +16,7 @@ interface AuthContextType {
   isLoading: boolean;
   isLoggedIn: boolean;
   planId: PlanTier;
+  capabilities: PlanCapabilities;
   isStarter: boolean;
   isPro: boolean;
   isEnterprise: boolean;
@@ -954,13 +955,21 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const planId: PlanTier = planCaps.effectivePlan;
   const isAdmin = planCaps.isAdmin;
   const isStarter = planId === 'starter' && !isAdmin;
-  const isPro = planCaps.canUseProBlocks; // true for Pro, Enterprise, and Admin
+  const isPro = planCaps.canUseProBlocks || planId === 'pro' || planId === 'enterprise' || isAdmin;
   const isEnterprise = planId === 'enterprise' || isAdmin;
   const canUseCustomDomain = planCaps.canUseCustomDomain;
   const canUsePixels = planCaps.canUsePixels;
   const canUseApiIntegrations = planCaps.canUseApiIntegrations;
   const canRemoveWatermark = planCaps.canRemoveWatermark;
   const maxPages = planCaps.maxPages;
+
+  useEffect(() => {
+    if (user) {
+      try {
+        localStorage.setItem('funnelcraft_plan', planId);
+      } catch (_) {}
+    }
+  }, [user, planId]);
 
   const pagesCreatedCount = user ? Math.max(user.pages_created_count ?? 0, userPages.length) : 0;
   const effectiveMaxPages = Number.isFinite(maxPages) ? maxPages : MAX_FREE_PAGES;
@@ -1238,15 +1247,26 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const updateAdminUserPlan = async (
     userId: string,
-    planId: 'free' | 'starter' | 'pro' | 'enterprise'
+    targetPlanId: 'free' | 'starter' | 'pro' | 'enterprise'
   ) => {
     try {
       const res = await fetch(`/api/admin/users/${userId}/plan`, {
         method: 'POST',
         headers: getAdminAuthHeaders(),
-        body: JSON.stringify({ planId }),
+        body: JSON.stringify({ planId: targetPlanId }),
       });
       const data = await res.json();
+      if (data.success && data.user) {
+        if (user && user.id === userId) {
+          setUser(data.user);
+        }
+        if (impersonatedUser && impersonatedUser.id === userId) {
+          setImpersonatedUser(data.user);
+          try {
+            localStorage.setItem('funnelcraft_impersonated_user', JSON.stringify(data.user));
+          } catch (_) {}
+        }
+      }
       return {
         success: data.success,
         user: data.user,
@@ -1362,6 +1382,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         isLoading,
         isLoggedIn: !!user,
         planId,
+        capabilities: planCaps,
         isStarter,
         isPro,
         isEnterprise,

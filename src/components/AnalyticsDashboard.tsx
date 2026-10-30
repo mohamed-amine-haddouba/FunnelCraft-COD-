@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { SubscriptionPlanId, CustomerOrder } from '../types/orders';
 import { useLanguage } from '../i18n/translations';
+import { useAuth } from '../context/AuthContext';
 import { ProFeatureLock } from './ProFeatureLock';
 
 interface AnalyticsDashboardProps {
@@ -42,7 +43,14 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
   onNavigateToBuilder,
 }) => {
   const { t, dir, isRtl, language } = useLanguage();
-  const isPro = currentPlan === 'pro' || currentPlan === 'enterprise';
+  const { user, capabilities } = useAuth();
+  const isPro =
+    capabilities.canUseApiIntegrations ||
+    user?.role === 'admin' ||
+    user?.plan_id === 'pro' ||
+    user?.plan_id === 'enterprise' ||
+    currentPlan === 'pro' ||
+    currentPlan === 'enterprise';
 
   const [timeRange, setTimeRange] = useState<'7d' | '30d' | '90d'>('30d');
   const [orders, setOrders] = useState<CustomerOrder[]>([]);

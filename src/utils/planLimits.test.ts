@@ -47,18 +47,19 @@ describe('Subscription Plan Capabilities & Limit Enforcement', () => {
     assert.equal(checkFeatureAccess('pixels', { plan_id: 'starter', role: 'user' }).allowed, false);
   });
 
-  it('enforces Pro plan limits: unlimited pages, custom domain allowed, pixels allowed, no API integrations', () => {
+  it('enforces Pro plan limits: unlimited pages, custom domain allowed, pixels allowed, API integrations & order export allowed', () => {
     const caps = getPlanCapabilities('pro', 'user', 'pro@example.com');
     assert.equal(caps.effectivePlan, 'pro');
     assert.equal(caps.maxPages, Infinity);
     assert.equal(caps.canUseCustomDomain, true);
     assert.equal(caps.canUsePixels, true);
-    assert.equal(caps.canUseApiIntegrations, false);
+    assert.equal(caps.canUseApiIntegrations, true);
+    assert.equal(caps.canExportOrders, true);
 
     assert.equal(checkFeatureAccess('create_page', { plan_id: 'pro', role: 'user' }, 100).allowed, true);
     assert.equal(checkFeatureAccess('custom_domain', { plan_id: 'pro', role: 'user' }).allowed, true);
     assert.equal(checkFeatureAccess('pixels', { plan_id: 'pro', role: 'user' }).allowed, true);
-    assert.equal(checkFeatureAccess('api_integrations', { plan_id: 'pro', role: 'user' }).allowed, false);
+    assert.equal(checkFeatureAccess('api_integrations', { plan_id: 'pro', role: 'user' }).allowed, true);
   });
 
   it('enforces Enterprise plan limits: unlimited access to all features', () => {
@@ -68,10 +69,17 @@ describe('Subscription Plan Capabilities & Limit Enforcement', () => {
     assert.equal(caps.canUseCustomDomain, true);
     assert.equal(caps.canUsePixels, true);
     assert.equal(caps.canUseApiIntegrations, true);
+    assert.equal(caps.canExportOrders, true);
     assert.equal(caps.prioritySupport, true);
   });
 
   it('bypasses all limits for Admin/Owner regardless of plan_id', () => {
+    const adminCaps = getPlanCapabilities('free', 'admin', 'admin@example.com');
+    assert.equal(adminCaps.canUseCustomDomain, true);
+    assert.equal(adminCaps.canUsePixels, true);
+    assert.equal(adminCaps.canUseApiIntegrations, true);
+    assert.equal(adminCaps.canExportOrders, true);
+
     const adminByRole = checkFeatureAccess('custom_domain', { plan_id: 'free', role: 'admin' }, 50);
     assert.equal(adminByRole.allowed, true);
 

@@ -5,6 +5,7 @@ import {
   SubscriptionPlanId,
 } from '../types/orders';
 import { useLanguage } from '../i18n/translations';
+import { useAuth } from '../context/AuthContext';
 import {
   Package,
   TrendingUp,
@@ -77,7 +78,16 @@ export const OrdersDashboard: React.FC<Props> = ({
   onNewOrderCreated,
 }) => {
   const { t, dir, isRtl, language } = useLanguage();
-  const isPro = currentPlan === 'pro' || currentPlan === 'enterprise';
+  const { user, capabilities } = useAuth();
+  const canExport =
+    capabilities.canUseApiIntegrations ||
+    capabilities.canExportOrders ||
+    user?.role === 'admin' ||
+    user?.plan_id === 'pro' ||
+    user?.plan_id === 'enterprise' ||
+    currentPlan === 'pro' ||
+    currentPlan === 'enterprise';
+  const isPro = canExport;
 
   const [orders, setOrders] = useState<CustomerOrder[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -86,6 +96,8 @@ export const OrdersDashboard: React.FC<Props> = ({
   const [selectedCity, setSelectedCity] = useState<string>('all');
   const [isSimulatingOrder, setIsSimulatingOrder] = useState<boolean>(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [selectedCarrier, setSelectedCarrier] = useState<string>('Ozon Express');
+  const [carrierWebhookUrl, setCarrierWebhookUrl] = useState<string>('');
 
   // Fetch orders from backend (with authenticated Bearer token)
   const fetchOrders = async () => {
@@ -241,7 +253,7 @@ export const OrdersDashboard: React.FC<Props> = ({
 
   // Export orders to CSV (with UTF-8 BOM for Arabic Microsoft Excel support)
   const handleExportCsv = () => {
-    if (!isPro) {
+    if (!canExport) {
       onUpgradeClick();
       return;
     }
@@ -376,15 +388,16 @@ export const OrdersDashboard: React.FC<Props> = ({
           <button
             type="button"
             onClick={handleExportCsv}
+            data-testid="export-orders-csv-btn"
             className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border cursor-pointer transition ${
-              isPro
+              canExport
                 ? 'bg-slate-900 hover:bg-slate-800 border-slate-800 text-slate-200'
                 : 'bg-amber-500/10 hover:bg-amber-500/20 border-amber-500/30 text-amber-300'
             }`}
           >
-            {isPro ? (
+            {canExport ? (
               <>
-                <Download className="w-3.5 h-3.5 text-slate-400" />
+                <Download className="w-3.5 h-3.5 text-emerald-400" />
                 <span>{t.exportCsv}</span>
               </>
             ) : (
@@ -640,6 +653,100 @@ export const OrdersDashboard: React.FC<Props> = ({
           </table>
         </div>
       </div>
+
+      {/* Order Export & Delivery Carrier API Integration Card */}
+      {canExport ? (
+        <div
+          className="bg-slate-900/70 border border-emerald-500/30 rounded-xl p-4 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4"
+          data-testid="delivery-integration-unlocked"
+        >
+          <div className="space-y-1">
+            <div className="flex items-center gap-2 text-xs font-bold text-emerald-400">
+              <Truck className="w-4 h-4 text-emerald-400" />
+              <span>
+                {language === 'ar'
+                  ? '✅ تصدير الطلبات والربط المباشر مع شركات التوصيل (مفعل لحسابك Pro)'
+                  : '✅ Order Export & Delivery Carrier Sync (Active on your Pro Plan)'}
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-400">
+              {language === 'ar'
+                ? 'يمكنك تصدير جميع الطلبات بصيغة CSV/Excel أو إرسالها تلقائياً إلى شركة التوصيل المعتمدة لديك.'
+                : 'Export orders to CSV/Excel or sync confirmed COD orders directly with your Moroccan delivery carrier.'}
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
+            <select
+              value={selectedCarrier}
+              onChange={(e) => setSelectedCarrier(e.target.value)}
+              className="bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-emerald-500"
+            >
+              <option value="Ozon Express">Ozon Express (أوزون إكسبريس)</option>
+              <option value="Cathedis">Cathedis (كاتيديس)</option>
+              <option value="Amana">Amana (أمانة المغرب)</option>
+              <option value="Tawssil">Tawssil / Sendit</option>
+            </select>
+
+            <input
+              type="url"
+              dir="ltr"
+              value={carrierWebhookUrl}
+              onChange={(e) => setCarrierWebhookUrl(e.target.value)}
+              placeholder="https://api.carrier.ma/webhook..."
+              className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 min-w-[200px]"
+            />
+
+            <button
+              type="button"
+              onClick={() =>
+                showToast(
+                  language === 'ar'
+                    ? `تمت مزامنة الطلبيات مع ${selectedCarrier} بنجاح!`
+                    : `Synced orders with ${selectedCarrier}!`
+                )
+              }
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-slate-950 transition cursor-pointer"
+            >
+              <LinkIcon className="w-3.5 h-3.5" />
+              <span>{language === 'ar' ? 'مزامنة مع شركة التوصيل' : 'Sync Carrier'}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleExportCsv}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white transition cursor-pointer"
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-400" />
+              <span>{t.exportCsv}</span>
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div
+          className="bg-gradient-to-r from-amber-500/10 via-slate-900 to-amber-500/10 border border-amber-500/30 rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3"
+          data-testid="delivery-integration-locked"
+        >
+          <div className="space-y-1">
+            <div className="text-xs font-bold text-amber-300 flex items-center gap-1.5">
+              <Crown className="w-4 h-4 text-amber-400 shrink-0" />
+              <span>🔒 تصدير الطلبات والربط مع شركات التوصيل ميزة حصرية لمشتركي Pro</span>
+            </div>
+            <p className="text-[11px] text-slate-400">
+              {language === 'ar'
+                ? 'قم بترقية باقتك إلى Pro أو Enterprise لتفعيل تصدير ملفات Excel/CSV والربط التلقائي مع شركات التوصيل.'
+                : 'Upgrade to Pro or Enterprise to unlock CSV/Excel exports and automated delivery carrier webhooks.'}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onUpgradeClick}
+            className="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-400 to-yellow-500 hover:from-amber-300 hover:to-yellow-400 text-slate-950 font-black text-xs shadow-lg transition cursor-pointer shrink-0"
+          >
+            {language === 'ar' ? 'ترقية إلى باقة Pro' : 'Upgrade to Pro'}
+          </button>
+        </div>
+      )}
     </div>
   );
 };

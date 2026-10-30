@@ -278,6 +278,7 @@ function BuilderWorkspace() {
     user,
     isLoading,
     isLoggedIn,
+    planId,
     isPro,
     isAdmin,
     isImpersonating,
@@ -360,9 +361,18 @@ function BuilderWorkspace() {
 
   const [isCustomerLiveView, setIsCustomerLiveView] = useState<boolean>(false);
   const [currentPlan, setCurrentPlan] = useState<SubscriptionPlanId>(() => {
-    return (localStorage.getItem('funnelcraft_plan') as SubscriptionPlanId) || 'free';
+    return (planId as SubscriptionPlanId) || (localStorage.getItem('funnelcraft_plan') as SubscriptionPlanId) || 'free';
   });
   const [pendingOrdersCount, setPendingOrdersCount] = useState<number>(0);
+
+  useEffect(() => {
+    if (planId) {
+      setCurrentPlan(planId);
+      try {
+        localStorage.setItem('funnelcraft_plan', planId);
+      } catch (_) {}
+    }
+  }, [planId]);
 
   const handleNavigateToPricing = useCallback(
     (reason?: string) => {
