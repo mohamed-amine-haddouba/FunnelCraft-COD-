@@ -32,6 +32,8 @@ import {
   RotateCcw,
 } from 'lucide-react';
 import { PRO_BLOCK_TYPES } from './BlocksToolbar';
+import { useAuth } from '../context/AuthContext';
+import { Lock, CheckCircle2, AlertCircle } from 'lucide-react';
 
 interface Props {
   pageData: LandingPageData;
@@ -104,7 +106,7 @@ const ProFeatureLockOverlay: React.FC<{
         onClick={() => onUpgradeClick?.(reason)}
         className="px-3 py-1.5 rounded-lg bg-gradient-to-r from-amber-400 to-yellow-500 hover:from-amber-300 hover:to-yellow-400 text-slate-950 font-black text-[11px] shadow-md transition cursor-pointer whitespace-nowrap"
       >
-        🔒 ميزة احترافية - ترقية الآن
+        🔒 Upgrade Required — ترقية الباقة
       </button>
     </div>
   );
@@ -252,11 +254,55 @@ export const PropertiesSidebar: React.FC<Props> = ({
   onClose,
   onCollapse,
 }) => {
+  const {
+    canUsePixels,
+    canRemoveWatermark,
+    savePagePixels,
+    userPages,
+  } = useAuth();
+
   const [openColorPicker, setOpenColorPicker] = useState<'primary' | 'background' | 'text' | null>(
     null
   );
+  const [savingPixels, setSavingPixels] = useState(false);
+  const [pixelsSavedMsg, setPixelsSavedMsg] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
   const selectedBlock = pageData.blocks.find((b) => b.id === selectedBlockId);
+  const isSavedCloudPage = userPages.some((p) => p.id === pageData.id);
+  const effectiveWatermarkUnlocked = canRemoveWatermark || isPro;
+  const effectivePixelsUnlocked = canUsePixels || isPro;
+
+  const handleSavePixelsToCloud = async () => {
+    if (!effectivePixelsUnlocked) {
+      onUpgradeClick?.('ربط بيكسل فيسبوك وتيك توك متاح في باقة Pro و Enterprise فقط.');
+      return;
+    }
+    if (!isSavedCloudPage) {
+      setPixelsSavedMsg({
+        text: 'تم حفظ البيكسل في المسودة الحالية. احفظ الصفحة أو انشرها لتفعيل التتبع.',
+        type: 'success',
+      });
+      return;
+    }
+    setSavingPixels(true);
+    setPixelsSavedMsg(null);
+    try {
+      const res = await savePagePixels(pageData.id, {
+        facebookPixelId: pageData.pixels?.facebookPixelId || '',
+        tiktokPixelId: pageData.pixels?.tiktokPixelId || '',
+        googleAnalyticsId: pageData.pixels?.googleAnalyticsId || '',
+      });
+      if (res.isLimitReached) {
+        onUpgradeClick?.(res.error || 'Upgrade to Pro to configure tracking pixels.');
+      } else if (res.success) {
+        setPixelsSavedMsg({ text: 'تم حفظ إعدادات البيكسل بنجاح!', type: 'success' });
+      } else {
+        setPixelsSavedMsg({ text: res.error || 'تعذر حفظ البيكسل.', type: 'error' });
+      }
+    } finally {
+      setSavingPixels(false);
+    }
+  };
 
   const currentFontFamily: PageTheme['fontFamily'] =
     pageData.theme.fontFamily &&
@@ -664,7 +710,106 @@ export const PropertiesSidebar: React.FC<Props> = ({
             </div>
           </div>
 
-          {/* Remove Platform Watermark (Pro Feature Lock for Free Users) */}
+          {/* Tracking Pixels (Facebook & TikTok Pixel) - Pro / Enterprise Only */}
+          <div className="relative rounded-xl p-3 border border-gray-200 bg-gray-50/70 space-y-2.5">
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <div className="text-[11px] font-black text-gray-800 flex items-center gap-1.5">
+                  <span>بيكسل التتبع (Facebook & TikTok Pixels)</span>
+                  {!effectivePixelsUnlocked && (
+                    <span className="inline-flex items-center gap-0.5 text-[9px] font-black px-1.5 py-0.5 rounded bg-amber-100 text-amber-800">
+                      <Lock className="w-2.5 h-2.5" /> PRO
+                    </span>
+                  )}
+                </div>
+                <div className="text-[10px] text-gray-500">
+                  تتبع زيارات الصفحة وأحداث الشراء (Purchase / PageView) تلقائياً
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-2" dir="ltr">
+              <div>
+                <label className="block text-[10px] font-bold text-gray-600 mb-0.5">
+                  Facebook Pixel ID
+                </label>
+                <input
+                  type="text"
+                  disabled={!effectivePixelsUnlocked}
+                  placeholder="e.g. 123456789012345"
+                  value={pageData.pixels?.facebookPixelId || ''}
+                  onChange={(e) =>
+                    onUpdatePageMeta({
+                      pixels: {
+                        ...pageData.pixels,
+                        facebookPixelId: e.target.value,
+                      },
+                    })
+                  }
+                  className="w-full h-8 px-2.5 py-1 rounded-lg border border-gray-200 bg-white text-xs font-mono outline-none focus:ring-1 focus:ring-emerald-500 disabled:opacity-50"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-gray-600 mb-0.5">
+                  TikTok Pixel ID
+                </label>
+                <input
+                  type="text"
+                  disabled={!effectivePixelsUnlocked}
+                  placeholder="e.g. C1234ABCDEFG5678"
+                  value={pageData.pixels?.tiktokPixelId || ''}
+                  onChange={(e) =>
+                    onUpdatePageMeta({
+                      pixels: {
+                        ...pageData.pixels,
+                        tiktokPixelId: e.target.value,
+                      },
+                    })
+                  }
+                  className="w-full h-8 px-2.5 py-1 rounded-lg border border-gray-200 bg-white text-xs font-mono outline-none focus:ring-1 focus:ring-emerald-500 disabled:opacity-50"
+                />
+              </div>
+            </div>
+
+            {effectivePixelsUnlocked && (
+              <div className="pt-1 space-y-1.5">
+                <button
+                  type="button"
+                  onClick={handleSavePixelsToCloud}
+                  disabled={savingPixels}
+                  className="w-full py-1.5 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] transition cursor-pointer disabled:opacity-50"
+                >
+                  {savingPixels ? 'جاري حفظ البيكسل...' : 'حفظ وتفعيل البيكسل'}
+                </button>
+                {pixelsSavedMsg && (
+                  <div
+                    className={`flex items-center gap-1.5 text-[10px] font-bold px-2 py-1 rounded-md ${
+                      pixelsSavedMsg.type === 'success'
+                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                        : 'bg-rose-50 text-rose-700 border border-rose-200'
+                    }`}
+                  >
+                    {pixelsSavedMsg.type === 'success' ? (
+                      <CheckCircle2 className="w-3 h-3 shrink-0" />
+                    ) : (
+                      <AlertCircle className="w-3 h-3 shrink-0" />
+                    )}
+                    <span>{pixelsSavedMsg.text}</span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {!effectivePixelsUnlocked && (
+              <ProFeatureLockOverlay
+                onUpgradeClick={onUpgradeClick}
+                reason="ربط بيكسل فيسبوك وتيك توك متاح في باقة Pro و Enterprise فقط."
+              />
+            )}
+          </div>
+
+          {/* Remove Platform Watermark (Pro/Starter Feature Lock for Free Users) */}
           <div className="relative rounded-xl p-2.5 border border-gray-200 bg-gray-50/50">
             <div className="flex items-center justify-between gap-2">
               <div>
@@ -677,13 +822,13 @@ export const PropertiesSidebar: React.FC<Props> = ({
               </div>
               <input
                 type="checkbox"
-                checked={isPro}
-                disabled={!isPro}
+                checked={effectiveWatermarkUnlocked}
+                disabled={!effectiveWatermarkUnlocked}
                 readOnly
                 className="w-4 h-4 accent-emerald-600 rounded"
               />
             </div>
-            {!isPro && (
+            {!effectiveWatermarkUnlocked && (
               <ProFeatureLockOverlay
                 compact
                 onUpgradeClick={onUpgradeClick}

@@ -34,6 +34,12 @@ import {
   unpublishPage,
   getPublishedPageBySlug,
   getPublishedPageByDomain,
+  getActivePageByCustomDomain,
+  getActiveDomainToSlugCache,
+  setPageCustomDomain,
+  updatePageDomainStatus,
+  removePageCustomDomain,
+  updatePagePixels,
   incrementPageViews,
   incrementPageOrders,
   recordPageOrder,
@@ -67,6 +73,15 @@ import {
   normalizeExchangeRates,
   calculatePayPalUsdSettlement,
 } from './src/utils/currencyAndBanks';
+import {
+  VPS_IP,
+  CNAME_TARGET,
+  PlanFeature,
+  getPlanCapabilities,
+  checkFeatureAccess,
+  validateAndNormalizeCustomDomain,
+} from './src/utils/planLimits';
+import dns from 'node:dns/promises';
 import crypto from 'crypto';
 import cors from 'cors';
 import rateLimit from 'express-rate-limit';
@@ -832,6 +847,25 @@ async function startServer() {
       const rawAvatar = req.body.avatar;
       const rawCustomDomain = req.body.custom_domain ?? req.body.customDomain;
 
+      if (typeof rawCustomDomain === 'string' && rawCustomDomain.trim()) {
+        const domainAccess = checkFeatureAccess(
+          'custom_domain',
+          req.user,
+          getUserPages(targetUserId).length,
+          process.env.OWNER_EMAIL
+        );
+        if (!domainAccess.allowed) {
+          return res.status(403).json({
+            success: false,
+            code: domainAccess.code,
+            isLimitReached: true,
+            feature: 'custom_domain',
+            requiredPlan: domainAccess.requiredPlan,
+            error: domainAccess.message,
+          });
+        }
+      }
+
       const safeProfileUpdates = {
         full_name: typeof rawFullName === 'string' && rawFullName.trim() ? sanitizeInput(rawFullName, 120) : undefined,
         store_name: typeof rawStoreName === 'string' && rawStoreName.trim() ? sanitizeInput(rawStoreName, 120) : undefined,
@@ -958,17 +992,78 @@ async function startServer() {
     });
   });
 
-  /* ---------------- USAGE TRACKING & GUARD ROUTES ---------------- */
+  /* ---------------- USAGE TRACKING & SUBSCRIPTION PLAN GUARD MIDDLEWARE ---------------- */
+
+  const isUserAdminOrOwner = (user?: { role?: string; email?: string } | null): boolean => {
+    if (!user) return false;
+    const ownerEmail = (process.env.OWNER_EMAIL || 'naadianajah2020@gmail.com').trim().toLowerCase();
+    return user.role === 'admin' || (user.email || '').trim().toLowerCase() === ownerEmail;
+  };
+
+  // Strict Subscription Plan Limit Enforcement Middleware
+  const checkPlanLimit = (featureName: PlanFeature) => {
+    return (req: AuthRequest, res: Response, next: NextFunction) => {
+      const user = req.user;
+      if (!user) {
+        return res.status(401).json({
+          success: false,
+          error: 'Authentication required.',
+        });
+      }
+
+      // Admin/Owner bypasses all plan limits
+      if (isUserAdminOrOwner(user)) {
+        return next();
+      }
+
+      // When saving an existing page owned by the user via POST /api/pages or POST /api/pages/save, allow editing existing pages
+      if (featureName === 'create_page' && req.body?.id) {
+        const existingPage = getUserPageById(user.id, String(req.body.id), false);
+        if (existingPage) {
+          return next();
+        }
+      }
+
+      const currentPagesCount = getUserPages(user.id).length;
+      const access = checkFeatureAccess(
+        featureName,
+        user,
+        currentPagesCount,
+        process.env.OWNER_EMAIL
+      );
+
+      if (!access.allowed) {
+        return res.status(403).json({
+          success: false,
+          code: access.code,
+          isLimitReached: true,
+          feature: featureName,
+          effectivePlan: access.effectivePlan,
+          requiredPlan: access.requiredPlan,
+          maxPages: Number.isFinite(access.maxPages) ? access.maxPages : -1,
+          currentPagesCount,
+          error: access.message,
+          errorAr: access.messageAr,
+          message: access.message,
+        });
+      }
+
+      return next();
+    };
+  };
 
   // Check Usage Limits and Increment Pages Count
-  app.post('/api/user/increment-usage', authMiddleware, (req: AuthRequest, res: Response) => {
+  app.post('/api/user/increment-usage', authMiddleware, checkPlanLimit('create_page'), (req: AuthRequest, res: Response) => {
     try {
       const result = incrementUserUsage(req.user!.id);
       if (!result.allowed) {
         return res.status(403).json({
           success: false,
-          error: 'LIMIT_REACHED',
-          message: 'Free Plan limit reached (2/2 pages used). Upgrade to Pro for unlimited pages.',
+          code: 'PAGE_LIMIT_REACHED',
+          isLimitReached: true,
+          requiredPlan: result.requiredPlan || 'starter',
+          error: result.message || 'Plan page limit reached. Please upgrade your subscription.',
+          message: result.message || 'Plan page limit reached. Please upgrade your subscription.',
           user: result.user,
         });
       }
@@ -1662,42 +1757,62 @@ async function startServer() {
     }
   });
 
-  // Get specific page by ID (Strictly enforces req.user.id ownership)
+  // Get specific page by ID (Strictly enforces req.user.id ownership or admin)
   app.get('/api/pages/:id', authMiddleware, (req: AuthRequest, res: Response) => {
-    const page = getUserPageById(req.user!.id, req.params.id);
-    if (!page || page.userId !== req.user!.id) {
+    const isAdmin = isUserAdminOrOwner(req.user);
+    const page = getUserPageById(req.user!.id, req.params.id, isAdmin);
+    if (!page) {
       return res.status(404).json({ success: false, error: 'Page not found or access denied.' });
     }
     return res.json({ success: true, page });
   });
 
-  // Save or update a landing page in the cloud (Strictly uses req.user.id, never body.userId)
-  app.post('/api/pages/save', authMiddleware, (req: AuthRequest, res: Response) => {
+  // Shared handler for POST /api/pages and POST /api/pages/save (Protected by checkPlanLimit('create_page'))
+  const handleCreateOrSavePage = (req: AuthRequest, res: Response) => {
     try {
-      const { id, title, slug, data } = req.body;
+      const { id, title, slug, data, customDomain } = req.body;
       const user = req.user!;
-      const isPro = user.subscription_status === 'active';
+      const isAdmin = isUserAdminOrOwner(user);
 
-      // Check if updating an existing page the user already owns
-      const existingPage = id ? getUserPageById(user.id, id) : null;
-
-      // If creating a brand new page, check free tier limits
-      if (!existingPage) {
-        if (!isPro && user.pages_created_count >= 2) {
+      // If customDomain is passed while saving, enforce custom_domain plan limit
+      if (typeof customDomain === 'string' && customDomain.trim()) {
+        const domAccess = checkFeatureAccess('custom_domain', user, getUserPages(user.id).length, process.env.OWNER_EMAIL);
+        if (!domAccess.allowed) {
           return res.status(403).json({
             success: false,
-            code: 'LIMIT_REACHED',
-            error: 'Free tier limit reached (2/2 pages). Upgrade to CodWorth Pro for unlimited pages.',
+            code: domAccess.code,
+            isLimitReached: true,
+            feature: 'custom_domain',
+            requiredPlan: domAccess.requiredPlan,
+            error: domAccess.message,
           });
         }
       }
 
-      const { page, isNew } = saveUserPage(user.id, { id, title, slug, data });
+      const existingPage = id ? getUserPageById(user.id, id, isAdmin) : null;
+      if (!existingPage) {
+        const currentPagesCount = getUserPages(user.id).length;
+        const createAccess = checkFeatureAccess('create_page', user, currentPagesCount, process.env.OWNER_EMAIL);
+        if (!createAccess.allowed) {
+          return res.status(403).json({
+            success: false,
+            code: createAccess.code,
+            isLimitReached: true,
+            feature: 'create_page',
+            requiredPlan: createAccess.requiredPlan,
+            maxPages: createAccess.maxPages,
+            currentPagesCount,
+            error: createAccess.message,
+          });
+        }
+      }
 
-      let currentCount = user.pages_created_count;
+      const { page, isNew } = saveUserPage(user.id, { id, title, slug, data, customDomain });
+
+      let currentCount = getUserPages(user.id).length;
       if (isNew) {
         const usageRes = incrementUserUsage(user.id);
-        currentCount = usageRes.user.pages_created_count;
+        currentCount = Math.max(usageRes.user.pages_created_count, currentCount);
       }
 
       return res.json({
@@ -1713,14 +1828,18 @@ async function startServer() {
       const status = err.message?.startsWith('Forbidden') ? 403 : 400;
       return res.status(status).json({ success: false, error: err.message });
     }
-  });
+  };
+
+  app.post('/api/pages', authMiddleware, checkPlanLimit('create_page'), handleCreateOrSavePage);
+  app.post('/api/pages/save', authMiddleware, checkPlanLimit('create_page'), handleCreateOrSavePage);
 
   // Update a specific landing page by ID (Strictly verifies req.user.id ownership)
   app.put('/api/pages/:id', authMiddleware, (req: AuthRequest, res: Response) => {
     try {
       const user = req.user!;
-      const existingPage = getUserPageById(user.id, req.params.id);
-      if (!existingPage || existingPage.userId !== user.id) {
+      const isAdmin = isUserAdminOrOwner(user);
+      const existingPage = getUserPageById(user.id, req.params.id, isAdmin);
+      if (!existingPage) {
         return res.status(403).json({ success: false, error: 'Forbidden: You do not own this page.' });
       }
       const { title, slug, data } = req.body;
@@ -1735,7 +1854,8 @@ async function startServer() {
   // Delete a landing page (Strictly verifies req.user.id ownership)
   app.delete('/api/pages/:id', authMiddleware, (req: AuthRequest, res: Response) => {
     try {
-      const deleted = deleteUserPage(req.user!.id, req.params.id);
+      const isAdmin = isUserAdminOrOwner(req.user);
+      const deleted = deleteUserPage(req.user!.id, req.params.id, isAdmin);
       if (!deleted) {
         return res.status(404).json({ success: false, error: 'Page not found or permission denied.' });
       }
@@ -1745,20 +1865,10 @@ async function startServer() {
     }
   });
 
-  // Duplicate a landing page
-  app.post('/api/pages/:id/duplicate', authMiddleware, (req: AuthRequest, res: Response) => {
+  // Duplicate a landing page (Protected by checkPlanLimit('create_page'))
+  app.post('/api/pages/:id/duplicate', authMiddleware, checkPlanLimit('create_page'), (req: AuthRequest, res: Response) => {
     try {
       const user = req.user!;
-      const isPro = user.subscription_status === 'active';
-
-      if (!isPro && user.pages_created_count >= 2) {
-        return res.status(403).json({
-          success: false,
-          code: 'LIMIT_REACHED',
-          error: 'Free tier limit reached (2/2 pages). Upgrade to Pro to duplicate and build unlimited pages.',
-        });
-      }
-
       const duplicated = duplicateUserPage(user.id, req.params.id);
       if (!duplicated) {
         return res.status(404).json({ success: false, error: 'Source page not found.' });
@@ -1777,6 +1887,234 @@ async function startServer() {
     }
   });
 
+  /* ---------------- CUSTOM DOMAIN & PIXELS ENDPOINTS (PRO / ENTERPRISE / ADMIN) ---------------- */
+
+  // Connect / Update Custom Domain for a specific landing page (POST & PUT supported)
+  const handleSetCustomDomain = (req: AuthRequest, res: Response) => {
+    try {
+      const user = req.user!;
+      const isAdmin = isUserAdminOrOwner(user);
+      const pageId = (req.params.id || '').trim();
+      const rawDomain = req.body?.domain ?? req.body?.customDomain ?? '';
+
+      const validation = validateAndNormalizeCustomDomain(rawDomain);
+      if (!validation.valid) {
+        return res.status(400).json({
+          success: false,
+          error: validation.error,
+          errorAr: validation.errorAr,
+        });
+      }
+
+      const updatedPage = setPageCustomDomain(user.id, pageId, validation.normalizedDomain, isAdmin);
+
+      return res.json({
+        success: true,
+        page: updatedPage,
+        customDomain: updatedPage.customDomain,
+        domainStatus: updatedPage.domainStatus,
+        expectedRecords: {
+          aRecord: { type: 'A', host: '@', value: VPS_IP, ttl: 'Auto / 3600' },
+          cnameRecord: { type: 'CNAME', host: 'www', value: CNAME_TARGET, ttl: 'Auto / 3600' },
+        },
+        message: `Domain "${updatedPage.customDomain}" saved with status "pending_dns". Configure your DNS records and click Verify DNS.`,
+      });
+    } catch (err: any) {
+      const status = err.message?.startsWith('Forbidden') ? 403 : 400;
+      return res.status(status).json({ success: false, error: err.message });
+    }
+  };
+
+  app.post('/api/pages/:id/custom-domain', authMiddleware, checkPlanLimit('custom_domain'), handleSetCustomDomain);
+  app.put('/api/pages/:id/custom-domain', authMiddleware, checkPlanLimit('custom_domain'), handleSetCustomDomain);
+
+  // Verify Live DNS Records (A Record -> 217.160.116.237 OR CNAME -> domains.codworth.me) using Node's native dns.promises
+  app.post(
+    '/api/pages/:id/custom-domain/verify',
+    authMiddleware,
+    checkPlanLimit('custom_domain'),
+    async (req: AuthRequest, res: Response) => {
+      try {
+        const user = req.user!;
+        const isAdmin = isUserAdminOrOwner(user);
+        const pageId = (req.params.id || '').trim();
+        const page = getUserPageById(user.id, pageId, isAdmin);
+
+        if (!page) {
+          return res.status(404).json({ success: false, error: 'Page not found or access denied.' });
+        }
+
+        // If a domain was passed in body, save it first
+        const candidateDomain = req.body?.domain ? String(req.body.domain).trim() : page.customDomain;
+        if (!candidateDomain) {
+          return res.status(400).json({
+            success: false,
+            error: 'No custom domain is configured for this page. Please save a domain first.',
+          });
+        }
+
+        if (candidateDomain !== page.customDomain) {
+          setPageCustomDomain(user.id, pageId, candidateDomain, isAdmin);
+        }
+
+        const targetDomain = (page.customDomain || candidateDomain).trim().toLowerCase();
+        const wwwVariant = targetDomain.startsWith('www.') ? targetDomain : `www.${targetDomain}`;
+        const rootVariant = targetDomain.replace(/^www\./, '');
+
+        const aRecords: string[] = [];
+        const cnameRecords: string[] = [];
+
+        // 1. Resolve A records on targetDomain and rootVariant
+        try {
+          const resolvedA = await dns.resolve4(targetDomain);
+          for (const ip of resolvedA) {
+            if (!aRecords.includes(ip)) aRecords.push(ip);
+          }
+        } catch (_err) {
+          // ENODATA / ENOTFOUND expected if not configured or CNAME only
+        }
+
+        if (rootVariant !== targetDomain) {
+          try {
+            const resolvedRootA = await dns.resolve4(rootVariant);
+            for (const ip of resolvedRootA) {
+              if (!aRecords.includes(ip)) aRecords.push(ip);
+            }
+          } catch (_err) {
+            // ignore
+          }
+        }
+
+        // 2. Resolve CNAME records on targetDomain and wwwVariant
+        try {
+          const resolvedCname = await dns.resolveCname(targetDomain);
+          for (const cn of resolvedCname) {
+            const cleanCn = cn.trim().toLowerCase().replace(/\.$/, '');
+            if (!cnameRecords.includes(cleanCn)) cnameRecords.push(cleanCn);
+          }
+        } catch (_err) {
+          // ENODATA / ENOTFOUND expected if root domain uses A record
+        }
+
+        if (wwwVariant !== targetDomain) {
+          try {
+            const resolvedWwwCname = await dns.resolveCname(wwwVariant);
+            for (const cn of resolvedWwwCname) {
+              const cleanCn = cn.trim().toLowerCase().replace(/\.$/, '');
+              if (!cnameRecords.includes(cleanCn)) cnameRecords.push(cleanCn);
+            }
+          } catch (_err) {
+            // ignore
+          }
+        }
+
+        const expectedCnames = new Set([CNAME_TARGET.toLowerCase(), 'codworth.me', 'www.codworth.me']);
+        const hasValidARecord = aRecords.includes(VPS_IP);
+        const hasValidCname = cnameRecords.some((cn) => expectedCnames.has(cn));
+
+        const expectedRecords = {
+          aRecord: { type: 'A', host: '@', value: VPS_IP, ttl: 'Auto / 3600' },
+          cnameRecord: { type: 'CNAME', host: 'www', value: CNAME_TARGET, ttl: 'Auto / 3600' },
+        };
+
+        if (hasValidARecord || hasValidCname) {
+          const verifiedPage = updatePageDomainStatus(user.id, pageId, 'active', null, isAdmin);
+          return res.status(200).json({
+            success: true,
+            verified: true,
+            domain: targetDomain,
+            domainStatus: 'active',
+            page: verifiedPage,
+            resolvedRecords: {
+              a: aRecords,
+              cname: cnameRecords,
+            },
+            expectedRecords,
+            message: `DNS verified! "${targetDomain}" is now ACTIVE and serving "${verifiedPage.title}".`,
+          });
+        }
+
+        const detectedSummary =
+          aRecords.length > 0 || cnameRecords.length > 0
+            ? `Detected A: [${aRecords.join(', ') || 'none'}], CNAME: [${cnameRecords.join(', ') || 'none'}].`
+            : 'No matching DNS A or CNAME records were found yet.';
+
+        const errorMessage = `DNS verification failed for "${targetDomain}". ${detectedSummary} Expected A record (@ -> ${VPS_IP}) or CNAME record (www -> ${CNAME_TARGET}).`;
+
+        const failedPage = updatePageDomainStatus(user.id, pageId, 'error', errorMessage, isAdmin);
+
+        return res.status(400).json({
+          success: false,
+          verified: false,
+          domain: targetDomain,
+          domainStatus: 'error',
+          page: failedPage,
+          error: errorMessage,
+          resolvedRecords: {
+            a: aRecords,
+            cname: cnameRecords,
+          },
+          expectedRecords,
+        });
+      } catch (err: any) {
+        return res.status(500).json({
+          success: false,
+          error: err.message || 'DNS verification failed.',
+        });
+      }
+    }
+  );
+
+  // Disconnect / Remove Custom Domain from a page
+  app.delete('/api/pages/:id/custom-domain', authMiddleware, (req: AuthRequest, res: Response) => {
+    try {
+      const user = req.user!;
+      const isAdmin = isUserAdminOrOwner(user);
+      const updatedPage = removePageCustomDomain(user.id, req.params.id, isAdmin);
+      return res.json({
+        success: true,
+        page: updatedPage,
+        customDomain: null,
+        domainStatus: 'not_connected',
+        message: 'Custom domain disconnected from page.',
+      });
+    } catch (err: any) {
+      const status = err.message?.startsWith('Forbidden') ? 403 : 400;
+      return res.status(status).json({ success: false, error: err.message });
+    }
+  });
+
+  // Save Facebook / TikTok / Google Analytics Pixels on a page (Protected by checkPlanLimit('pixels'))
+  const handleSavePagePixels = (req: AuthRequest, res: Response) => {
+    try {
+      const user = req.user!;
+      const isAdmin = isUserAdminOrOwner(user);
+      const { facebookPixelId, tiktokPixelId, googleAnalyticsId } = req.body || {};
+      const updatedPage = updatePagePixels(
+        user.id,
+        req.params.id,
+        {
+          facebookPixelId: typeof facebookPixelId === 'string' ? facebookPixelId : '',
+          tiktokPixelId: typeof tiktokPixelId === 'string' ? tiktokPixelId : '',
+          googleAnalyticsId: typeof googleAnalyticsId === 'string' ? googleAnalyticsId : '',
+        },
+        isAdmin
+      );
+      return res.json({
+        success: true,
+        page: updatedPage,
+        pixels: updatedPage.pixels,
+        message: 'Tracking pixels saved and injected into your landing page!',
+      });
+    } catch (err: any) {
+      const status = err.message?.startsWith('Forbidden') ? 403 : 400;
+      return res.status(status).json({ success: false, error: err.message });
+    }
+  };
+
+  app.post('/api/pages/:id/pixels', authMiddleware, checkPlanLimit('pixels'), handleSavePagePixels);
+  app.put('/api/pages/:id/pixels', authMiddleware, checkPlanLimit('pixels'), handleSavePagePixels);
+
   /* ---------------- 1-CLICK PUBLISHING & LIVE DOMAIN HOSTING ---------------- */
 
   // Check if a slug is available for publishing
@@ -1794,6 +2132,7 @@ async function startServer() {
   app.post('/api/pages/:id/publish', authMiddleware, (req: AuthRequest, res: Response) => {
     try {
       const user = req.user!;
+      const isAdmin = isUserAdminOrOwner(user);
       const pageId = req.params.id;
       const { slug, customDomain, compiledHtml } = req.body;
 
@@ -1802,19 +2141,29 @@ async function startServer() {
       }
 
       // Verify page ownership
-      const existingPage = getUserPageById(user.id, pageId);
+      const existingPage = getUserPageById(user.id, pageId, isAdmin);
       if (!existingPage) {
         return res.status(404).json({ success: false, error: 'Page not found or permission denied.' });
       }
 
-      // Check user quota (if user on free plan and exceeded 2 pages)
-      const isPro = user.subscription_status === 'active';
-      if (!isPro && user.pages_created_count > 2) {
-        return res.status(403).json({
-          success: false,
-          code: 'LIMIT_REACHED',
-          error: 'Free plan limit reached (2 pages). Upgrade to Pro to publish live funnels.',
-        });
+      // If customDomain is provided during publish, enforce custom_domain plan limit
+      if (typeof customDomain === 'string' && customDomain.trim()) {
+        const domainAccess = checkFeatureAccess(
+          'custom_domain',
+          user,
+          getUserPages(user.id).length,
+          process.env.OWNER_EMAIL
+        );
+        if (!domainAccess.allowed) {
+          return res.status(403).json({
+            success: false,
+            code: domainAccess.code,
+            isLimitReached: true,
+            feature: 'custom_domain',
+            requiredPlan: domainAccess.requiredPlan,
+            error: domainAccess.message,
+          });
+        }
       }
 
       // Check slug uniqueness
@@ -1832,6 +2181,7 @@ async function startServer() {
         finalHtml = generateStandaloneHtml({
           ...existingPage.data,
           slug: slug.trim(),
+          pixels: existingPage.pixels || existingPage.data.pixels,
         });
       }
 
@@ -1839,8 +2189,9 @@ async function startServer() {
         user.id,
         pageId,
         slug.trim(),
-        customDomain ? customDomain.trim() : undefined,
-        finalHtml
+        customDomain !== undefined ? customDomain.trim() : undefined,
+        finalHtml,
+        isAdmin
       );
 
       const host = req.get('host') || 'localhost:3000';
@@ -1855,7 +2206,7 @@ async function startServer() {
           <p style="margin: 6px 0;"><strong>👤 التاجر:</strong> ${user.full_name} (<span dir="ltr">${user.email}</span>)</p>
           <p style="margin: 6px 0;"><strong>📄 عنوان الصفحة:</strong> ${published.title}</p>
           <p style="margin: 6px 0;"><strong>🔗 الرابط المباشر:</strong> <a href="${liveUrl}" style="color: #10b981;" dir="ltr">${liveUrl}</a></p>
-          ${published.customDomain ? `<p style="margin: 6px 0;"><strong>🌐 الدومين المخصص:</strong> <span dir="ltr">${published.customDomain}</span></p>` : ''}
+          ${published.customDomain ? `<p style="margin: 6px 0;"><strong>🌐 الدومين المخصص:</strong> <span dir="ltr">${published.customDomain} (${published.domainStatus})</span></p>` : ''}
         </div>
         `
       ).catch((err) => console.error('Admin notification error (publish page):', err));
@@ -1875,8 +2226,9 @@ async function startServer() {
   app.post('/api/pages/:id/unpublish', authMiddleware, (req: AuthRequest, res: Response) => {
     try {
       const user = req.user!;
+      const isAdmin = isUserAdminOrOwner(user);
       const pageId = req.params.id;
-      const unpublished = unpublishPage(user.id, pageId);
+      const unpublished = unpublishPage(user.id, pageId, isAdmin);
       return res.json({
         success: true,
         page: unpublished,
@@ -1891,7 +2243,8 @@ async function startServer() {
   app.get('/api/pages/:id/publish-status', authMiddleware, (req: AuthRequest, res: Response) => {
     try {
       const user = req.user!;
-      const page = getUserPageById(user.id, req.params.id);
+      const isAdmin = isUserAdminOrOwner(user);
+      const page = getUserPageById(user.id, req.params.id, isAdmin);
       if (!page) {
         return res.status(404).json({ success: false, error: 'Page not found.' });
       }
@@ -1905,7 +2258,13 @@ async function startServer() {
         success: true,
         isPublished: !!page.isPublished,
         slug: page.slug,
-        customDomain: page.customDomain,
+        customDomain: page.customDomain ?? null,
+        domainStatus: page.domainStatus || 'not_connected',
+        domainError: page.domainError || null,
+        domainVerifiedAt: page.domainVerifiedAt || null,
+        expectedDnsIp: VPS_IP,
+        expectedDnsCname: CNAME_TARGET,
+        pixels: page.pixels || page.data?.pixels || {},
         liveUrl,
         viewsCount: page.viewsCount || 0,
         ordersCount: page.ordersCount || 0,
@@ -1917,23 +2276,25 @@ async function startServer() {
     }
   });
 
-  // Custom domain check endpoint
+  // Public custom domain check endpoint (returns real DNS targets and active status)
   app.get('/p-domain-check', (req: Request, res: Response) => {
     const domain = ((req.query.domain as string) || '').trim().toLowerCase();
-    const host = req.headers.host || '';
+    const host = (req.headers.host || '').split(':')[0].toLowerCase();
     const targetDomain = domain || host;
 
-    const page = getPublishedPageByDomain(targetDomain);
+    const page = getActivePageByCustomDomain(targetDomain);
     return res.json({
       success: true,
       domain: targetDomain,
       connected: !!page,
-      targetCNAME: 'cname.funnelcraft.ma',
-      status: page ? 'ACTIVE_SSL_CONNECTED' : 'PENDING_DNS_VERIFICATION',
+      expectedA: VPS_IP,
+      targetCNAME: CNAME_TARGET,
+      status: page ? 'active' : 'pending_dns',
       pageTitle: page?.title || null,
+      pageSlug: page?.slug || null,
       message: page
-        ? 'Domain successfully linked and live!'
-        : 'Domain verified. Ensure your CNAME record points to cname.funnelcraft.ma.',
+        ? `Domain "${targetDomain}" is active and serving "${page.title}".`
+        : `Domain is not yet verified. Point A record (@) to ${VPS_IP} or CNAME (www) to ${CNAME_TARGET}.`,
     });
   });
 
@@ -3221,13 +3582,22 @@ async function startServer() {
   /* ---------------- AI LANDING PAGE GENERATION ---------------- */
 
   app.post('/api/generate-page', optionalAuthMiddleware, async (req: AuthRequest, res: Response) => {
-    // If authenticated and on free tier, verify limit
-    if (req.user && req.user.subscription_status !== 'active') {
-      if (req.user.pages_created_count >= 2) {
+    // If authenticated, verify page creation limit for user's plan
+    if (req.user) {
+      const access = checkFeatureAccess(
+        'create_page',
+        req.user,
+        getUserPages(req.user.id).length,
+        process.env.OWNER_EMAIL
+      );
+      if (!access.allowed) {
         return res.status(403).json({
           success: false,
+          code: access.code,
+          isLimitReached: true,
+          requiredPlan: access.requiredPlan,
           error: 'LIMIT_REACHED',
-          message: 'Free tier limit reached (2/2 pages used). Upgrade to Pro to generate unlimited pages with AI.',
+          message: access.message,
         });
       }
     }
@@ -3511,28 +3881,53 @@ Return ONLY a valid JSON object matching this exact schema (no markdown outside 
     }
   });
 
-  // Custom Domain Routing Middleware (Checks mapped custom domains for live funnels)
+  // Dynamic Custom Domain Routing Middleware (O(1) lookup via activeDomainToSlugCache)
   app.use((req: Request, res: Response, next: NextFunction) => {
-    const rawHost = (req.headers.host || '').split(':')[0].toLowerCase();
-    const ignoredHosts = ['localhost', '127.0.0.1', '0.0.0.0', 'funnelcraft.ma', 'codworth.me', 'www.codworth.me'];
-    const isSpecialHost = ignoredHosts.includes(rawHost) || rawHost.includes('ais-') || rawHost.includes('.run.app');
+    if (req.method !== 'GET' || req.path.startsWith('/api/') || req.path.startsWith('/@') || req.path.startsWith('/src/') || req.path.startsWith('/node_modules/')) {
+      return next();
+    }
 
-    if (!isSpecialHost && req.path === '/') {
-      const page = getPublishedPageByDomain(rawHost);
-      if (page && page.isPublished) {
+    const rawHost = (req.headers.host || '').split(':')[0].toLowerCase().replace(/\.$/, '');
+    const ignoredHosts = new Set([
+      'localhost',
+      '127.0.0.1',
+      '0.0.0.0',
+      VPS_IP,
+      'funnelcraft.ma',
+      'www.funnelcraft.ma',
+      'codworth.me',
+      'www.codworth.me',
+      CNAME_TARGET.toLowerCase(),
+      'codworth.com',
+      'www.codworth.com',
+    ]);
+    const isPlatformHost =
+      !rawHost ||
+      ignoredHosts.has(rawHost) ||
+      rawHost.includes('ais-') ||
+      rawHost.endsWith('.run.app') ||
+      rawHost.endsWith('.codworth.me');
+
+    if (!isPlatformHost && (req.path === '/' || req.path.startsWith('/p/'))) {
+      const page = getActivePageByCustomDomain(rawHost);
+      if (page && page.domainStatus === 'active') {
         incrementPageViews(page.slug);
         let htmlContent = page.compiledHtml;
         if (!htmlContent && page.data) {
           htmlContent = generateStandaloneHtml({
             ...page.data,
             slug: page.slug,
+            pixels: page.pixels || page.data.pixels,
           });
         }
-        res.setHeader('Content-Type', 'text/html; charset=utf-8');
-        return res.send(htmlContent);
+        if (htmlContent) {
+          res.setHeader('Content-Type', 'text/html; charset=utf-8');
+          res.setHeader('X-Custom-Domain-Page', page.slug);
+          return res.send(htmlContent);
+        }
       }
     }
-    next();
+    return next();
   });
 
   // Serve with Vite in development

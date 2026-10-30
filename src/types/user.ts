@@ -79,12 +79,27 @@ export interface UsageCheckResult {
   message?: string;
 }
 
+export type CustomDomainStatus = 'not_connected' | 'pending_dns' | 'active' | 'error';
+
+export interface PagePixelsConfig {
+  facebookPixelId?: string;
+  tiktokPixelId?: string;
+  googleAnalyticsId?: string;
+  customHeadScript?: string;
+}
+
 export interface StoredPage {
   id: string;
   userId: string;
   title: string;
   slug: string;
-  customDomain?: string;
+  customDomain?: string | null;
+  domainStatus?: CustomDomainStatus;
+  domainError?: string | null;
+  domainVerifiedAt?: string | null;
+  expectedDnsIp?: string;
+  expectedDnsCname?: string;
+  pixels?: PagePixelsConfig;
   data: any;
   compiledHtml?: string;
   isPublished?: boolean;
@@ -99,3 +114,4 @@ export type PublishedPage = StoredPage & {
   isPublished: true;
   compiledHtml: string;
 };
+

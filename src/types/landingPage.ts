@@ -194,6 +194,13 @@ export interface LandingPageData {
   theme: PageTheme;
   blocks: LandingPageBlock[];
   scrapedData?: ScrapedProduct;
+  pixels?: {
+    facebookPixelId?: string;
+    tiktokPixelId?: string;
+    googleAnalyticsId?: string;
+    customHeadScript?: string;
+  };
 }
 
 export type ViewportMode = 'desktop' | 'tablet' | 'mobile';
+

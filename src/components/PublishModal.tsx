@@ -46,13 +46,17 @@ export const PublishModal: React.FC<PublishModalProps> = ({
 }) => {
   const {
     isLoggedIn,
+    planId,
     isPro,
+    canUseCustomDomain,
     pagesCreatedCount,
     maxFreePages,
     publishUserPageInCloud,
     unpublishUserPageInCloud,
     checkSlugAvailability,
     saveUserPageToCloud,
+    savePageCustomDomain,
+    verifyPageCustomDomain,
   } = useAuth();
 
   const [activeTab, setActiveTab] = useState<'platform' | 'custom'>('platform');
@@ -64,12 +68,13 @@ export const PublishModal: React.FC<PublishModalProps> = ({
   const [isSlugAvailableState, setIsSlugAvailableState] = useState<boolean | null>(null);
   const [copiedLink, setCopiedLink] = useState(false);
   const [copiedCname, setCopiedCname] = useState(false);
+  const [copiedIp, setCopiedIp] = useState(false);
   const [showQrModal, setShowQrModal] = useState(false);
   const [statusMessage, setStatusMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
-  // DNS verification state
+  // Real DNS verification state
   const [isVerifyingDns, setIsVerifyingDns] = useState(false);
-  const [dnsStatus, setDnsStatus] = useState<'idle' | 'checking' | 'connected' | 'error'>('idle');
+  const [dnsStatus, setDnsStatus] = useState<'idle' | 'checking' | 'connected' | 'pending_dns' | 'error'>('idle');
   const [dnsMessage, setDnsMessage] = useState('');
 
   const sanitizeSlugValue = (raw?: string): string => {
@@ -88,7 +93,7 @@ export const PublishModal: React.FC<PublishModalProps> = ({
     return cleaned;
   };
 
-  // Initial slug sync
+  // Initial slug & custom domain sync from currentPage
   useEffect(() => {
     if (isOpen) {
       const fromPageDataSlug = sanitizeSlugValue(pageData.slug);
@@ -104,7 +109,16 @@ export const PublishModal: React.FC<PublishModalProps> = ({
       setSlug(initialSlug);
       setCustomDomain(currentPage?.customDomain || '');
       setStatusMessage(null);
-      setDnsStatus(currentPage?.customDomain ? 'connected' : 'idle');
+      if (currentPage?.domainStatus === 'active') {
+        setDnsStatus('connected');
+      } else if (currentPage?.domainStatus === 'pending_dns') {
+        setDnsStatus('pending_dns');
+      } else if (currentPage?.domainStatus === 'error') {
+        setDnsStatus('error');
+      } else {
+        setDnsStatus('idle');
+      }
+      setDnsMessage('');
     }
   }, [isOpen, currentPage, pageData.slug, pageData.title]);
 
@@ -249,34 +263,101 @@ export const PublishModal: React.FC<PublishModalProps> = ({
 
   const handleCopyCname = () => {
     if (!navigator?.clipboard) return;
-    navigator.clipboard.writeText('cname.codworth.com');
+    navigator.clipboard.writeText('domains.codworth.me');
     setCopiedCname(true);
     setTimeout(() => setCopiedCname(false), 2500);
   };
 
+  const handleCopyIp = () => {
+    if (!navigator?.clipboard) return;
+    navigator.clipboard.writeText('217.160.116.237');
+    setCopiedIp(true);
+    setTimeout(() => setCopiedIp(false), 2500);
+  };
+
   const handleVerifyDns = async () => {
+    if (!isLoggedIn) {
+      onRequireAuth();
+      return;
+    }
+
+    if (!canUseCustomDomain) {
+      onRequireUpgrade('ربط النطاق المخصص (Custom Domain) متاح فقط لمشتركي باقة Pro و Enterprise.');
+      return;
+    }
+
     if (!customDomain.trim()) {
       setDnsStatus('error');
-      setDnsMessage('يرجى كتابة اسم الدومين أولاً (مثلاً: www.mystore.com)');
+      setDnsMessage('يرجى كتابة اسم الدومين أولاً (مثلاً: shop.yourbrand.ma أو yourbrand.com)');
       return;
     }
 
     setIsVerifyingDns(true);
     setDnsStatus('checking');
-    setDnsMessage('جاري الاتصال بخوادم الـ DNS وفحص سجل CNAME...');
+    setDnsMessage('جاري الاتصال بخوادم الـ DNS لفحص سجل A (217.160.116.237) أو سجل CNAME (domains.codworth.me)...');
 
     try {
-      const res = await fetch(`/p-domain-check?domain=${encodeURIComponent(customDomain.trim())}`);
-      const data = await res.json();
-      setTimeout(() => {
+      let targetPageId = currentPage?.id || pageData.id;
+      if (!currentPage?.id) {
+        const saveRes = await saveUserPageToCloud({
+          id: targetPageId,
+          title: pageData.title,
+          slug: slug.trim() || sanitizeSlugValue(pageData.title) || `page-${Date.now()}`,
+          data: pageData,
+        });
+        if (saveRes.isLimitReached) {
+          setIsVerifyingDns(false);
+          onRequireUpgrade(saveRes.error);
+          return;
+        }
+        if (!saveRes.success || !saveRes.page) {
+          setIsVerifyingDns(false);
+          setDnsStatus('error');
+          setDnsMessage(saveRes.error || 'تعذر حفظ الصفحة قبل فحص النطاق.');
+          return;
+        }
+        targetPageId = saveRes.page.id;
+      }
+
+      // First save the domain on the page
+      const saveDomRes = await savePageCustomDomain(targetPageId, customDomain.trim());
+      if (saveDomRes.isLimitReached) {
         setIsVerifyingDns(false);
-        setDnsStatus('connected');
-        setDnsMessage('✓ تم التحقق بنجاح! السجل CNAME يشير إلى خوادم CodWorth وشهادة SSL قيد التفعيل.');
-      }, 1200);
-    } catch {
+        onRequireUpgrade(saveDomRes.error);
+        return;
+      }
+      if (!saveDomRes.success) {
+        setIsVerifyingDns(false);
+        setDnsStatus('error');
+        setDnsMessage(saveDomRes.error || 'صيغة الدومين غير صالحة.');
+        return;
+      }
+
+      // Now trigger live DNS verification via Node dns.promises
+      const verifyRes = await verifyPageCustomDomain(targetPageId, customDomain.trim());
       setIsVerifyingDns(false);
-      setDnsStatus('connected');
-      setDnsMessage('✓ تم حفظ إعداد الدومين! سيتم تفعيل الاتصال وتوجيه الترافيك تلقائياً.');
+
+      if (verifyRes.page && onPageUpdated) {
+        onPageUpdated(verifyRes.page);
+      }
+
+      if (verifyRes.success && verifyRes.verified) {
+        setDnsStatus('connected');
+        setDnsMessage(
+          verifyRes.message ||
+            '✓ تم التحقق من سجلات DNS بنجاح! النطاق متصل ونشط الآن (Active).'
+        );
+      } else {
+        setDnsStatus('error');
+        setDnsMessage(
+          verifyRes.error ||
+            'لم يتم العثور على سجلات DNS المطابقة بعد. تأكد من توجيه سجل A (@) إلى 217.160.116.237 أو سجل CNAME (www) إلى domains.codworth.me'
+        );
+      }
+    } catch (err: any) {
+      setIsVerifyingDns(false);
+      setDnsStatus('error');
+      setDnsMessage(err?.message || 'حدث خطأ أثناء فحص سجلات الـ DNS.');
     }
   };
 
@@ -573,118 +654,178 @@ export const PublishModal: React.FC<PublishModalProps> = ({
         {/* Tab 2: Custom Domain Mapping */}
         {activeTab === 'custom' && (
           <div className="p-5 sm:p-6 overflow-y-auto space-y-5 flex-1">
-            <div className="space-y-2">
-              <label className="block text-xs font-bold text-slate-700">
-                اسم الدومين الخاص بمتجرك (Custom Domain)
-              </label>
-
-              <div className="relative">
-                <Globe className="w-4 h-4 text-slate-400 absolute start-3.5 top-1/2 -translate-y-1/2" />
-                <input
-                  type="text"
-                  value={customDomain}
-                  onChange={(e) => setCustomDomain(e.target.value)}
-                  placeholder="www.yourbrand.com أو store.mybrand.ma"
-                  className="w-full ps-10 pe-4 py-2.5 rounded-2xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-emerald-500 font-mono text-xs outline-none transition"
-                  dir="ltr"
-                />
-              </div>
-              <p className="text-[11px] text-slate-400">
-                أدخل النطاق الفرعي أو الدومين الذي تريد ربطه بصفحة الهبوط هذه.
-              </p>
-            </div>
-
-            {/* DNS Instructions Guide */}
-            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
-              <div className="flex items-center gap-2 text-xs font-bold text-slate-900">
-                <Server className="w-4 h-4 text-emerald-600" />
-                <span>إعداد سجل الـ DNS في لوحة تحكم نطاقك (Cloudflare, Namecheap, GoDaddy, إلخ):</span>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
-                <div className="p-3 bg-white rounded-xl border border-slate-200">
-                  <div className="text-[10px] text-slate-400 uppercase font-black">النوع (Type)</div>
-                  <div className="font-mono font-black text-slate-900 mt-0.5">CNAME</div>
-                </div>
-
-                <div className="p-3 bg-white rounded-xl border border-slate-200">
-                  <div className="text-[10px] text-slate-400 uppercase font-black">الاسم / المضيف (Name)</div>
-                  <div className="font-mono font-black text-slate-900 mt-0.5">www أو اسم الدومين</div>
-                </div>
-
-                <div className="p-3 bg-white rounded-xl border border-slate-200 flex items-center justify-between">
-                  <div>
-                    <div className="text-[10px] text-slate-400 uppercase font-black">الهدف / القيمة (Value)</div>
-                    <div className="font-mono font-bold text-emerald-700 text-[11px] mt-0.5 truncate max-w-[120px]">
-                      cname.codworth.com
-                    </div>
+            {!canUseCustomDomain && (
+              <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                <div className="space-y-1">
+                  <div className="text-xs font-black text-amber-900 flex items-center gap-1.5">
+                    <span>🔒 الترقية مطلوبة (Upgrade Required)</span>
                   </div>
-                  <button
-                    type="button"
-                    onClick={handleCopyCname}
-                    className="p-1 rounded-md text-slate-500 hover:text-emerald-700 transition"
-                    title="نسخ القيمة"
-                  >
-                    {copiedCname ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-                  </button>
+                  <p className="text-[11px] text-amber-800 leading-relaxed">
+                    ربط النطاق المخصص (Custom Domain) متاح فقط لمشتركي باقة Pro و Enterprise. باقتك الحالية هي ({planId.toUpperCase()}).
+                  </p>
                 </div>
-              </div>
-
-              <div className="p-3 bg-emerald-50/80 rounded-xl border border-emerald-200 text-[11px] text-emerald-800 flex items-center gap-2">
-                <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
-                <span>
-                  نظام المنصة يصدر شهادة أمان SSL مجانية وتلقائية فور نجاح إشارة سجل الـ CNAME.
-                </span>
-              </div>
-            </div>
-
-            {/* DNS Check Feedback */}
-            {dnsMessage && (
-              <div
-                className={`p-3 rounded-xl border text-xs font-semibold flex items-center gap-2 ${
-                  dnsStatus === 'connected'
-                    ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-                    : 'bg-rose-50 border-rose-200 text-rose-800'
-                }`}
-              >
-                {dnsStatus === 'connected' ? (
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                ) : (
-                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
-                )}
-                <span>{dnsMessage}</span>
+                <button
+                  type="button"
+                  onClick={() =>
+                    onRequireUpgrade('ربط النطاق المخصص متاح لمشتركي باقة Pro و Enterprise فقط.')
+                  }
+                  className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs shadow-sm transition cursor-pointer shrink-0"
+                >
+                  🔒 ترقية إلى باقة Pro
+                </button>
               </div>
             )}
 
-            {/* Action Buttons */}
-            <div className="flex flex-col sm:flex-row items-center gap-2.5 pt-2">
-              <button
-                type="button"
-                onClick={handleVerifyDns}
-                disabled={isVerifyingDns}
-                className="w-full sm:flex-1 py-3 px-4 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-800 font-bold text-xs transition flex items-center justify-center gap-2 cursor-pointer shadow-xs"
-              >
-                {isVerifyingDns ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                ) : (
-                  <RefreshCw className="w-3.5 h-3.5 text-slate-600" />
-                )}
-                <span>فحص اتصال الـ DNS (Verify DNS)</span>
-              </button>
+            <div className={!canUseCustomDomain ? 'opacity-50 pointer-events-none select-none space-y-5' : 'space-y-5'}>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-bold text-slate-700">
+                    اسم الدومين الخاص بمتجرك (Custom Domain)
+                  </label>
+                  {dnsStatus === 'connected' && (
+                    <span className="text-[11px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold flex items-center gap-1">
+                      <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                      <span>متصل ونشط (Active)</span>
+                    </span>
+                  )}
+                  {dnsStatus === 'pending_dns' && (
+                    <span className="text-[11px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-bold">
+                      في انتظار DNS (Pending DNS)
+                    </span>
+                  )}
+                  {dnsStatus === 'error' && (
+                    <span className="text-[11px] px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 font-bold">
+                      خطأ في إعدادات DNS
+                    </span>
+                  )}
+                </div>
 
-              <button
-                type="button"
-                onClick={handlePublish}
-                disabled={isPublishing}
-                className="w-full sm:flex-1 py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs shadow-md shadow-emerald-600/20 transition flex items-center justify-center gap-2 cursor-pointer"
-              >
-                {isPublishing ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin text-white" />
-                ) : (
-                  <Link2 className="w-3.5 h-3.5" />
-                )}
-                <span>إقران الدومين ونشر الصفحة الآن</span>
-              </button>
+                <div className="relative">
+                  <Globe className="w-4 h-4 text-slate-400 absolute start-3.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    value={customDomain}
+                    onChange={(e) => setCustomDomain(e.target.value)}
+                    disabled={!canUseCustomDomain}
+                    placeholder="shop.yourbrand.ma أو yourbrand.com"
+                    className="w-full ps-10 pe-4 py-2.5 rounded-2xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-emerald-500 font-mono text-xs outline-none transition"
+                    dir="ltr"
+                  />
+                </div>
+                <p className="text-[11px] text-slate-400">
+                  أدخل النطاق الفرعي أو الدومين الرئيسي الذي تريد ربطه بصفحة الهبوط هذه.
+                </p>
+              </div>
+
+              {/* Real DNS Instructions Guide */}
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
+                <div className="flex items-center gap-2 text-xs font-bold text-slate-900">
+                  <Server className="w-4 h-4 text-emerald-600" />
+                  <span>إعداد سجلات الـ DNS في لوحة تحكم نطاقك (Cloudflare, Namecheap, GoDaddy):</span>
+                </div>
+
+                <div className="space-y-2 text-xs">
+                  {/* A Record Row */}
+                  <div className="p-3 bg-white rounded-xl border border-slate-200 flex flex-wrap items-center justify-between gap-2" dir="ltr">
+                    <div className="flex flex-wrap items-center gap-2 font-mono text-xs">
+                      <span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold">A Record</span>
+                      <span className="text-slate-400">Host:</span>
+                      <span className="font-bold text-slate-900">@</span>
+                      <span className="text-slate-300">|</span>
+                      <span className="text-slate-400">Value:</span>
+                      <span className="font-bold text-emerald-700">217.160.116.237</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleCopyIp}
+                      className="p-1.5 rounded-md text-slate-500 hover:text-emerald-700 transition cursor-pointer flex items-center gap-1 text-[11px] font-bold"
+                      title="نسخ عنوان IP"
+                    >
+                      {copiedIp ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                      <span>{copiedIp ? 'Copied' : 'Copy IP'}</span>
+                    </button>
+                  </div>
+
+                  {/* CNAME Record Row */}
+                  <div className="p-3 bg-white rounded-xl border border-slate-200 flex flex-wrap items-center justify-between gap-2" dir="ltr">
+                    <div className="flex flex-wrap items-center gap-2 font-mono text-xs">
+                      <span className="px-2 py-0.5 rounded bg-indigo-100 text-indigo-800 font-bold">CNAME</span>
+                      <span className="text-slate-400">Host:</span>
+                      <span className="font-bold text-slate-900">www</span>
+                      <span className="text-slate-300">|</span>
+                      <span className="text-slate-400">Target:</span>
+                      <span className="font-bold text-indigo-700">domains.codworth.me</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleCopyCname}
+                      className="p-1.5 rounded-md text-slate-500 hover:text-indigo-700 transition cursor-pointer flex items-center gap-1 text-[11px] font-bold"
+                      title="نسخ القيمة"
+                    >
+                      {copiedCname ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                      <span>{copiedCname ? 'Copied' : 'Copy CNAME'}</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="p-3 bg-emerald-50/80 rounded-xl border border-emerald-200 text-[11px] text-emerald-800 flex items-center gap-2">
+                  <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>
+                    يتحقق النظام فعلياً من سجلات DNS الخاصة بنطاقك ويوجه الزوار مباشرة إلى هذه الصفحة فور تفعيل السجل.
+                  </span>
+                </div>
+              </div>
+
+              {/* DNS Check Feedback */}
+              {dnsMessage && (
+                <div
+                  className={`p-3 rounded-xl border text-xs font-semibold flex items-center gap-2 ${
+                    dnsStatus === 'connected'
+                      ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                      : dnsStatus === 'checking'
+                      ? 'bg-sky-50 border-sky-200 text-sky-800'
+                      : 'bg-rose-50 border-rose-200 text-rose-800'
+                  }`}
+                >
+                  {dnsStatus === 'connected' ? (
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  ) : (
+                    <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                  )}
+                  <span dir="ltr" className="text-left">{dnsMessage}</span>
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex flex-col sm:flex-row items-center gap-2.5 pt-2">
+                <button
+                  type="button"
+                  onClick={handleVerifyDns}
+                  disabled={!canUseCustomDomain || isVerifyingDns}
+                  className="w-full sm:flex-1 py-3 px-4 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-800 font-bold text-xs transition flex items-center justify-center gap-2 cursor-pointer shadow-xs disabled:opacity-50"
+                >
+                  {isVerifyingDns ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <RefreshCw className="w-3.5 h-3.5 text-slate-600" />
+                  )}
+                  <span>تحقق من سجلات DNS (Verify DNS Records)</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handlePublish}
+                  disabled={!canUseCustomDomain || isPublishing}
+                  className="w-full sm:flex-1 py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs shadow-md shadow-emerald-600/20 transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                >
+                  {isPublishing ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin text-white" />
+                  ) : (
+                    <Link2 className="w-3.5 h-3.5" />
+                  )}
+                  <span>حفظ الدومين ونشر الصفحة الآن</span>
+                </button>
+              </div>
             </div>
           </div>
         )}

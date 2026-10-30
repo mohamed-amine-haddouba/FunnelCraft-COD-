@@ -11,11 +11,21 @@ import {
   MoroccanBankAccount,
   PlatformSettings,
   StoredPage,
+  CustomDomainStatus,
+  PagePixelsConfig,
 } from '../src/types/user';
 import {
   DEFAULT_MOROCCAN_BANK_ACCOUNTS,
   inferMoroccanPaymentMethod,
 } from '../src/utils/currencyAndBanks';
+import {
+  VPS_IP,
+  CNAME_TARGET,
+  getPlanCapabilities,
+  checkFeatureAccess,
+  validateAndNormalizeCustomDomain,
+} from '../src/utils/planLimits';
+import { generateStandaloneHtml } from '../src/utils/htmlExporter';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -53,7 +63,7 @@ export const DEFAULT_SUBSCRIPTION_PLANS: SubscriptionPlanConfig[] = [
     name: 'Starter Plan',
     nameAr: 'باقة المبتدئين (Starter)',
     priceMAD: 99,
-    features: ['3 صفحات', '500 طلب/شهر', 'بدون علامة مائية', 'إحصائيات أساسية'],
+    features: ['5 صفحات', '500 طلب/شهر', 'بدون علامة مائية', 'إحصائيات أساسية'],
   },
   {
     id: 'pro',
@@ -867,22 +877,44 @@ export function deleteSession(token: string): void {
 }
 
 
-export function incrementUserUsage(userId: string): { user: UserProfile; allowed: boolean } {
+export function incrementUserUsage(userId: string): {
+  user: UserProfile;
+  allowed: boolean;
+  maxPages: number;
+  requiredPlan?: 'starter' | 'pro' | 'enterprise';
+  message?: string;
+} {
   const user = users.get(userId);
   if (!user) {
     throw new Error('User not found.');
   }
 
-  const isPro = user.subscription_status === 'active';
-  const MAX_FREE_PAGES = 2;
+  const currentPagesCount = getUserPages(userId).length;
+  const access = checkFeatureAccess(
+    'create_page',
+    user,
+    currentPagesCount,
+    getConfiguredOwnerEmail()
+  );
 
-  if (!isPro && user.pages_created_count >= MAX_FREE_PAGES) {
-    return { user: toSafeProfile(user), allowed: false };
+  if (!access.allowed) {
+    user.pages_created_count = Math.max(user.pages_created_count || 0, currentPagesCount);
+    return {
+      user: toSafeProfile(user),
+      allowed: false,
+      maxPages: access.maxPages,
+      requiredPlan: access.requiredPlan,
+      message: access.message,
+    };
   }
 
-  user.pages_created_count += 1;
+  user.pages_created_count = Math.max((user.pages_created_count || 0) + 1, currentPagesCount);
   saveUsersToDisk(users);
-  return { user: toSafeProfile(user), allowed: true };
+  return {
+    user: toSafeProfile(user),
+    allowed: true,
+    maxPages: access.maxPages,
+  };
 }
 
 export function updateUserSubscription(
@@ -1064,6 +1096,20 @@ function loadPagesFromDisk(): Map<string, StoredPage> {
           }
           repaired = true;
         }
+        if (p.customDomain === undefined) {
+          p.customDomain = null;
+          repaired = true;
+        }
+        if (!p.domainStatus) {
+          p.domainStatus = p.customDomain ? 'pending_dns' : 'not_connected';
+          repaired = true;
+        }
+        if (!p.expectedDnsIp) {
+          p.expectedDnsIp = VPS_IP;
+        }
+        if (!p.expectedDnsCname) {
+          p.expectedDnsCname = CNAME_TARGET;
+        }
         pagesMap.set(p.id, p);
       }
       if (repaired) {
@@ -1076,8 +1122,29 @@ function loadPagesFromDisk(): Map<string, StoredPage> {
   return pagesMap;
 }
 
+// Fast O(1) in-memory lookup map: normalized custom domain (and www. variant) -> page.slug
+const activeDomainToSlugCache = new Map<string, string>();
+
+function rebuildActiveDomainCache(pagesMap: Map<string, StoredPage>): void {
+  activeDomainToSlugCache.clear();
+  for (const p of pagesMap.values()) {
+    if (p.customDomain && p.domainStatus === 'active') {
+      const clean = p.customDomain.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+      if (clean) {
+        activeDomainToSlugCache.set(clean, p.slug);
+        if (clean.startsWith('www.')) {
+          activeDomainToSlugCache.set(clean.slice(4), p.slug);
+        } else {
+          activeDomainToSlugCache.set(`www.${clean}`, p.slug);
+        }
+      }
+    }
+  }
+}
+
 function savePagesToDisk(pagesMap: Map<string, StoredPage>): void {
   try {
+    rebuildActiveDomainCache(pagesMap);
     const list = Array.from(pagesMap.values());
     fs.writeFileSync(PAGES_FILE, JSON.stringify(list, null, 2), 'utf-8');
   } catch (err) {
@@ -1086,6 +1153,11 @@ function savePagesToDisk(pagesMap: Map<string, StoredPage>): void {
 }
 
 const pages = loadPagesFromDisk();
+rebuildActiveDomainCache(pages);
+
+export function getActiveDomainToSlugCache(): ReadonlyMap<string, string> {
+  return activeDomainToSlugCache;
+}
 
 export function saveUserPage(
   userId: string,
@@ -1093,7 +1165,7 @@ export function saveUserPage(
     id?: string;
     title?: string;
     slug?: string;
-    customDomain?: string;
+    customDomain?: string | null;
     isPublished?: boolean;
     compiledHtml?: string;
     data: unknown;
@@ -1108,7 +1180,9 @@ export function saveUserPage(
 
   if (pageInput.id && pages.has(pageInput.id)) {
     const existing = pages.get(pageInput.id)!;
-    if (existing.userId !== userId) {
+    const reqUser = users.get(userId);
+    const isAdmin = reqUser?.role === 'admin' || reqUser?.email?.toLowerCase() === getConfiguredOwnerEmail();
+    if (existing.userId !== userId && !isAdmin) {
       throw new Error('Forbidden: You do not have permission to modify this page.');
     }
     existing.title = pageInput.title || dataTitle || existing.title;
@@ -1120,7 +1194,17 @@ export function saveUserPage(
         : slugify(existing.title);
     existing.slug = candidateExistingSlug;
     existing.data = pageInput.data;
-    if (pageInput.customDomain !== undefined) existing.customDomain = pageInput.customDomain;
+    if (existing.pixels && existing.data && typeof existing.data === 'object') {
+      (existing.data as Record<string, unknown>).pixels = existing.pixels;
+    }
+    if (pageInput.customDomain !== undefined) {
+      existing.customDomain = pageInput.customDomain || null;
+      if (!existing.customDomain) {
+        existing.domainStatus = 'not_connected';
+      } else if (!existing.domainStatus || existing.domainStatus === 'not_connected') {
+        existing.domainStatus = 'pending_dns';
+      }
+    }
     if (pageInput.isPublished !== undefined) existing.isPublished = pageInput.isPublished;
     if (pageInput.compiledHtml !== undefined) existing.compiledHtml = pageInput.compiledHtml;
     existing.updatedAt = now;
@@ -1141,12 +1225,17 @@ export function saveUserPage(
       ? { ...(pageInput.data as Record<string, unknown>), id: pageId, title }
       : { id: pageId, title, blocks: [] };
 
+  const normalizedCustomDomain = pageInput.customDomain ? pageInput.customDomain.trim().toLowerCase() : null;
+
   const newPage: StoredPage = {
     id: pageId,
     userId,
     title,
     slug,
-    customDomain: pageInput.customDomain,
+    customDomain: normalizedCustomDomain,
+    domainStatus: normalizedCustomDomain ? 'pending_dns' : 'not_connected',
+    expectedDnsIp: VPS_IP,
+    expectedDnsCname: CNAME_TARGET,
     data: finalData,
     compiledHtml: pageInput.compiledHtml,
     isPublished: pageInput.isPublished ?? false,
@@ -1172,17 +1261,18 @@ export function getUserPages(userId: string): StoredPage[] {
   return userPages.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
 }
 
-export function getUserPageById(userId: string, pageId: string): StoredPage | null {
+export function getUserPageById(userId: string, pageId: string, isAdmin = false): StoredPage | null {
   const p = pages.get(pageId);
-  if (!p || p.userId !== userId) {
+  if (!p) return null;
+  if (p.userId !== userId && !isAdmin) {
     return null;
   }
   return p;
 }
 
-export function deleteUserPage(userId: string, pageId: string): boolean {
+export function deleteUserPage(userId: string, pageId: string, isAdmin = false): boolean {
   const p = pages.get(pageId);
-  if (!p || p.userId !== userId) {
+  if (!p || (p.userId !== userId && !isAdmin)) {
     return false;
   }
   pages.delete(pageId);
@@ -1212,7 +1302,10 @@ export function duplicateUserPage(userId: string, pageId: string): StoredPage | 
     userId,
     title: newTitle,
     slug: newSlug,
-    customDomain: undefined,
+    customDomain: null,
+    domainStatus: 'not_connected',
+    expectedDnsIp: VPS_IP,
+    expectedDnsCname: CNAME_TARGET,
     data: clonedData,
     compiledHtml: source.compiledHtml,
     isPublished: false,
@@ -1227,7 +1320,7 @@ export function duplicateUserPage(userId: string, pageId: string): StoredPage | 
   return duplicated;
 }
 
-/* ---------------- PUBLISHING & HOSTING HELPERS ---------------- */
+/* ---------------- PUBLISHING, CUSTOM DOMAINS & PIXELS HELPERS ---------------- */
 
 export function isSlugAvailable(slug: string, excludePageId?: string): boolean {
   const normalized = slugify(slug);
@@ -1239,15 +1332,165 @@ export function isSlugAvailable(slug: string, excludePageId?: string): boolean {
   return true;
 }
 
+export function isDomainClaimedByAnotherPage(domain: string, excludePageId?: string): boolean {
+  const clean = domain.trim().toLowerCase().replace(/^www\./, '');
+  for (const p of pages.values()) {
+    if (p.id === excludePageId || !p.customDomain) continue;
+    const existingClean = p.customDomain.trim().toLowerCase().replace(/^www\./, '');
+    if (existingClean === clean) {
+      return true;
+    }
+  }
+  return false;
+}
+
+export function setPageCustomDomain(
+  userId: string,
+  pageId: string,
+  rawDomain: string,
+  isAdmin = false
+): StoredPage {
+  const p = pages.get(pageId);
+  if (!p || (p.userId !== userId && !isAdmin)) {
+    throw new Error('Forbidden: Page not found or permission denied.');
+  }
+
+  const validation = validateAndNormalizeCustomDomain(rawDomain);
+  if (!validation.valid) {
+    throw new Error(validation.error || 'Invalid domain name.');
+  }
+
+  const normalizedDomain = validation.normalizedDomain;
+  if (isDomainClaimedByAnotherPage(normalizedDomain, pageId)) {
+    throw new Error(`The domain "${normalizedDomain}" is already connected to another landing page.`);
+  }
+
+  const isSameDomain = p.customDomain === normalizedDomain;
+  p.customDomain = normalizedDomain;
+  if (!isSameDomain || !p.domainStatus || p.domainStatus === 'not_connected' || p.domainStatus === 'error') {
+    p.domainStatus = 'pending_dns';
+    p.domainError = null;
+    p.domainVerifiedAt = null;
+  }
+  p.expectedDnsIp = VPS_IP;
+  p.expectedDnsCname = CNAME_TARGET;
+  p.updatedAt = new Date().toISOString();
+
+  // Also keep user profile custom_domain synced for convenience
+  const owner = users.get(p.userId);
+  if (owner) {
+    owner.custom_domain = normalizedDomain;
+    users.set(owner.id, owner);
+    saveUsersToDisk(users);
+  }
+
+  pages.set(pageId, p);
+  savePagesToDisk(pages);
+  return p;
+}
+
+export function updatePageDomainStatus(
+  userId: string,
+  pageId: string,
+  status: CustomDomainStatus,
+  errorMsg?: string | null,
+  isAdmin = false
+): StoredPage {
+  const p = pages.get(pageId);
+  if (!p || (p.userId !== userId && !isAdmin)) {
+    throw new Error('Forbidden: Page not found or permission denied.');
+  }
+
+  const now = new Date().toISOString();
+  p.domainStatus = status;
+  p.domainError = errorMsg ?? null;
+  if (status === 'active') {
+    p.domainVerifiedAt = now;
+    p.isPublished = true;
+    p.publishedAt = p.publishedAt || now;
+    if (!p.compiledHtml && p.data) {
+      p.compiledHtml = generateStandaloneHtml({
+        ...p.data,
+        slug: p.slug,
+        pixels: p.pixels || p.data.pixels,
+      });
+    }
+  }
+  p.expectedDnsIp = VPS_IP;
+  p.expectedDnsCname = CNAME_TARGET;
+  p.updatedAt = now;
+
+  pages.set(pageId, p);
+  savePagesToDisk(pages);
+  return p;
+}
+
+export function removePageCustomDomain(
+  userId: string,
+  pageId: string,
+  isAdmin = false
+): StoredPage {
+  const p = pages.get(pageId);
+  if (!p || (p.userId !== userId && !isAdmin)) {
+    throw new Error('Forbidden: Page not found or permission denied.');
+  }
+
+  p.customDomain = null;
+  p.domainStatus = 'not_connected';
+  p.domainError = null;
+  p.domainVerifiedAt = null;
+  p.updatedAt = new Date().toISOString();
+
+  pages.set(pageId, p);
+  savePagesToDisk(pages);
+  return p;
+}
+
+export function updatePagePixels(
+  userId: string,
+  pageId: string,
+  pixels: PagePixelsConfig,
+  isAdmin = false
+): StoredPage {
+  const p = pages.get(pageId);
+  if (!p || (p.userId !== userId && !isAdmin)) {
+    throw new Error('Forbidden: Page not found or permission denied.');
+  }
+
+  const sanitizedPixels: PagePixelsConfig = {
+    facebookPixelId: (pixels.facebookPixelId || '').trim().replace(/[^a-zA-Z0-9_-]/g, ''),
+    tiktokPixelId: (pixels.tiktokPixelId || '').trim().replace(/[^a-zA-Z0-9_-]/g, ''),
+    googleAnalyticsId: (pixels.googleAnalyticsId || '').trim().replace(/[^a-zA-Z0-9_-]/g, ''),
+  };
+
+  p.pixels = sanitizedPixels;
+  if (p.data && typeof p.data === 'object') {
+    (p.data as Record<string, unknown>).pixels = sanitizedPixels;
+  }
+  if (p.data) {
+    p.compiledHtml = generateStandaloneHtml({
+      ...p.data,
+      slug: p.slug,
+      pixels: sanitizedPixels,
+    });
+  }
+  p.updatedAt = new Date().toISOString();
+
+  pages.set(pageId, p);
+  savePagesToDisk(pages);
+  return p;
+}
+
 export function publishPage(
   userId: string,
   pageId: string,
   slug: string,
   customDomain?: string,
-  compiledHtml?: string
+  compiledHtml?: string,
+  isAdmin = false
 ): StoredPage {
   const p = pages.get(pageId);
-  if (!p || p.userId !== userId) {
+  if (!p || (p.userId !== userId && !isAdmin)) {
     throw new Error('Page not found or permission denied.');
   }
 
@@ -1267,9 +1510,27 @@ export function publishPage(
   p.updatedAt = now;
 
   if (customDomain !== undefined) {
-    const cleanDomain = customDomain.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, '');
-    p.customDomain = cleanDomain || undefined;
+    const trimmed = customDomain.trim();
+    if (!trimmed) {
+      p.customDomain = null;
+      p.domainStatus = 'not_connected';
+    } else {
+      const validation = validateAndNormalizeCustomDomain(trimmed);
+      if (!validation.valid) {
+        throw new Error(validation.error || 'Invalid custom domain format.');
+      }
+      if (isDomainClaimedByAnotherPage(validation.normalizedDomain, pageId)) {
+        throw new Error(`The domain "${validation.normalizedDomain}" is already connected to another page.`);
+      }
+      if (p.customDomain !== validation.normalizedDomain) {
+        p.customDomain = validation.normalizedDomain;
+        p.domainStatus = 'pending_dns';
+      }
+    }
   }
+
+  p.expectedDnsIp = VPS_IP;
+  p.expectedDnsCname = CNAME_TARGET;
 
   if (compiledHtml) {
     p.compiledHtml = compiledHtml;
@@ -1286,9 +1547,9 @@ export function publishPage(
   return p;
 }
 
-export function unpublishPage(userId: string, pageId: string): StoredPage {
+export function unpublishPage(userId: string, pageId: string, isAdmin = false): StoredPage {
   const p = pages.get(pageId);
-  if (!p || p.userId !== userId) {
+  if (!p || (p.userId !== userId && !isAdmin)) {
     throw new Error('Page not found or permission denied.');
   }
 
@@ -1342,14 +1603,43 @@ export function getPublishedPageBySlug(slug: string): StoredPage | null {
   return null;
 }
 
-export function getPublishedPageByDomain(domain: string): StoredPage | null {
-  const normalized = domain.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+export function getActivePageByCustomDomain(host: string): StoredPage | null {
+  const normalized = (host || '')
+    .trim()
+    .toLowerCase()
+    .replace(/^https?:\/\//, '')
+    .split('/')[0]
+    .split(':')[0]
+    .replace(/\.$/, '');
+  if (!normalized) return null;
+
+  // O(1) lookup via activeDomainToSlugCache
+  const cachedSlug =
+    activeDomainToSlugCache.get(normalized) ||
+    activeDomainToSlugCache.get(normalized.replace(/^www\./, ''));
+  if (cachedSlug) {
+    const bySlug = getPublishedPageBySlug(cachedSlug);
+    if (bySlug && bySlug.domainStatus === 'active') {
+      return bySlug;
+    }
+  }
+
+  // Fallback linear scan for active custom domains
+  const bare = normalized.replace(/^www\./, '');
   for (const p of pages.values()) {
-    if (p.isPublished && p.customDomain && p.customDomain.trim().toLowerCase() === normalized) {
-      return p;
+    if (p.customDomain && p.domainStatus === 'active') {
+      const pageDom = p.customDomain.trim().toLowerCase().replace(/^www\./, '');
+      if (pageDom === bare) {
+        activeDomainToSlugCache.set(normalized, p.slug);
+        return p;
+      }
     }
   }
   return null;
+}
+
+export function getPublishedPageByDomain(domain: string): StoredPage | null {
+  return getActivePageByCustomDomain(domain);
 }
 
 export function incrementPageViews(slug: string): number {

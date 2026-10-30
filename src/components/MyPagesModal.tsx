@@ -43,8 +43,11 @@ export const MyPagesModal: React.FC<MyPagesModalProps> = ({
 }) => {
   const {
     userPages,
+    planId,
+    isStarter,
     isPro,
     pagesCreatedCount,
+    maxPages,
     maxFreePages,
     isLimitReached,
     deleteUserPageFromCloud,
@@ -86,8 +89,10 @@ export const MyPagesModal: React.FC<MyPagesModalProps> = ({
   };
 
   const handleDuplicate = async (pageId: string) => {
-    if (!isPro && isLimitReached) {
-      onUpgradeClick('Free tier limit reached (2/2 pages). Upgrade to Pro to duplicate pages.');
+    if (isLimitReached) {
+      onUpgradeClick(
+        `🔒 Upgrade Required: Plan limit reached (${pagesCreatedCount}/${maxPages ?? maxFreePages} pages). Upgrade to Pro for unlimited pages.`
+      );
       return;
     }
 
@@ -127,8 +132,10 @@ export const MyPagesModal: React.FC<MyPagesModalProps> = ({
   };
 
   const handleCreateNew = () => {
-    if (!isPro && isLimitReached) {
-      onUpgradeClick('Free tier limit reached (2/2 pages). Upgrade to Pro to build unlimited landing pages.');
+    if (isLimitReached) {
+      onUpgradeClick(
+        `🔒 Upgrade Required: Plan limit reached (${pagesCreatedCount}/${maxPages ?? maxFreePages} pages). Upgrade to Pro to build unlimited landing pages.`
+      );
       return;
     }
     onCreateNewPage();
@@ -149,11 +156,15 @@ export const MyPagesModal: React.FC<MyPagesModalProps> = ({
                 <h2 className="text-xl font-black text-slate-900">My Pages & Funnels</h2>
                 {isPro ? (
                   <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 tracking-wider">
-                    PRO • Unlimited
+                    {planId.toUpperCase()} • Unlimited
+                  </span>
+                ) : isStarter ? (
+                  <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-blue-100 text-blue-900 tracking-wider">
+                    Starter Plan: {pagesCreatedCount}/{maxPages ?? 5} Pages
                   </span>
                 ) : (
                   <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 tracking-wider">
-                    Free Tier: {pagesCreatedCount}/{maxFreePages} Pages
+                    Free Tier: {pagesCreatedCount}/{maxPages ?? maxFreePages} Pages
                   </span>
                 )}
               </div>
@@ -167,11 +178,11 @@ export const MyPagesModal: React.FC<MyPagesModalProps> = ({
             {!isPro && (
               <button
                 type="button"
-                onClick={() => onUpgradeClick('Upgrade to Pro for unlimited funnels')}
+                onClick={() => onUpgradeClick('Upgrade to Pro for unlimited funnels, Custom Domains, and Tracking Pixels')}
                 className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-black text-xs shadow-md shadow-amber-500/20 transition cursor-pointer"
               >
                 <Sparkles className="w-3.5 h-3.5" />
-                <span>Upgrade to Pro ($10/mo)</span>
+                <span>{isLimitReached ? '🔒 Upgrade Required' : 'Upgrade to Pro'}</span>
               </button>
             )}
             <button

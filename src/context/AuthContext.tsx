@@ -5,15 +5,26 @@ import {
   ManualPaymentRequest,
   MoroccanPaymentMethod,
   StoredPage,
+  PagePixelsConfig,
+  CustomDomainStatus,
 } from '../types/user';
+import { getPlanCapabilities, PlanTier } from '../utils/planLimits';
 
 interface AuthContextType {
   user: UserProfile | null;
   token: string | null;
   isLoading: boolean;
   isLoggedIn: boolean;
+  planId: PlanTier;
+  isStarter: boolean;
   isPro: boolean;
+  isEnterprise: boolean;
   isAdmin: boolean;
+  canUseCustomDomain: boolean;
+  canUsePixels: boolean;
+  canUseApiIntegrations: boolean;
+  canRemoveWatermark: boolean;
+  maxPages: number;
   pagesCreatedCount: number;
   maxFreePages: number;
   isLimitReached: boolean;
@@ -22,6 +33,49 @@ interface AuthContextType {
   hasPendingPayment: boolean;
   userPages: StoredPage[];
   fetchUserPages: () => Promise<StoredPage[]>;
+  savePageCustomDomain: (
+    pageId: string,
+    domain: string
+  ) => Promise<{
+    success: boolean;
+    page?: StoredPage;
+    customDomain?: string | null;
+    domainStatus?: CustomDomainStatus;
+    error?: string;
+    isLimitReached?: boolean;
+  }>;
+  verifyPageCustomDomain: (
+    pageId: string,
+    domain?: string
+  ) => Promise<{
+    success: boolean;
+    verified?: boolean;
+    page?: StoredPage;
+    domainStatus?: CustomDomainStatus;
+    resolvedRecords?: { a: string[]; cname: string[] };
+    expectedRecords?: any;
+    message?: string;
+    error?: string;
+    isLimitReached?: boolean;
+  }>;
+  removePageCustomDomain: (
+    pageId: string
+  ) => Promise<{
+    success: boolean;
+    page?: StoredPage;
+    error?: string;
+  }>;
+  savePagePixels: (
+    pageId: string,
+    pixels: PagePixelsConfig
+  ) => Promise<{
+    success: boolean;
+    page?: StoredPage;
+    pixels?: PagePixelsConfig;
+    message?: string;
+    error?: string;
+    isLimitReached?: boolean;
+  }>;
   saveUserPageToCloud: (pageInput: {
     id?: string;
     title?: string;
@@ -766,6 +820,129 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return { available: true, slug };
   };
 
+  const savePageCustomDomain = async (pageId: string, domain: string) => {
+    if (!token) return { success: false, error: 'Authentication required.' };
+    try {
+      const res = await fetch(`/api/pages/${pageId}/custom-domain`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ domain }),
+      });
+      const data = await res.json();
+      if (res.status === 403 || data.isLimitReached) {
+        return {
+          success: false,
+          isLimitReached: true,
+          error: data.error || 'Custom domain requires Pro or Enterprise plan.',
+        };
+      }
+      if (data.success && data.page) {
+        setUserPages((prev) => prev.map((p) => (p.id === data.page.id ? data.page : p)));
+        return {
+          success: true,
+          page: data.page,
+          customDomain: data.page.customDomain,
+          domainStatus: data.page.domainStatus,
+        };
+      }
+      return { success: false, error: data.error || 'Failed to save custom domain.' };
+    } catch (err: any) {
+      return { success: false, error: err.message || 'Network error saving custom domain.' };
+    }
+  };
+
+  const verifyPageCustomDomain = async (pageId: string, domain?: string) => {
+    if (!token) return { success: false, error: 'Authentication required.' };
+    try {
+      const res = await fetch(`/api/pages/${pageId}/custom-domain/verify`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(domain ? { domain } : {}),
+      });
+      const data = await res.json();
+      if (res.status === 403 || data.isLimitReached) {
+        return {
+          success: false,
+          isLimitReached: true,
+          error: data.error || 'Custom domain verification requires Pro or Enterprise plan.',
+        };
+      }
+      if (data.page) {
+        setUserPages((prev) => prev.map((p) => (p.id === data.page.id ? data.page : p)));
+      }
+      return {
+        success: Boolean(data.success && data.verified),
+        verified: Boolean(data.verified),
+        page: data.page,
+        domainStatus: data.domainStatus,
+        resolvedRecords: data.resolvedRecords,
+        expectedRecords: data.expectedRecords,
+        message: data.message,
+        error: data.error,
+      };
+    } catch (err: any) {
+      return { success: false, error: err.message || 'DNS verification network error.' };
+    }
+  };
+
+  const removePageCustomDomain = async (pageId: string) => {
+    if (!token) return { success: false, error: 'Authentication required.' };
+    try {
+      const res = await fetch(`/api/pages/${pageId}/custom-domain`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (data.success && data.page) {
+        setUserPages((prev) => prev.map((p) => (p.id === data.page.id ? data.page : p)));
+        return { success: true, page: data.page };
+      }
+      return { success: false, error: data.error || 'Failed to disconnect custom domain.' };
+    } catch (err: any) {
+      return { success: false, error: err.message || 'Network error disconnecting custom domain.' };
+    }
+  };
+
+  const savePagePixels = async (pageId: string, pixels: PagePixelsConfig) => {
+    if (!token) return { success: false, error: 'Authentication required.' };
+    try {
+      const res = await fetch(`/api/pages/${pageId}/pixels`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(pixels),
+      });
+      const data = await res.json();
+      if (res.status === 403 || data.isLimitReached) {
+        return {
+          success: false,
+          isLimitReached: true,
+          error: data.error || 'Tracking pixels require Pro or Enterprise plan.',
+        };
+      }
+      if (data.success && data.page) {
+        setUserPages((prev) => prev.map((p) => (p.id === data.page.id ? data.page : p)));
+        return {
+          success: true,
+          page: data.page,
+          pixels: data.pixels,
+          message: data.message,
+        };
+      }
+      return { success: false, error: data.error || 'Failed to save pixels.' };
+    } catch (err: any) {
+      return { success: false, error: err.message || 'Network error saving pixels.' };
+    }
+  };
+
   const refreshUser = async () => {
     const activeToken = token || localStorage.getItem(TOKEN_KEY);
     if (activeToken) {
@@ -773,29 +950,44 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
+  const planCaps = getPlanCapabilities(user?.plan_id, user?.role, user?.email);
+  const planId: PlanTier = planCaps.effectivePlan;
+  const isAdmin = planCaps.isAdmin;
+  const isStarter = planId === 'starter' && !isAdmin;
+  const isPro = planCaps.canUseProBlocks; // true for Pro, Enterprise, and Admin
+  const isEnterprise = planId === 'enterprise' || isAdmin;
+  const canUseCustomDomain = planCaps.canUseCustomDomain;
+  const canUsePixels = planCaps.canUsePixels;
+  const canUseApiIntegrations = planCaps.canUseApiIntegrations;
+  const canRemoveWatermark = planCaps.canRemoveWatermark;
+  const maxPages = planCaps.maxPages;
 
-  const isPro = user?.subscription_status === 'active';
-  const isAdmin = user?.role === 'admin' || user?.email?.includes('admin') || false;
-  const pagesCreatedCount = user?.pages_created_count ?? 0;
-  const isLimitReached = !isPro && pagesCreatedCount >= MAX_FREE_PAGES;
-  const remainingFreePages = Math.max(0, MAX_FREE_PAGES - pagesCreatedCount);
+  const pagesCreatedCount = user ? Math.max(user.pages_created_count ?? 0, userPages.length) : 0;
+  const effectiveMaxPages = Number.isFinite(maxPages) ? maxPages : MAX_FREE_PAGES;
+  const isLimitReached = Number.isFinite(maxPages) && pagesCreatedCount >= maxPages;
+  const remainingFreePages = Number.isFinite(maxPages)
+    ? Math.max(0, maxPages - pagesCreatedCount)
+    : 999999;
   const hasPendingPayment = userPayments.some((p) => p.status === 'pending');
 
   const checkCanPerformAction = (): { allowed: boolean; reason?: string } => {
-    if (isPro) {
+    if (!Number.isFinite(maxPages)) {
       return { allowed: true };
     }
     if (isLimitReached) {
       return {
         allowed: false,
-        reason: `You have reached your Free Tier limit of ${MAX_FREE_PAGES} landing pages. Upgrade to Pro for unlimited funnels!`,
+        reason:
+          planId === 'starter'
+            ? `You have reached your Starter plan limit of ${maxPages} landing pages. Upgrade to Pro for unlimited funnels!`
+            : `You have reached your Free plan limit of ${maxPages} landing pages. Upgrade to Starter (5 pages) or Pro (Unlimited) to build more!`,
       };
     }
     return { allowed: true };
   };
 
   const recordPageAction = async (): Promise<boolean> => {
-    if (isPro) return true;
+    if (!Number.isFinite(maxPages)) return true;
 
     if (token) {
       try {
@@ -807,7 +999,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         if (data.success && data.user) {
           setUser(data.user);
           return true;
-        } else if (res.status === 403 || data.error === 'LIMIT_REACHED') {
+        } else if (res.status === 403 || data.error === 'LIMIT_REACHED' || data.isLimitReached) {
           if (data.user) setUser(data.user);
           return false;
         }
@@ -1169,8 +1361,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         token,
         isLoading,
         isLoggedIn: !!user,
+        planId,
+        isStarter,
         isPro,
+        isEnterprise,
         isAdmin,
+        canUseCustomDomain,
+        canUsePixels,
+        canUseApiIntegrations,
+        canRemoveWatermark,
+        maxPages,
         isImpersonating,
         impersonatedUser,
         realAdminUser,
@@ -1185,13 +1385,17 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         fetchAdminFunnels,
         fetchAdminOrders,
         pagesCreatedCount,
-        maxFreePages: MAX_FREE_PAGES,
+        maxFreePages: effectiveMaxPages,
         isLimitReached,
         remainingFreePages,
         userPayments,
         hasPendingPayment,
         userPages,
         fetchUserPages,
+        savePageCustomDomain,
+        verifyPageCustomDomain,
+        removePageCustomDomain,
+        savePagePixels,
         saveUserPageToCloud,
         deleteUserPageFromCloud,
         duplicateUserPageInCloud,
