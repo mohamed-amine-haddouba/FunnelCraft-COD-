@@ -25,6 +25,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../i18n/translations';
 import { SUPPORTED_LANGUAGES } from '../i18n/config';
+import { ThemeToggleButton } from './ThemeToggleButton';
 import { PublicFooter } from './PublicFooter';
 import { SubscriptionPlanId } from '../types/orders';
 import { MoroccanBankAccount } from '../types/user';
@@ -540,11 +541,11 @@ export const PricingPage: React.FC<PricingPageProps> = ({
   return (
     <div
       dir={dir}
-      className="min-h-screen w-full bg-[#0D131E] text-[#F8FAFC] flex flex-col relative overflow-x-hidden select-none"
+      className="min-h-screen w-full bg-brand-bg text-brand-primary flex flex-col relative overflow-x-hidden select-none"
     >
       {/* Persistent Sticky Guest Header when unauthenticated */}
       {!isLoggedIn && (
-        <header className="w-full border-b border-[#1E293B] bg-[#0D131E]/95 backdrop-blur-md sticky top-0 z-40">
+        <header className="w-full border-b border-brand bg-brand-bg/95 backdrop-blur-md sticky top-0 z-40">
           <div className="max-w-7xl mx-auto h-16 px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-4">
             <LocalizedLink to="/home" className="flex items-center shrink-0">
               <img
@@ -554,28 +555,28 @@ export const PricingPage: React.FC<PricingPageProps> = ({
               />
             </LocalizedLink>
 
-            <nav className="hidden md:flex items-center gap-7 text-sm font-semibold text-[#CBD5E1]">
+            <nav className="hidden md:flex items-center gap-7 text-sm font-semibold text-brand-secondary">
               <LocalizedLink
                 to="/home"
-                className="text-[#CBD5E1] hover:text-[#F8FAFC] transition"
+                className="text-brand-secondary hover:text-brand-primary transition"
               >
                 {t['home.hero.nav.home']}
               </LocalizedLink>
               <LocalizedLink
                 to="/home#features"
-                className="text-[#CBD5E1] hover:text-[#F8FAFC] transition"
+                className="text-brand-secondary hover:text-brand-primary transition"
               >
                 {t['home.hero.nav.features']}
               </LocalizedLink>
               <LocalizedLink
                 to="/pricing"
-                className="text-[#F8FAFC] hover:text-[#E25B26] transition"
+                className="text-brand-primary hover:text-brand-accent transition"
               >
                 {t['home.hero.nav.pricing']}
               </LocalizedLink>
               <LocalizedLink
                 to="/login"
-                className="text-[#CBD5E1] hover:text-[#F8FAFC] transition"
+                className="text-brand-secondary hover:text-brand-primary transition"
               >
                 {t['home.hero.nav.templates']}
               </LocalizedLink>
@@ -584,7 +585,7 @@ export const PricingPage: React.FC<PricingPageProps> = ({
             <div className="flex items-center gap-2.5 shrink-0">
               <div
                 dir="ltr"
-                className="hidden sm:flex items-center gap-1 p-1 rounded-lg bg-[#131B2A] border border-[#1E293B]"
+                className="hidden sm:flex items-center gap-1 p-1 rounded-lg bg-brand-surface border border-brand"
               >
                 {SUPPORTED_LANGUAGES.map((lang) => (
                   <button
@@ -593,8 +594,8 @@ export const PricingPage: React.FC<PricingPageProps> = ({
                     onClick={() => setLanguage(lang.code)}
                     className={`px-2 py-1 rounded text-[11px] font-bold transition cursor-pointer ${
                       language === lang.code
-                        ? 'bg-[#E25B26] text-[#F8FAFC]'
-                        : 'text-[#CBD5E1] hover:text-[#F8FAFC]'
+                        ? 'bg-brand-accent text-white'
+                        : 'text-brand-secondary hover:text-brand-primary'
                     }`}
                   >
                     {lang.label}
@@ -602,16 +603,19 @@ export const PricingPage: React.FC<PricingPageProps> = ({
                 ))}
               </div>
 
+              {/* Global Theme Toggle Button */}
+              <ThemeToggleButton />
+
               <LocalizedLink
                 to="/login"
-                className="px-3.5 py-2 rounded-xl border border-transparent hover:border-[#334155] hover:bg-[#131B2A] text-[#CBD5E1] hover:text-[#F8FAFC] text-xs sm:text-[13px] font-semibold transition"
+                className="px-3.5 py-2 rounded-xl border border-transparent hover:border-brand hover:bg-brand-surface text-brand-secondary hover:text-brand-primary text-xs sm:text-[13px] font-semibold transition"
               >
                 {t['home.hero.nav.login']}
               </LocalizedLink>
 
               <LocalizedLink
                 to="/login?mode=register"
-                className="px-4 py-2 rounded-xl bg-[#E25B26] hover:bg-[#F16F3C] text-[#F8FAFC] text-xs sm:text-[13px] font-bold shadow-md transition"
+                className="px-4 py-2 rounded-xl bg-brand-accent hover:opacity-90 text-white text-xs sm:text-[13px] font-bold shadow-md transition"
               >
                 {t['home.hero.nav.signup']}
               </LocalizedLink>

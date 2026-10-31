@@ -177,10 +177,10 @@ export const HomeLandingPage: React.FC = () => {
   return (
     <div
       dir={dir}
-      className="min-h-screen w-screen bg-[#0D131E] text-[#F8FAFC] flex flex-col justify-between overflow-x-hidden select-none"
+      className="min-h-screen w-screen bg-brand-bg text-brand-primary flex flex-col justify-between overflow-x-hidden select-none"
     >
       {/* Top Public Sticky Header */}
-      <header className="w-full border-b border-[#1E293B] bg-[#0D131E]/95 backdrop-blur-md sticky top-0 z-40">
+      <header className="w-full border-b border-brand bg-brand-bg/95 backdrop-blur-md sticky top-0 z-40">
         <div className="max-w-7xl mx-auto h-16 px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-4">
           {/* Brand Logo (Right in RTL / Left in LTR) */}
           <LocalizedLink to="/home" className="flex items-center shrink-0">
@@ -192,29 +192,29 @@ export const HomeLandingPage: React.FC = () => {
           </LocalizedLink>
 
           {/* Center Nav Links */}
-          <nav className="hidden md:flex items-center gap-7 text-sm font-semibold text-[#CBD5E1]">
+          <nav className="hidden md:flex items-center gap-7 text-sm font-semibold text-brand-secondary">
             <LocalizedLink
               to="/home"
-              className="text-[#F8FAFC] hover:text-[#E25B26] transition"
+              className="text-brand-primary hover:text-brand-accent transition"
             >
               {t['home.hero.nav.home']}
             </LocalizedLink>
             <LocalizedLink
               to="/home#features"
               onClick={handleFeaturesClick}
-              className="text-[#CBD5E1] hover:text-[#F8FAFC] transition"
+              className="text-brand-secondary hover:text-brand-primary transition"
             >
               {t['home.hero.nav.features']}
             </LocalizedLink>
             <LocalizedLink
               to="/pricing"
-              className="text-[#CBD5E1] hover:text-[#F8FAFC] transition"
+              className="text-brand-secondary hover:text-brand-primary transition"
             >
               {t['home.hero.nav.pricing']}
             </LocalizedLink>
             <LocalizedLink
               to="/login"
-              className="text-[#CBD5E1] hover:text-[#F8FAFC] transition"
+              className="text-brand-secondary hover:text-brand-primary transition"
             >
               {t['home.hero.nav.templates']}
             </LocalizedLink>
@@ -224,7 +224,7 @@ export const HomeLandingPage: React.FC = () => {
           <div className="flex items-center gap-2.5 shrink-0">
             <div
               dir="ltr"
-              className="hidden sm:flex items-center gap-1 p-1 rounded-lg bg-[#131B2A] border border-[#1E293B]"
+              className="hidden sm:flex items-center gap-1 p-1 rounded-lg bg-brand-surface border border-brand"
             >
               {SUPPORTED_LANGUAGES.map((lang) => (
                 <button
@@ -233,8 +233,8 @@ export const HomeLandingPage: React.FC = () => {
                   onClick={() => setLanguage(lang.code)}
                   className={`px-2 py-1 rounded text-[11px] font-bold transition cursor-pointer ${
                     language === lang.code
-                      ? 'bg-[#E25B26] text-[#F8FAFC]'
-                      : 'text-[#CBD5E1] hover:text-[#F8FAFC]'
+                      ? 'bg-brand-accent text-white'
+                      : 'text-brand-secondary hover:text-brand-primary'
                   }`}
                 >
                   {lang.label}
@@ -247,14 +247,14 @@ export const HomeLandingPage: React.FC = () => {
 
             <LocalizedLink
               to="/login"
-              className="px-3.5 py-2 rounded-xl border border-transparent hover:border-[#334155] hover:bg-[#131B2A] text-[#CBD5E1] hover:text-[#F8FAFC] text-xs sm:text-[13px] font-semibold transition"
+              className="px-3.5 py-2 rounded-xl border border-transparent hover:border-brand hover:bg-brand-surface text-brand-secondary hover:text-brand-primary text-xs sm:text-[13px] font-semibold transition"
             >
               {t['home.hero.nav.login']}
             </LocalizedLink>
 
             <LocalizedLink
               to="/login?mode=register"
-              className="px-4 py-2 rounded-xl bg-[#E25B26] hover:bg-[#F16F3C] text-[#F8FAFC] text-xs sm:text-[13px] font-bold shadow-md transition"
+              className="px-4 py-2 rounded-xl bg-brand-accent hover:opacity-90 text-white text-xs sm:text-[13px] font-bold shadow-md transition"
             >
               {t['home.hero.nav.signup']}
             </LocalizedLink>
@@ -263,18 +263,18 @@ export const HomeLandingPage: React.FC = () => {
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col justify-center bg-[#0D131E]">
+      <main className="flex-1 flex flex-col justify-center bg-brand-bg">
         <HeroSection />
 
         {/* Epic Interactive Features Section */}
         <section
           id="features"
-          className="relative w-full bg-[#0D131E] border-t border-[#1E293B] py-20 sm:py-28 px-4 sm:px-6 lg:px-8 overflow-hidden"
+          className="relative w-full bg-brand-bg border-t border-brand py-20 sm:py-28 px-4 sm:px-6 lg:px-8 overflow-hidden"
         >
           {/* Subtle Ambient Glow */}
           <div
             aria-hidden="true"
-            className="pointer-events-none absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[680px] h-[360px] rounded-full bg-[#E25B26]/10 blur-[140px]"
+            className="pointer-events-none absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[680px] h-[360px] rounded-full bg-brand-accent/10 blur-[140px]"
           />
 
           <div className="relative z-10 max-w-7xl mx-auto space-y-16">
@@ -283,15 +283,15 @@ export const HomeLandingPage: React.FC = () => {
               {statsBanner.map((stat, idx) => (
                 <div
                   key={idx}
-                  className="bg-[#131B2A]/80 backdrop-blur-sm border border-[#1E293B] rounded-2xl p-6 text-center hover:border-[#E25B26]/50 transition-all duration-300"
+                  className="bg-brand-surface/80 backdrop-blur-sm border border-brand rounded-2xl p-6 text-center hover:border-brand-accent/50 transition-all duration-300"
                 >
                   <div
                     dir="ltr"
-                    className="text-2xl sm:text-4xl font-black text-[#E25B26] tracking-tight"
+                    className="text-2xl sm:text-4xl font-black text-brand-accent tracking-tight"
                   >
                     {stat.value}
                   </div>
-                  <div className="mt-2 text-xs sm:text-sm font-bold text-[#CBD5E1]">
+                  <div className="mt-2 text-xs sm:text-sm font-bold text-brand-secondary">
                     {stat.label}
                   </div>
                 </div>
@@ -300,8 +300,8 @@ export const HomeLandingPage: React.FC = () => {
 
             {/* Section Heading with Subtle Pulse */}
             <div className="text-center max-w-3xl mx-auto space-y-4">
-              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#E25B26]/10 border border-[#E25B26]/30 text-[#E25B26] text-xs font-extrabold">
-                <span className="w-2 h-2 rounded-full bg-[#E25B26] animate-pulse" />
+              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-brand-accent/10 border border-brand-accent/30 text-brand-accent text-xs font-extrabold">
+                <span className="w-2 h-2 rounded-full bg-brand-accent animate-pulse" />
                 <span>
                   {language === 'ar'
                     ? 'المنصة رقم #1 للتجارة الإلكترونية في المغرب وإفريقيا'
@@ -311,7 +311,7 @@ export const HomeLandingPage: React.FC = () => {
                 </span>
               </div>
 
-              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-[#F8FAFC] tracking-tight leading-tight animate-pulse">
+              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-brand-primary tracking-tight leading-tight animate-pulse">
                 {language === 'ar'
                   ? 'كل ما تحتاجه لمضاعفة مبيعات الدفع عند الاستلام'
                   : language === 'fr'
@@ -319,7 +319,7 @@ export const HomeLandingPage: React.FC = () => {
                   : 'Everything You Need to Scale Your COD Sales'}
               </h2>
 
-              <p className="text-sm sm:text-base text-[#CBD5E1] leading-relaxed">
+              <p className="text-sm sm:text-base text-brand-secondary leading-relaxed">
                 {language === 'ar'
                   ? 'أدوات متكاملة صُممت خصيصاً لتلبية احتياجات التاجر المغربي والإفريقي من إنشاء الصفحة بالذكاء الاصطناعي حتى توصيل الطلب.'
                   : language === 'fr'
@@ -335,30 +335,30 @@ export const HomeLandingPage: React.FC = () => {
                 return (
                   <div
                     key={index}
-                    className={`${feature.spanClass} bg-[#131B2A]/80 backdrop-blur-sm border border-[#1E293B] hover:-translate-y-2 hover:shadow-[0_10px_40px_-10px_rgba(226,91,38,0.3)] hover:border-[#E25B26]/50 transition-all duration-300 group rounded-2xl p-6 sm:p-8 flex flex-col justify-between gap-6`}
+                    className={`${feature.spanClass} bg-brand-surface/80 backdrop-blur-sm border border-brand hover:-translate-y-2 hover:shadow-lg hover:border-brand-accent/50 transition-all duration-300 group rounded-2xl p-6 sm:p-8 flex flex-col justify-between gap-6`}
                   >
                     <div className="space-y-4">
                       <div className="flex items-center justify-between">
-                        <div className="w-12 h-12 rounded-xl bg-[#0D131E] border border-[#1E293B] text-[#E25B26] group-hover:bg-[#E25B26] group-hover:text-[#F8FAFC] transition-colors flex items-center justify-center shadow-md">
+                        <div className="w-12 h-12 rounded-xl bg-brand-bg border border-brand text-brand-accent group-hover:bg-brand-accent group-hover:text-white transition-colors flex items-center justify-center shadow-md">
                           <IconComponent className="w-6 h-6" />
                         </div>
-                        <ArrowUpRight className="w-5 h-5 text-[#CBD5E1]/40 group-hover:text-[#E25B26] transition-colors" />
+                        <ArrowUpRight className="w-5 h-5 text-brand-secondary/40 group-hover:text-brand-accent transition-colors" />
                       </div>
 
-                      <h3 className="text-lg sm:text-xl font-extrabold text-[#F8FAFC] group-hover:text-[#E25B26] transition-colors">
+                      <h3 className="text-lg sm:text-xl font-extrabold text-brand-primary group-hover:text-brand-accent transition-colors">
                         {feature.title}
                       </h3>
 
-                      <p className="text-sm text-[#CBD5E1] leading-relaxed">
+                      <p className="text-sm text-brand-secondary leading-relaxed">
                         {feature.subtitle}
                       </p>
                     </div>
 
-                    <div className="pt-2 border-t border-[#1E293B]/80 flex items-center justify-between text-xs font-bold text-[#CBD5E1]">
+                    <div className="pt-2 border-t border-brand/80 flex items-center justify-between text-xs font-bold text-brand-secondary">
                       <span>CodWorth Pro Engine</span>
                       <LocalizedLink
                         to="/login?mode=register"
-                        className="text-[#E25B26] hover:underline"
+                        className="text-brand-accent hover:underline"
                       >
                         {language === 'ar'
                           ? 'جرب الميزة مجاناً ←'

@@ -34,30 +34,30 @@ export const HeroVisual: React.FC = () => {
       </div>
 
       {/* Floating Card 1 (Top-End of Laptop): Daily Orders / 12,450 MAD */}
-      <div className="codworth-float-slow absolute -top-4 end-2 sm:-top-5 sm:-end-4 z-30 bg-[#1E293B] border border-[#334155] rounded-xl p-3 shadow-xl flex items-center gap-2.5">
-        <div className="w-8 h-8 rounded-lg bg-[#E25B26]/15 border border-[#E25B26]/30 flex items-center justify-center text-[#E25B26] shrink-0">
+      <div className="codworth-float-slow absolute -top-4 end-2 sm:-top-5 sm:-end-4 z-30 bg-brand-surface border border-brand rounded-xl p-3 shadow-xl flex items-center gap-2.5">
+        <div className="w-8 h-8 rounded-lg bg-brand-accent/15 border border-brand-accent/30 flex items-center justify-center text-brand-accent shrink-0">
           <TrendingUp className="w-4 h-4" />
         </div>
         <div>
-          <div className="text-[11px] font-medium text-[#CBD5E1] leading-tight">
+          <div className="text-[11px] font-medium text-brand-secondary leading-tight">
             {t['home.hero.revenueCardLabel']}
           </div>
-          <div className="text-xs sm:text-sm font-black text-[#F8FAFC] leading-tight mt-0.5">
+          <div className="text-xs sm:text-sm font-black text-brand-primary leading-tight mt-0.5">
             {t['home.hero.revenueCardValue']}
           </div>
         </div>
       </div>
 
       {/* Floating Card 2 (Bottom-Center / End): Current Offer / 249 MAD */}
-      <div className="codworth-float-delayed absolute -bottom-5 end-4 sm:-bottom-6 sm:end-10 z-30 bg-[#1E293B] border border-[#334155] rounded-xl p-3 shadow-xl flex items-center gap-2.5">
-        <div className="w-8 h-8 rounded-lg bg-[#E25B26]/15 border border-[#E25B26]/30 flex items-center justify-center text-[#E25B26] shrink-0">
+      <div className="codworth-float-delayed absolute -bottom-5 end-4 sm:-bottom-6 sm:end-10 z-30 bg-brand-surface border border-brand rounded-xl p-3 shadow-xl flex items-center gap-2.5">
+        <div className="w-8 h-8 rounded-lg bg-brand-accent/15 border border-brand-accent/30 flex items-center justify-center text-brand-accent shrink-0">
           <Tag className="w-4 h-4" />
         </div>
         <div>
-          <div className="text-[11px] font-medium text-[#CBD5E1] leading-tight">
+          <div className="text-[11px] font-medium text-brand-secondary leading-tight">
             {t['home.hero.productCardLabel']}
           </div>
-          <div className="text-xs sm:text-sm font-black text-[#F8FAFC] leading-tight mt-0.5">
+          <div className="text-xs sm:text-sm font-black text-brand-primary leading-tight mt-0.5">
             {t['home.hero.productCardValue']}
           </div>
         </div>

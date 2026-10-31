@@ -1,21 +1,22 @@
 @import "tailwindcss";
 
 @theme {
-  --color-brand-bg: #0D131E;
-  --color-brand-surface: #131B2A;
-  --color-brand-elevated: #1E293B;
-  --color-brand-border: #1E293B;
+  --color-brand-bg: var(--bg-primary);
+  --color-brand-surface: var(--bg-surface);
+  --color-brand-elevated: var(--bg-elevated);
+  --color-brand-border: var(--border-color);
   --color-brand-border-strong: #334155;
-  --color-brand-text: #F8FAFC;
-  --color-brand-secondary: #CBD5E1;
+  --color-brand-text: var(--text-primary);
+  --color-brand-secondary: var(--text-secondary);
   --color-brand-muted: #94A3B8;
-  --color-brand-accent: #E25B26;
+  --color-brand-accent: var(--accent);
   --color-brand-accent-hover: #F16F3C;
 }
 
 :root {
-  --bg-primary: #F9F6F0;
-  --bg-surface: #FFFFFF;
+  --bg-primary: #F9F6F0;      /* Light mode background */
+  --bg-surface: #FFFFFF;      /* Light mode surface */
+  --bg-elevated: #F1EDE4;    
   --text-primary: #0F172A;
   --text-secondary: #475569;
   --border-color: #E2E8F0;
@@ -25,10 +26,23 @@
 .dark, html.dark {
   --bg-primary: #0D131E;
   --bg-surface: #131B2A;
+  --bg-elevated: #1E293B;
   --text-primary: #F8FAFC;
   --text-secondary: #CBD5E1;
   --border-color: #1E293B;
   --accent: #E25B26;
+}
+
+@layer utilities {
+  .bg-brand-bg { background-color: var(--bg-primary); }
+  .bg-brand-surface { background-color: var(--bg-surface); }
+  .bg-brand-elevated { background-color: var(--bg-elevated); }
+  .text-brand-primary { color: var(--text-primary); }
+  .text-brand-secondary { color: var(--text-secondary); }
+  .border-brand { border-color: var(--border-color); }
+  .bg-brand-accent { background-color: var(--accent); }
+  .text-brand-accent { color: var(--accent); }
+  .border-brand-accent { border-color: var(--accent); }
 }
 
 @layer base {
@@ -52,6 +66,82 @@
   visibility: hidden !important;
 }
 
+/* Light mode overrides for legacy hardcoded colors */
+html:not(.dark) .bg-\[\#0D131E\],
+html:not(.dark) [class*="bg-[#0D131E]"] {
+  background-color: var(--bg-primary) !important;
+}
+
+html:not(.dark) .bg-\[\#131B2A\],
+html:not(.dark) [class*="bg-[#131B2A]"] {
+  background-color: var(--bg-surface) !important;
+}
+
+html:not(.dark) .bg-\[\#1E293B\],
+html:not(.dark) [class*="bg-[#1E293B]"] {
+  background-color: var(--bg-elevated) !important;
+}
+
+html:not(.dark) .bg-\[\#0F172A\],
+html:not(.dark) [class*="bg-[#0F172A]"] {
+  background-color: var(--bg-surface) !important;
+}
+
+html:not(.dark) .text-\[\#F8FAFC\],
+html:not(.dark) [class*="text-[#F8FAFC]"] {
+  color: var(--text-primary) !important;
+}
+
+html:not(.dark) .text-\[\#CBD5E1\],
+html:not(.dark) [class*="text-[#CBD5E1]"] {
+  color: var(--text-secondary) !important;
+}
+
+html:not(.dark) .border-\[\#1E293B\],
+html:not(.dark) [class*="border-[#1E293B]"] {
+  border-color: var(--border-color) !important;
+}
+
+html:not(.dark) .border-\[\#334155\],
+html:not(.dark) [class*="border-[#334155]"] {
+  border-color: var(--border-color) !important;
+}
+
+/* Light mode hover states */
+html:not(.dark) [class*="hover:bg-[#1E293B]"]:hover {
+  background-color: var(--bg-elevated) !important;
+}
+
+html:not(.dark) [class*="hover:bg-[#131B2A]"]:hover {
+  background-color: var(--bg-surface) !important;
+}
+
+html:not(.dark) [class*="hover:text-[#F8FAFC]"]:hover {
+  color: var(--text-primary) !important;
+}
+
+html:not(.dark) [class*="hover:border-[#334155]"]:hover {
+  border-color: var(--border-color) !important;
+}
+
+/* Ensure white text inside accent buttons/badges remains white in light mode */
+html:not(.dark) .bg-brand-accent,
+html:not(.dark) .bg-\[\#E25B26\],
+html:not(.dark) [class*="bg-[#E25B26]"] {
+  background-color: var(--accent) !important;
+}
+
+html:not(.dark) [class*="bg-[#E25B26]"] [class*="text-[#F8FAFC]"],
+html:not(.dark) [class*="bg-brand-accent"] [class*="text-[#F8FAFC]"],
+html:not(.dark) [class*="bg-[#E25B26]"][class*="text-[#F8FAFC]"],
+html:not(.dark) [class*="bg-brand-accent"][class*="text-[#F8FAFC]"],
+html:not(.dark) button[class*="bg-[#E25B26]"],
+html:not(.dark) button[class*="bg-brand-accent"],
+html:not(.dark) a[class*="bg-[#E25B26]"],
+html:not(.dark) a[class*="bg-brand-accent"] {
+  color: #FFFFFF !important;
+}
+
 /* Dark mode native dropdown styling */
 .dark select option {
   background-color: #131B2A !important;
@@ -62,6 +152,20 @@
   color: #F8FAFC !important;
   background-color: #0F172A !important;
   border-color: #1E293B !important;
+}
+
+/* Light mode native dropdown styling */
+html:not(.dark) select option,
+.light select option {
+  background-color: #FFFFFF !important;
+  color: #0F172A !important;
+}
+
+html:not(.dark) select,
+.light select {
+  color: #0F172A !important;
+  background-color: #FFFFFF !important;
+  border-color: #E2E8F0 !important;
 }
 
 /* Dark mode inputs in sidebar & properties panels */
@@ -85,4 +189,15 @@
 .dark input::placeholder,
 .dark textarea::placeholder {
   color: #94A3B8;
+}
+
+html:not(.dark) aside input,
+html:not(.dark) aside textarea,
+html:not(.dark) .sidebar input,
+html:not(.dark) .sidebar textarea,
+html:not(.dark) [data-sidebar] input,
+html:not(.dark) [data-sidebar] textarea {
+  color: #0F172A;
+  background-color: #FFFFFF;
+  border-color: #E2E8F0;
 }

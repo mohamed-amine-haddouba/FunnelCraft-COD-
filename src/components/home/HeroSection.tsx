@@ -10,24 +10,14 @@ export const HeroSection: React.FC = () => {
     <section
       id="hero"
       dir={dir}
-      className="relative w-full bg-[#0D131E] text-[#F8FAFC] overflow-hidden py-12 sm:py-16 lg:py-24"
+      className="relative w-full bg-brand-bg text-brand-primary overflow-hidden py-12 sm:py-16 lg:py-24"
     >
       {/* Soft Premium Orange Glow at 10% Opacity with blur-[120px] in Top Corner */}
       <div
         aria-hidden="true"
         className={`pointer-events-none absolute -top-32 ${
           isRtl ? '-left-32' : '-right-32'
-        } w-[520px] h-[520px] rounded-full bg-[#E25B26]/10 blur-[120px]`}
-      />
-
-      {/* Faint Geometric Zellij Pattern Overlay at 3% Opacity */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0 opacity-[0.03]"
-        style={{
-          backgroundImage: `radial-gradient(#F8FAFC 1px, transparent 1px), linear-gradient(45deg, #F8FAFC 1px, transparent 1px), linear-gradient(-45deg, #F8FAFC 1px, transparent 1px)`,
-          backgroundSize: '36px 36px',
-        }}
+        } w-[520px] h-[520px] rounded-full bg-brand-accent/10 blur-[120px]`}
       />
 
       {/* Symmetrical RTL/LTR Grid: Text on Right in AR / Left in EN-FR; Mockups on Left in AR / Right in EN-FR */}

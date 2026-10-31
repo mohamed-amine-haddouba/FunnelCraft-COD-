@@ -146,29 +146,29 @@ export const MyPagesModal: React.FC<MyPagesModalProps> = ({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#131B2A]/70 backdrop-blur-sm animate-in fade-in duration-200">
       <div className="relative w-full max-w-4xl bg-[#131B2A] rounded-3xl shadow-2xl border border-[#1E293B] flex flex-col max-h-[90vh] overflow-hidden">
         {/* Modal Top Header */}
-        <div className="px-6 py-5 border-b border-[#1E293B] flex items-center justify-between bg-gradient-to-r from-slate-50 to-white">
+        <div className="px-6 py-5 border-b border-brand flex items-center justify-between bg-brand-surface">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-[#E25B26] text-[#E25B26] flex items-center justify-center shadow-inner">
+            <div className="w-10 h-10 rounded-2xl bg-brand-accent/15 text-brand-accent flex items-center justify-center shadow-inner">
               <FolderKanban className="w-5 h-5" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-xl font-black text-slate-900">My Pages & Funnels</h2>
+                <h2 className="text-xl font-black text-brand-primary">My Pages & Funnels</h2>
                 {isPro ? (
-                  <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-[#E25B26] text-[#E25B26] tracking-wider">
+                  <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-brand-accent/20 text-brand-accent tracking-wider">
                     {planId.toUpperCase()} • Unlimited
                   </span>
                 ) : isStarter ? (
-                  <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-blue-100 text-blue-900 tracking-wider">
+                  <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-400 tracking-wider">
                     Starter Plan: {pagesCreatedCount}/{maxPages ?? 5} Pages
                   </span>
                 ) : (
-                  <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 tracking-wider">
+                  <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 tracking-wider">
                     Free Tier: {pagesCreatedCount}/{maxPages ?? maxFreePages} Pages
                   </span>
                 )}
               </div>
-              <p className="text-xs text-[#CBD5E1]/70">
+              <p className="text-xs text-brand-secondary">
                 All landing pages permanently stored in your cloud account — accessible across devices
               </p>
             </div>

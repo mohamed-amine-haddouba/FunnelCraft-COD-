@@ -22,12 +22,12 @@ export const ThemeToggleButton: React.FC<ThemeToggleButtonProps> = ({
       onClick={toggleTheme}
       title={theme === 'dark' ? 'تبديل إلى الوضع النهاري (Light Mode)' : 'تبديل إلى الوضع الليلي (Dark Mode)'}
       aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-      className={`flex items-center justify-center rounded-lg bg-[#131B2A] hover:bg-[#1E293B] border border-[#1E293B] hover:border-[#334155] text-[#CBD5E1] hover:text-[#E25B26] transition-all duration-200 cursor-pointer shrink-0 shadow-xs ${buttonSizeClasses} ${className}`}
+      className={`flex items-center justify-center rounded-lg bg-brand-surface hover:bg-brand-elevated border border-brand text-brand-secondary hover:text-brand-accent transition-all duration-200 cursor-pointer shrink-0 shadow-xs ${buttonSizeClasses} ${className}`}
     >
       {theme === 'dark' ? (
-        <Sun className={`${iconSizeClasses} text-[#E25B26] transition-transform duration-300 hover:rotate-45`} />
+        <Sun className={`${iconSizeClasses} text-brand-accent transition-transform duration-300 hover:rotate-45`} />
       ) : (
-        <Moon className={`${iconSizeClasses} text-[#F8FAFC] transition-transform duration-300 hover:-rotate-12`} />
+        <Moon className={`${iconSizeClasses} text-brand-primary transition-transform duration-300 hover:-rotate-12`} />
       )}
     </button>
   );

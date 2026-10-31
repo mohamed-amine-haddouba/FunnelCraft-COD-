@@ -9,20 +9,20 @@ export const HeroText: React.FC = () => {
   return (
     <div dir={dir} className="flex flex-col items-start text-start">
       {/* 1. Badge / Pill */}
-      <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#E25B26]/10 border border-[#E25B26]/30 text-[#E25B26] text-xs sm:text-[13px] font-bold">
+      <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-brand-accent/10 border border-brand-accent/30 text-brand-accent text-xs sm:text-[13px] font-bold">
         <span>{t['home.hero.badge']}</span>
       </div>
 
       {/* 2. Headline (H1, large) */}
-      <h1 className="mt-6 text-4xl sm:text-5xl lg:text-[54px] font-black tracking-[-0.02em] leading-[1.15] text-[#F8FAFC]">
+      <h1 className="mt-6 text-4xl sm:text-5xl lg:text-[54px] font-black tracking-[-0.02em] leading-[1.15] text-brand-primary">
         <span className="block">{t['home.hero.headlineLine1']}</span>
-        <span className="block text-[#E25B26] mt-1.5">
+        <span className="block text-brand-accent mt-1.5">
           {t['home.hero.headlineLine2Accent']}
         </span>
       </h1>
 
       {/* 3. Subheadline */}
-      <p className="mt-6 text-base sm:text-[18px] font-normal leading-[1.75] text-[#CBD5E1] max-w-[600px]">
+      <p className="mt-6 text-base sm:text-[18px] font-normal leading-[1.75] text-brand-secondary max-w-[600px]">
         {t['home.hero.subheadline']}
       </p>
 
@@ -30,7 +30,7 @@ export const HeroText: React.FC = () => {
       <div className="mt-8 flex items-center w-full sm:w-auto">
         <LocalizedLink
           to="/login?mode=register"
-          className="inline-flex items-center justify-center px-7 py-3.5 rounded-xl bg-[#E25B26] hover:bg-[#F16F3C] text-[#F8FAFC] font-bold text-[15px] shadow-lg transition cursor-pointer text-center w-full sm:w-auto"
+          className="inline-flex items-center justify-center px-7 py-3.5 rounded-xl bg-brand-accent hover:opacity-90 text-white font-bold text-[15px] shadow-lg transition cursor-pointer text-center w-full sm:w-auto"
         >
           <span>{t['home.hero.ctaPrimary']}</span>
         </LocalizedLink>
@@ -38,24 +38,24 @@ export const HeroText: React.FC = () => {
 
       {/* 5. Social Proof Row */}
       <div className="mt-10 flex items-center gap-3">
-        {/* Three overlapping circular avatars using strict brand palette */}
+        {/* Three overlapping circular avatars using brand palette */}
         <div className="flex items-center -space-x-2 rtl:space-x-reverse">
-          <div className="w-7 h-7 rounded-full bg-[#E25B26] border-2 border-[#0D131E] flex items-center justify-center text-[10px] font-extrabold text-[#F8FAFC]">
+          <div className="w-7 h-7 rounded-full bg-brand-accent border-2 border-brand-bg flex items-center justify-center text-[10px] font-extrabold text-white">
             M
           </div>
-          <div className="w-7 h-7 rounded-full bg-[#1E293B] border-2 border-[#0D131E] flex items-center justify-center text-[10px] font-extrabold text-[#F8FAFC]">
+          <div className="w-7 h-7 rounded-full bg-brand-elevated border-2 border-brand-bg flex items-center justify-center text-[10px] font-extrabold text-white">
             Y
           </div>
-          <div className="w-7 h-7 rounded-full bg-[#334155] border-2 border-[#0D131E] flex items-center justify-center text-[10px] font-extrabold text-[#F8FAFC]">
+          <div className="w-7 h-7 rounded-full bg-slate-500 border-2 border-brand-bg flex items-center justify-center text-[10px] font-extrabold text-white">
             S
           </div>
         </div>
 
-        <span className="text-[13px] font-medium text-[#CBD5E1]">
+        <span className="text-[13px] font-medium text-brand-secondary">
           {t['home.hero.socialProof']}
         </span>
 
-        <Truck className="w-4 h-4 text-[#CBD5E1] shrink-0" aria-hidden="true" />
+        <Truck className="w-4 h-4 text-brand-secondary shrink-0" aria-hidden="true" />
       </div>
     </div>
   );
