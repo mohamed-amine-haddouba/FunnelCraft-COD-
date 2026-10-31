@@ -41,22 +41,22 @@ export const HomeLandingPage: React.FC = () => {
 
   const statsBanner = [
     {
-      value: '+10,000',
+      value: '+1,500',
       label:
         language === 'ar'
-          ? 'تاجر نشط في المغرب وإفريقيا'
+          ? 'طلب تمت معالجته بنجاح'
           : language === 'fr'
-          ? 'Marchands actifs au Maroc & Afrique'
-          : 'Active Merchants Across Morocco & Africa',
+          ? 'Commandes traitées avec succès'
+          : 'Orders processed successfully',
     },
     {
-      value: language === 'ar' ? '+50 مليون درهم' : '+50M MAD',
+      value: language === 'ar' ? '+500 ألف' : '+500K',
       label:
         language === 'ar'
-          ? 'حجم مبيعات الدفع عند الاستلام'
+          ? 'درهم مبيعات محققة'
           : language === 'fr'
-          ? 'Volume de ventes COD générées'
-          : 'Total COD Sales Volume Generated',
+          ? 'MAD de ventes générées'
+          : 'MAD in generated sales',
     },
     {
       value: '99.9%',
@@ -68,13 +68,13 @@ export const HomeLandingPage: React.FC = () => {
           : 'Guaranteed Uptime & Reliability',
     },
     {
-      value: '< 0.4s',
+      value: '24/7',
       label:
         language === 'ar'
-          ? 'سرعة استجابة وتحميل الصفحات'
+          ? 'دعم فني للعملاء'
           : language === 'fr'
-          ? 'Temps de chargement ultra-rapide'
-          : 'Sub-Second Page Load Speed',
+          ? 'Support client dédié'
+          : 'Dedicated Customer Support',
     },
   ];
 
