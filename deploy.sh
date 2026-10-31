@@ -9,8 +9,8 @@ git pull origin main
 echo ">>> [2/5] npm ci"
 npm ci
 
-echo ">>> [3/5] npx tsc --noEmit"
-npx tsc --noEmit
+echo ">>> [3/5] ./node_modules/.bin/tsc --noEmit"
+./node_modules/.bin/tsc --noEmit
 
 echo ">>> [4/5] npm run build"
 npm run build
