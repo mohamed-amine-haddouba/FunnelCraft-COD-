@@ -13,10 +13,28 @@
   --color-brand-accent-hover: #F16F3C;
 }
 
+:root {
+  --bg-primary: #F9F6F0;
+  --bg-surface: #FFFFFF;
+  --text-primary: #0F172A;
+  --text-secondary: #475569;
+  --border-color: #E2E8F0;
+  --accent: #C33C0E;
+}
+
+.dark, html.dark {
+  --bg-primary: #0D131E;
+  --bg-surface: #131B2A;
+  --text-primary: #F8FAFC;
+  --text-secondary: #CBD5E1;
+  --border-color: #1E293B;
+  --accent: #E25B26;
+}
+
 @layer base {
   body {
-    background-color: #0D131E;
-    color: #F8FAFC;
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
     font-family: 'Cairo', 'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   }
 
@@ -34,34 +52,37 @@
   visibility: hidden !important;
 }
 
-/* Force dropdown options to be readable in dark mode */
-select option {
-  background-color: #ffffff !important;
-  color: #1e293b !important;
+/* Dark mode native dropdown styling */
+.dark select option {
+  background-color: #131B2A !important;
+  color: #F8FAFC !important;
 }
 
-select {
-  color: #1e293b !important;
-  background-color: #f8fafc !important;
+.dark select {
+  color: #F8FAFC !important;
+  background-color: #0F172A !important;
+  border-color: #1E293B !important;
 }
 
-/* Force all inputs in the properties sidebar to have dark readable text */
-aside input,
-aside textarea,
-.sidebar input,
-.sidebar textarea,
-[data-sidebar] input,
-[data-sidebar] textarea,
-input[type="text"],
-input[type="number"],
-textarea {
-  color: #1e293b !important; /* text-slate-800 */
-  background-color: #ffffff !important;
+/* Dark mode inputs in sidebar & properties panels */
+.dark aside input,
+.dark aside textarea,
+.dark .sidebar input,
+.dark .sidebar textarea,
+.dark [data-sidebar] input,
+.dark [data-sidebar] textarea,
+.dark input[type="text"],
+.dark input[type="number"],
+.dark input[type="url"],
+.dark textarea {
+  color: #F8FAFC;
+  background-color: #0F172A;
+  border-color: #1E293B;
 }
 
-aside input::placeholder,
-aside textarea::placeholder,
-input[type="text"]::placeholder,
-textarea::placeholder {
-  color: #94a3b8 !important; /* text-slate-400 */
+.dark aside input::placeholder,
+.dark aside textarea::placeholder,
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: #94A3B8;
 }

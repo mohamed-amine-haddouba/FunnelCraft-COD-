@@ -18,6 +18,7 @@ import {
 import { TEMPLATE_BEAUTY_EN, TEMPLATE_ARABIC_COD } from './data/defaultTemplates';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { ThemeProvider } from './context/ThemeContext';
 import { HeaderNav, WorkspaceTab } from './components/HeaderNav';
 import { BlocksToolbar } from './components/BlocksToolbar';
 import { CanvasRenderer } from './components/CanvasRenderer';
@@ -1427,7 +1428,7 @@ function BuilderWorkspace() {
 
           {/* Builder Workspace Content */}
           {pageData.scrapedData && builderRenderMode === 'scraped' ? (
-            <div className="flex-1 min-w-0 min-h-0 overflow-y-auto overflow-x-hidden bg-slate-100 pb-20">
+            <div className="flex-1 min-w-0 min-h-0 overflow-y-auto overflow-x-hidden bg-[#0D131E] pb-20">
               <CustomerLandingPage
                 product={pageData.scrapedData}
                 pageSlug={pageData.slug || currentStoredPage?.slug}
@@ -2047,31 +2048,33 @@ export default function App() {
 
   return (
     <GoogleOAuthProvider clientId={googleClientId}>
-      <LanguageProvider>
-        <AuthProvider>
-          <Routes>
-            {/* 1. Dashboard & Builder (Root level - no language prefix) */}
-            <Route path="/dashboard" element={<Navigate to="/dashboard/builder" replace />} />
-            <Route path="/dashboard/:tab" element={<BuilderWorkspace />} />
+      <ThemeProvider>
+        <LanguageProvider>
+          <AuthProvider>
+            <Routes>
+              {/* 1. Dashboard & Builder (Root level - no language prefix) */}
+              <Route path="/dashboard" element={<Navigate to="/dashboard/builder" replace />} />
+              <Route path="/dashboard/:tab" element={<BuilderWorkspace />} />
 
-            {/* 2. Sandbox (Root level - no language prefix) */}
-            <Route path="/sandbox" element={<SandboxPage />} />
-            <Route path="/sandbox/login" element={<SandboxLoginPage />} />
-            <Route path="/sandbox/reset" element={<SandboxResetPage />} />
-            <Route path="/reset" element={<SandboxResetPage />} />
+              {/* 2. Sandbox (Root level - no language prefix) */}
+              <Route path="/sandbox" element={<SandboxPage />} />
+              <Route path="/sandbox/login" element={<SandboxLoginPage />} />
+              <Route path="/sandbox/reset" element={<SandboxResetPage />} />
+              <Route path="/reset" element={<SandboxResetPage />} />
 
-            {/* 3. Public merchant landing pages */}
-            <Route path="/p/:slug" element={<PublicFunnelPage />} />
+              {/* 3. Public merchant landing pages */}
+              <Route path="/p/:slug" element={<PublicFunnelPage />} />
 
-            {/* 4. Language-prefixed public routes */}
-            <Route path="/:lang/*" element={<PublicRoutes />} />
+              {/* 4. Language-prefixed public routes */}
+              <Route path="/:lang/*" element={<PublicRoutes />} />
 
-            {/* 5. Unprefixed legacy routes: redirect to /:savedLang/... */}
-            <Route path="*" element={<LegacyOrPrefixRedirect />} />
-          </Routes>
-          {!hideFloatingWhatsApp && <FloatingWhatsApp />}
-        </AuthProvider>
-      </LanguageProvider>
+              {/* 5. Unprefixed legacy routes: redirect to /:savedLang/... */}
+              <Route path="*" element={<LegacyOrPrefixRedirect />} />
+            </Routes>
+            {!hideFloatingWhatsApp && <FloatingWhatsApp />}
+          </AuthProvider>
+        </LanguageProvider>
+      </ThemeProvider>
     </GoogleOAuthProvider>
   );
 }

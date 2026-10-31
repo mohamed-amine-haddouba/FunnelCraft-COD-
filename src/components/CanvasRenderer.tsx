@@ -165,10 +165,10 @@ export const CanvasRenderer: React.FC<Props> = ({
 
   return (
     <div
-      className="flex-1 bg-[#f8fafc] overflow-y-auto flex justify-center items-start min-h-[calc(100vh-3.5rem)] px-2 sm:px-6 transition-all relative"
+      className="flex-1 bg-[#0D131E] overflow-y-auto flex justify-center items-start min-h-[calc(100vh-3.5rem)] px-2 sm:px-6 transition-all relative select-none"
       style={{
-        backgroundColor: '#f8fafc',
-        backgroundImage: 'radial-gradient(#cbd5e1 1.25px, transparent 1.25px)',
+        backgroundColor: '#0D131E',
+        backgroundImage: 'radial-gradient(#1E293B 1.25px, transparent 1.25px)',
         backgroundSize: '20px 20px',
       }}
       onClick={() => !isLivePreview && onSelectBlock(null)}
