@@ -2001,9 +2001,6 @@ function PublicRoutes() {
       <Route path="/login" element={<LoginRoute />} />
       <Route path="/verify-email" element={<VerifyEmailPage />} />
       <Route path="/reset-password" element={<LoginRoute />} />
-      <Route path="/sandbox" element={<SandboxPage />} />
-      <Route path="/sandbox/login" element={<SandboxLoginPage />} />
-      <Route path="/reset" element={<SandboxResetPage />} />
       <Route path="/contact" element={<ContactRoute />} />
       <Route path="/terms" element={<TermsRoute />} />
       <Route path="/privacy" element={<PrivacyRoute />} />
@@ -2019,8 +2016,8 @@ function LegacyOrPrefixRedirect() {
   const location = useLocation();
   const pathname = location.pathname;
 
-  // Do not prefix API routes or public pages if any
-  if (pathname.startsWith('/api/')) {
+  // Do not prefix API routes or Sandbox routes
+  if (pathname.startsWith('/api/') || pathname.startsWith('/sandbox') || pathname === '/reset') {
     return null;
   }
 
@@ -2050,10 +2047,16 @@ export default function App() {
       <LanguageProvider>
         <AuthProvider>
           <Routes>
-            {/* Direct access to public funnel /p/:slug (kept root-level friendly) */}
+            {/* Sandbox — always root-level, no language prefix */}
+            <Route path="/sandbox" element={<SandboxPage />} />
+            <Route path="/sandbox/login" element={<SandboxLoginPage />} />
+            <Route path="/sandbox/reset" element={<SandboxResetPage />} />
+            <Route path="/reset" element={<SandboxResetPage />} />
+
+            {/* Public merchant landing pages */}
             <Route path="/p/:slug" element={<PublicFunnelPage />} />
 
-            {/* Language-prefixed routes: /:lang/* */}
+            {/* Language-prefixed routes */}
             <Route path="/:lang/*" element={<PublicRoutes />} />
 
             {/* Unprefixed legacy routes: redirect to /:savedLang/... */}
