@@ -36,7 +36,8 @@ import {
 } from 'lucide-react';
 import { ALL_PRESET_TEMPLATES } from '../data/defaultTemplates';
 import { useAuth } from '../context/AuthContext';
-import { useLanguage, Language } from '../i18n/translations';
+import { useLanguage } from '../i18n/translations';
+import { SUPPORTED_LANGUAGES } from '../i18n/config';
 import { useTheme } from '../context/ThemeContext';
 import { SubscriptionPlanId } from '../types/orders';
 
@@ -140,12 +141,6 @@ export const HeaderNav: React.FC<Props> = ({
   const { theme, toggleTheme } = useTheme();
 
   const pendingPaymentsCount = userPayments.filter((r) => r.status === 'pending').length;
-
-  const languages: { code: Language; label: string }[] = [
-    { code: 'ar', label: 'AR' },
-    { code: 'fr', label: 'FR' },
-    { code: 'en', label: 'EN' },
-  ];
 
   return (
     <header className="bg-[#0D131E] text-[#F8FAFC] border-b border-[#1E293B] shrink-0 select-none z-40 relative w-full shadow-md">
@@ -621,7 +616,7 @@ export const HeaderNav: React.FC<Props> = ({
             <div className="flex items-center justify-between px-3 py-2 border-t border-[#1E293B]">
               <span className="text-[11px] text-[#CBD5E1] font-semibold">{t.language}</span>
               <div className="flex items-center gap-1" dir="ltr">
-                {languages.map((lang) => (
+                {SUPPORTED_LANGUAGES.map((lang) => (
                   <button
                     key={lang.code}
                     type="button"

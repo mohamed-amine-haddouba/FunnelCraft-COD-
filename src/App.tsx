@@ -47,6 +47,7 @@ import { SandboxResetPage } from './components/SandboxResetPage';
 import { VerifyEmailPage } from './components/VerifyEmailPage';
 import { HomeLandingPage } from './components/HomeLandingPage';
 import { LanguageProvider, useLanguage } from './i18n/translations';
+import { isReservedRootPath, isValidLanguage, DEFAULT_LANGUAGE } from './i18n/config';
 import { StoredPage } from './types/user';
 import { SubscriptionPlanId } from './types/orders';
 import {
@@ -2015,22 +2016,17 @@ function LegacyOrPrefixRedirect() {
   const location = useLocation();
   const pathname = location.pathname;
 
-  // Do not prefix API routes, Sandbox routes, or Dashboard routes
-  if (
-    pathname.startsWith('/api/') ||
-    pathname.startsWith('/sandbox') ||
-    pathname === '/reset' ||
-    pathname.startsWith('/dashboard')
-  ) {
-    return null; // Let the specific routes handle it
+  // Do not prefix reserved root paths (e.g. /dashboard, /sandbox, /p/, /api, /reset, /_)
+  if (isReservedRootPath(pathname)) {
+    return null; // Let the specific top-level routes handle it
   }
 
   const savedLang = (() => {
     try {
       const s = localStorage.getItem('funnelcraft_lang');
-      if (s === 'ar' || s === 'fr' || s === 'en') return s;
+      if (s && isValidLanguage(s)) return s;
     } catch (_) {}
-    return 'ar';
+    return DEFAULT_LANGUAGE;
   })();
 
   const target = `/${savedLang}${pathname === '/' ? '' : pathname}${location.search}${location.hash}`;
@@ -2040,11 +2036,8 @@ function LegacyOrPrefixRedirect() {
 export default function App() {
   const location = useLocation();
   const hideFloatingWhatsApp =
-    location.pathname.includes('/dashboard/builder') ||
-    location.pathname.includes('/dashboard/') ||
-    location.pathname.includes('/sandbox') ||
-    location.pathname.includes('/reset') ||
-    location.pathname.includes('/p/');
+    isReservedRootPath(location.pathname) ||
+    location.pathname.startsWith('/p/');
 
   return (
     <GoogleOAuthProvider clientId={googleClientId}>

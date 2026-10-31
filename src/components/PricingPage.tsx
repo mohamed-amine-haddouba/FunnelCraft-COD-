@@ -23,7 +23,8 @@ import {
   Tag,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { useLanguage, Language } from '../i18n/translations';
+import { useLanguage } from '../i18n/translations';
+import { SUPPORTED_LANGUAGES } from '../i18n/config';
 import { PublicFooter } from './PublicFooter';
 import { SubscriptionPlanId } from '../types/orders';
 import { MoroccanBankAccount } from '../types/user';
@@ -140,7 +141,7 @@ export const PricingPage: React.FC<PricingPageProps> = ({
   onNavigateToPrivacy,
 }) => {
   const { user, token, isLoggedIn, isPro, upgradeToPro, refreshUser, submitManualPayment, userPayments } = useAuth();
-  const { t, language, setLanguage } = useLanguage();
+  const { t, language, setLanguage, dir } = useLanguage();
   const effectivePlan: SubscriptionPlanId =
     user?.plan_id && user.plan_id !== 'free'
       ? user.plan_id
@@ -536,15 +537,9 @@ export const PricingPage: React.FC<PricingPageProps> = ({
     paypalClientId !== 'sb' &&
     paypalClientId !== 'undefined';
 
-  const guestLanguages: { code: Language; label: string }[] = [
-    { code: 'ar', label: 'AR' },
-    { code: 'fr', label: 'FR' },
-    { code: 'en', label: 'EN' },
-  ];
-
   return (
     <div
-      dir="rtl"
+      dir={dir}
       className="min-h-screen w-full bg-[#0D131E] text-[#F8FAFC] flex flex-col relative overflow-x-hidden select-none"
     >
       {/* Persistent Sticky Guest Header when unauthenticated */}
@@ -591,7 +586,7 @@ export const PricingPage: React.FC<PricingPageProps> = ({
                 dir="ltr"
                 className="hidden sm:flex items-center gap-1 p-1 rounded-lg bg-[#131B2A] border border-[#1E293B]"
               >
-                {guestLanguages.map((lang) => (
+                {SUPPORTED_LANGUAGES.map((lang) => (
                   <button
                     key={lang.code}
                     type="button"

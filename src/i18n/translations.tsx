@@ -1,6 +1,22 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import {
+  SUPPORTED_LANGUAGES,
+  DEFAULT_LANGUAGE,
+  isReservedRootPath,
+  extractLangFromPath,
+  getLanguageConfig,
+  type Language,
+} from './config';
 
-export type Language = 'ar' | 'fr' | 'en';
+export {
+  SUPPORTED_LANGUAGES,
+  DEFAULT_LANGUAGE,
+  isReservedRootPath,
+  extractLangFromPath,
+  getLanguageConfig,
+  type Language,
+};
 
 export interface Translations {
   // Navigation & General
@@ -936,8 +952,6 @@ export const translations: Record<Language, Translations> = {
   },
 };
 
-import { useLocation, useNavigate } from 'react-router-dom';
-
 interface LanguageContextType {
   language: Language;
   setLanguage: (lang: Language) => void;
@@ -947,22 +961,12 @@ interface LanguageContextType {
 }
 
 export const LanguageContext = createContext<LanguageContextType>({
-  language: 'ar',
+  language: DEFAULT_LANGUAGE,
   setLanguage: () => {},
-  t: translations.ar,
+  t: translations[DEFAULT_LANGUAGE],
   dir: 'rtl',
   isRtl: true,
 });
-
-export const SUPPORTED_LANGUAGES: Language[] = ['ar', 'fr', 'en'];
-
-export function extractLangFromPath(pathname: string): Language | null {
-  const parts = pathname.split('/').filter(Boolean);
-  if (parts.length > 0 && (parts[0] === 'ar' || parts[0] === 'fr' || parts[0] === 'en')) {
-    return parts[0] as Language;
-  }
-  return null;
-}
 
 export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const location = useLocation();
@@ -974,11 +978,11 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     if (urlLang) return urlLang;
     try {
       const saved = localStorage.getItem('funnelcraft_lang') as Language;
-      if (saved && (saved === 'ar' || saved === 'fr' || saved === 'en')) {
+      if (saved && SUPPORTED_LANGUAGES.some((l) => l.code === saved)) {
         return saved;
       }
     } catch (_) {}
-    return 'ar';
+    return DEFAULT_LANGUAGE;
   });
 
   // Sync state if URL prefix changes
@@ -997,12 +1001,18 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       localStorage.setItem('funnelcraft_lang', newLang);
     } catch (_) {}
 
-    // Replace current path language prefix or prepend new language
     const currentPath = location.pathname;
+
+    // If currently on a reserved root path (e.g. /dashboard or /sandbox), do NOT prefix with language
+    if (isReservedRootPath(currentPath)) {
+      return;
+    }
+
+    // Replace current path language prefix or prepend new language
     const parts = currentPath.split('/').filter(Boolean);
     let targetPath = '';
 
-    if (parts.length > 0 && (parts[0] === 'ar' || parts[0] === 'fr' || parts[0] === 'en')) {
+    if (parts.length > 0 && SUPPORTED_LANGUAGES.some((l) => l.code === parts[0])) {
       parts[0] = newLang;
       targetPath = '/' + parts.join('/');
     } else {
@@ -1013,8 +1023,9 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     navigate(`${targetPath}${searchAndHash}`);
   };
 
-  const isRtl = language === 'ar';
-  const dir = isRtl ? 'rtl' : 'ltr';
+  const langConfig = getLanguageConfig(language);
+  const dir = langConfig.dir;
+  const isRtl = dir === 'rtl';
 
   useEffect(() => {
     document.documentElement.dir = dir;
@@ -1024,7 +1035,7 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const value: LanguageContextType = {
     language,
     setLanguage,
-    t: translations[language],
+    t: translations[language] || translations[DEFAULT_LANGUAGE],
     dir,
     isRtl,
   };

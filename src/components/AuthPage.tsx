@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { useLanguage, Language } from '../i18n/translations';
+import { useLanguage } from '../i18n/translations';
+import { SUPPORTED_LANGUAGES } from '../i18n/config';
 import {
   Lock,
   Mail,
@@ -34,12 +35,6 @@ type AuthViewMode = 'login' | 'register' | 'forgot-password' | 'reset-password';
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
 const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY || '';
-
-const LANGUAGES: { code: Language; label: string; flag: string }[] = [
-  { code: 'ar', label: 'العربية', flag: '🇲🇦' },
-  { code: 'fr', label: 'Français', flag: '🇫🇷' },
-  { code: 'en', label: 'English', flag: '🇺🇸' },
-];
 
 export const AuthPage: React.FC<AuthPageProps> = ({
   initialMode = 'login',
@@ -496,7 +491,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
     }
   };
 
-  const currentLangObj = LANGUAGES.find((l) => l.code === language) || LANGUAGES[0];
+  const currentLangObj = SUPPORTED_LANGUAGES.find((l) => l.code === language) || SUPPORTED_LANGUAGES[0];
 
   return (
     <div className="min-h-screen w-screen bg-[#0D131E] text-[#F8FAFC] flex flex-col font-sans select-none overflow-x-hidden" dir={dir}>
@@ -529,7 +524,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
 
           {showLangDropdown && (
             <div className={`absolute ${isRtl ? 'start-0' : 'end-0'} top-10 w-36 bg-[#131B2A] border border-[#1E293B] rounded-xl shadow-xl p-1 z-50 text-xs`}>
-              {LANGUAGES.map((lang) => (
+              {SUPPORTED_LANGUAGES.map((lang) => (
                 <button
                   key={lang.code}
                   type="button"
@@ -545,7 +540,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                 >
                   <div className="flex items-center gap-1.5">
                     <span>{lang.flag}</span>
-                    <span>{lang.label}</span>
+                    <span>{lang.name}</span>
                   </div>
                   {language === lang.code && <Check className="w-3.5 h-3.5 text-[#E25B26]" />}
                 </button>

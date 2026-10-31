@@ -9,15 +9,10 @@ import {
   Zap,
   ArrowUpRight,
 } from 'lucide-react';
-import { useLanguage, Language } from '../i18n/translations';
+import { useLanguage } from '../i18n/translations';
+import { SUPPORTED_LANGUAGES } from '../i18n/config';
 import { HeroSection } from './home/HeroSection';
 import { PublicFooter } from './PublicFooter';
-
-const LANGUAGES: { code: Language; label: string }[] = [
-  { code: 'ar', label: 'AR' },
-  { code: 'fr', label: 'FR' },
-  { code: 'en', label: 'EN' },
-];
 
 export const HomeLandingPage: React.FC = () => {
   const { t, language, setLanguage, dir } = useLanguage();
@@ -229,7 +224,7 @@ export const HomeLandingPage: React.FC = () => {
               dir="ltr"
               className="hidden sm:flex items-center gap-1 p-1 rounded-lg bg-[#131B2A] border border-[#1E293B]"
             >
-              {LANGUAGES.map((lang) => (
+              {SUPPORTED_LANGUAGES.map((lang) => (
                 <button
                   key={lang.code}
                   type="button"
