@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage, Language } from '../i18n/translations';
 import {
@@ -59,6 +60,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
   } = useAuth();
 
   const { t, language, setLanguage, dir, isRtl } = useLanguage();
+  const navigate = useNavigate();
 
   const [mode, setMode] = useState<AuthViewMode>(initialMode);
   const [showPassword, setShowPassword] = useState(false);
@@ -116,11 +118,12 @@ export const AuthPage: React.FC<AuthPageProps> = ({
     turnstileRef.current?.reset();
   }, [mode]);
 
-  // Detect URL parameters (?token=...&email=...) on mount for Reset Password view
+  // Detect URL parameters (?token=...&email=... or ?verified=1&email=...) on mount
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const tokenParam = params.get('token');
     const emailParam = params.get('email');
+    const verifiedParam = params.get('verified');
 
     if (tokenParam && emailParam) {
       setResetToken(tokenParam.trim());
@@ -128,6 +131,12 @@ export const AuthPage: React.FC<AuthPageProps> = ({
       setEmail(emailParam.trim());
       setMode('reset-password');
       setErrorMessage(null);
+    } else if (verifiedParam === '1') {
+      if (emailParam) {
+        setEmail(emailParam.trim());
+      }
+      setMode('login');
+      showToast('تم تأكيد بريدك الإلكتروني بنجاح! يمكنك تسجيل الدخول الآن.');
     }
   }, []);
 
@@ -246,6 +255,9 @@ export const AuthPage: React.FC<AuthPageProps> = ({
       } else {
         onSuccess?.();
       }
+    } else if (res.requiresEmailVerification || res.code === 'EMAIL_NOT_VERIFIED') {
+      const targetEmail = res.email || email.trim();
+      navigate(`/verify-email?email=${encodeURIComponent(targetEmail)}`);
     } else {
       setErrorMessage(res.error || 'Authentication failed');
     }
@@ -259,8 +271,8 @@ export const AuthPage: React.FC<AuthPageProps> = ({
       return;
     }
 
-    if (password.length < 6) {
-      setErrorMessage(t.authPasswordMinLengthError);
+    if (password.length < 8 || !/[A-Za-z]/.test(password) || !/\d/.test(password)) {
+      setErrorMessage('كلمة المرور يجب أن تتكون من 8 أحرف على الأقل وتحتوي على حرف ورقم على الأقل.');
       return;
     }
 
@@ -290,7 +302,10 @@ export const AuthPage: React.FC<AuthPageProps> = ({
     turnstileRef.current?.reset();
 
     if (res.success) {
-      if (res.requires2FA) {
+      if (res.requiresVerification) {
+        const targetEmail = res.email || email.trim();
+        navigate(`/verify-email?email=${encodeURIComponent(targetEmail)}`);
+      } else if (res.requires2FA) {
         showToast(t.tfaCodeSentToast);
       } else {
         onSuccess?.();

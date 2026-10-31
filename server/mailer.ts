@@ -585,3 +585,171 @@ export async function sendServerCommandOtpEmail(
   }
 }
 
+export type EmailVerificationTestInterceptor = (payload: {
+  email: string;
+  code: string;
+  expiresInMinutes: number;
+  subject: string;
+}) => void | boolean | Promise<void | boolean>;
+
+let emailVerificationTestInterceptor: EmailVerificationTestInterceptor | null = null;
+
+export function setEmailVerificationTestInterceptor(
+  interceptor: EmailVerificationTestInterceptor | null
+): void {
+  emailVerificationTestInterceptor = interceptor;
+}
+
+/**
+ * Sends a 6-digit email verification code via Nodemailer (Part A7).
+ * Never logs the verification code.
+ */
+export async function sendEmailVerificationCode(
+  email: string,
+  code: string,
+  expiresInMinutes: number = 15
+): Promise<boolean> {
+  const subject = 'تأكيد البريد الإلكتروني - CodWorth';
+
+  if (emailVerificationTestInterceptor) {
+    const res = await emailVerificationTestInterceptor({
+      email,
+      code,
+      expiresInMinutes,
+      subject,
+    });
+    return res !== false;
+  }
+
+  if (!hasValidMailerAuth()) {
+    console.warn(
+      '[MAILER WARNING] SMTP credentials (SMTP_USER / SMTP_PASS) are not configured. Cannot send verification email to',
+      email
+    );
+    return false;
+  }
+
+  const transporter = createMailerTransport();
+  const config = getSmtpConfig();
+
+  const htmlContent = `
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${subject}</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #020617; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; direction: rtl; text-align: right; color: #f8fafc;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color: #020617; padding: 40px 16px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width: 520px; background-color: #0f172a; border: 1px solid #1e293b; border-radius: 24px; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);">
+          <tr>
+            <td style="background: linear-gradient(135deg, #065f46 0%, #047857 50%, #10b981 100%); padding: 28px 32px; text-align: center;">
+              <div style="display: inline-block; width: 48px; height: 48px; line-height: 48px; border-radius: 14px; background-color: rgba(2, 6, 23, 0.25); font-size: 24px; margin-bottom: 10px;">
+                ✉️
+              </div>
+              <h1 style="margin: 0; font-size: 22px; font-weight: 800; color: #ffffff; letter-spacing: -0.3px;">
+                تأكيد البريد الإلكتروني - CodWorth
+              </h1>
+              <p style="margin: 6px 0 0 0; font-size: 13px; color: #d1fae5; font-weight: 500;">
+                Verify Your Email Address
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 32px;">
+              <p style="margin: 0 0 12px 0; font-size: 16px; font-weight: 700; color: #ffffff;">
+                مرحباً بك في CodWorth 👋
+              </p>
+              <p style="margin: 0 0 20px 0; font-size: 14px; line-height: 1.7; color: #cbd5e1;">
+                لإكمال تفعيل حسابك والبدء في استخدام المنصة، يرجى إدخال رمز التحقق المكون من 6 أرقام أدناه:
+              </p>
+              <div style="background-color: #020617; border: 2px dashed #10b981; border-radius: 18px; padding: 24px 16px; text-align: center; margin: 24px 0;">
+                <span style="display: block; font-size: 12px; color: #94a3b8; margin-bottom: 8px; font-weight: 600;">
+                  رمز تفعيل البريد الإلكتروني (Verification Code)
+                </span>
+                <div dir="ltr" style="font-family: 'Courier New', Courier, monospace; font-size: 36px; font-weight: 900; letter-spacing: 10px; color: #10b981; margin: 0;">
+                  ${code}
+                </div>
+              </div>
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.25); border-radius: 14px; padding: 14px 16px; margin-bottom: 20px;">
+                <tr>
+                  <td style="font-size: 12px; line-height: 1.6; color: #fde68a;">
+                    ⏳ <strong>ملاحظة هامة:</strong> هذا الرمز صالح لمدة <strong>${expiresInMinutes} دقيقة</strong> فقط. إذا لم تقم بإنشاء حساب على CodWorth، يرجى تجاهل هذه الرسالة بأمان.
+                  </td>
+                </tr>
+              </table>
+              <p dir="ltr" style="margin: 0; font-size: 12px; line-height: 1.6; color: #94a3b8; text-align: left;">
+                Your CodWorth email verification code is shown above. It expires in ${expiresInMinutes} minutes. If you did not create an account, please ignore this email.
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="background-color: #020617; border-top: 1px solid #1e293b; padding: 20px 32px; text-align: center;">
+              <p style="margin: 0; font-size: 12px; color: #64748b;">
+                © ${new Date().getFullYear()} <strong>CodWorth</strong> — جميع الحقوق محفوظة
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  `.trim();
+
+  const textContent = `تأكيد البريد الإلكتروني - CodWorth\n\nرمز تفعيل حسابك المكون من 6 أرقام هو: ${code}\nهذا الرمز صالح لمدة ${expiresInMinutes} دقيقة.\nإذا لم تقم بإنشاء حساب، يرجى تجاهل هذه الرسالة.\n\nYour CodWorth verification code is: ${code} (valid for ${expiresInMinutes} minutes).`;
+
+  try {
+    await transporter.sendMail({
+      from: config.from,
+      to: email,
+      subject,
+      text: textContent,
+      html: htmlContent,
+    });
+    return true;
+  } catch (error: any) {
+    console.error(
+      '[MAILER ERROR] Failed to send email verification code to',
+      email,
+      error?.message || 'SMTP error'
+    );
+    return false;
+  }
+}
+
+export async function sendWelcomeVerifiedEmail(
+  email: string,
+  fullName: string = 'تاجر CodWorth'
+): Promise<boolean> {
+  if (process.env.EMAIL_VERIFY_WELCOME !== 'true') {
+    return false;
+  }
+  if (!hasValidMailerAuth()) {
+    return false;
+  }
+
+  const transporter = createMailerTransport();
+  const config = getSmtpConfig();
+  const subject = 'مرحباً بك في CodWorth — تم تفعيل بريدك الإلكتروني بنجاح';
+
+  try {
+    await transporter.sendMail({
+      from: config.from,
+      to: email,
+      subject,
+      text: `مرحباً ${fullName}، تم تأكيد بريدك الإلكتروني بنجاح في منصة CodWorth. يمكنك الآن تسجيل الدخول والبدء في إنشاء صفحات الهبوط الخاصة بك.`,
+      html: `<div dir="rtl" style="font-family:sans-serif;padding:24px;background:#0f172a;color:#f8fafc;border-radius:16px;"><h2 style="color:#10b981;">مرحباً ${fullName} 👋</h2><p>تم تأكيد بريدك الإلكتروني بنجاح في منصة <strong>CodWorth</strong>. يمكنك الآن تسجيل الدخول والبدء في بناء صفحات الهبوط الخاصة بك.</p></div>`,
+    });
+    return true;
+  } catch (error: any) {
+    console.error('[MAILER ERROR] Failed to send welcome email:', error?.message || 'SMTP error');
+    return false;
+  }
+}
+
+

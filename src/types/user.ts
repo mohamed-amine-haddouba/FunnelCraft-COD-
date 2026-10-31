@@ -28,6 +28,10 @@ export interface UserProfile {
   lastLoginAt?: string;
   lastLoginLocation?: string;
   lastLoginUserAgent?: string;
+  email_verified?: boolean;
+  email_verified_at?: string | null;
+  email_verification_required?: boolean;
+  last_verification_email_sent_at?: string | null;
 }
 
 export type MoroccanPaymentMethod = 'CIH' | 'Attijariwafa' | 'BanquePopulaire' | 'CashPlus' | 'Wafacash';

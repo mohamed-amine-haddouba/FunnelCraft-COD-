@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { X, Lock, Mail, User as UserIcon, AlertCircle, ArrowRight, CheckCircle2, ShieldCheck } from 'lucide-react';
 import { Turnstile, type TurnstileInstance } from '@marsidev/react-turnstile';
 import { GoogleLogin, type CredentialResponse } from '@react-oauth/google';
@@ -20,6 +21,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   initialMode = 'signup',
 }) => {
   const { user, login, register, loginWithGoogle } = useAuth();
+  const navigate = useNavigate();
   
   // Normalize initial mode between signin/login and signup/register
   const normalizedInitialMode = initialMode === 'login' || initialMode === 'signin' ? 'signin' : 'signup';
@@ -71,13 +73,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       return;
     }
 
-    if (password.length < 6) {
+    if (mode === 'signup') {
+      if (password.length < 8 || !/[A-Za-z]/.test(password) || !/\d/.test(password)) {
+        setLocalError('كلمة المرور يجب أن تتكون من 8 أحرف على الأقل وتحتوي على حرف ورقم على الأقل');
+        return;
+      }
+      if (!fullName.trim()) {
+        setLocalError('يرجى إدخال الاسم الكامل لإنشاء الحساب');
+        return;
+      }
+    } else if (password.length < 6) {
       setLocalError('كلمة المرور يجب أن تتكون من 6 أحرف على الأقل');
-      return;
-    }
-
-    if (mode === 'signup' && !fullName.trim()) {
-      setLocalError('يرجى إدخال الاسم الكامل لإنشاء الحساب');
       return;
     }
 
@@ -103,6 +109,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         );
         if (res && res.success) {
           onClose();
+          if (res.requiresVerification) {
+            navigate(`/verify-email?email=${encodeURIComponent(res.email || email.trim())}`);
+          }
         } else {
           setLocalError(res?.error || 'تعذر إنشاء الحساب، قد يكون البريد الإلكتروني مستخدماً بالفعل');
         }
@@ -113,6 +122,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         });
         if (res && res.success) {
           onClose();
+        } else if (res?.requiresEmailVerification || res?.code === 'EMAIL_NOT_VERIFIED') {
+          onClose();
+          navigate(`/verify-email?email=${encodeURIComponent(res.email || email.trim())}`);
         } else {
           setLocalError(res?.error || 'البريد الإلكتروني أو كلمة المرور غير صحيحة');
         }

@@ -70,6 +70,9 @@ import {
   recordSecurityLoginAudit,
   getSecurityLoginAuditLogs,
   recordUserLoginMetadata,
+  createEmailVerificationRecord,
+  verifyEmailVerificationCode,
+  isOwnerOrAdminUser,
 } from './server/db';
 import {
   DEFAULT_EXCHANGE_RATES,
@@ -96,7 +99,14 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import { scrapeProductFromUrl, validateProductUrl, ScrapedProduct } from './server/urlScraper';
 import { scrapeProductData } from './server/scraper';
-import { sendOtpEmail, sendPasswordResetEmail, sendAdminNotificationEmail } from './server/mailer';
+import {
+  sendOtpEmail,
+  sendPasswordResetEmail,
+  sendAdminNotificationEmail,
+  sendEmailVerificationCode,
+  sendWelcomeVerifiedEmail,
+} from './server/mailer';
+import { validateEmailSyntax, validateRegistrationEmail } from './server/emailValidation';
 import { verifyGoogleCredential, isGoogleAuthConfigured } from './server/googleAuth';
 import http from 'http';
 import { verifyCaptchaToken, verifyTurnstileToken, extractClientIp } from './server/captcha';
@@ -279,6 +289,30 @@ function optionalAuthMiddleware(req: AuthRequest, _res: Response, next: NextFunc
   next();
 }
 
+// Mandatory Email Verification Middleware (Part A5)
+export function requireVerifiedEmail(req: AuthRequest, res: Response, next: NextFunction) {
+  if (!req.user) {
+    return res.status(401).json({ success: false, error: 'Unauthorized: Missing token' });
+  }
+
+  // Owner/admin always bypasses email verification
+  if (isOwnerOrAdminUser(req.user, process.env.OWNER_EMAIL)) {
+    return next();
+  }
+
+  if (req.user.email_verified === true) {
+    return next();
+  }
+
+  return res.status(403).json({
+    success: false,
+    code: 'EMAIL_NOT_VERIFIED',
+    error: 'يرجى تأكيد بريدك الإلكتروني للوصول إلى هذه الميزة',
+    message_ar: 'يرجى تأكيد بريدك الإلكتروني للوصول إلى هذه الميزة',
+    message_en: 'Please verify your email to use this feature',
+  });
+}
+
 // Input Sanitization Helper (prevents stored XSS in customer/merchant text fields)
 function sanitizeInput(val: unknown, maxLength: number = 500): string {
   if (typeof val !== 'string') return '';
@@ -297,6 +331,8 @@ const loginLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: (req) => getClientIp(req),
+  skip: (req) =>
+    process.env.NODE_ENV !== 'production' && req.headers['x-test-bypass-rate-limit'] === '1',
   validate: false,
   statusCode: 429,
   handler: (req, res) => {
@@ -322,6 +358,71 @@ const loginLimiter = rateLimit({
         'تم تجاوز الحد الأقصى لمحاولات تسجيل الدخول (5 محاولات خلال 15 دقيقة). يرجى الانتظار 15 دقيقة قبل المحاولة مجدداً.',
       message: 'Too many login attempts (max 5 per 15 minutes). Please try again later.',
     });
+  },
+});
+
+const registerLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 5, // Max 5 registration requests per 1 hour per IP
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => getClientIp(req),
+  skip: (req) =>
+    process.env.NODE_ENV !== 'production' && req.headers['x-test-bypass-rate-limit'] === '1',
+  validate: false,
+  statusCode: 429,
+  message: {
+    success: false,
+    code: 'RATE_LIMITED',
+    error: 'تم تجاوز الحد الأقصى لطلبات إنشاء الحساب (5 طلبات في الساعة). يرجى المحاولة لاحقاً.',
+    message_ar: 'تم تجاوز الحد الأقصى لطلبات إنشاء الحساب (5 طلبات في الساعة). يرجى المحاولة لاحقاً.',
+    message_en: 'Too many registration requests (max 5 per hour). Please try again later.',
+  },
+});
+
+const verifyEmailLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10, // Max 10 email verification requests per 15 mins per IP + email
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => {
+    const ip = getClientIp(req);
+    const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : '';
+    return `${ip}:${email}`;
+  },
+  skip: (req) =>
+    process.env.NODE_ENV !== 'production' && req.headers['x-test-bypass-rate-limit'] === '1',
+  validate: false,
+  statusCode: 429,
+  message: {
+    success: false,
+    code: 'RATE_LIMITED',
+    error: 'تم تجاوز الحد الأقصى لمحاولات تأكيد البريد (10 محاولات خلال 15 دقيقة). يرجى المحاولة لاحقاً.',
+    message_ar: 'تم تجاوز الحد الأقصى لمحاولات تأكيد البريد (10 محاولات خلال 15 دقيقة). يرجى المحاولة لاحقاً.',
+    message_en: 'Too many verification attempts (max 10 per 15 minutes). Please try again later.',
+  },
+});
+
+const resendVerificationLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 3, // Max 3 resend requests per hour per email + per IP
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => {
+    const ip = getClientIp(req);
+    const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : '';
+    return `${ip}:${email}`;
+  },
+  skip: (req) =>
+    process.env.NODE_ENV !== 'production' && req.headers['x-test-bypass-rate-limit'] === '1',
+  validate: false,
+  statusCode: 429,
+  message: {
+    success: false,
+    code: 'RATE_LIMITED',
+    error: 'تم تجاوز الحد الأقصى لطلبات إعادة إرسال الرمز (3 طلبات في الساعة). يرجى المحاولة لاحقاً.',
+    message_ar: 'تم تجاوز الحد الأقصى لطلبات إعادة إرسال الرمز (3 طلبات في الساعة). يرجى المحاولة لاحقاً.',
+    message_en: 'Too many resend requests (max 3 per hour). Please try again later.',
   },
 });
 
@@ -455,25 +556,31 @@ export async function startServer() {
     };
   };
 
-  // 1. Sign Up / Merchant Registration
-  app.post('/api/auth/register', async (req: Request, res: Response) => {
+  // 1. Sign Up / Merchant Registration (Part A3 & Part B)
+  app.post('/api/auth/register', registerLimiter, async (req: Request, res: Response) => {
     const {
       email,
       password,
       full_name,
+      fullName,
       store_name,
+      storeName,
       phone,
       two_factor_enabled,
       recaptchaToken,
       turnstileToken,
       captchaToken,
-    } = req.body;
+    } = req.body || {};
 
+    const clientIp = getClientIp(req);
+    const rawUserAgent = String(req.headers['user-agent'] || 'Unknown User-Agent');
+
+    // Step 2: CAPTCHA check (reuse existing verifyCaptchaToken)
     const isCaptchaValid = await verifyCaptchaToken({
-      recaptchaToken: recaptchaToken || req.body['g-recaptcha-response'],
-      turnstileToken: turnstileToken || req.body['cf-turnstile-response'],
+      recaptchaToken: recaptchaToken || req.body?.['g-recaptcha-response'],
+      turnstileToken: turnstileToken || req.body?.['cf-turnstile-response'],
       captchaToken,
-      remoteIp: extractClientIp(req),
+      remoteIp: clientIp,
       expectedAction: 'register',
       email: typeof email === 'string' ? email : undefined,
       role: typeof req.body?.role === 'string' ? req.body.role : undefined,
@@ -481,27 +588,84 @@ export async function startServer() {
     if (!isCaptchaValid) {
       return res.status(400).json({
         success: false,
+        code: 'CAPTCHA_FAILED',
         error: 'فشل التحقق الأمني (CAPTCHA). يرجى المحاولة مرة أخرى.',
+        message_ar: 'فشل التحقق الأمني (CAPTCHA). يرجى المحاولة مرة أخرى.',
+        message_en: 'CAPTCHA security verification failed. Please try again.',
       });
     }
 
-    if (!email || !password) {
-      return res.status(400).json({ success: false, error: 'Email and password are required.' });
+    // Step 3: Layered email validation (Part B: Syntax, Disposable, Placeholder, MX)
+    const emailValidation = await validateRegistrationEmail(email);
+    if (!emailValidation.valid || !emailValidation.normalizedEmail) {
+      return res.status(emailValidation.statusCode || 400).json({
+        success: false,
+        code: emailValidation.code || 'INVALID_EMAIL',
+        error: emailValidation.error || emailValidation.message_ar || 'البريد الإلكتروني غير صالح.',
+        message_ar: emailValidation.message_ar || 'البريد الإلكتروني غير صالح.',
+        message_en: emailValidation.message_en || 'Invalid email address.',
+      });
     }
-    if (password.length < 6) {
-      return res.status(400).json({ success: false, error: 'Password must be at least 6 characters.' });
+
+    const normalizedEmail = emailValidation.normalizedEmail;
+
+    // Step 4: Password strength check (minimum 8 chars, at least one letter and one digit)
+    if (
+      typeof password !== 'string' ||
+      password.length < 8 ||
+      !/[A-Za-z]/.test(password) ||
+      !/[0-9]/.test(password)
+    ) {
+      return res.status(400).json({
+        success: false,
+        code: 'WEAK_PASSWORD',
+        error: 'كلمة المرور يجب أن تتكون من 8 أحرف على الأقل وتحتوي على حرف ورقم واحد على الأقل.',
+        message_ar: 'كلمة المرور يجب أن تتكون من 8 أحرف على الأقل وتحتوي على حرف ورقم واحد على الأقل.',
+        message_en: 'Password must be at least 8 characters and contain at least one letter and one number.',
+      });
+    }
+
+    // Step 5: Existing email check -> 409 with generic "email already registered" message (no state leak)
+    const existingAccount = findUserByEmail(normalizedEmail);
+    if (existingAccount) {
+      return res.status(409).json({
+        success: false,
+        code: 'EMAIL_ALREADY_REGISTERED',
+        error: 'البريد الإلكتروني مسجل مسبقاً.',
+        message_ar: 'البريد الإلكتروني مسجل مسبقاً.',
+        message_en: 'This email address is already registered.',
+      });
     }
 
     try {
-      // Registration strictly assigns role: 'merchant' through createUser (auto-activated)
+      const resolvedFullName = String(full_name || fullName || 'Merchant').trim() || 'Merchant';
+      const resolvedStoreName = store_name ?? storeName;
+
+      // Step 6: Create user record with email_verified = false, email_verification_required = true, hashed password
       const newUser = createUser(
-        email,
+        normalizedEmail,
         password,
-        full_name || 'Merchant',
-        store_name,
+        resolvedFullName,
+        resolvedStoreName,
         phone,
         two_factor_enabled ?? false
       );
+
+      // Step 7: Generate verification code, save to data/email_verifications.json, update last_verification_email_sent_at
+      const { code } = createEmailVerificationRecord({
+        userId: newUser.id,
+        email: newUser.email,
+        ip: clientIp,
+        userAgent: rawUserAgent,
+      });
+
+      // Step 8: Send email via sendEmailVerificationCode (if SMTP fails, keep user pending so they can retry via /api/auth/resend-verification)
+      const emailSent = await sendEmailVerificationCode(newUser.email, code, 15);
+      if (!emailSent) {
+        console.error(
+          `[REGISTER WARNING] Verification email delivery failed for ${newUser.email}. Account kept pending for resend.`
+        );
+      }
 
       // Notify Admin of new merchant registration (non-blocking)
       void sendAdminNotificationEmail(
@@ -513,62 +677,188 @@ export async function startServer() {
           <p style="margin: 6px 0;"><strong>📧 البريد الإلكتروني:</strong> <span dir="ltr">${newUser.email}</span></p>
           <p style="margin: 6px 0;"><strong>🏪 اسم المتجر:</strong> ${newUser.store_name || 'متجر COD الجديد'}</p>
           <p style="margin: 6px 0;"><strong>📱 رقم الهاتف:</strong> <span dir="ltr">${newUser.phone || 'غير محدد'}</span></p>
-          <p style="margin: 6px 0;"><strong>✅ حالة الحساب:</strong> مفعل تلقائياً (Active)</p>
+          <p style="margin: 6px 0;"><strong>⏳ حالة البريد:</strong> بانتظار تأكيد البريد الإلكتروني</p>
         </div>
         `
       ).catch((err) => console.error('Admin notification error (register):', err));
 
-      // If merchant enabled 2FA, trigger verification step via email
-      if (newUser.two_factor_enabled) {
-        const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
-        const deviceInfo = extractDeviceInfo(req);
+      // Step 9: Return 201 without session token or auto-login
+      return res.status(201).json({
+        success: true,
+        requires_verification: true,
+        email: newUser.email,
+        message_ar: 'تم إرسال رمز التحقق إلى بريدك الإلكتروني',
+        message_en: 'Verification code sent to your email',
+        message: 'تم إرسال رمز التحقق إلى بريدك الإلكتروني',
+      });
+    } catch (err: any) {
+      return res.status(400).json({
+        success: false,
+        error: err.message || 'Registration failed.',
+        message_ar: 'فشل إنشاء الحساب. يرجى المحاولة مرة أخرى.',
+        message_en: err.message || 'Registration failed.',
+      });
+    }
+  });
 
-        activeOtps.set(newUser.id, {
-          code: otpCode,
-          userId: newUser.id,
-          email: newUser.email,
-          phone: newUser.phone || phone || '+212 722-256897',
-          channel: 'email',
-          expiresAt: Date.now() + 5 * 60 * 1000,
-          attempts: 0,
-          lastSentAt: Date.now(),
-          deviceInfo,
-        });
+  // 1b. Verify Email Code (Part A3)
+  app.post('/api/auth/verify-email', verifyEmailLimiter, async (req: Request, res: Response) => {
+    const { email, code } = req.body || {};
 
-        // Deliver OTP exclusively to merchant email address
-        const emailSent = await sendOtpEmail(newUser.email, otpCode, newUser.full_name);
-        if (!emailSent) {
-          activeOtps.delete(newUser.id);
-          return res.status(500).json({
-            success: false,
-            error: 'تعذر إرسال رمز التحقق، يرجى المحاولة لاحقاً',
-          });
+    if (!email || typeof email !== 'string' || !code || typeof code !== 'string') {
+      return res.status(400).json({
+        success: false,
+        code: 'INVALID_OR_EXPIRED_CODE',
+        error: 'رمز التحقق غير صالح أو منتهي الصلاحية.',
+        message_ar: 'رمز التحقق غير صالح أو منتهي الصلاحية.',
+        message_en: 'Verification code is invalid or expired.',
+      });
+    }
+
+    const result = verifyEmailVerificationCode(email, code);
+
+    if (result.status === 'USER_NOT_FOUND' || result.status === 'EXPIRED_OR_INVALID') {
+      return res.status(400).json({
+        success: false,
+        code: 'INVALID_OR_EXPIRED_CODE',
+        error: 'رمز التحقق غير صالح أو منتهي الصلاحية.',
+        message_ar: 'رمز التحقق غير صالح أو منتهي الصلاحية.',
+        message_en: 'Verification code is invalid or expired.',
+      });
+    }
+
+    if (result.status === 'MAX_ATTEMPTS_EXCEEDED') {
+      return res.status(400).json({
+        success: false,
+        code: 'MAX_ATTEMPTS_EXCEEDED',
+        error: 'تم تجاوز الحد الأقصى للمحاولات. يرجى طلب رمز تحقق جديد.',
+        message_ar: 'تم تجاوز الحد الأقصى للمحاولات. يرجى طلب رمز تحقق جديد.',
+        message_en: 'Too many failed attempts. Please request a new code.',
+      });
+    }
+
+    if (result.status === 'INVALID_CODE') {
+      return res.status(400).json({
+        success: false,
+        code: 'INVALID_VERIFICATION_CODE',
+        error: 'رمز التحقق غير صحيح.',
+        message_ar: 'رمز التحقق غير صحيح.',
+        message_en: 'Invalid verification code.',
+      });
+    }
+
+    // Optional welcome email behind env flag EMAIL_VERIFY_WELCOME=true
+    void sendWelcomeVerifiedEmail(email.trim().toLowerCase(), result.user?.full_name).catch(
+      () => {}
+    );
+
+    return res.status(200).json({
+      success: true,
+      message_ar: 'تم تأكيد بريدك الإلكتروني بنجاح. يمكنك تسجيل الدخول الآن.',
+      message_en: 'Email verified successfully. You can now log in.',
+      message: 'تم تأكيد بريدك الإلكتروني بنجاح. يمكنك تسجيل الدخول الآن.',
+    });
+  });
+
+  // 1c. Resend Email Verification Code (Part A3)
+  app.post(
+    '/api/auth/resend-verification',
+    resendVerificationLimiter,
+    async (req: Request, res: Response) => {
+      const startMs = Date.now();
+      const targetMinDurationMs = 80;
+      const waitUniformTiming = async () => {
+        const elapsed = Date.now() - startMs;
+        if (elapsed < targetMinDurationMs) {
+          await new Promise((r) => setTimeout(r, targetMinDurationMs - elapsed));
         }
+      };
 
-        return res.json({
-          success: true,
-          requires2FA: true,
-          userId: newUser.id,
-          email: newUser.email,
-          phone: newUser.phone,
-          maskedPhone: maskPhone(newUser.phone),
-          maskedEmail: maskEmail(newUser.email),
-          channel: 'email',
-          device: deviceInfo,
-          message: `تم إرسال رمز التحقق (OTP) إلى بريدك الإلكتروني: ${maskEmail(newUser.email)}`,
+      const { email, captchaToken, turnstileToken, recaptchaToken } = req.body || {};
+      const clientIp = getClientIp(req);
+      const rawUserAgent = String(req.headers['user-agent'] || 'Unknown User-Agent');
+
+      // CAPTCHA check required
+      const isCaptchaValid = await verifyCaptchaToken({
+        recaptchaToken: recaptchaToken || req.body?.['g-recaptcha-response'],
+        turnstileToken: turnstileToken || req.body?.['cf-turnstile-response'],
+        captchaToken,
+        remoteIp: clientIp,
+        expectedAction: 'resend_verification',
+        email: typeof email === 'string' ? email : undefined,
+      });
+
+      if (!isCaptchaValid) {
+        return res.status(400).json({
+          success: false,
+          code: 'CAPTCHA_FAILED',
+          error: 'فشل التحقق الأمني (CAPTCHA). يرجى المحاولة مرة أخرى.',
+          message_ar: 'فشل التحقق الأمني (CAPTCHA). يرجى المحاولة مرة أخرى.',
+          message_en: 'CAPTCHA security verification failed. Please try again.',
         });
       }
 
-      const token = createSession(newUser.id);
-      return res.json({
+      // Layer 1 syntax check only (Part B2)
+      const syntaxCheck = validateEmailSyntax(email);
+      if (!syntaxCheck.valid || !syntaxCheck.normalizedEmail) {
+        return res.status(400).json({
+          success: false,
+          code: syntaxCheck.code || 'INVALID_EMAIL_SYNTAX',
+          error: syntaxCheck.message_ar || 'صيغة البريد الإلكتروني غير صحيحة.',
+          message_ar: syntaxCheck.message_ar || 'صيغة البريد الإلكتروني غير صحيحة.',
+          message_en: syntaxCheck.message_en || 'Invalid email address format.',
+        });
+      }
+
+      const genericResponse = {
         success: true,
-        user: toSafeProfile(newUser),
-        token,
-        message: 'Account created! Welcome to CodWorth.',
+        message_ar: 'إذا كان البريد الإلكتروني مسجلاً وبانتظار التفعيل، فقد تم إرسال رمز تحقق جديد.',
+        message_en:
+          'If this email is registered and pending verification, a new verification code has been sent.',
+        message: 'إذا كان البريد الإلكتروني مسجلاً وبانتظار التفعيل، فقد تم إرسال رمز تحقق جديد.',
+      };
+
+      const user = findUserByEmail(syntaxCheck.normalizedEmail);
+      if (
+        !user ||
+        user.email_verified === true ||
+        user.email_verification_required === false ||
+        isOwnerOrAdminUser(user, process.env.OWNER_EMAIL)
+      ) {
+        await waitUniformTiming();
+        return res.status(200).json(genericResponse);
+      }
+
+      const { code } = createEmailVerificationRecord({
+        userId: user.id,
+        email: user.email,
+        ip: clientIp,
+        userAgent: rawUserAgent,
       });
-    } catch (err: any) {
-      return res.status(400).json({ success: false, error: err.message || 'Registration failed.' });
+
+      const sent = await sendEmailVerificationCode(user.email, code, 15);
+      if (!sent) {
+        console.error(
+          `[RESEND VERIFICATION WARNING] Failed to send verification email to ${user.email}.`
+        );
+      }
+
+      await waitUniformTiming();
+      return res.status(200).json(genericResponse);
     }
+  );
+
+  // 1d. Verification Status Endpoint (Part A3)
+  app.get('/api/auth/verification-status', authMiddleware, (req: AuthRequest, res: Response) => {
+    const user = req.user!;
+    const ownerBypass = isOwnerOrAdminUser(user, process.env.OWNER_EMAIL);
+    return res.status(200).json({
+      email_verified: ownerBypass ? true : Boolean(user.email_verified),
+      email_verification_required: ownerBypass
+        ? false
+        : Boolean(user.email_verification_required ?? true),
+      owner_bypass: ownerBypass,
+    });
   });
 
   // 2. Merchant & Super Admin Login (Protected by loginLimiter: max 5 attempts / 15m / IP)
@@ -645,6 +935,32 @@ export async function startServer() {
       return res.status(403).json({
         success: false,
         error: 'تم تعليق هذا الحساب مؤقتاً. يرجى التواصل مع إدارة المنصة.',
+      });
+    }
+
+    // Part A4: Login Gating — require email_verified unless owner/admin
+    const isOwnerBypass = isOwnerOrAdminUser(user, process.env.OWNER_EMAIL);
+    if (
+      !isOwnerBypass &&
+      user.email_verified !== true &&
+      user.email_verification_required !== false
+    ) {
+      recordSecurityLoginAudit({
+        userEmail: user.email,
+        ipAddress: clientIp,
+        location: clientLocation,
+        userAgent: rawUserAgent,
+        authMethod: 'password',
+        status: 'FAILED',
+        failureReason: 'email_not_verified',
+      });
+      return res.status(403).json({
+        success: false,
+        code: 'EMAIL_NOT_VERIFIED',
+        email: user.email,
+        error: 'يرجى تأكيد بريدك الإلكتروني أولاً',
+        message_ar: 'يرجى تأكيد بريدك الإلكتروني أولاً',
+        message_en: 'Please verify your email first',
       });
     }
 
@@ -1193,11 +1509,18 @@ export async function startServer() {
       });
     }
 
-    if (!email || typeof email !== 'string') {
-      return res.status(400).json({ success: false, error: 'البريد الإلكتروني مطلوب.' });
+    const syntaxCheck = validateEmailSyntax(email);
+    if (!syntaxCheck.valid || !syntaxCheck.normalizedEmail) {
+      return res.status(400).json({
+        success: false,
+        code: syntaxCheck.code || 'INVALID_EMAIL_SYNTAX',
+        error: syntaxCheck.message_ar || 'البريد الإلكتروني مطلوب.',
+        message_ar: syntaxCheck.message_ar || 'البريد الإلكتروني مطلوب.',
+        message_en: syntaxCheck.message_en || 'Invalid email address format.',
+      });
     }
 
-    const user = findUserByEmail(email.trim());
+    const user = findUserByEmail(syntaxCheck.normalizedEmail);
 
     // Always return success even if user is not found to prevent email enumeration
     if (!user) {
@@ -1326,7 +1649,7 @@ export async function startServer() {
   };
 
   // Check Usage Limits and Increment Pages Count
-  app.post('/api/user/increment-usage', authMiddleware, checkPlanLimit('create_page'), (req: AuthRequest, res: Response) => {
+  app.post('/api/user/increment-usage', authMiddleware, requireVerifiedEmail, checkPlanLimit('create_page'), (req: AuthRequest, res: Response) => {
     try {
       const result = incrementUserUsage(req.user!.id);
       if (!result.allowed) {
@@ -1353,7 +1676,7 @@ export async function startServer() {
   /* ---------------- STRIPE & SUBSCRIPTION BILLING ($10/MO) ---------------- */
 
   // Create Stripe Checkout Session
-  app.post('/api/billing/create-checkout-session', authMiddleware, async (req: AuthRequest, res: Response) => {
+  app.post('/api/billing/create-checkout-session', authMiddleware, requireVerifiedEmail, async (req: AuthRequest, res: Response) => {
     const user = req.user!;
     const returnUrl = req.body.returnUrl || 'http://localhost:3000';
 
@@ -1593,13 +1916,13 @@ export async function startServer() {
   app.get('/api/billing/banks', handleGetPublicBanks);
 
   // Get current user's manual payment requests
-  app.get('/api/billing/manual-payments', authMiddleware, (req: AuthRequest, res: Response) => {
+  app.get('/api/billing/manual-payments', authMiddleware, requireVerifiedEmail, (req: AuthRequest, res: Response) => {
     const userPayments = getManualPaymentsByUser(req.user!.id);
     return res.json({ success: true, payments: userPayments });
   });
 
   // Submit a manual payment proof
-  app.post('/api/billing/manual-payment', authMiddleware, (req: AuthRequest, res: Response) => {
+  app.post('/api/billing/manual-payment', authMiddleware, requireVerifiedEmail, (req: AuthRequest, res: Response) => {
     const { method, transactionReference, amount = 100, proofImageUrl, notes } = req.body;
 
     if (!method || !transactionReference) {
@@ -1656,6 +1979,8 @@ export async function startServer() {
   });
 
   /* ---------------- ADMIN VERIFICATION WORKFLOW ---------------- */
+
+  app.use('/api/admin', authMiddleware, requireVerifiedEmail);
 
   // Admin Middleware (Strictly enforces role === 'admin')
   const adminMiddleware = (req: AuthRequest, res: Response, next: NextFunction) => {
@@ -2103,11 +2428,11 @@ export async function startServer() {
     }
   };
 
-  app.post('/api/pages', authMiddleware, checkPlanLimit('create_page'), handleCreateOrSavePage);
-  app.post('/api/pages/save', authMiddleware, checkPlanLimit('create_page'), handleCreateOrSavePage);
+  app.post('/api/pages', authMiddleware, requireVerifiedEmail, checkPlanLimit('create_page'), handleCreateOrSavePage);
+  app.post('/api/pages/save', authMiddleware, requireVerifiedEmail, checkPlanLimit('create_page'), handleCreateOrSavePage);
 
   // Update a specific landing page by ID (Strictly verifies req.user.id ownership)
-  app.put('/api/pages/:id', authMiddleware, (req: AuthRequest, res: Response) => {
+  app.put('/api/pages/:id', authMiddleware, requireVerifiedEmail, (req: AuthRequest, res: Response) => {
     try {
       const user = req.user!;
       const isAdmin = isUserAdminOrOwner(user);
@@ -2125,7 +2450,7 @@ export async function startServer() {
   });
 
   // Delete a landing page (Strictly verifies req.user.id ownership)
-  app.delete('/api/pages/:id', authMiddleware, (req: AuthRequest, res: Response) => {
+  app.delete('/api/pages/:id', authMiddleware, requireVerifiedEmail, (req: AuthRequest, res: Response) => {
     try {
       const isAdmin = isUserAdminOrOwner(req.user);
       const deleted = deleteUserPage(req.user!.id, req.params.id, isAdmin);
@@ -2139,7 +2464,7 @@ export async function startServer() {
   });
 
   // Duplicate a landing page (Protected by checkPlanLimit('create_page'))
-  app.post('/api/pages/:id/duplicate', authMiddleware, checkPlanLimit('create_page'), (req: AuthRequest, res: Response) => {
+  app.post('/api/pages/:id/duplicate', authMiddleware, requireVerifiedEmail, checkPlanLimit('create_page'), (req: AuthRequest, res: Response) => {
     try {
       const user = req.user!;
       const duplicated = duplicateUserPage(user.id, req.params.id);
@@ -2198,13 +2523,14 @@ export async function startServer() {
     }
   };
 
-  app.post('/api/pages/:id/custom-domain', authMiddleware, checkPlanLimit('custom_domain'), handleSetCustomDomain);
-  app.put('/api/pages/:id/custom-domain', authMiddleware, checkPlanLimit('custom_domain'), handleSetCustomDomain);
+  app.post('/api/pages/:id/custom-domain', authMiddleware, requireVerifiedEmail, checkPlanLimit('custom_domain'), handleSetCustomDomain);
+  app.put('/api/pages/:id/custom-domain', authMiddleware, requireVerifiedEmail, checkPlanLimit('custom_domain'), handleSetCustomDomain);
 
   // Verify Live DNS Records (A Record -> 217.160.116.237 OR CNAME -> domains.codworth.me) using Node's native dns.promises
   app.post(
     '/api/pages/:id/custom-domain/verify',
     authMiddleware,
+    requireVerifiedEmail,
     checkPlanLimit('custom_domain'),
     async (req: AuthRequest, res: Response) => {
       try {
@@ -2339,7 +2665,7 @@ export async function startServer() {
   );
 
   // Disconnect / Remove Custom Domain from a page
-  app.delete('/api/pages/:id/custom-domain', authMiddleware, (req: AuthRequest, res: Response) => {
+  app.delete('/api/pages/:id/custom-domain', authMiddleware, requireVerifiedEmail, (req: AuthRequest, res: Response) => {
     try {
       const user = req.user!;
       const isAdmin = isUserAdminOrOwner(user);
@@ -2385,8 +2711,8 @@ export async function startServer() {
     }
   };
 
-  app.post('/api/pages/:id/pixels', authMiddleware, checkPlanLimit('pixels'), handleSavePagePixels);
-  app.put('/api/pages/:id/pixels', authMiddleware, checkPlanLimit('pixels'), handleSavePagePixels);
+  app.post('/api/pages/:id/pixels', authMiddleware, requireVerifiedEmail, checkPlanLimit('pixels'), handleSavePagePixels);
+  app.put('/api/pages/:id/pixels', authMiddleware, requireVerifiedEmail, checkPlanLimit('pixels'), handleSavePagePixels);
 
   /* ---------------- 1-CLICK PUBLISHING & LIVE DOMAIN HOSTING ---------------- */
 
@@ -2402,7 +2728,7 @@ export async function startServer() {
   });
 
   // Publish a landing page live
-  app.post('/api/pages/:id/publish', authMiddleware, (req: AuthRequest, res: Response) => {
+  app.post('/api/pages/:id/publish', authMiddleware, requireVerifiedEmail, (req: AuthRequest, res: Response) => {
     try {
       const user = req.user!;
       const isAdmin = isUserAdminOrOwner(user);
@@ -2496,7 +2822,7 @@ export async function startServer() {
   });
 
   // Unpublish a landing page
-  app.post('/api/pages/:id/unpublish', authMiddleware, (req: AuthRequest, res: Response) => {
+  app.post('/api/pages/:id/unpublish', authMiddleware, requireVerifiedEmail, (req: AuthRequest, res: Response) => {
     try {
       const user = req.user!;
       const isAdmin = isUserAdminOrOwner(user);
@@ -2513,7 +2839,7 @@ export async function startServer() {
   });
 
   // Get publishing status and orders for a page
-  app.get('/api/pages/:id/publish-status', authMiddleware, (req: AuthRequest, res: Response) => {
+  app.get('/api/pages/:id/publish-status', authMiddleware, requireVerifiedEmail, (req: AuthRequest, res: Response) => {
     try {
       const user = req.user!;
       const isAdmin = isUserAdminOrOwner(user);
@@ -2590,6 +2916,16 @@ export async function startServer() {
           formStarts: 0,
           cityBreakdown: [],
           topFunnels: [],
+        });
+      }
+
+      if (!isOwnerOrAdminUser(user, process.env.OWNER_EMAIL) && user.email_verified !== true) {
+        return res.status(403).json({
+          success: false,
+          code: 'EMAIL_NOT_VERIFIED',
+          error: 'يرجى تأكيد بريدك الإلكتروني للوصول إلى هذه الميزة',
+          message_ar: 'يرجى تأكيد بريدك الإلكتروني للوصول إلى هذه الميزة',
+          message_en: 'Please verify your email to use this feature',
         });
       }
 
@@ -2682,7 +3018,7 @@ export async function startServer() {
   });
 
   // GET /api/orders: Strictly requires authentication and scopes orders to req.user.id (Prevents IDOR)
-  app.get('/api/orders', authMiddleware, (req: AuthRequest, res: Response) => {
+  app.get('/api/orders', authMiddleware, requireVerifiedEmail, (req: AuthRequest, res: Response) => {
     try {
       const user = req.user!;
       const isPlatformAdmin = user.role === 'admin';
@@ -2705,6 +3041,15 @@ export async function startServer() {
   // POST /api/orders: Receives new order submissions from COD forms or PayPal Checkout (Sanitized & owner-resolved via pageSlug/funnelId or req.user.id)
   app.post('/api/orders', optionalAuthMiddleware, async (req: AuthRequest, res: Response) => {
     try {
+      if (req.user && !isOwnerOrAdminUser(req.user, process.env.OWNER_EMAIL) && req.user.email_verified !== true) {
+        return res.status(403).json({
+          success: false,
+          code: 'EMAIL_NOT_VERIFIED',
+          error: 'يرجى تأكيد بريدك الإلكتروني للوصول إلى هذه الميزة',
+          message_ar: 'يرجى تأكيد بريدك الإلكتروني للوصول إلى هذه الميزة',
+          message_en: 'Please verify your email to use this feature',
+        });
+      }
       const {
         customerName,
         phone,
@@ -3170,6 +3515,7 @@ export async function startServer() {
       );
       return authMiddleware(req, res, next);
     },
+    requireVerifiedEmail,
     async (req: AuthRequest, res: Response) => {
       try {
         const ppConfig = getPayPalRuntimeConfig();
@@ -3362,6 +3708,7 @@ export async function startServer() {
       );
       return authMiddleware(req, res, next);
     },
+    requireVerifiedEmail,
     async (req: AuthRequest, res: Response) => {
       try {
         const ppConfig = getPayPalRuntimeConfig();
@@ -3819,8 +4166,8 @@ export async function startServer() {
     }
   };
 
-  app.patch('/api/orders/:id', authMiddleware, handleUpdateOrder);
-  app.put('/api/orders/:id', authMiddleware, handleUpdateOrder);
+  app.patch('/api/orders/:id', authMiddleware, requireVerifiedEmail, handleUpdateOrder);
+  app.put('/api/orders/:id', authMiddleware, requireVerifiedEmail, handleUpdateOrder);
 
   // Public COD order submission legacy alias endpoint
   app.post('/api/orders/submit', async (req: Request, res: Response) => {

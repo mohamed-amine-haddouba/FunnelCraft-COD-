@@ -21,6 +21,7 @@ interface AuthContextType {
   isPro: boolean;
   isEnterprise: boolean;
   isAdmin: boolean;
+  emailVerified: boolean;
   canUseCustomDomain: boolean;
   canUsePixels: boolean;
   canUseApiIntegrations: boolean;
@@ -124,7 +125,15 @@ interface AuthContextType {
       turnstileToken?: string;
       captchaToken?: string;
     }
-  ) => Promise<{ success: boolean; requires2FA?: boolean; error?: string; devPreviewOtp?: string }>;
+  ) => Promise<{
+    success: boolean;
+    requires2FA?: boolean;
+    requiresEmailVerification?: boolean;
+    email?: string;
+    code?: string;
+    error?: string;
+    devPreviewOtp?: string;
+  }>;
   register: (
     emailOrPayload:
       | string
@@ -143,7 +152,16 @@ interface AuthContextType {
     fullName?: string,
     turnstileToken?: string,
     recaptchaToken?: string
-  ) => Promise<{ success: boolean; requires2FA?: boolean; error?: string; devPreviewOtp?: string }>;
+  ) => Promise<{
+    success: boolean;
+    requires2FA?: boolean;
+    requiresVerification?: boolean;
+    email?: string;
+    code?: string;
+    message?: string;
+    error?: string;
+    devPreviewOtp?: string;
+  }>;
   loginWithGoogle: (
     credential: string
   ) => Promise<{ success: boolean; requires2FA?: boolean; error?: string }>;
@@ -354,7 +372,20 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           return { success: true };
         }
       }
-      return { success: false, error: data.error || 'Login failed.' };
+      if (res.status === 403 && data.code === 'EMAIL_NOT_VERIFIED') {
+        return {
+          success: false,
+          requiresEmailVerification: true,
+          email: data.email || email,
+          code: 'EMAIL_NOT_VERIFIED',
+          error: data.message_ar || data.error || 'يرجى تأكيد بريدك الإلكتروني أولاً',
+        };
+      }
+      return {
+        success: false,
+        code: data.code,
+        error: data.message_ar || data.error || 'Login failed.',
+      };
     } catch (err: any) {
       return { success: false, error: err.message || 'Network error.' };
     }
@@ -411,6 +442,18 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       });
       const data = await res.json();
       if (data.success) {
+        if (data.requires_verification) {
+          return {
+            success: true,
+            requiresVerification: true,
+            email: data.email || payload.email,
+            message:
+              data.message_ar ||
+              data.message ||
+              'تم إرسال رمز التحقق إلى بريدك الإلكتروني',
+          };
+        }
+
         if (data.requires2FA) {
           const tfaState: TwoFactorState = {
             isRequired: true,
@@ -437,7 +480,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           return { success: true };
         }
       }
-      return { success: false, error: data.error || 'Registration failed.' };
+      return {
+        success: false,
+        code: data.code,
+        error: data.message_ar || data.error || 'Registration failed.',
+      };
     } catch (err: any) {
       return { success: false, error: err.message || 'Network error.' };
     }
@@ -961,6 +1008,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const planCaps = getPlanCapabilities(user?.plan_id, effectiveRole, effectiveEmail);
   const planId: PlanTier = planCaps.effectivePlan;
   const isAdmin = planCaps.isAdmin;
+  const emailVerified = Boolean(
+    isAdmin ||
+      user?.email_verified === true ||
+      (user && user.email_verification_required === false)
+  );
   const isStarter = planId === 'starter' && !isAdmin;
   const isPro = planCaps.canUseProBlocks || planId === 'pro' || planId === 'enterprise' || isAdmin;
   const isEnterprise = planId === 'enterprise' || isAdmin;
@@ -1394,6 +1446,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         isPro,
         isEnterprise,
         isAdmin,
+        emailVerified,
         canUseCustomDomain,
         canUsePixels,
         canUseApiIntegrations,

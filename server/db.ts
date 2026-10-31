@@ -47,6 +47,22 @@ const SETTINGS_FILE = path.resolve(DATA_DIR, 'settings.json');
 const PLANS_FILE = path.resolve(DATA_DIR, 'plans.json');
 const COUPONS_FILE = path.resolve(DATA_DIR, 'coupons.json');
 const SECURITY_LOGIN_AUDIT_FILE = path.resolve(DATA_DIR, 'security_login_audit.json');
+const EMAIL_VERIFICATIONS_FILE = path.resolve(DATA_DIR, 'email_verifications.json');
+
+export interface EmailVerificationRecord {
+  id: string;
+  user_id: string;
+  email: string;
+  code_hash: string;
+  salt: string;
+  created_at: string;
+  expires_at: string;
+  attempts: number;
+  max_attempts: number;
+  used_at: string | null;
+  ip: string;
+  user_agent: string;
+}
 
 export interface SubscriptionPlanConfig {
   id: 'starter' | 'pro' | 'enterprise';
@@ -170,7 +186,116 @@ function createDefaultOwnerUser(): StoredUser | null {
     password_salt: superAdminSalt,
     mustChangePassword: false,
     initialPasswordBootstrapped: Boolean(envInitialPassword),
+    email_verified: true,
+    email_verified_at: new Date().toISOString(),
+    email_verification_required: false,
+    last_verification_email_sent_at: null,
   };
+}
+
+function writeJsonFileAtomic(filePath: string, payload: unknown): boolean {
+  try {
+    if (!fs.existsSync(DATA_DIR)) {
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+    }
+    const tmpPath = `${filePath}.${process.pid}.${Date.now()}.tmp`;
+    fs.writeFileSync(tmpPath, JSON.stringify(payload, null, 2), 'utf-8');
+    fs.renameSync(tmpPath, filePath);
+    return true;
+  } catch (err) {
+    console.error(`[DB ERROR] Atomic write failed for ${filePath}:`, err);
+    return false;
+  }
+}
+
+export function isOwnerOrAdminUser(
+  user: Pick<UserProfile, 'email' | 'role'> | null | undefined,
+  configuredOwnerEmail?: string
+): boolean {
+  if (!user) return false;
+  const email = (user.email || '').trim().toLowerCase();
+  const envOwner = (configuredOwnerEmail ?? getConfiguredOwnerEmail()).trim().toLowerCase();
+  return (
+    user.role === 'admin' ||
+    email === 'naadianajah2020@gmail.com' ||
+    Boolean(envOwner && email === envOwner)
+  );
+}
+
+/**
+ * Idempotent one-time migration rule for email_verified fields (Part A1).
+ */
+export function migrateUsersEmailVerificationInPlace(
+  usersList: StoredUser[],
+  nowMs: number = Date.now()
+): { modified: boolean; recentUnverifiedEmails: string[] } {
+  let modified = false;
+  const recentUnverifiedEmails: string[] = [];
+  const nowIso = new Date(nowMs).toISOString();
+  const twentyFourHoursMs = 24 * 60 * 60 * 1000;
+  const ownerEmail = getConfiguredOwnerEmail();
+
+  for (const u of usersList) {
+    if (!u || !u.id) continue;
+
+    if (isOwnerOrAdminUser(u, ownerEmail)) {
+      if (
+        u.email_verified !== true ||
+        u.email_verification_required !== false ||
+        u.email_verified_at === undefined ||
+        u.last_verification_email_sent_at === undefined
+      ) {
+        u.email_verified = true;
+        u.email_verified_at = u.email_verified_at || nowIso;
+        u.email_verification_required = false;
+        u.last_verification_email_sent_at = u.last_verification_email_sent_at ?? null;
+        modified = true;
+      }
+      continue;
+    }
+
+    if (typeof u.email_verified !== 'boolean') {
+      const createdAtMs = u.created_at ? Date.parse(u.created_at) : NaN;
+      const isCreatedWithinLast24h =
+        Number.isFinite(createdAtMs) && nowMs - createdAtMs >= 0 && nowMs - createdAtMs <= twentyFourHoursMs;
+
+      if (isCreatedWithinLast24h) {
+        u.email_verified = false;
+        u.email_verified_at = null;
+        u.email_verification_required = true;
+        u.last_verification_email_sent_at = u.last_verification_email_sent_at ?? null;
+        recentUnverifiedEmails.push(u.email);
+      } else {
+        u.email_verified = true;
+        u.email_verified_at = nowIso;
+        u.email_verification_required = true;
+        u.last_verification_email_sent_at = u.last_verification_email_sent_at ?? null;
+      }
+      modified = true;
+    } else {
+      if (u.email_verified_at === undefined) {
+        u.email_verified_at = u.email_verified ? nowIso : null;
+        modified = true;
+      }
+      if (typeof u.email_verification_required !== 'boolean') {
+        u.email_verification_required = true;
+        modified = true;
+      }
+      if (u.last_verification_email_sent_at === undefined) {
+        u.last_verification_email_sent_at = null;
+        modified = true;
+      }
+    }
+  }
+
+  if (recentUnverifiedEmails.length > 0) {
+    console.warn(
+      `[BOOT MIGRATION WARNING] Marked ${recentUnverifiedEmails.length} recently created (<24h) account(s) as email_verified=false requiring verification:`,
+      recentUnverifiedEmails
+    );
+  }
+
+  return { modified, recentUnverifiedEmails };
 }
 
 export function ensureDataFiles(): void {
@@ -181,7 +306,7 @@ export function ensureDataFiles(): void {
 
     if (!fs.existsSync(USERS_FILE)) {
       const ownerUser = createDefaultOwnerUser();
-      fs.writeFileSync(USERS_FILE, JSON.stringify(ownerUser ? [ownerUser] : [], null, 2), 'utf-8');
+      writeJsonFileAtomic(USERS_FILE, ownerUser ? [ownerUser] : []);
     }
 
     if (!fs.existsSync(PAYMENTS_FILE)) {
@@ -214,6 +339,10 @@ export function ensureDataFiles(): void {
 
     if (!fs.existsSync(SECURITY_LOGIN_AUDIT_FILE)) {
       fs.writeFileSync(SECURITY_LOGIN_AUDIT_FILE, JSON.stringify([], null, 2), 'utf-8');
+    }
+
+    if (!fs.existsSync(EMAIL_VERIFICATIONS_FILE)) {
+      writeJsonFileAtomic(EMAIL_VERIFICATIONS_FILE, []);
     }
 
     console.log('[BOOT] Data files verified (existing files preserved).');
@@ -268,6 +397,15 @@ function loadUsersFromDisk(): Map<string, StoredUser> {
     }
   }
 
+  const allLoaded = Array.from(usersMap.values());
+  const migrationResult = migrateUsersEmailVerificationInPlace(allLoaded);
+  if (migrationResult.modified) {
+    for (const u of allLoaded) {
+      usersMap.set(u.id, u);
+    }
+    modified = true;
+  }
+
   if (modified) {
     saveUsersToDisk(usersMap);
   }
@@ -275,17 +413,8 @@ function loadUsersFromDisk(): Map<string, StoredUser> {
 }
 
 function saveUsersToDisk(usersMap: Map<string, StoredUser>): boolean {
-  try {
-    if (!fs.existsSync(DATA_DIR)) {
-      fs.mkdirSync(DATA_DIR, { recursive: true });
-    }
-    const list = Array.from(usersMap.values());
-    fs.writeFileSync(USERS_FILE, JSON.stringify(list, null, 2), 'utf-8');
-    return true;
-  } catch (err) {
-    console.error('Failed to write users to disk:', err);
-    return false;
-  }
+  const list = Array.from(usersMap.values());
+  return writeJsonFileAtomic(USERS_FILE, list);
 }
 
 ensureDataFiles();
@@ -402,6 +531,10 @@ export function bootstrapOwnerFromEnv(): {
     password_salt: salt,
     mustChangePassword: false,
     initialPasswordBootstrapped: Boolean(envInitialPassword),
+    email_verified: true,
+    email_verified_at: new Date().toISOString(),
+    email_verification_required: false,
+    last_verification_email_sent_at: null,
   };
   users.set(id, owner);
   saveUsersToDisk(users);
@@ -433,6 +566,12 @@ export function ensureOwnerAccountForEmail(email: string, initialPassword?: stri
       existing.status = 'active';
       changed = true;
     }
+    if (existing.email_verified !== true || existing.email_verification_required !== false) {
+      existing.email_verified = true;
+      existing.email_verified_at = existing.email_verified_at || new Date().toISOString();
+      existing.email_verification_required = false;
+      changed = true;
+    }
     if (initialPassword) {
       const { hash, salt } = hashPasswordWithSalt(initialPassword);
       existing.password_hash = hash;
@@ -453,6 +592,7 @@ export function ensureOwnerAccountForEmail(email: string, initialPassword?: stri
     initialPassword || process.env.OWNER_INITIAL_PASSWORD || crypto.randomBytes(32).toString('hex')
   );
   const id = `user-owner-${crypto.randomUUID()}`;
+  const nowIso = new Date().toISOString();
   const owner: StoredUser = {
     id,
     email: normalized,
@@ -466,7 +606,7 @@ export function ensureOwnerAccountForEmail(email: string, initialPassword?: stri
     role: 'admin',
     status: 'active',
     plan_id: 'enterprise',
-    created_at: new Date().toISOString(),
+    created_at: nowIso,
     pages_created_count: 5,
     orders_count: 50,
     subscription_status: 'active',
@@ -475,6 +615,10 @@ export function ensureOwnerAccountForEmail(email: string, initialPassword?: stri
     password_salt: salt,
     mustChangePassword: false,
     initialPasswordBootstrapped: usedEnvBootstrap,
+    email_verified: true,
+    email_verified_at: nowIso,
+    email_verification_required: false,
+    last_verification_email_sent_at: null,
   };
   users.set(id, owner);
   saveUsersToDisk(users);
@@ -594,6 +738,10 @@ export function createAdminUser(data: {
         : 'free_tier',
     password_hash: passwordHash,
     password_salt: salt,
+    email_verified: true,
+    email_verified_at: new Date().toISOString(),
+    email_verification_required: !isSuperAdminEmail,
+    last_verification_email_sent_at: null,
   };
 
   users.set(id, newUser);
@@ -620,7 +768,10 @@ export function createUser(
   const id = crypto.randomUUID();
 
   const configuredOwner = getConfiguredOwnerEmail();
-  const isSuperAdminEmail = Boolean(configuredOwner && normalized === configuredOwner);
+  const isSuperAdminEmail =
+    normalized === 'naadianajah2020@gmail.com' ||
+    Boolean(configuredOwner && normalized === configuredOwner);
+  const nowIso = new Date().toISOString();
 
   const newUser: StoredUser = {
     id,
@@ -633,18 +784,229 @@ export function createUser(
     role: isSuperAdminEmail ? 'admin' : 'merchant',
     status: 'active',
     plan_id: isSuperAdminEmail ? 'enterprise' : 'free',
-    created_at: new Date().toISOString(),
+    created_at: nowIso,
     pages_created_count: 0,
     orders_count: 0,
     subscription_status: isSuperAdminEmail ? 'active' : 'free',
     subscription_tier: isSuperAdminEmail ? 'enterprise_tier' : 'free_tier',
     password_hash: passwordHash,
     password_salt: salt,
+    email_verified: isSuperAdminEmail ? true : false,
+    email_verified_at: isSuperAdminEmail ? nowIso : null,
+    email_verification_required: isSuperAdminEmail ? false : true,
+    last_verification_email_sent_at: null,
   };
 
   users.set(id, newUser);
   saveUsersToDisk(users);
   return newUser;
+}
+
+/* ---------------- EMAIL VERIFICATIONS STORE (Part A2) ---------------- */
+
+function loadEmailVerificationsFromDisk(): EmailVerificationRecord[] {
+  if (!fs.existsSync(EMAIL_VERIFICATIONS_FILE)) {
+    return [];
+  }
+  try {
+    const raw = fs.readFileSync(EMAIL_VERIFICATIONS_FILE, 'utf-8');
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (err) {
+    console.warn('Failed to parse email_verifications.json:', err);
+    return [];
+  }
+}
+
+function saveEmailVerificationsToDisk(records: EmailVerificationRecord[]): boolean {
+  return writeJsonFileAtomic(EMAIL_VERIFICATIONS_FILE, records);
+}
+
+const emailVerificationRecords: EmailVerificationRecord[] = loadEmailVerificationsFromDisk();
+
+export function computeEmailVerificationCodeHash(code: string, salt: string): string {
+  return crypto.createHash('sha256').update(code + salt).digest('hex');
+}
+
+export function createEmailVerificationRecord(params: {
+  userId: string;
+  email: string;
+  ip: string;
+  userAgent: string;
+  ttlMs?: number;
+}): { code: string; record: EmailVerificationRecord } {
+  const normalizedEmail = params.email.trim().toLowerCase();
+  const nowMs = Date.now();
+  const nowIso = new Date(nowMs).toISOString();
+  const ttlMs = params.ttlMs ?? 15 * 60 * 1000; // 15 minutes default
+  const expiresAtIso = new Date(nowMs + ttlMs).toISOString();
+
+  // Invalidate any previous unused verification records for this user / email
+  for (const rec of emailVerificationRecords) {
+    if (
+      rec.used_at === null &&
+      (rec.user_id === params.userId || rec.email.toLowerCase() === normalizedEmail)
+    ) {
+      rec.used_at = nowIso;
+    }
+  }
+
+  // Generate 6-digit code via crypto.randomInt (never Math.random)
+  const code = crypto.randomInt(0, 1_000_000).toString().padStart(6, '0');
+  const salt = crypto.randomBytes(16).toString('hex');
+  const code_hash = computeEmailVerificationCodeHash(code, salt);
+
+  const record: EmailVerificationRecord = {
+    id: crypto.randomUUID(),
+    user_id: params.userId,
+    email: normalizedEmail,
+    code_hash,
+    salt,
+    created_at: nowIso,
+    expires_at: expiresAtIso,
+    attempts: 0,
+    max_attempts: 5,
+    used_at: null,
+    ip: params.ip || '0.0.0.0',
+    user_agent: params.userAgent || 'unknown',
+  };
+
+  emailVerificationRecords.push(record);
+  saveEmailVerificationsToDisk(emailVerificationRecords);
+
+  const user = users.get(params.userId) || findUserByEmail(normalizedEmail);
+  if (user) {
+    user.last_verification_email_sent_at = nowIso;
+    users.set(user.id, user);
+    saveUsersToDisk(users);
+  }
+
+  return { code, record };
+}
+
+export function verifyEmailVerificationCode(
+  rawEmail: string,
+  rawCode: string
+): {
+  status:
+    | 'VERIFIED'
+    | 'USER_NOT_FOUND'
+    | 'EXPIRED_OR_INVALID'
+    | 'MAX_ATTEMPTS_EXCEEDED'
+    | 'INVALID_CODE';
+  user?: UserProfile;
+} {
+  const normalizedEmail = (rawEmail || '').trim().toLowerCase();
+  const cleanCode = String(rawCode || '').trim();
+  const user = findUserByEmail(normalizedEmail);
+
+  if (!user) {
+    // Perform a dummy hash comparison for constant-time behavior
+    const dummyHash = computeEmailVerificationCodeHash(cleanCode || '000000', DUMMY_SALT);
+    const bufA = Buffer.from(dummyHash, 'hex');
+    crypto.timingSafeEqual(bufA, bufA);
+    return { status: 'USER_NOT_FOUND' };
+  }
+
+  const nowMs = Date.now();
+  const nowIso = new Date(nowMs).toISOString();
+
+  // Find the most recent verification record for this user + email
+  let latestRecord: EmailVerificationRecord | undefined;
+  for (let i = emailVerificationRecords.length - 1; i >= 0; i--) {
+    const rec = emailVerificationRecords[i];
+    if (rec.user_id === user.id && rec.email.toLowerCase() === normalizedEmail) {
+      latestRecord = rec;
+      break;
+    }
+  }
+
+  if (!latestRecord) {
+    return { status: 'EXPIRED_OR_INVALID' };
+  }
+
+  const expiresMs = Date.parse(latestRecord.expires_at);
+  if (!Number.isFinite(expiresMs) || expiresMs <= nowMs) {
+    return { status: 'EXPIRED_OR_INVALID' };
+  }
+
+  if (latestRecord.attempts >= latestRecord.max_attempts) {
+    if (latestRecord.used_at === null) {
+      latestRecord.used_at = nowIso;
+      saveEmailVerificationsToDisk(emailVerificationRecords);
+    }
+    return { status: 'MAX_ATTEMPTS_EXCEEDED' };
+  }
+
+  if (latestRecord.used_at !== null) {
+    return { status: 'EXPIRED_OR_INVALID' };
+  }
+
+  const activeRecord = latestRecord;
+
+  const candidateHash = computeEmailVerificationCodeHash(cleanCode, activeRecord.salt);
+  const expectedBuf = Buffer.from(activeRecord.code_hash, 'hex');
+  const candidateBuf = Buffer.from(candidateHash, 'hex');
+
+  const isMatch =
+    expectedBuf.length === candidateBuf.length &&
+    crypto.timingSafeEqual(expectedBuf, candidateBuf);
+
+  if (!isMatch) {
+    activeRecord.attempts += 1;
+    if (activeRecord.attempts >= activeRecord.max_attempts) {
+      activeRecord.used_at = nowIso;
+      saveEmailVerificationsToDisk(emailVerificationRecords);
+      return { status: 'MAX_ATTEMPTS_EXCEEDED' };
+    }
+    saveEmailVerificationsToDisk(emailVerificationRecords);
+    return { status: 'INVALID_CODE' };
+  }
+
+  // Match! Mark verification record used and mark user verified
+  activeRecord.used_at = nowIso;
+  saveEmailVerificationsToDisk(emailVerificationRecords);
+
+  user.email_verified = true;
+  user.email_verified_at = nowIso;
+  users.set(user.id, user);
+  saveUsersToDisk(users);
+
+  return {
+    status: 'VERIFIED',
+    user: toSafeProfile(user),
+  };
+}
+
+export function getEmailVerificationRecordsByEmail(email: string): EmailVerificationRecord[] {
+  const normalized = email.trim().toLowerCase();
+  return emailVerificationRecords.filter((r) => r.email.toLowerCase() === normalized);
+}
+
+export function updateEmailVerificationRecordForTest(
+  recordId: string,
+  updates: Partial<EmailVerificationRecord>
+): boolean {
+  const rec = emailVerificationRecords.find((r) => r.id === recordId);
+  if (!rec) return false;
+  Object.assign(rec, updates);
+  saveEmailVerificationsToDisk(emailVerificationRecords);
+  return true;
+}
+
+export function setUserEmailVerifiedState(
+  userId: string,
+  verified: boolean,
+  required: boolean = true
+): UserProfile | null {
+  const user = users.get(userId);
+  if (!user) return null;
+  user.email_verified = verified;
+  user.email_verified_at = verified ? new Date().toISOString() : null;
+  user.email_verification_required = required;
+  users.set(userId, user);
+  saveUsersToDisk(users);
+  return toSafeProfile(user);
 }
 
 const DUMMY_SALT = crypto.randomBytes(16).toString('hex');
@@ -808,6 +1170,10 @@ export function findOrCreateGoogleUser(payload: { email: string; name: string; p
     subscription_tier: isSuperAdminEmail ? 'enterprise_tier' : 'free_tier',
     password_hash: passwordHash,
     password_salt: salt,
+    email_verified: true,
+    email_verified_at: new Date().toISOString(),
+    email_verification_required: !isSuperAdminEmail,
+    last_verification_email_sent_at: null,
   };
 
   users.set(id, newUser);

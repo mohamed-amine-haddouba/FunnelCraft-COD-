@@ -43,6 +43,7 @@ import { CustomerLandingPage, ScrapedProduct } from './components/CustomerLandin
 import { SandboxPage } from './components/SandboxPage';
 import { SandboxLoginPage } from './components/SandboxLoginPage';
 import { SandboxResetPage } from './components/SandboxResetPage';
+import { VerifyEmailPage } from './components/VerifyEmailPage';
 import { LanguageProvider, useLanguage } from './i18n/translations';
 import { StoredPage } from './types/user';
 import { SubscriptionPlanId } from './types/orders';
@@ -289,6 +290,7 @@ function BuilderWorkspace() {
     planId,
     isPro,
     isAdmin,
+    emailVerified,
     isImpersonating,
     impersonatedUser,
     stopImpersonating,
@@ -1041,6 +1043,15 @@ function BuilderWorkspace() {
     return <Navigate to="/login" replace />;
   }
 
+  // Mandatory Email Verification Gate (Owner/Admin exempt)
+  const isOwnerAccount =
+    isAdmin ||
+    user.role === 'admin' ||
+    user.email?.trim().toLowerCase() === 'naadianajah2020@gmail.com';
+  if (!isOwnerAccount && user.email_verified === false && user.email_verification_required !== false) {
+    return <Navigate to={`/verify-email?email=${encodeURIComponent(user.email)}`} replace />;
+  }
+
   // Frontend Gate for Suspended Users only (New merchants are auto-activated)
   if (user.status === 'suspended' && !isImpersonating) {
     return (
@@ -1194,6 +1205,23 @@ function BuilderWorkspace() {
         onToggleLeftSidebar={() => setIsLeftSidebarOpen((prev) => !prev)}
         onToggleRightSidebar={() => setIsRightSidebarOpen((prev) => !prev)}
       />
+
+      {/* Unverified Email Banner (Never shown for owner/admin) */}
+      {!isOwnerAccount && !emailVerified && (
+        <div
+          dir="rtl"
+          className="bg-amber-500/20 border-b border-amber-500/40 text-amber-200 px-4 py-2 text-xs font-bold flex items-center justify-between z-40 shrink-0"
+        >
+          <span>لم يتم تأكيد بريدك الإلكتروني بعد — اضغط هنا لإعادة إرسال الرمز</span>
+          <button
+            type="button"
+            onClick={() => navigate(`/verify-email?email=${encodeURIComponent(user.email)}`)}
+            className="px-3 py-1 rounded-md bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-black transition cursor-pointer"
+          >
+            تأكيد البريد الآن
+          </button>
+        </div>
+      )}
 
       {/* Sticky Impersonation Warning Banner (Across App) */}
       {isImpersonating && (
@@ -1892,7 +1920,11 @@ function LoginRoute() {
   }
 
   if (isLoggedIn && user) {
-    const isSuperAdmin = user.role === 'admin';
+    const isSuperAdmin =
+      user.role === 'admin' || user.email?.trim().toLowerCase() === 'naadianajah2020@gmail.com';
+    if (!isSuperAdmin && user.email_verified === false && user.email_verification_required !== false) {
+      return <Navigate to={`/verify-email?email=${encodeURIComponent(user.email)}`} replace />;
+    }
     return <Navigate to={isSuperAdmin ? '/dashboard/admin' : '/dashboard/builder'} replace />;
   }
 
@@ -1954,6 +1986,7 @@ export default function App() {
           <Routes>
             <Route path="/" element={<RootRedirect />} />
             <Route path="/login" element={<LoginRoute />} />
+            <Route path="/verify-email" element={<VerifyEmailPage />} />
             <Route path="/reset-password" element={<LoginRoute />} />
             <Route path="/sandbox" element={<SandboxPage />} />
             <Route path="/sandbox/login" element={<SandboxLoginPage />} />
