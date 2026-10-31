@@ -1,33 +1,24 @@
 #!/usr/bin/env bash
-set -e
+set -euo pipefail
 
-echo "========================================================"
-echo "[FunnelCraft-COD] Starting Direct Local VPS Deployment"
-echo "Timestamp: $(date -u +"%Y-%m-%dT%H:%M:%SZ")"
-echo "========================================================"
+echo "[FunnelCraft-COD] Deploy $(date -u +%FT%TZ)"
 
-echo ""
-echo ">>> [1/5] Pulling latest code from origin/main..."
+echo ">>> [1/5] git pull"
 git pull origin main
 
-echo ""
-echo ">>> [2/5] Removing package-lock.json to prevent esbuild/vite conflicts..."
-rm -f package-lock.json
+echo ">>> [2/5] npm ci"
+npm ci
 
-echo ""
-echo ">>> [3/5] Installing dependencies (npm install --legacy-peer-deps)..."
-npm install --legacy-peer-deps
+echo ">>> [3/5] npx tsc --noEmit"
+npx tsc --noEmit
 
-echo ""
-echo ">>> [4/5] Building production frontend & bundle (npm run build)..."
+echo ">>> [4/5] npm run build"
 npm run build
 
-echo ""
-echo ">>> [5/5] Scheduling PM2 service restart (funnelcraft-api) in background..."
-(sleep 3 && pm2 restart funnelcraft-api --update-env) > /dev/null 2>&1 &
+echo ">>> [5/5] restart + health check"
+NODE_ENV=production pm2 restart funnelcraft-api --update-env
+pm2 save
+sleep 3
+curl -fsS http://127.0.0.1:3000/api/health || { echo "❌ health failed"; exit 1; }
 
-echo ""
-echo "========================================================"
-echo "[FunnelCraft-COD] Local VPS Deployment Completed Successfully!"
-echo "PM2 will restart funnelcraft-api in 3 seconds."
-echo "========================================================"
+echo "✅ Deploy complete"
