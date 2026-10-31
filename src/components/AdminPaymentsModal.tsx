@@ -96,22 +96,22 @@ export const AdminPaymentsModal: React.FC<Props> = ({ isOpen, onClose }) => {
       case 'Wafacash':
         return 'bg-yellow-50 text-yellow-800 border-yellow-200';
       default:
-        return 'bg-gray-100 text-gray-800 border-gray-200';
+        return 'bg-[#0D131E] text-[#F8FAFC] border-[#1E293B]';
     }
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white rounded-3xl max-w-4xl w-full flex flex-col max-h-[92vh] shadow-2xl border border-gray-100 overflow-hidden">
+      <div className="bg-[#131B2A] rounded-3xl max-w-4xl w-full flex flex-col max-h-[92vh] shadow-2xl border border-[#1E293B] overflow-hidden">
         {/* Header */}
-        <div className="p-5 border-b border-gray-200 flex items-center justify-between bg-gray-50/80">
+        <div className="p-5 border-b border-[#1E293B] flex items-center justify-between bg-[#0D131E]/80">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl bg-[#E25B26] text-white flex items-center justify-center font-bold shadow-md shadow-[#E25B26]/20">
               <ShieldCheck className="w-5 h-5" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-base font-black text-gray-900">
+                <h3 className="text-base font-black text-[#F8FAFC]">
                   🇲🇦 Moroccan Payments Verification Hub
                 </h3>
                 {pendingCount > 0 && (
@@ -120,7 +120,7 @@ export const AdminPaymentsModal: React.FC<Props> = ({ isOpen, onClose }) => {
                   </span>
                 )}
               </div>
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-[#94A3B8]">
                 Review offline bank transfers & money agency receipts to activate Pro plans.
               </p>
             </div>
@@ -131,7 +131,7 @@ export const AdminPaymentsModal: React.FC<Props> = ({ isOpen, onClose }) => {
               type="button"
               onClick={loadData}
               disabled={loading}
-              className="p-2 text-gray-500 hover:text-gray-900 rounded-xl hover:bg-gray-200/80 transition"
+              className="p-2 text-[#94A3B8] hover:text-[#F8FAFC] rounded-xl hover:bg-[#1E293B]/80 transition"
               title="Refresh payments"
             >
               <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
@@ -139,7 +139,7 @@ export const AdminPaymentsModal: React.FC<Props> = ({ isOpen, onClose }) => {
             <button
               type="button"
               onClick={onClose}
-              className="w-8 h-8 rounded-full bg-gray-200 hover:bg-gray-300 flex items-center justify-center text-gray-600 transition"
+              className="w-8 h-8 rounded-full bg-gray-200 hover:bg-gray-300 flex items-center justify-center text-[#CBD5E1] transition"
             >
               <X className="w-4 h-4" />
             </button>
@@ -155,14 +155,14 @@ export const AdminPaymentsModal: React.FC<Props> = ({ isOpen, onClose }) => {
         )}
 
         {/* Filter Tabs */}
-        <div className="flex border-b border-gray-200 px-5 pt-3 gap-2 bg-white">
+        <div className="flex border-b border-[#1E293B] px-5 pt-3 gap-2 bg-[#131B2A]">
           <button
             type="button"
             onClick={() => setFilter('all')}
             className={`py-2 px-3 text-xs font-bold border-b-2 transition ${
               filter === 'all'
                 ? 'border-[#E25B26] text-[#E25B26]'
-                : 'border-transparent text-gray-500 hover:text-gray-900'
+                : 'border-transparent text-[#94A3B8] hover:text-[#F8FAFC]'
             }`}
           >
             All Submissions ({payments.length})
@@ -173,7 +173,7 @@ export const AdminPaymentsModal: React.FC<Props> = ({ isOpen, onClose }) => {
             className={`py-2 px-3 text-xs font-bold border-b-2 transition flex items-center gap-1.5 ${
               filter === 'pending'
                 ? 'border-[#E25B26] text-[#E25B26]'
-                : 'border-transparent text-gray-500 hover:text-gray-900'
+                : 'border-transparent text-[#94A3B8] hover:text-[#F8FAFC]'
             }`}
           >
             <Clock className="w-3.5 h-3.5 text-amber-500" />
@@ -185,7 +185,7 @@ export const AdminPaymentsModal: React.FC<Props> = ({ isOpen, onClose }) => {
             className={`py-2 px-3 text-xs font-bold border-b-2 transition ${
               filter === 'approved'
                 ? 'border-[#E25B26] text-[#E25B26]'
-                : 'border-transparent text-gray-500 hover:text-gray-900'
+                : 'border-transparent text-[#94A3B8] hover:text-[#F8FAFC]'
             }`}
           >
             Approved ({payments.filter((p) => p.status === 'approved').length})
@@ -196,7 +196,7 @@ export const AdminPaymentsModal: React.FC<Props> = ({ isOpen, onClose }) => {
             className={`py-2 px-3 text-xs font-bold border-b-2 transition ${
               filter === 'rejected'
                 ? 'border-[#E25B26] text-[#E25B26]'
-                : 'border-transparent text-gray-500 hover:text-gray-900'
+                : 'border-transparent text-[#94A3B8] hover:text-[#F8FAFC]'
             }`}
           >
             Rejected ({payments.filter((p) => p.status === 'rejected').length})
@@ -204,7 +204,7 @@ export const AdminPaymentsModal: React.FC<Props> = ({ isOpen, onClose }) => {
         </div>
 
         {/* Payments List Body */}
-        <div className="p-5 flex-1 overflow-y-auto space-y-3.5 bg-gray-50/50">
+        <div className="p-5 flex-1 overflow-y-auto space-y-3.5 bg-[#0D131E]/50">
           {filteredPayments.length === 0 ? (
             <div className="text-center py-12 text-gray-400">
               <FileText className="w-10 h-10 mx-auto mb-2 opacity-50" />
@@ -219,13 +219,13 @@ export const AdminPaymentsModal: React.FC<Props> = ({ isOpen, onClose }) => {
               return (
                 <div
                   key={p.id}
-                  className={`bg-white border rounded-2xl p-4 md:p-5 shadow-xs transition space-y-3 ${
+                  className={`bg-[#131B2A] border rounded-2xl p-4 md:p-5 shadow-xs transition space-y-3 ${
                     isPending
                       ? 'border-amber-300 ring-1 ring-amber-400/20'
-                      : 'border-gray-200'
+                      : 'border-[#1E293B]'
                   }`}
                 >
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-gray-100 pb-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#1E293B] pb-3">
                     <div className="flex items-center gap-2.5">
                       <span
                         className={`text-xs font-black px-2.5 py-1 rounded-lg border ${getMethodBadgeColor(
@@ -235,8 +235,8 @@ export const AdminPaymentsModal: React.FC<Props> = ({ isOpen, onClose }) => {
                         {p.method}
                       </span>
                       <div>
-                        <h4 className="font-bold text-xs text-gray-900">{p.userName}</h4>
-                        <span className="text-[11px] text-gray-500">{p.userEmail}</span>
+                        <h4 className="font-bold text-xs text-[#F8FAFC]">{p.userName}</h4>
+                        <span className="text-[11px] text-[#94A3B8]">{p.userEmail}</span>
                       </div>
                     </div>
 
@@ -264,12 +264,12 @@ export const AdminPaymentsModal: React.FC<Props> = ({ isOpen, onClose }) => {
                       <span className="text-gray-400 text-[10px] font-bold uppercase">
                         Transaction Reference / Code:
                       </span>
-                      <div className="flex items-center gap-2 font-mono font-bold text-gray-800 bg-gray-50 px-3 py-1.5 rounded-xl border border-gray-200">
+                      <div className="flex items-center gap-2 font-mono font-bold text-[#F8FAFC] bg-[#0D131E] px-3 py-1.5 rounded-xl border border-[#1E293B]">
                         <span className="truncate">{p.transactionReference}</span>
                         <button
                           type="button"
                           onClick={() => handleCopy(p.transactionReference)}
-                          className="ms-auto p-1 hover:bg-gray-200 rounded text-gray-500 transition"
+                          className="ms-auto p-1 hover:bg-gray-200 rounded text-[#94A3B8] transition"
                           title="Copy Code"
                         >
                           {copiedRef === p.transactionReference ? (
@@ -285,7 +285,7 @@ export const AdminPaymentsModal: React.FC<Props> = ({ isOpen, onClose }) => {
                       <span className="text-gray-400 text-[10px] font-bold uppercase">
                         Submitted On:
                       </span>
-                      <div className="text-gray-700 bg-gray-50 px-3 py-1.5 rounded-xl border border-gray-200 font-medium">
+                      <div className="text-[#CBD5E1] bg-[#0D131E] px-3 py-1.5 rounded-xl border border-[#1E293B] font-medium">
                         {new Date(p.createdAt).toLocaleString()}
                       </div>
                     </div>
@@ -293,7 +293,7 @@ export const AdminPaymentsModal: React.FC<Props> = ({ isOpen, onClose }) => {
 
                   {/* Remarks or Notes */}
                   {p.notes && (
-                    <div className="text-xs text-gray-600 bg-gray-50/70 p-2.5 rounded-xl border border-gray-100 italic">
+                    <div className="text-xs text-[#CBD5E1] bg-[#0D131E]/70 p-2.5 rounded-xl border border-[#1E293B] italic">
                       "{p.notes}"
                     </div>
                   )}
@@ -304,10 +304,10 @@ export const AdminPaymentsModal: React.FC<Props> = ({ isOpen, onClose }) => {
                       <img
                         src={p.proofImageUrl}
                         alt="Receipt Proof"
-                        className="w-14 h-14 object-cover rounded-xl border border-gray-300 shadow-xs cursor-pointer hover:scale-105 transition"
+                        className="w-14 h-14 object-cover rounded-xl border border-[#334155] shadow-xs cursor-pointer hover:scale-105 transition"
                         onClick={() => window.open(p.proofImageUrl, '_blank')}
                       />
-                      <span className="text-[11px] text-gray-500">
+                      <span className="text-[11px] text-[#94A3B8]">
                         Click receipt image to view full size
                       </span>
                     </div>
@@ -315,7 +315,7 @@ export const AdminPaymentsModal: React.FC<Props> = ({ isOpen, onClose }) => {
 
                   {/* Action Buttons for Pending Payments */}
                   {isPending && (
-                    <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-100">
+                    <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#1E293B]">
                       <button
                         type="button"
                         disabled={actionLoadingId === p.id}

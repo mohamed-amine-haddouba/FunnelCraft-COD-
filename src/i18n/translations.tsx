@@ -936,6 +936,8 @@ export const translations: Record<Language, Translations> = {
   },
 };
 
+import { useLocation, useNavigate } from 'react-router-dom';
+
 interface LanguageContextType {
   language: Language;
   setLanguage: (lang: Language) => void;
@@ -952,8 +954,24 @@ export const LanguageContext = createContext<LanguageContextType>({
   isRtl: true,
 });
 
+export const SUPPORTED_LANGUAGES: Language[] = ['ar', 'fr', 'en'];
+
+export function extractLangFromPath(pathname: string): Language | null {
+  const parts = pathname.split('/').filter(Boolean);
+  if (parts.length > 0 && (parts[0] === 'ar' || parts[0] === 'fr' || parts[0] === 'en')) {
+    return parts[0] as Language;
+  }
+  return null;
+}
+
 export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  const urlLang = extractLangFromPath(location.pathname);
+
   const [language, setLanguageState] = useState<Language>(() => {
+    if (urlLang) return urlLang;
     try {
       const saved = localStorage.getItem('funnelcraft_lang') as Language;
       if (saved && (saved === 'ar' || saved === 'fr' || saved === 'en')) {
@@ -963,11 +981,36 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     return 'ar';
   });
 
-  const setLanguage = (lang: Language) => {
-    setLanguageState(lang);
+  // Sync state if URL prefix changes
+  useEffect(() => {
+    if (urlLang && urlLang !== language) {
+      setLanguageState(urlLang);
+      try {
+        localStorage.setItem('funnelcraft_lang', urlLang);
+      } catch (_) {}
+    }
+  }, [urlLang, language]);
+
+  const setLanguage = (newLang: Language) => {
+    setLanguageState(newLang);
     try {
-      localStorage.setItem('funnelcraft_lang', lang);
+      localStorage.setItem('funnelcraft_lang', newLang);
     } catch (_) {}
+
+    // Replace current path language prefix or prepend new language
+    const currentPath = location.pathname;
+    const parts = currentPath.split('/').filter(Boolean);
+    let targetPath = '';
+
+    if (parts.length > 0 && (parts[0] === 'ar' || parts[0] === 'fr' || parts[0] === 'en')) {
+      parts[0] = newLang;
+      targetPath = '/' + parts.join('/');
+    } else {
+      targetPath = `/${newLang}${currentPath === '/' ? '' : currentPath}`;
+    }
+
+    const searchAndHash = `${location.search}${location.hash}`;
+    navigate(`${targetPath}${searchAndHash}`);
   };
 
   const isRtl = language === 'ar';

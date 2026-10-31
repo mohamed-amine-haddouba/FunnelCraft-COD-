@@ -1992,36 +1992,72 @@ function PricingRoute() {
   );
 }
 
+function PublicRoutes() {
+  return (
+    <Routes>
+      <Route path="/" element={<RootRedirect />} />
+      <Route path="/home" element={<HomeLandingPage />} />
+      <Route path="/pricing" element={<PricingRoute />} />
+      <Route path="/login" element={<LoginRoute />} />
+      <Route path="/verify-email" element={<VerifyEmailPage />} />
+      <Route path="/reset-password" element={<LoginRoute />} />
+      <Route path="/sandbox" element={<SandboxPage />} />
+      <Route path="/sandbox/login" element={<SandboxLoginPage />} />
+      <Route path="/reset" element={<SandboxResetPage />} />
+      <Route path="/contact" element={<ContactRoute />} />
+      <Route path="/terms" element={<TermsRoute />} />
+      <Route path="/privacy" element={<PrivacyRoute />} />
+      <Route path="/p/:slug" element={<PublicFunnelPage />} />
+      <Route path="/dashboard" element={<Navigate to="/dashboard/builder" replace />} />
+      <Route path="/dashboard/:tab" element={<BuilderWorkspace />} />
+      <Route path="*" element={<NotFoundPage />} />
+    </Routes>
+  );
+}
+
+function LegacyOrPrefixRedirect() {
+  const location = useLocation();
+  const pathname = location.pathname;
+
+  // Do not prefix API routes or public pages if any
+  if (pathname.startsWith('/api/')) {
+    return null;
+  }
+
+  const savedLang = (() => {
+    try {
+      const s = localStorage.getItem('funnelcraft_lang');
+      if (s === 'ar' || s === 'fr' || s === 'en') return s;
+    } catch (_) {}
+    return 'ar';
+  })();
+
+  const target = `/${savedLang}${pathname === '/' ? '' : pathname}${location.search}${location.hash}`;
+  return <Navigate to={target} replace />;
+}
+
 export default function App() {
   const location = useLocation();
   const hideFloatingWhatsApp =
-    location.pathname === '/dashboard/builder' ||
-    location.pathname.startsWith('/dashboard/') ||
-    location.pathname.startsWith('/sandbox') ||
-    location.pathname === '/reset' ||
-    location.pathname.startsWith('/p/');
+    location.pathname.includes('/dashboard/builder') ||
+    location.pathname.includes('/dashboard/') ||
+    location.pathname.includes('/sandbox') ||
+    location.pathname.includes('/reset') ||
+    location.pathname.includes('/p/');
 
   return (
     <GoogleOAuthProvider clientId={googleClientId}>
       <LanguageProvider>
         <AuthProvider>
           <Routes>
-            <Route path="/" element={<RootRedirect />} />
-            <Route path="/home" element={<HomeLandingPage />} />
-            <Route path="/pricing" element={<PricingRoute />} />
-            <Route path="/login" element={<LoginRoute />} />
-            <Route path="/verify-email" element={<VerifyEmailPage />} />
-            <Route path="/reset-password" element={<LoginRoute />} />
-            <Route path="/sandbox" element={<SandboxPage />} />
-            <Route path="/sandbox/login" element={<SandboxLoginPage />} />
-            <Route path="/reset" element={<SandboxResetPage />} />
-            <Route path="/contact" element={<ContactRoute />} />
-            <Route path="/terms" element={<TermsRoute />} />
-            <Route path="/privacy" element={<PrivacyRoute />} />
+            {/* Direct access to public funnel /p/:slug (kept root-level friendly) */}
             <Route path="/p/:slug" element={<PublicFunnelPage />} />
-            <Route path="/dashboard" element={<Navigate to="/dashboard/builder" replace />} />
-            <Route path="/dashboard/:tab" element={<BuilderWorkspace />} />
-            <Route path="*" element={<NotFoundPage />} />
+
+            {/* Language-prefixed routes: /:lang/* */}
+            <Route path="/:lang/*" element={<PublicRoutes />} />
+
+            {/* Unprefixed legacy routes: redirect to /:savedLang/... */}
+            <Route path="*" element={<LegacyOrPrefixRedirect />} />
           </Routes>
           {!hideFloatingWhatsApp && <FloatingWhatsApp />}
         </AuthProvider>

@@ -20,10 +20,10 @@ export const FaqBlockView: React.FC<Props> = ({ block, theme, isRtl }) => {
   return (
     <section className="max-w-3xl mx-auto px-4 py-12 md:py-20" dir={isRtl ? 'rtl' : 'ltr'}>
       <div className="text-center mb-10">
-        <h2 className="text-3xl md:text-4xl font-black text-gray-900 mb-2 tracking-tight">
+        <h2 className="text-3xl md:text-4xl font-black text-[#F8FAFC] mb-2 tracking-tight">
           {block.title}
         </h2>
-        <p className="text-gray-600 text-sm md:text-base">{block.subtitle}</p>
+        <p className="text-[#CBD5E1] text-sm md:text-base">{block.subtitle}</p>
       </div>
 
       <div className="space-y-4">
@@ -32,12 +32,12 @@ export const FaqBlockView: React.FC<Props> = ({ block, theme, isRtl }) => {
           return (
             <div
               key={item.id}
-              className="bg-white border border-gray-200/90 rounded-2xl overflow-hidden shadow-sm transition hover:border-gray-300"
+              className="bg-[#131B2A] border border-[#1E293B] rounded-2xl overflow-hidden shadow-sm transition hover:border-[#334155]"
             >
               <button
                 type="button"
                 onClick={() => toggle(item.id)}
-                className="w-full p-5 text-start font-bold text-gray-900 flex justify-between items-center transition bg-transparent hover:bg-gray-50/50 cursor-pointer"
+                className="w-full p-5 text-start font-bold text-[#F8FAFC] flex justify-between items-center transition bg-transparent hover:bg-[#0D131E]/50 cursor-pointer"
               >
                 <span className="text-sm md:text-base pe-4">{item.question}</span>
                 <ChevronDown
@@ -49,7 +49,7 @@ export const FaqBlockView: React.FC<Props> = ({ block, theme, isRtl }) => {
               </button>
 
               {isOpen && (
-                <div className="px-5 pb-5 pt-1 text-sm text-gray-600 leading-relaxed border-t border-gray-50">
+                <div className="px-5 pb-5 pt-1 text-sm text-[#CBD5E1] leading-relaxed border-t border-gray-50">
                   {item.answer}
                 </div>
               )}

@@ -82,21 +82,21 @@ export const ExportModal: React.FC<Props> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white rounded-3xl max-w-3xl w-full flex flex-col max-h-[90vh] shadow-2xl border border-gray-100 overflow-hidden">
+      <div className="bg-[#131B2A] rounded-3xl max-w-3xl w-full flex flex-col max-h-[90vh] shadow-2xl border border-[#1E293B] overflow-hidden">
         {/* Modal Header */}
-        <div className="p-5 border-b border-gray-200 flex items-center justify-between bg-gray-50/70">
+        <div className="p-5 border-b border-[#1E293B] flex items-center justify-between bg-[#0D131E]/70">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl bg-[#E25B26] text-[#E25B26] flex items-center justify-center font-bold">
               <FileCode className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-base font-black text-gray-900 flex items-center gap-2">
+              <h3 className="text-base font-black text-[#F8FAFC] flex items-center gap-2">
                 <span>Export & Publish Engine</span>
                 <span className="text-[10px] font-bold bg-[#E25B26] text-[#E25B26] px-2 py-0.5 rounded-full uppercase">
                   Production Ready
                 </span>
               </h3>
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-[#94A3B8]">
                 Generate clean, ultra-fast single-file HTML or portable JSON state.
               </p>
             </div>
@@ -105,21 +105,21 @@ export const ExportModal: React.FC<Props> = ({
           <button
             type="button"
             onClick={onClose}
-            className="w-8 h-8 rounded-full bg-gray-200 hover:bg-gray-300 flex items-center justify-center text-gray-600 transition"
+            className="w-8 h-8 rounded-full bg-gray-200 hover:bg-gray-300 flex items-center justify-center text-[#CBD5E1] transition"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Tab switch */}
-        <div className="flex border-b border-gray-200 px-5 pt-3 gap-2 bg-white">
+        <div className="flex border-b border-[#1E293B] px-5 pt-3 gap-2 bg-[#131B2A]">
           <button
             type="button"
             onClick={() => setActiveTab('html')}
             className={`py-2 px-4 text-xs font-bold border-b-2 transition flex items-center gap-1.5 ${
               activeTab === 'html'
                 ? 'border-[#E25B26] text-[#E25B26]'
-                : 'border-transparent text-gray-500 hover:text-gray-900'
+                : 'border-transparent text-[#94A3B8] hover:text-[#F8FAFC]'
             }`}
           >
             <Code2 className="w-4 h-4" />
@@ -132,7 +132,7 @@ export const ExportModal: React.FC<Props> = ({
             className={`py-2 px-4 text-xs font-bold border-b-2 transition flex items-center gap-1.5 ${
               activeTab === 'json'
                 ? 'border-[#E25B26] text-[#E25B26]'
-                : 'border-transparent text-gray-500 hover:text-gray-900'
+                : 'border-transparent text-[#94A3B8] hover:text-[#F8FAFC]'
             }`}
           >
             <Layers className="w-4 h-4" />
@@ -168,7 +168,7 @@ export const ExportModal: React.FC<Props> = ({
           ) : (
             <div className="space-y-4 text-xs">
               <div>
-                <label className="block font-bold text-gray-700 mb-1">
+                <label className="block font-bold text-[#CBD5E1] mb-1">
                   Exported JSON Funnel State
                 </label>
                 <div className="relative rounded-2xl bg-gray-950 text-gray-200 p-4 font-mono text-xs overflow-x-auto max-h-48 border border-gray-800">
@@ -176,8 +176,8 @@ export const ExportModal: React.FC<Props> = ({
                 </div>
               </div>
 
-              <div className="pt-2 border-t border-gray-200">
-                <label className="block font-bold text-gray-700 mb-1">
+              <div className="pt-2 border-t border-[#1E293B]">
+                <label className="block font-bold text-[#CBD5E1] mb-1">
                   Import Funnel JSON:
                 </label>
                 <textarea
@@ -188,7 +188,7 @@ export const ExportModal: React.FC<Props> = ({
                     setImportError(null);
                   }}
                   placeholder="Paste previously exported Landing Page JSON here..."
-                  className="w-full p-3 rounded-xl border border-gray-300 font-mono text-xs focus:ring-2 focus:ring-[#E25B26]"
+                  className="w-full p-3 rounded-xl border border-[#334155] font-mono text-xs focus:ring-2 focus:ring-[#E25B26]"
                 />
                 {importError && (
                   <p className="text-red-500 text-[11px] font-bold mt-1">{importError}</p>
@@ -207,13 +207,13 @@ export const ExportModal: React.FC<Props> = ({
         </div>
 
         {/* Modal Footer Controls */}
-        <div className="p-4 border-t border-gray-200 bg-gray-50 flex items-center justify-between gap-3">
+        <div className="p-4 border-t border-[#1E293B] bg-[#0D131E] flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             {activeTab === 'html' && (
               <button
                 type="button"
                 onClick={handlePreviewNewTab}
-                className="py-2.5 px-4 bg-white border border-gray-300 hover:bg-gray-100 rounded-xl font-bold text-xs text-gray-700 flex items-center gap-1.5 transition"
+                className="py-2.5 px-4 bg-[#131B2A] border border-[#334155] hover:bg-[#0D131E] rounded-xl font-bold text-xs text-[#CBD5E1] flex items-center gap-1.5 transition"
               >
                 <ExternalLink className="w-3.5 h-3.5" />
                 <span>Preview Standalone</span>
@@ -223,7 +223,7 @@ export const ExportModal: React.FC<Props> = ({
             <button
               type="button"
               onClick={handleCopy}
-              className="py-2.5 px-4 bg-white border border-gray-300 hover:bg-gray-100 rounded-xl font-bold text-xs text-gray-700 flex items-center gap-1.5 transition"
+              className="py-2.5 px-4 bg-[#131B2A] border border-[#334155] hover:bg-[#0D131E] rounded-xl font-bold text-xs text-[#CBD5E1] flex items-center gap-1.5 transition"
             >
               {copied ? (
                 <>

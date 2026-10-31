@@ -12,12 +12,12 @@ interface Props {
 export const FloatingCtaBlockView: React.FC<Props> = ({ block, theme, isRtl, onCtaClick }) => {
   return (
     <div
-      className="fixed bottom-0 start-0 end-0 z-40 bg-white/95 backdrop-blur-md border-t border-gray-200 px-4 py-3 shadow-2xl transition"
+      className="fixed bottom-0 start-0 end-0 z-40 bg-[#131B2A]/95 backdrop-blur-md border-t border-[#1E293B] px-4 py-3 shadow-2xl transition"
       dir={isRtl ? 'rtl' : 'ltr'}
     >
       <div className="max-w-md mx-auto flex items-center justify-between gap-3">
         <div className="min-w-0">
-          <h4 className="text-xs font-bold text-gray-900 truncate">{block.title}</h4>
+          <h4 className="text-xs font-bold text-[#F8FAFC] truncate">{block.title}</h4>
           <div className="text-xs font-black text-emerald-600 mt-0.5">{block.priceText}</div>
         </div>
 

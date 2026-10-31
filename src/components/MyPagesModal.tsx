@@ -144,9 +144,9 @@ export const MyPagesModal: React.FC<MyPagesModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#131B2A]/70 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="relative w-full max-w-4xl bg-white rounded-3xl shadow-2xl border border-slate-100 flex flex-col max-h-[90vh] overflow-hidden">
+      <div className="relative w-full max-w-4xl bg-[#131B2A] rounded-3xl shadow-2xl border border-[#1E293B] flex flex-col max-h-[90vh] overflow-hidden">
         {/* Modal Top Header */}
-        <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-slate-50 to-white">
+        <div className="px-6 py-5 border-b border-[#1E293B] flex items-center justify-between bg-gradient-to-r from-slate-50 to-white">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl bg-[#E25B26] text-[#E25B26] flex items-center justify-center shadow-inner">
               <FolderKanban className="w-5 h-5" />
@@ -188,7 +188,7 @@ export const MyPagesModal: React.FC<MyPagesModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="p-2 rounded-full text-[#CBD5E1] hover:text-slate-600 hover:bg-slate-100 transition cursor-pointer"
+              className="p-2 rounded-full text-[#CBD5E1] hover:text-[#CBD5E1] hover:bg-[#0D131E] transition cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
@@ -222,7 +222,7 @@ export const MyPagesModal: React.FC<MyPagesModalProps> = ({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search landing pages by title or slug..."
-              className="w-full ps-10 pe-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-[#E25B26] text-xs outline-none transition"
+              className="w-full ps-10 pe-4 py-2.5 rounded-xl border border-[#1E293B] bg-[#0D131E] focus:bg-[#131B2A] focus:ring-2 focus:ring-[#E25B26] text-xs outline-none transition"
             />
           </div>
 
@@ -250,11 +250,11 @@ export const MyPagesModal: React.FC<MyPagesModalProps> = ({
         {/* Main Content: List of Pages */}
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-3">
           {filteredPages.length === 0 ? (
-            <div className="text-center py-12 px-4 border-2 border-dashed border-slate-200 rounded-3xl bg-slate-50/50">
-              <div className="w-14 h-14 rounded-2xl bg-slate-100 text-[#CBD5E1] flex items-center justify-center mx-auto mb-3">
+            <div className="text-center py-12 px-4 border-2 border-dashed border-[#1E293B] rounded-3xl bg-[#0D131E]/50">
+              <div className="w-14 h-14 rounded-2xl bg-[#0D131E] text-[#CBD5E1] flex items-center justify-center mx-auto mb-3">
                 <FolderKanban className="w-7 h-7" />
               </div>
-              <h3 className="text-base font-bold text-slate-800 mb-1">
+              <h3 className="text-base font-bold text-[#F8FAFC] mb-1">
                 {searchQuery ? 'No landing pages match your search' : 'No Saved Landing Pages Yet'}
               </h3>
               <p className="text-xs text-[#CBD5E1]/70 max-w-sm mx-auto mb-5 leading-relaxed">
@@ -273,7 +273,7 @@ export const MyPagesModal: React.FC<MyPagesModalProps> = ({
                 <button
                   type="button"
                   onClick={handleCreateNew}
-                  className="px-4 py-2.5 rounded-xl border border-slate-200 hover:border-slate-300 text-slate-700 bg-white text-xs font-bold transition cursor-pointer"
+                  className="px-4 py-2.5 rounded-xl border border-[#1E293B] hover:border-[#334155] text-[#CBD5E1] bg-[#131B2A] text-xs font-bold transition cursor-pointer"
                 >
                   Create New Page
                 </button>
@@ -295,7 +295,7 @@ export const MyPagesModal: React.FC<MyPagesModalProps> = ({
                     className={`p-4 rounded-2xl border transition relative flex flex-col justify-between ${
                       isCurrentlyActive
                         ? 'border-[#E25B26] bg-[#E25B26]/30 ring-1 ring-[#E25B26]/20'
-                        : 'border-slate-200 hover:border-slate-300 bg-white shadow-sm hover:shadow'
+                        : 'border-[#1E293B] hover:border-[#334155] bg-[#131B2A] shadow-sm hover:shadow'
                     }`}
                   >
                     <div>
@@ -309,12 +309,12 @@ export const MyPagesModal: React.FC<MyPagesModalProps> = ({
                             </span>
                           )}
 
-                          <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-md bg-slate-100 text-slate-700">
+                          <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-md bg-[#0D131E] text-[#CBD5E1]">
                             <Layers className="w-3 h-3 text-[#CBD5E1]" />
                             {blocksCount} Sections
                           </span>
 
-                          <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-md bg-slate-100 text-slate-700">
+                          <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-md bg-[#0D131E] text-[#CBD5E1]">
                             <Globe className="w-3 h-3 text-[#CBD5E1]" />
                             {isArabic ? '🇲🇦 Arabic / Darija' : isFrench ? '🇫🇷 French' : '🇺🇸 English'}
                           </span>
@@ -365,7 +365,7 @@ export const MyPagesModal: React.FC<MyPagesModalProps> = ({
                             </a>
                           </div>
                         ) : (
-                          <span className="text-[10px] font-semibold text-[#CBD5E1] bg-slate-50 px-1.5 py-0.2 rounded border border-slate-100">
+                          <span className="text-[10px] font-semibold text-[#CBD5E1] bg-[#0D131E] px-1.5 py-0.2 rounded border border-[#1E293B]">
                             مسودة غير منشورة
                           </span>
                         )}
@@ -373,7 +373,7 @@ export const MyPagesModal: React.FC<MyPagesModalProps> = ({
                     </div>
 
                     {/* Card Actions Footer */}
-                    <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-2 mt-auto">
+                    <div className="pt-3 border-t border-[#1E293B] flex items-center justify-between gap-2 mt-auto">
                       <button
                         type="button"
                         onClick={() => {
@@ -395,7 +395,7 @@ export const MyPagesModal: React.FC<MyPagesModalProps> = ({
                         onClick={() => handleDuplicate(page.id)}
                         disabled={duplicatingId === page.id}
                         title="Duplicate Funnel"
-                        className="p-2 rounded-xl border border-slate-200 hover:border-slate-300 text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition cursor-pointer disabled:opacity-50"
+                        className="p-2 rounded-xl border border-[#1E293B] hover:border-[#334155] text-[#CBD5E1] hover:text-slate-900 hover:bg-[#0D131E] transition cursor-pointer disabled:opacity-50"
                       >
                         <Copy className="w-4 h-4" />
                       </button>
@@ -407,7 +407,7 @@ export const MyPagesModal: React.FC<MyPagesModalProps> = ({
                         className={`p-2 rounded-xl border transition cursor-pointer ${
                           deletingId === page.id
                             ? 'border-rose-500 bg-rose-50 text-rose-700 font-bold text-[11px] px-3'
-                            : 'border-slate-200 hover:border-rose-200 text-[#CBD5E1] hover:text-rose-600 hover:bg-rose-50'
+                            : 'border-[#1E293B] hover:border-rose-200 text-[#CBD5E1] hover:text-rose-600 hover:bg-rose-50'
                         }`}
                       >
                         {deletingId === page.id ? 'Confirm?' : <Trash2 className="w-4 h-4" />}
@@ -421,12 +421,12 @@ export const MyPagesModal: React.FC<MyPagesModalProps> = ({
         </div>
 
         {/* Modal Bottom Banner / Cloud Sync Info */}
-        <div className="px-6 py-3.5 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-xs text-[#CBD5E1]/70">
+        <div className="px-6 py-3.5 bg-[#0D131E] border-t border-[#1E293B] flex items-center justify-between text-xs text-[#CBD5E1]/70">
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-[#E25B26]" />
             <span>Permanent encrypted Cloud persistence • Continue your work from any PC or mobile</span>
           </div>
-          <span className="font-semibold text-slate-700">
+          <span className="font-semibold text-[#CBD5E1]">
             Total Pages: {userPages.length}
           </span>
         </div>

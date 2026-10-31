@@ -17,10 +17,10 @@ export const ProblemSolutionBlockView: React.FC<Props> = ({ block, theme, isRtl 
             {block.highlightBadge}
           </span>
         )}
-        <h2 className="text-3xl md:text-4xl font-black text-gray-900 mb-3 tracking-tight">
+        <h2 className="text-3xl md:text-4xl font-black text-[#F8FAFC] mb-3 tracking-tight">
           {block.title}
         </h2>
-        <p className="text-gray-600 text-sm md:text-base leading-relaxed">{block.subtitle}</p>
+        <p className="text-[#CBD5E1] text-sm md:text-base leading-relaxed">{block.subtitle}</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-stretch">

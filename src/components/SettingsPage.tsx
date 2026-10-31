@@ -907,7 +907,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                     <span className="px-2 py-0.5 rounded bg-[#E25B26]/15 text-[#E25B26] font-bold">A Record</span>
                     <span className="text-[#CBD5E1]">Host:</span>
                     <span className="text-white font-bold">@</span>
-                    <span className="text-slate-600">|</span>
+                    <span className="text-[#CBD5E1]">|</span>
                     <span className="text-[#CBD5E1]">Value / IP:</span>
                     <code className="px-2 py-0.5 rounded bg-[#0D131E] border border-[#E25B26]/30 text-[#E25B26] font-bold">
                       217.160.116.237
@@ -939,7 +939,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                     <span className="px-2 py-0.5 rounded bg-indigo-500/15 text-indigo-400 font-bold">CNAME</span>
                     <span className="text-[#CBD5E1]">Host:</span>
                     <span className="text-white font-bold">www (or subdomain)</span>
-                    <span className="text-slate-600">|</span>
+                    <span className="text-[#CBD5E1]">|</span>
                     <span className="text-[#CBD5E1]">Target:</span>
                     <code className="px-2 py-0.5 rounded bg-[#0D131E] border border-indigo-500/30 text-indigo-300 font-bold">
                       domains.codworth.me

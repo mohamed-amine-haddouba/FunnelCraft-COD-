@@ -215,17 +215,17 @@ export const BlocksToolbar: React.FC<Props> = ({
   return (
     <aside
       dir="rtl"
-      className="w-80 bg-white border-l border-slate-200/90 flex flex-col h-[calc(100vh-3.5rem)] sticky top-14 select-none shrink-0 shadow-xs"
+      className="w-80 bg-[#131B2A] border-l border-[#1E293B] flex flex-col h-[calc(100vh-3.5rem)] sticky top-14 select-none shrink-0 shadow-xs"
     >
       {/* Top Switcher Tabs (Blocks vs Ready Templates) */}
-      <div className="p-2.5 border-b border-slate-200 bg-slate-50/80 grid grid-cols-2 gap-1.5">
+      <div className="p-2.5 border-b border-[#1E293B] bg-[#0D131E]/80 grid grid-cols-2 gap-1.5">
         <button
           type="button"
           onClick={() => setActiveTab('blocks')}
           className={`py-2 px-3 rounded-xl text-xs font-extrabold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
             activeTab === 'blocks'
               ? 'bg-[#131B2A] text-white shadow-sm'
-              : 'text-slate-600 hover:bg-slate-200/60'
+              : 'text-[#CBD5E1] hover:bg-[#1E293B]/60'
           }`}
         >
           <Layers className="w-3.5 h-3.5" />
@@ -237,7 +237,7 @@ export const BlocksToolbar: React.FC<Props> = ({
           className={`py-2 px-3 rounded-xl text-xs font-extrabold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
             activeTab === 'templates'
               ? 'bg-[#131B2A] text-white shadow-sm'
-              : 'text-slate-600 hover:bg-slate-200/60'
+              : 'text-[#CBD5E1] hover:bg-[#1E293B]/60'
           }`}
         >
           <Sparkles className="w-3.5 h-3.5" />
@@ -248,7 +248,7 @@ export const BlocksToolbar: React.FC<Props> = ({
       {activeTab === 'blocks' ? (
         <>
           {/* Search Input & Category Filter Tabs */}
-          <div className="p-3 border-b border-slate-100 space-y-2.5 bg-white">
+          <div className="p-3 border-b border-[#1E293B] space-y-2.5 bg-[#131B2A]">
             {/* Search Bar */}
             <div className="relative">
               <Search className="w-3.5 h-3.5 text-[#CBD5E1] absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -258,13 +258,13 @@ export const BlocksToolbar: React.FC<Props> = ({
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="ابحث عن قسم (Hero, COD, FAQ...)"
                 aria-label="Search blocks"
-                className="w-full pr-8 pl-7 py-2 rounded-xl border border-slate-200 bg-slate-50/80 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 outline-none text-xs font-medium text-slate-800 transition-all"
+                className="w-full pr-8 pl-7 py-2 rounded-xl border border-[#1E293B] bg-[#0D131E]/80 focus:bg-[#131B2A] focus:border-[#E25B26] focus:ring-2 focus:ring-[#E25B26]/20 outline-none text-xs font-medium text-[#F8FAFC] transition-all"
               />
               {searchQuery && (
                 <button
                   type="button"
                   onClick={() => setSearchQuery('')}
-                  className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#CBD5E1] hover:text-slate-600 cursor-pointer"
+                  className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#CBD5E1] hover:text-[#CBD5E1] cursor-pointer"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
@@ -283,7 +283,7 @@ export const BlocksToolbar: React.FC<Props> = ({
                     className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
                       isActive
                         ? 'bg-blue-600 text-white shadow-xs'
-                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200/70'
+                        : 'bg-[#0D131E] text-[#CBD5E1] hover:bg-slate-200/70'
                     }`}
                   >
                     {tab.label}
@@ -312,7 +312,7 @@ export const BlocksToolbar: React.FC<Props> = ({
                       e.dataTransfer.effectAllowed = 'copy';
                     }}
                     onClick={() => onAddBlock(item.type)}
-                    className="w-full text-right p-3 rounded-xl border border-slate-200/90 hover:border-blue-500/80 hover:bg-blue-50/20 transition-all group flex items-start gap-2.5 cursor-grab active:cursor-grabbing bg-white shadow-2xs hover:shadow-md"
+                    className="w-full text-right p-3 rounded-xl border border-[#1E293B] hover:border-[#E25B26]/80 hover:bg-[#E25B26]/10 transition-all group flex items-start gap-2.5 cursor-grab active:cursor-grabbing bg-[#131B2A] shadow-2xs hover:shadow-md"
                   >
                     {/* Minimalist Drag Handle */}
                     <div
@@ -332,7 +332,7 @@ export const BlocksToolbar: React.FC<Props> = ({
                     {/* Labels & Category Tag */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-1">
-                        <span className="text-xs font-extrabold text-slate-800 group-hover:text-blue-700 truncate">
+                        <span className="text-xs font-extrabold text-[#F8FAFC] group-hover:text-blue-700 truncate">
                           {item.label}
                         </span>
                         <Plus className="w-3.5 h-3.5 text-[#CBD5E1] group-hover:text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
@@ -350,14 +350,14 @@ export const BlocksToolbar: React.FC<Props> = ({
             )}
           </div>
 
-          <div className="p-3 bg-slate-50 border-t border-slate-200 text-[11px] text-[#CBD5E1]/70 text-center font-medium">
+          <div className="p-3 bg-[#0D131E] border-t border-[#1E293B] text-[11px] text-[#CBD5E1]/70 text-center font-medium">
             💡 اسحب أي قسم وأفلته داخل مساحة العمل أو اضغط لإضافته
           </div>
         </>
       ) : (
         <>
-          <div className="px-4 py-3 border-b border-slate-100">
-            <h2 className="text-xs font-extrabold uppercase tracking-wider text-slate-700">
+          <div className="px-4 py-3 border-b border-[#1E293B]">
+            <h2 className="text-xs font-extrabold uppercase tracking-wider text-[#CBD5E1]">
               قوالب احترافية عالية التحويل
             </h2>
             <p className="text-[11px] text-[#CBD5E1] mt-0.5">
@@ -375,7 +375,7 @@ export const BlocksToolbar: React.FC<Props> = ({
                   className={`group rounded-2xl border overflow-hidden transition-all cursor-pointer ${
                     isSelected
                       ? 'border-blue-600 ring-2 ring-blue-500/20 bg-blue-50/20'
-                      : 'border-slate-200 hover:border-blue-400 bg-white hover:shadow-md'
+                      : 'border-[#1E293B] hover:border-[#E25B26] bg-[#131B2A] hover:shadow-md'
                   }`}
                 >
                   <div className="relative h-24 w-full overflow-hidden bg-[#131B2A]">

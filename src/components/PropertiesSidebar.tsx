@@ -128,16 +128,16 @@ export const CollapsibleAccordion: React.FC<{
 }> = ({ title, subtitle, icon, defaultOpen = true, children }) => {
   const [isOpen, setIsOpen] = useState(defaultOpen);
   return (
-    <div className="border border-slate-200/90 rounded-xl bg-white overflow-hidden shadow-2xs">
+    <div className="border border-[#1E293B] rounded-xl bg-[#131B2A] overflow-hidden shadow-2xs">
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full px-3 py-2.5 bg-slate-50/90 hover:bg-slate-100/80 flex items-center justify-between gap-2 transition-colors cursor-pointer"
+        className="w-full px-3 py-2.5 bg-[#0D131E]/90 hover:bg-[#0D131E]/80 flex items-center justify-between gap-2 transition-colors cursor-pointer"
       >
         <div className="flex items-center gap-2 min-w-0">
           {icon && <span className="text-blue-600 shrink-0">{icon}</span>}
           <div className="text-right min-w-0">
-            <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-800 block truncate">
+            <span className="text-[11px] font-extrabold uppercase tracking-wider text-[#F8FAFC] block truncate">
               {title}
             </span>
             {subtitle && (
@@ -153,7 +153,7 @@ export const CollapsibleAccordion: React.FC<{
           <ChevronDown className="w-3.5 h-3.5 text-[#CBD5E1] shrink-0" />
         )}
       </button>
-      {isOpen && <div className="p-3 space-y-3 border-t border-slate-100">{children}</div>}
+      {isOpen && <div className="p-3 space-y-3 border-t border-[#1E293B]">{children}</div>}
     </div>
   );
 };
@@ -168,7 +168,7 @@ export const ColorWithHexInput: React.FC<{
   return (
     <div>
       <div className="flex items-center justify-between mb-1">
-        <label className="text-[11px] font-bold text-slate-700">{label}</label>
+        <label className="text-[11px] font-bold text-[#CBD5E1]">{label}</label>
         {value && (
           <button
             type="button"
@@ -184,7 +184,7 @@ export const ColorWithHexInput: React.FC<{
           type="color"
           value={activeColor}
           onChange={(e) => onChange(e.target.value)}
-          className="w-9 h-8 rounded-lg border border-slate-200 cursor-pointer p-0.5 bg-white shrink-0"
+          className="w-9 h-8 rounded-lg border border-[#1E293B] cursor-pointer p-0.5 bg-[#131B2A] shrink-0"
         />
         <input
           type="text"
@@ -195,7 +195,7 @@ export const ColorWithHexInput: React.FC<{
             onChange(v || undefined);
           }}
           placeholder="#ffffff"
-          className="flex-1 h-8 px-2.5 rounded-lg border border-slate-200 bg-slate-50/70 focus:bg-white text-[11px] font-mono text-slate-800 outline-none focus:border-blue-500"
+          className="flex-1 h-8 px-2.5 rounded-lg border border-[#1E293B] bg-[#0D131E]/70 focus:bg-[#131B2A] text-[11px] font-mono text-[#F8FAFC] outline-none focus:border-[#E25B26]"
         />
       </div>
     </div>
@@ -214,7 +214,7 @@ export const SliderWithNumericInput: React.FC<{
   return (
     <div>
       <div className="flex items-center justify-between mb-1.5">
-        <label className="text-[11px] font-bold text-slate-700">{label}</label>
+        <label className="text-[11px] font-bold text-[#CBD5E1]">{label}</label>
         <div className="flex items-center gap-1" dir="ltr">
           <input
             type="number"
@@ -228,7 +228,7 @@ export const SliderWithNumericInput: React.FC<{
                 onChange(Math.max(min, Math.min(max, num)));
               }
             }}
-            className="w-14 h-6 px-1.5 rounded-md border border-slate-200 bg-white text-[11px] font-mono font-bold text-center text-slate-800 outline-none focus:border-blue-500"
+            className="w-14 h-6 px-1.5 rounded-md border border-[#1E293B] bg-[#131B2A] text-[11px] font-mono font-bold text-center text-[#F8FAFC] outline-none focus:border-[#E25B26]"
           />
           <span className="text-[10px] font-mono text-[#CBD5E1]">{unit}</span>
         </div>
@@ -256,7 +256,7 @@ export const ModernToggleSwitch: React.FC<{
   return (
     <div className="flex items-center justify-between gap-2 py-1">
       <div className="min-w-0">
-        <div className="text-[11px] font-bold text-slate-800">{label}</div>
+        <div className="text-[11px] font-bold text-[#F8FAFC]">{label}</div>
         {description && <div className="text-[10px] text-[#CBD5E1] leading-tight">{description}</div>}
       </div>
       <button
@@ -270,7 +270,7 @@ export const ModernToggleSwitch: React.FC<{
         }`}
       >
         <span
-          className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+          className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-[#131B2A] shadow ring-0 transition duration-200 ease-in-out ${
             checked ? '-translate-x-4' : 'translate-x-0'
           }`}
         />
@@ -300,7 +300,7 @@ const BlockStyleAccordions: React.FC<{
         defaultOpen={false}
       >
         <div>
-          <label className="block text-[11px] font-bold text-slate-700 mb-1.5">
+          <label className="block text-[11px] font-bold text-[#CBD5E1] mb-1.5">
             Text Alignment (محاذاة النص)
           </label>
           <div className="grid grid-cols-3 gap-1.5">
@@ -318,8 +318,8 @@ const BlockStyleAccordions: React.FC<{
                   onClick={() => onUpdate({ ...block, textAlign: opt.value })}
                   className={`h-8 px-2 rounded-lg border text-[11px] font-bold flex items-center justify-center gap-1 transition cursor-pointer ${
                     active
-                      ? 'bg-blue-600 text-slate-800 border-blue-600 shadow-xs'
-                      : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
+                      ? 'bg-blue-600 text-[#F8FAFC] border-blue-600 shadow-xs'
+                      : 'bg-[#131B2A] text-[#CBD5E1] border-[#1E293B] hover:bg-[#0D131E]'
                   }`}
                 >
                   <Icon className="w-3.5 h-3.5" />
@@ -421,7 +421,7 @@ const BlockStyleAccordions: React.FC<{
                 borderRadiusPx: undefined,
               })
             }
-            className="w-full py-1.5 px-3 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-bold flex items-center justify-center gap-1.5 transition cursor-pointer"
+            className="w-full py-1.5 px-3 rounded-lg bg-[#0D131E] hover:bg-slate-200 text-[#CBD5E1] text-[11px] font-bold flex items-center justify-center gap-1.5 transition cursor-pointer"
           >
             <RotateCcw className="w-3 h-3" />
             <span>Reset Style Overrides</span>
@@ -515,9 +515,9 @@ export const PropertiesSidebar: React.FC<Props> = ({
     return (
       <aside
         dir="rtl"
-        className="w-[320px] shrink-0 bg-white border-l border-slate-200 flex flex-col h-full min-h-0 select-none overflow-y-auto overflow-x-hidden sticky top-14"
+        className="w-[320px] shrink-0 bg-[#131B2A] border-l border-[#1E293B] flex flex-col h-full min-h-0 select-none overflow-y-auto overflow-x-hidden sticky top-14"
       >
-        <div className="px-3.5 py-3 border-b border-slate-200 flex items-center justify-between bg-slate-50/95 sticky top-0 z-20 backdrop-blur-sm">
+        <div className="px-3.5 py-3 border-b border-[#1E293B] flex items-center justify-between bg-[#0D131E]/95 sticky top-0 z-20 backdrop-blur-sm">
           <div className="flex items-center gap-2 min-w-0">
             <Palette className="w-4 h-4 text-blue-600 shrink-0" />
             <h3 className="text-xs font-black text-slate-900 truncate">
@@ -528,7 +528,7 @@ export const PropertiesSidebar: React.FC<Props> = ({
             <button
               type="button"
               onClick={onCollapse}
-              className="p-1 text-[#CBD5E1] hover:text-slate-700 rounded-md hover:bg-slate-100 transition cursor-pointer shrink-0"
+              className="p-1 text-[#CBD5E1] hover:text-[#CBD5E1] rounded-md hover:bg-[#0D131E] transition cursor-pointer shrink-0"
               title="إخفاء القائمة الجانبية"
             >
               <PanelRightClose className="w-4 h-4" />
@@ -545,20 +545,20 @@ export const PropertiesSidebar: React.FC<Props> = ({
             defaultOpen={true}
           >
             <div>
-              <label className="block text-[11px] font-bold text-slate-700 mb-1">
+              <label className="block text-[11px] font-bold text-[#CBD5E1] mb-1">
                 عنوان صفحة الهبوط (Page Title)
               </label>
               <input
                 type="text"
                 value={pageData.title}
                 onChange={(e) => onUpdatePageMeta({ title: e.target.value })}
-                className="w-full h-8 px-2.5 py-1 rounded-lg border border-slate-200 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none text-xs bg-white font-semibold"
+                className="w-full h-8 px-2.5 py-1 rounded-lg border border-[#1E293B] focus:ring-1 focus:ring-blue-500 focus:border-[#E25B26] outline-none text-xs bg-[#131B2A] font-semibold"
               />
             </div>
 
             <div className="grid grid-cols-2 gap-2">
               <div className="min-w-0">
-                <label className="block text-[11px] font-bold text-slate-700 mb-1 truncate">
+                <label className="block text-[11px] font-bold text-[#CBD5E1] mb-1 truncate">
                   لغة الصفحة
                 </label>
                 <select
@@ -570,7 +570,7 @@ export const PropertiesSidebar: React.FC<Props> = ({
                       direction: lang === 'ar' ? 'rtl' : 'ltr',
                     });
                   }}
-                  className="w-full h-8 px-2 py-1 rounded-lg border border-slate-200 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none text-xs bg-white"
+                  className="w-full h-8 px-2 py-1 rounded-lg border border-[#1E293B] focus:ring-1 focus:ring-blue-500 focus:border-[#E25B26] outline-none text-xs bg-[#131B2A]"
                 >
                   <option value="ar">العربية (RTL)</option>
                   <option value="fr">Français (LTR)</option>
@@ -579,7 +579,7 @@ export const PropertiesSidebar: React.FC<Props> = ({
               </div>
 
               <div className="min-w-0">
-                <label className="block text-[11px] font-bold text-slate-700 mb-1 truncate">
+                <label className="block text-[11px] font-bold text-[#CBD5E1] mb-1 truncate">
                   اتجاه النص
                 </label>
                 <select
@@ -587,7 +587,7 @@ export const PropertiesSidebar: React.FC<Props> = ({
                   onChange={(e) =>
                     onUpdatePageMeta({ direction: e.target.value as 'ltr' | 'rtl' })
                   }
-                  className="w-full h-8 px-2 py-1 rounded-lg border border-slate-200 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none text-xs bg-white"
+                  className="w-full h-8 px-2 py-1 rounded-lg border border-[#1E293B] focus:ring-1 focus:ring-blue-500 focus:border-[#E25B26] outline-none text-xs bg-[#131B2A]"
                 >
                   <option value="rtl">من اليمين لليسار (RTL)</option>
                   <option value="ltr">من اليسار لليمين (LTR)</option>
@@ -596,7 +596,7 @@ export const PropertiesSidebar: React.FC<Props> = ({
             </div>
 
             {/* Remove Platform Watermark */}
-            <div className="relative rounded-xl p-2.5 border border-slate-200 bg-slate-50/70">
+            <div className="relative rounded-xl p-2.5 border border-[#1E293B] bg-[#0D131E]/70">
               <ModernToggleSwitch
                 label="إزالة العلامة المائية (Watermark)"
                 description="إخفاء شعار المنصة أسفل صفحة الهبوط"
@@ -622,7 +622,7 @@ export const PropertiesSidebar: React.FC<Props> = ({
             defaultOpen={true}
           >
             <div>
-              <label className="block text-[11px] font-bold text-slate-700 mb-1">
+              <label className="block text-[11px] font-bold text-[#CBD5E1] mb-1">
                 نوع الخط (Font Family)
               </label>
               <select
@@ -633,7 +633,7 @@ export const PropertiesSidebar: React.FC<Props> = ({
                     fontFamily: e.target.value as PageTheme['fontFamily'],
                   })
                 }
-                className="w-full h-8.5 px-2.5 py-1 rounded-lg border border-slate-200 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none text-xs bg-white font-bold text-slate-800 cursor-pointer"
+                className="w-full h-8.5 px-2.5 py-1 rounded-lg border border-[#1E293B] focus:ring-1 focus:ring-blue-500 focus:border-[#E25B26] outline-none text-xs bg-[#131B2A] font-bold text-[#F8FAFC] cursor-pointer"
               >
                 {FONT_FAMILY_OPTIONS.map((font) => (
                   <option key={font.value} value={font.value}>
@@ -644,7 +644,7 @@ export const PropertiesSidebar: React.FC<Props> = ({
             </div>
 
             <div>
-              <label className="block text-[10px] font-bold text-slate-600 mb-1.5">
+              <label className="block text-[10px] font-bold text-[#CBD5E1] mb-1.5">
                 حجم الخط العام (Font Size)
               </label>
               <div className="grid grid-cols-4 gap-1">
@@ -662,8 +662,8 @@ export const PropertiesSidebar: React.FC<Props> = ({
                       }
                       className={`h-7.5 px-1.5 rounded-lg border text-[10px] font-bold transition cursor-pointer ${
                         active
-                          ? 'bg-blue-600 text-slate-800 border-blue-600 shadow-2xs'
-                          : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
+                          ? 'bg-blue-600 text-[#F8FAFC] border-blue-600 shadow-2xs'
+                          : 'bg-[#131B2A] text-[#CBD5E1] border-[#1E293B] hover:bg-[#0D131E]'
                       }`}
                     >
                       {size.label}
@@ -689,7 +689,7 @@ export const PropertiesSidebar: React.FC<Props> = ({
             defaultOpen={false}
           >
             <div>
-              <label className="block text-[11px] font-bold text-slate-700 mb-1.5">
+              <label className="block text-[11px] font-bold text-[#CBD5E1] mb-1.5">
                 تباعد الأقسام (Section Spacing)
               </label>
               <div className="grid grid-cols-3 gap-1.5">
@@ -707,8 +707,8 @@ export const PropertiesSidebar: React.FC<Props> = ({
                       }
                       className={`h-8 px-1.5 rounded-lg border text-[10px] font-bold transition cursor-pointer ${
                         active
-                          ? 'bg-blue-600 text-slate-800 border-blue-600 shadow-2xs'
-                          : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
+                          ? 'bg-blue-600 text-[#F8FAFC] border-blue-600 shadow-2xs'
+                          : 'bg-[#131B2A] text-[#CBD5E1] border-[#1E293B] hover:bg-[#0D131E]'
                       }`}
                     >
                       {sp.label}
@@ -719,7 +719,7 @@ export const PropertiesSidebar: React.FC<Props> = ({
             </div>
 
             <div>
-              <label className="block text-[11px] font-bold text-slate-700 mb-1.5">
+              <label className="block text-[11px] font-bold text-[#CBD5E1] mb-1.5">
                 استدارة الحواف والأزرار (Border Radius)
               </label>
               <div className="grid grid-cols-5 gap-1">
@@ -737,8 +737,8 @@ export const PropertiesSidebar: React.FC<Props> = ({
                       }
                       className={`h-7.5 px-1 rounded-lg border text-[10px] font-bold transition cursor-pointer ${
                         active
-                          ? 'bg-blue-600 text-slate-800 border-blue-600 shadow-2xs'
-                          : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
+                          ? 'bg-blue-600 text-[#F8FAFC] border-blue-600 shadow-2xs'
+                          : 'bg-[#131B2A] text-[#CBD5E1] border-[#1E293B] hover:bg-[#0D131E]'
                       }`}
                     >
                       {rad.label}
@@ -757,7 +757,7 @@ export const PropertiesSidebar: React.FC<Props> = ({
             defaultOpen={true}
           >
             <div>
-              <label className="block text-[11px] font-bold text-slate-700 mb-1.5">
+              <label className="block text-[11px] font-bold text-[#CBD5E1] mb-1.5">
                 قوالب الألوان الجاهزة (6 Palettes)
               </label>
               <div className="grid grid-cols-3 gap-1.5">
@@ -778,7 +778,7 @@ export const PropertiesSidebar: React.FC<Props> = ({
                       className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg border text-right transition cursor-pointer min-w-0 ${
                         isActive
                           ? 'border-blue-600 bg-blue-50/80 ring-1 ring-blue-600'
-                          : 'border-slate-200 bg-white hover:border-slate-300'
+                          : 'border-[#1E293B] bg-[#131B2A] hover:border-[#334155]'
                       }`}
                     >
                       <div className="flex items-center -space-x-1 space-x-reverse shrink-0">
@@ -791,7 +791,7 @@ export const PropertiesSidebar: React.FC<Props> = ({
                           style={{ backgroundColor: p.secondary }}
                         />
                       </div>
-                      <span className="text-[10px] font-bold text-slate-800 truncate">
+                      <span className="text-[10px] font-bold text-[#F8FAFC] truncate">
                         {p.label}
                       </span>
                     </button>
@@ -816,10 +816,10 @@ export const PropertiesSidebar: React.FC<Props> = ({
           </CollapsibleAccordion>
 
           {/* Tracking Pixels (Facebook & TikTok Pixel) - Pro / Enterprise Only */}
-          <div className="relative rounded-xl p-3 border border-slate-200 bg-slate-50/70 space-y-2.5">
+          <div className="relative rounded-xl p-3 border border-[#1E293B] bg-[#0D131E]/70 space-y-2.5">
             <div className="flex items-center justify-between gap-2">
               <div>
-                <div className="text-[11px] font-black text-slate-800 flex items-center gap-1.5">
+                <div className="text-[11px] font-black text-[#F8FAFC] flex items-center gap-1.5">
                   <span>بيكسل التتبع (Facebook & TikTok Pixels)</span>
                   {!effectivePixelsUnlocked && (
                     <span className="inline-flex items-center gap-0.5 text-[9px] font-black px-1.5 py-0.5 rounded bg-amber-100 text-amber-800">
@@ -835,7 +835,7 @@ export const PropertiesSidebar: React.FC<Props> = ({
 
             <div className="space-y-2" dir="ltr">
               <div>
-                <label className="block text-[10px] font-bold text-slate-600 mb-0.5">
+                <label className="block text-[10px] font-bold text-[#CBD5E1] mb-0.5">
                   Facebook Pixel ID
                 </label>
                 <input
@@ -851,12 +851,12 @@ export const PropertiesSidebar: React.FC<Props> = ({
                       },
                     })
                   }
-                  className="w-full h-8 px-2.5 py-1 rounded-lg border border-slate-200 bg-white text-xs font-mono outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50"
+                  className="w-full h-8 px-2.5 py-1 rounded-lg border border-[#1E293B] bg-[#131B2A] text-xs font-mono outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50"
                 />
               </div>
 
               <div>
-                <label className="block text-[10px] font-bold text-slate-600 mb-0.5">
+                <label className="block text-[10px] font-bold text-[#CBD5E1] mb-0.5">
                   TikTok Pixel ID
                 </label>
                 <input
@@ -872,7 +872,7 @@ export const PropertiesSidebar: React.FC<Props> = ({
                       },
                     })
                   }
-                  className="w-full h-8 px-2.5 py-1 rounded-lg border border-slate-200 bg-white text-xs font-mono outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50"
+                  className="w-full h-8 px-2.5 py-1 rounded-lg border border-[#1E293B] bg-[#131B2A] text-xs font-mono outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50"
                 />
               </div>
             </div>
@@ -883,7 +883,7 @@ export const PropertiesSidebar: React.FC<Props> = ({
                   type="button"
                   onClick={handleSavePixelsToCloud}
                   disabled={savingPixels}
-                  className="w-full py-1.5 px-3 rounded-lg bg-[#E25B26] hover:bg-[#F16F3C] text-slate-800 font-bold text-[11px] transition cursor-pointer disabled:opacity-50"
+                  className="w-full py-1.5 px-3 rounded-lg bg-[#E25B26] hover:bg-[#F16F3C] text-[#F8FAFC] font-bold text-[11px] transition cursor-pointer disabled:opacity-50"
                 >
                   {savingPixels ? 'جاري حفظ البيكسل...' : 'حفظ وتفعيل البيكسل'}
                 </button>
@@ -924,9 +924,9 @@ export const PropertiesSidebar: React.FC<Props> = ({
   return (
     <aside
       dir="rtl"
-      className="w-[320px] shrink-0 bg-white border-l border-slate-200 flex flex-col h-full min-h-0 select-none overflow-y-auto overflow-x-hidden sticky top-14"
+      className="w-[320px] shrink-0 bg-[#131B2A] border-l border-[#1E293B] flex flex-col h-full min-h-0 select-none overflow-y-auto overflow-x-hidden sticky top-14"
     >
-      <div className="px-3.5 py-2.5 border-b border-slate-200 flex items-center justify-between bg-slate-50/95 sticky top-0 z-20 backdrop-blur-sm">
+      <div className="px-3.5 py-2.5 border-b border-[#1E293B] flex items-center justify-between bg-[#0D131E]/95 sticky top-0 z-20 backdrop-blur-sm">
         <div className="flex items-center gap-1.5 min-w-0">
           <Sliders className="w-3.5 h-3.5 text-blue-600 shrink-0" />
           <div className="min-w-0">
@@ -949,7 +949,7 @@ export const PropertiesSidebar: React.FC<Props> = ({
           <button
             type="button"
             onClick={onClose}
-            className="p-1 text-[#CBD5E1] hover:text-slate-700 rounded-md hover:bg-slate-100 transition cursor-pointer"
+            className="p-1 text-[#CBD5E1] hover:text-[#CBD5E1] rounded-md hover:bg-[#0D131E] transition cursor-pointer"
             title="إلغاء تحديد القسم"
           >
             <X className="w-3.5 h-3.5" />
@@ -958,7 +958,7 @@ export const PropertiesSidebar: React.FC<Props> = ({
             <button
               type="button"
               onClick={onCollapse}
-              className="p-1 text-[#CBD5E1] hover:text-slate-700 rounded-md hover:bg-slate-100 transition cursor-pointer"
+              className="p-1 text-[#CBD5E1] hover:text-[#CBD5E1] rounded-md hover:bg-[#0D131E] transition cursor-pointer"
               title="إخفاء القائمة الجانبية"
             >
               <PanelRightClose className="w-3.5 h-3.5" />
@@ -1040,14 +1040,14 @@ const PromoBarEditor: React.FC<{
   return (
     <div className="space-y-3">
       <div>
-        <label className="block text-[11px] font-bold text-slate-700 mb-1">
+        <label className="block text-[11px] font-bold text-[#CBD5E1] mb-1">
           نص الشريط الإعلاني
         </label>
         <textarea
           rows={2}
           value={block.text}
           onChange={(e) => onUpdate({ ...block, text: e.target.value })}
-          className="w-full px-2 py-1 rounded-lg border border-slate-200 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none text-xs bg-white"
+          className="w-full px-2 py-1 rounded-lg border border-[#1E293B] focus:ring-1 focus:ring-blue-500 focus:border-[#E25B26] outline-none text-xs bg-[#131B2A]"
         />
       </div>
 
@@ -1075,14 +1075,14 @@ const PromoBarEditor: React.FC<{
       />
 
       <div>
-        <label className="block text-[11px] font-bold text-slate-700 mb-1">
+        <label className="block text-[11px] font-bold text-[#CBD5E1] mb-1">
           تنبيه ندرة المخزون
         </label>
         <input
           type="text"
           value={block.stockWarning}
           onChange={(e) => onUpdate({ ...block, stockWarning: e.target.value })}
-          className="w-full h-8 px-2 py-1 rounded-lg border border-slate-200 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none text-xs bg-white"
+          className="w-full h-8 px-2 py-1 rounded-lg border border-[#1E293B] focus:ring-1 focus:ring-blue-500 focus:border-[#E25B26] outline-none text-xs bg-[#131B2A]"
           placeholder="مثال: متبقي 7 قطع فقط"
         />
       </div>
@@ -1113,37 +1113,37 @@ const HeroEditor: React.FC<{
   return (
     <div className="space-y-3">
       <div>
-        <label className="block text-[11px] font-bold text-slate-700 mb-1">شارة العرض العلوية</label>
+        <label className="block text-[11px] font-bold text-[#CBD5E1] mb-1">شارة العرض العلوية</label>
         <input
           type="text"
           value={block.badge}
           onChange={(e) => onUpdate({ ...block, badge: e.target.value })}
-          className="w-full h-8 px-2 py-1 rounded-lg border border-slate-200 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none text-xs bg-white"
+          className="w-full h-8 px-2 py-1 rounded-lg border border-[#1E293B] focus:ring-1 focus:ring-blue-500 focus:border-[#E25B26] outline-none text-xs bg-[#131B2A]"
         />
       </div>
 
       <div>
-        <label className="block text-[11px] font-bold text-slate-700 mb-1">العنوان الرئيسي</label>
+        <label className="block text-[11px] font-bold text-[#CBD5E1] mb-1">العنوان الرئيسي</label>
         <textarea
           rows={2}
           value={block.headline}
           onChange={(e) => onUpdate({ ...block, headline: e.target.value })}
-          className="w-full px-2 py-1 rounded-lg border border-slate-200 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none text-xs font-bold bg-white"
+          className="w-full px-2 py-1 rounded-lg border border-[#1E293B] focus:ring-1 focus:ring-blue-500 focus:border-[#E25B26] outline-none text-xs font-bold bg-[#131B2A]"
         />
       </div>
 
       <div>
-        <label className="block text-[11px] font-bold text-slate-700 mb-1">الوصف الفرعي</label>
+        <label className="block text-[11px] font-bold text-[#CBD5E1] mb-1">الوصف الفرعي</label>
         <textarea
           rows={2}
           value={block.subheadline}
           onChange={(e) => onUpdate({ ...block, subheadline: e.target.value })}
-          className="w-full px-2 py-1 rounded-lg border border-slate-200 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none text-xs bg-white"
+          className="w-full px-2 py-1 rounded-lg border border-[#1E293B] focus:ring-1 focus:ring-blue-500 focus:border-[#E25B26] outline-none text-xs bg-[#131B2A]"
         />
       </div>
 
       <div>
-        <label className="block text-[11px] font-bold text-slate-700 mb-1">
+        <label className="block text-[11px] font-bold text-[#CBD5E1] mb-1">
           الوصف الكامل للمنتج (Full Description)
         </label>
         <textarea
@@ -1151,14 +1151,14 @@ const HeroEditor: React.FC<{
           value={block.description || ''}
           onChange={(e) => onUpdate({ ...block, description: e.target.value })}
           placeholder="تفاصيل المنتج الكاملة المستخرجة من المتجر..."
-          className="w-full px-2 py-1 rounded-lg border border-slate-200 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none text-xs bg-white"
+          className="w-full px-2 py-1 rounded-lg border border-[#1E293B] focus:ring-1 focus:ring-blue-500 focus:border-[#E25B26] outline-none text-xs bg-[#131B2A]"
         />
       </div>
 
       {/* Compact 3-Column Row: Discount Price, Original Price, Currency */}
       <div className="grid grid-cols-3 gap-1.5 items-end">
         <div className="min-w-0">
-          <label className="block text-[10px] font-bold text-slate-700 mb-1 truncate">
+          <label className="block text-[10px] font-bold text-[#CBD5E1] mb-1 truncate">
             سعر التخفيض
           </label>
           <input
@@ -1167,12 +1167,12 @@ const HeroEditor: React.FC<{
             onChange={(e) =>
               onUpdate({ ...block, priceDiscounted: Number(e.target.value) || 0 })
             }
-            className="w-full h-8 px-2 py-1 rounded-lg border border-slate-200 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none text-xs font-mono font-bold text-[#E25B26] bg-white"
+            className="w-full h-8 px-2 py-1 rounded-lg border border-[#1E293B] focus:ring-1 focus:ring-blue-500 focus:border-[#E25B26] outline-none text-xs font-mono font-bold text-[#E25B26] bg-[#131B2A]"
           />
         </div>
 
         <div className="min-w-0">
-          <label className="block text-[10px] font-bold text-slate-700 mb-1 truncate">
+          <label className="block text-[10px] font-bold text-[#CBD5E1] mb-1 truncate">
             السعر الأصلي
           </label>
           <input
@@ -1181,49 +1181,49 @@ const HeroEditor: React.FC<{
             onChange={(e) =>
               onUpdate({ ...block, priceOriginal: Number(e.target.value) || 0 })
             }
-            className="w-full h-8 px-2 py-1 rounded-lg border border-slate-200 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none text-xs font-mono text-[#CBD5E1]/70 bg-white"
+            className="w-full h-8 px-2 py-1 rounded-lg border border-[#1E293B] focus:ring-1 focus:ring-blue-500 focus:border-[#E25B26] outline-none text-xs font-mono text-[#CBD5E1]/70 bg-[#131B2A]"
           />
         </div>
 
         <div className="min-w-0">
-          <label className="block text-[10px] font-bold text-slate-700 mb-1 truncate">
+          <label className="block text-[10px] font-bold text-[#CBD5E1] mb-1 truncate">
             العملة
           </label>
           <input
             type="text"
             value={block.currency}
             onChange={(e) => onUpdate({ ...block, currency: e.target.value })}
-            className="w-full h-8 px-2 py-1 rounded-lg border border-slate-200 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none text-xs font-mono bg-white"
+            className="w-full h-8 px-2 py-1 rounded-lg border border-[#1E293B] focus:ring-1 focus:ring-blue-500 focus:border-[#E25B26] outline-none text-xs font-mono bg-[#131B2A]"
           />
         </div>
       </div>
 
       <div>
-        <label className="block text-[11px] font-bold text-slate-700 mb-1">نص زر الشراء (CTA)</label>
+        <label className="block text-[11px] font-bold text-[#CBD5E1] mb-1">نص زر الشراء (CTA)</label>
         <input
           type="text"
           value={block.ctaText}
           onChange={(e) => onUpdate({ ...block, ctaText: e.target.value })}
-          className="w-full h-8 px-2 py-1 rounded-lg border border-slate-200 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none text-xs font-bold bg-white"
+          className="w-full h-8 px-2 py-1 rounded-lg border border-[#1E293B] focus:ring-1 focus:ring-blue-500 focus:border-[#E25B26] outline-none text-xs font-bold bg-[#131B2A]"
         />
       </div>
 
       <div>
-        <label className="block text-[11px] font-bold text-slate-700 mb-1">
+        <label className="block text-[11px] font-bold text-[#CBD5E1] mb-1">
           نص الطمأنة أسفل الزر
         </label>
         <input
           type="text"
           value={block.ctaSubtext}
           onChange={(e) => onUpdate({ ...block, ctaSubtext: e.target.value })}
-          className="w-full h-8 px-2 py-1 rounded-lg border border-slate-200 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none text-xs bg-white"
+          className="w-full h-8 px-2 py-1 rounded-lg border border-[#1E293B] focus:ring-1 focus:ring-blue-500 focus:border-[#E25B26] outline-none text-xs bg-[#131B2A]"
         />
       </div>
 
       {/* Image Gallery URLs */}
-      <div className="space-y-2 pt-1 border-t border-slate-100">
+      <div className="space-y-2 pt-1 border-t border-[#1E293B]">
         <div className="flex items-center justify-between">
-          <label className="text-[11px] font-bold text-slate-700 flex items-center gap-1">
+          <label className="text-[11px] font-bold text-[#CBD5E1] flex items-center gap-1">
             <ImageIcon className="w-3.5 h-3.5 text-blue-600" />
             <span>معرض صور المنتج ({block.images.length})</span>
           </label>
@@ -1250,7 +1250,7 @@ const HeroEditor: React.FC<{
               <img
                 src={img}
                 alt={`Thumb ${idx + 1}`}
-                className="w-7 h-7 rounded-md object-cover border border-slate-200 shrink-0 bg-slate-100"
+                className="w-7 h-7 rounded-md object-cover border border-[#1E293B] shrink-0 bg-[#0D131E]"
               />
               <input
                 type="text"
@@ -1261,7 +1261,7 @@ const HeroEditor: React.FC<{
                   updated[idx] = e.target.value;
                   onUpdate({ ...block, images: updated });
                 }}
-                className="flex-1 h-7.5 px-2 py-1 rounded-lg border border-slate-200 text-[11px] font-mono truncate bg-white outline-none focus:border-blue-500"
+                className="flex-1 h-7.5 px-2 py-1 rounded-lg border border-[#1E293B] text-[11px] font-mono truncate bg-[#131B2A] outline-none focus:border-[#E25B26]"
               />
               {block.images.length > 1 && (
                 <button
@@ -1291,22 +1291,22 @@ const ProblemSolutionEditor: React.FC<{
   return (
     <div className="space-y-3">
       <div>
-        <label className="block text-[11px] font-bold text-slate-700 mb-1">عنوان القسم</label>
+        <label className="block text-[11px] font-bold text-[#CBD5E1] mb-1">عنوان القسم</label>
         <input
           type="text"
           value={block.title}
           onChange={(e) => onUpdate({ ...block, title: e.target.value })}
-          className="w-full h-8 px-2 py-1 rounded-lg border border-slate-200 text-xs outline-none focus:border-blue-500 bg-white"
+          className="w-full h-8 px-2 py-1 rounded-lg border border-[#1E293B] text-xs outline-none focus:border-[#E25B26] bg-[#131B2A]"
         />
       </div>
 
       <div>
-        <label className="block text-[11px] font-bold text-slate-700 mb-1">شارة التميز</label>
+        <label className="block text-[11px] font-bold text-[#CBD5E1] mb-1">شارة التميز</label>
         <input
           type="text"
           value={block.highlightBadge}
           onChange={(e) => onUpdate({ ...block, highlightBadge: e.target.value })}
-          className="w-full h-8 px-2 py-1 rounded-lg border border-slate-200 text-xs outline-none focus:border-blue-500 bg-white"
+          className="w-full h-8 px-2 py-1 rounded-lg border border-[#1E293B] text-xs outline-none focus:border-[#E25B26] bg-[#131B2A]"
         />
       </div>
 
@@ -1316,7 +1316,7 @@ const ProblemSolutionEditor: React.FC<{
           type="text"
           value={block.problemTitle}
           onChange={(e) => onUpdate({ ...block, problemTitle: e.target.value })}
-          className="w-full h-8 px-2 py-1 rounded-lg border border-red-200 text-xs outline-none focus:border-red-400 bg-white"
+          className="w-full h-8 px-2 py-1 rounded-lg border border-red-200 text-xs outline-none focus:border-red-400 bg-[#131B2A]"
         />
       </div>
 
@@ -1328,7 +1328,7 @@ const ProblemSolutionEditor: React.FC<{
           type="text"
           value={block.solutionTitle}
           onChange={(e) => onUpdate({ ...block, solutionTitle: e.target.value })}
-          className="w-full h-8 px-2 py-1 rounded-lg border border-[#E25B26] text-xs outline-none focus:border-[#E25B26] bg-white"
+          className="w-full h-8 px-2 py-1 rounded-lg border border-[#E25B26] text-xs outline-none focus:border-[#E25B26] bg-[#131B2A]"
         />
       </div>
     </div>
@@ -1342,33 +1342,33 @@ const FeaturesEditor: React.FC<{
   return (
     <div className="space-y-3">
       <div>
-        <label className="block text-[11px] font-bold text-slate-700 mb-1">العنوان</label>
+        <label className="block text-[11px] font-bold text-[#CBD5E1] mb-1">العنوان</label>
         <input
           type="text"
           value={block.title}
           onChange={(e) => onUpdate({ ...block, title: e.target.value })}
-          className="w-full h-8 px-2 py-1 rounded-lg border border-slate-200 text-xs outline-none focus:border-blue-500 bg-white"
+          className="w-full h-8 px-2 py-1 rounded-lg border border-[#1E293B] text-xs outline-none focus:border-[#E25B26] bg-[#131B2A]"
         />
       </div>
 
       <div>
-        <label className="block text-[11px] font-bold text-slate-700 mb-1">العنوان الفرعي</label>
+        <label className="block text-[11px] font-bold text-[#CBD5E1] mb-1">العنوان الفرعي</label>
         <input
           type="text"
           value={block.subtitle}
           onChange={(e) => onUpdate({ ...block, subtitle: e.target.value })}
-          className="w-full h-8 px-2 py-1 rounded-lg border border-slate-200 text-xs outline-none focus:border-blue-500 bg-white"
+          className="w-full h-8 px-2 py-1 rounded-lg border border-[#1E293B] text-xs outline-none focus:border-[#E25B26] bg-[#131B2A]"
         />
       </div>
 
       <div className="space-y-2">
-        <label className="block text-[11px] font-bold text-slate-700">
+        <label className="block text-[11px] font-bold text-[#CBD5E1]">
           قائمة المميزات ({block.items.length})
         </label>
         {block.items.map((item, idx) => (
-          <div key={idx} className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg space-y-1.5">
+          <div key={idx} className="p-2.5 bg-[#0D131E] border border-[#1E293B] rounded-lg space-y-1.5">
             <div className="flex items-center justify-between">
-              <span className="font-bold text-[11px] text-slate-700">ميزة #{idx + 1}</span>
+              <span className="font-bold text-[11px] text-[#CBD5E1]">ميزة #{idx + 1}</span>
               <button
                 type="button"
                 onClick={() => {
@@ -1389,7 +1389,7 @@ const FeaturesEditor: React.FC<{
                 onUpdate({ ...block, items });
               }}
               placeholder="عنوان الميزة"
-              className="w-full h-8 px-2 py-1 bg-white rounded-lg border border-slate-200 text-xs font-bold outline-none focus:border-blue-500"
+              className="w-full h-8 px-2 py-1 bg-[#131B2A] rounded-lg border border-[#1E293B] text-xs font-bold outline-none focus:border-[#E25B26]"
             />
             <textarea
               rows={2}
@@ -1400,7 +1400,7 @@ const FeaturesEditor: React.FC<{
                 onUpdate({ ...block, items });
               }}
               placeholder="وصف الميزة"
-              className="w-full px-2 py-1 bg-white rounded-lg border border-slate-200 text-xs outline-none focus:border-blue-500"
+              className="w-full px-2 py-1 bg-[#131B2A] rounded-lg border border-[#1E293B] text-xs outline-none focus:border-[#E25B26]"
             />
           </div>
         ))}
@@ -1416,18 +1416,18 @@ const SocialProofEditor: React.FC<{
   return (
     <div className="space-y-3">
       <div>
-        <label className="block text-[11px] font-bold text-slate-700 mb-1">عنوان التقييمات</label>
+        <label className="block text-[11px] font-bold text-[#CBD5E1] mb-1">عنوان التقييمات</label>
         <input
           type="text"
           value={block.title}
           onChange={(e) => onUpdate({ ...block, title: e.target.value })}
-          className="w-full h-8 px-2 py-1 rounded-lg border border-slate-200 text-xs font-bold outline-none focus:border-blue-500 bg-white"
+          className="w-full h-8 px-2 py-1 rounded-lg border border-[#1E293B] text-xs font-bold outline-none focus:border-[#E25B26] bg-[#131B2A]"
         />
       </div>
 
       <div className="grid grid-cols-2 gap-2">
         <div className="min-w-0">
-          <label className="block text-[11px] font-bold text-slate-700 mb-1 truncate">
+          <label className="block text-[11px] font-bold text-[#CBD5E1] mb-1 truncate">
             التقييم (من 5)
           </label>
           <input
@@ -1437,11 +1437,11 @@ const SocialProofEditor: React.FC<{
             onChange={(e) =>
               onUpdate({ ...block, overallRating: Number(e.target.value) || 5 })
             }
-            className="w-full h-8 px-2 py-1 rounded-lg border border-slate-200 text-xs font-mono outline-none focus:border-blue-500 bg-white"
+            className="w-full h-8 px-2 py-1 rounded-lg border border-[#1E293B] text-xs font-mono outline-none focus:border-[#E25B26] bg-[#131B2A]"
           />
         </div>
         <div className="min-w-0">
-          <label className="block text-[11px] font-bold text-slate-700 mb-1 truncate">
+          <label className="block text-[11px] font-bold text-[#CBD5E1] mb-1 truncate">
             إجمالي المراجعات
           </label>
           <input
@@ -1450,7 +1450,7 @@ const SocialProofEditor: React.FC<{
             onChange={(e) =>
               onUpdate({ ...block, totalReviews: Number(e.target.value) || 2000 })
             }
-            className="w-full h-8 px-2 py-1 rounded-lg border border-slate-200 text-xs font-mono outline-none focus:border-blue-500 bg-white"
+            className="w-full h-8 px-2 py-1 rounded-lg border border-[#1E293B] text-xs font-mono outline-none focus:border-[#E25B26] bg-[#131B2A]"
           />
         </div>
       </div>
@@ -1468,34 +1468,34 @@ const CodFormEditor: React.FC<{
   return (
     <div className="space-y-3">
       <div>
-        <label className="block text-[11px] font-bold text-slate-700 mb-1">عنوان استمارة الطلب</label>
+        <label className="block text-[11px] font-bold text-[#CBD5E1] mb-1">عنوان استمارة الطلب</label>
         <input
           type="text"
           value={block.title}
           onChange={(e) => onUpdate({ ...block, title: e.target.value })}
-          className="w-full h-8 px-2 py-1 rounded-lg border border-slate-200 text-xs font-bold outline-none focus:border-blue-500 bg-white"
+          className="w-full h-8 px-2 py-1 rounded-lg border border-[#1E293B] text-xs font-bold outline-none focus:border-[#E25B26] bg-[#131B2A]"
         />
       </div>
 
       <div>
-        <label className="block text-[11px] font-bold text-slate-700 mb-1">نص زر تأكيد الطلب</label>
+        <label className="block text-[11px] font-bold text-[#CBD5E1] mb-1">نص زر تأكيد الطلب</label>
         <input
           type="text"
           value={block.buttonText}
           onChange={(e) => onUpdate({ ...block, buttonText: e.target.value })}
-          className="w-full h-8 px-2 py-1 rounded-lg border border-slate-200 text-xs font-bold outline-none focus:border-blue-500 bg-white"
+          className="w-full h-8 px-2 py-1 rounded-lg border border-[#1E293B] text-xs font-bold outline-none focus:border-[#E25B26] bg-[#131B2A]"
         />
       </div>
 
       <div>
-        <label className="block text-[11px] font-bold text-slate-700 mb-1">
+        <label className="block text-[11px] font-bold text-[#CBD5E1] mb-1">
           رسالة ضمان الدفع عند الاستلام
         </label>
         <textarea
           rows={2}
           value={block.guaranteeText}
           onChange={(e) => onUpdate({ ...block, guaranteeText: e.target.value })}
-          className="w-full px-2 py-1 rounded-lg border border-slate-200 text-xs outline-none focus:border-blue-500 bg-white"
+          className="w-full px-2 py-1 rounded-lg border border-[#1E293B] text-xs outline-none focus:border-[#E25B26] bg-[#131B2A]"
         />
       </div>
 
@@ -1517,7 +1517,7 @@ const CodFormEditor: React.FC<{
 
         {isCascadingEnabled && (
           <div>
-            <label className="block text-[10px] font-bold text-slate-700 mb-1">
+            <label className="block text-[10px] font-bold text-[#CBD5E1] mb-1">
               الدولة الافتراضية (Default Country)
             </label>
             <select
@@ -1525,7 +1525,7 @@ const CodFormEditor: React.FC<{
               onChange={(e) =>
                 onUpdate({ ...block, defaultCountry: e.target.value || undefined })
               }
-              className="w-full h-8 px-2 py-1 rounded-lg border border-slate-200 bg-white text-xs font-semibold outline-none focus:border-blue-500 cursor-pointer"
+              className="w-full h-8 px-2 py-1 rounded-lg border border-[#1E293B] bg-[#131B2A] text-xs font-semibold outline-none focus:border-[#E25B26] cursor-pointer"
             >
               <option value="">-- بدون دولة افتراضية (يختارها الزبون) --</option>
               {countriesList.map((c) => (
@@ -1539,7 +1539,7 @@ const CodFormEditor: React.FC<{
       </div>
 
       {/* Form Fields Toggle Switches */}
-      <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+      <div className="p-2.5 rounded-xl bg-[#0D131E] border border-[#1E293B] space-y-1">
         <ModernToggleSwitch
           label="إظهار حقل المدينة (City)"
           checked={block.fields.requireCity}
@@ -1575,7 +1575,7 @@ const CodFormEditor: React.FC<{
       {/* Bundles Configuration */}
       <div className="space-y-2 pt-1">
         <div className="flex items-center justify-between">
-          <label className="text-[11px] font-bold text-slate-700">
+          <label className="text-[11px] font-bold text-[#CBD5E1]">
             عروض الكميات (Bundles) ({block.bundles.length})
           </label>
           <button
@@ -1604,9 +1604,9 @@ const CodFormEditor: React.FC<{
         </div>
 
         {block.bundles.map((bundle, idx) => (
-          <div key={bundle.id} className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg space-y-1.5">
+          <div key={bundle.id} className="p-2.5 bg-[#0D131E] border border-[#1E293B] rounded-lg space-y-1.5">
             <div className="flex items-center justify-between">
-              <span className="font-bold text-[11px] text-slate-800">عرض #{idx + 1}</span>
+              <span className="font-bold text-[11px] text-[#F8FAFC]">عرض #{idx + 1}</span>
               <button
                 type="button"
                 onClick={() => {
@@ -1627,7 +1627,7 @@ const CodFormEditor: React.FC<{
                 bundles[idx] = { ...bundles[idx], name: e.target.value };
                 onUpdate({ ...block, bundles });
               }}
-              className="w-full h-8 px-2 py-1 bg-white rounded-lg border border-slate-200 text-xs font-bold outline-none focus:border-blue-500"
+              className="w-full h-8 px-2 py-1 bg-[#131B2A] rounded-lg border border-[#1E293B] text-xs font-bold outline-none focus:border-[#E25B26]"
               placeholder="اسم العرض"
             />
 
@@ -1644,7 +1644,7 @@ const CodFormEditor: React.FC<{
                     bundles[idx] = { ...bundles[idx], price: Number(e.target.value) || 0 };
                     onUpdate({ ...block, bundles });
                   }}
-                  className="w-full h-8 px-2 py-1 bg-white rounded-lg border border-slate-200 text-xs font-mono font-bold outline-none focus:border-blue-500"
+                  className="w-full h-8 px-2 py-1 bg-[#131B2A] rounded-lg border border-[#1E293B] text-xs font-mono font-bold outline-none focus:border-[#E25B26]"
                 />
               </div>
 
@@ -1663,7 +1663,7 @@ const CodFormEditor: React.FC<{
                     };
                     onUpdate({ ...block, bundles });
                   }}
-                  className="w-full h-8 px-2 py-1 bg-white rounded-lg border border-slate-200 text-xs font-mono text-[#CBD5E1] outline-none focus:border-blue-500"
+                  className="w-full h-8 px-2 py-1 bg-[#131B2A] rounded-lg border border-[#1E293B] text-xs font-mono text-[#CBD5E1] outline-none focus:border-[#E25B26]"
                 />
               </div>
             </div>
@@ -1678,7 +1678,7 @@ const CodFormEditor: React.FC<{
                   onUpdate({ ...block, bundles });
                 }}
                 placeholder="شارة (مثال: خصم 50%)"
-                className="flex-1 h-8 px-2 py-1 bg-white rounded-lg border border-slate-200 text-xs outline-none focus:border-blue-500 min-w-0"
+                className="flex-1 h-8 px-2 py-1 bg-[#131B2A] rounded-lg border border-[#1E293B] text-xs outline-none focus:border-[#E25B26] min-w-0"
               />
 
               <button
@@ -1692,8 +1692,8 @@ const CodFormEditor: React.FC<{
                 }}
                 className={`h-8 px-2 py-1 rounded-lg text-[10px] font-bold shrink-0 cursor-pointer ${
                   bundle.popular
-                    ? 'bg-[#E25B26] text-slate-800'
-                    : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
+                    ? 'bg-[#E25B26] text-[#F8FAFC]'
+                    : 'bg-slate-200 text-[#CBD5E1] hover:bg-slate-300'
                 }`}
               >
                 {bundle.popular ? '★ الأكثر طلباً' : 'تعيين كأفضل عرض'}
@@ -1713,23 +1713,23 @@ const FaqEditor: React.FC<{
   return (
     <div className="space-y-3">
       <div>
-        <label className="block text-[11px] font-bold text-gray-700 mb-1">عنوان الأسئلة الشائعة</label>
+        <label className="block text-[11px] font-bold text-[#CBD5E1] mb-1">عنوان الأسئلة الشائعة</label>
         <input
           type="text"
           value={block.title}
           onChange={(e) => onUpdate({ ...block, title: e.target.value })}
-          className="w-full h-8 px-2 py-1 rounded-lg border border-gray-200 text-xs font-bold outline-none focus:border-[#E25B26] bg-white"
+          className="w-full h-8 px-2 py-1 rounded-lg border border-[#1E293B] text-xs font-bold outline-none focus:border-[#E25B26] bg-[#131B2A]"
         />
       </div>
 
       <div className="space-y-2">
-        <label className="block text-[11px] font-bold text-gray-700">
+        <label className="block text-[11px] font-bold text-[#CBD5E1]">
           الأسئلة ({block.items.length})
         </label>
         {block.items.map((item, idx) => (
-          <div key={item.id} className="p-2.5 bg-gray-50 border border-gray-200 rounded-lg space-y-1.5">
+          <div key={item.id} className="p-2.5 bg-[#0D131E] border border-[#1E293B] rounded-lg space-y-1.5">
             <div className="flex items-center justify-between">
-              <span className="font-bold text-[11px] text-gray-700">سؤال #{idx + 1}</span>
+              <span className="font-bold text-[11px] text-[#CBD5E1]">سؤال #{idx + 1}</span>
               <button
                 type="button"
                 onClick={() => {
@@ -1749,7 +1749,7 @@ const FaqEditor: React.FC<{
                 items[idx] = { ...items[idx], question: e.target.value };
                 onUpdate({ ...block, items });
               }}
-              className="w-full h-8 px-2 py-1 bg-white rounded-lg border border-gray-200 text-xs font-bold outline-none focus:border-[#E25B26]"
+              className="w-full h-8 px-2 py-1 bg-[#131B2A] rounded-lg border border-[#1E293B] text-xs font-bold outline-none focus:border-[#E25B26]"
             />
             <textarea
               rows={2}
@@ -1759,7 +1759,7 @@ const FaqEditor: React.FC<{
                 items[idx] = { ...items[idx], answer: e.target.value };
                 onUpdate({ ...block, items });
               }}
-              className="w-full px-2 py-1 bg-white rounded-lg border border-gray-200 text-xs outline-none focus:border-[#E25B26]"
+              className="w-full px-2 py-1 bg-[#131B2A] rounded-lg border border-[#1E293B] text-xs outline-none focus:border-[#E25B26]"
             />
           </div>
         ))}
@@ -1775,32 +1775,32 @@ const FloatingCtaEditor: React.FC<{
   return (
     <div className="space-y-3">
       <div>
-        <label className="block text-[11px] font-bold text-gray-700 mb-1">اسم المنتج المختصر</label>
+        <label className="block text-[11px] font-bold text-[#CBD5E1] mb-1">اسم المنتج المختصر</label>
         <input
           type="text"
           value={block.title}
           onChange={(e) => onUpdate({ ...block, title: e.target.value })}
-          className="w-full h-8 px-2 py-1 rounded-lg border border-gray-200 text-xs outline-none focus:border-[#E25B26] bg-white"
+          className="w-full h-8 px-2 py-1 rounded-lg border border-[#1E293B] text-xs outline-none focus:border-[#E25B26] bg-[#131B2A]"
         />
       </div>
 
       <div>
-        <label className="block text-[11px] font-bold text-gray-700 mb-1">نص السعر</label>
+        <label className="block text-[11px] font-bold text-[#CBD5E1] mb-1">نص السعر</label>
         <input
           type="text"
           value={block.priceText}
           onChange={(e) => onUpdate({ ...block, priceText: e.target.value })}
-          className="w-full h-8 px-2 py-1 rounded-lg border border-gray-200 text-xs font-bold text-[#E25B26] outline-none focus:border-[#E25B26] bg-white"
+          className="w-full h-8 px-2 py-1 rounded-lg border border-[#1E293B] text-xs font-bold text-[#E25B26] outline-none focus:border-[#E25B26] bg-[#131B2A]"
         />
       </div>
 
       <div>
-        <label className="block text-[11px] font-bold text-gray-700 mb-1">نص الزر العائم</label>
+        <label className="block text-[11px] font-bold text-[#CBD5E1] mb-1">نص الزر العائم</label>
         <input
           type="text"
           value={block.buttonText}
           onChange={(e) => onUpdate({ ...block, buttonText: e.target.value })}
-          className="w-full h-8 px-2 py-1 rounded-lg border border-gray-200 text-xs font-bold outline-none focus:border-[#E25B26] bg-white"
+          className="w-full h-8 px-2 py-1 rounded-lg border border-[#1E293B] text-xs font-bold outline-none focus:border-[#E25B26] bg-[#131B2A]"
         />
       </div>
     </div>
@@ -1814,21 +1814,21 @@ const TrustBadgesEditor: React.FC<{
   return (
     <div className="space-y-3">
       <div>
-        <label className="block text-[11px] font-bold text-gray-700 mb-1">عنوان شارات الثقة</label>
+        <label className="block text-[11px] font-bold text-[#CBD5E1] mb-1">عنوان شارات الثقة</label>
         <input
           type="text"
           value={block.title}
           onChange={(e) => onUpdate({ ...block, title: e.target.value })}
-          className="w-full h-8 px-2 py-1 rounded-lg border border-gray-200 text-xs font-bold outline-none focus:border-[#E25B26] bg-white"
+          className="w-full h-8 px-2 py-1 rounded-lg border border-[#1E293B] text-xs font-bold outline-none focus:border-[#E25B26] bg-[#131B2A]"
         />
       </div>
 
       <div className="space-y-2">
-        <label className="block text-[11px] font-bold text-gray-700">
+        <label className="block text-[11px] font-bold text-[#CBD5E1]">
           الشارات ({block.badges.length})
         </label>
         {block.badges.map((badge, idx) => (
-          <div key={idx} className="p-2.5 bg-gray-50 border border-gray-200 rounded-lg space-y-1.5">
+          <div key={idx} className="p-2.5 bg-[#0D131E] border border-[#1E293B] rounded-lg space-y-1.5">
             <input
               type="text"
               value={badge.title}
@@ -1838,7 +1838,7 @@ const TrustBadgesEditor: React.FC<{
                 onUpdate({ ...block, badges });
               }}
               placeholder="عنوان الشارة"
-              className="w-full h-8 px-2 py-1 bg-white rounded-lg border border-gray-200 text-xs font-bold outline-none focus:border-[#E25B26]"
+              className="w-full h-8 px-2 py-1 bg-[#131B2A] rounded-lg border border-[#1E293B] text-xs font-bold outline-none focus:border-[#E25B26]"
             />
             <input
               type="text"
@@ -1849,7 +1849,7 @@ const TrustBadgesEditor: React.FC<{
                 onUpdate({ ...block, badges });
               }}
               placeholder="وصف الشارة"
-              className="w-full h-8 px-2 py-1 bg-white rounded-lg border border-gray-200 text-xs outline-none focus:border-[#E25B26]"
+              className="w-full h-8 px-2 py-1 bg-[#131B2A] rounded-lg border border-[#1E293B] text-xs outline-none focus:border-[#E25B26]"
             />
           </div>
         ))}

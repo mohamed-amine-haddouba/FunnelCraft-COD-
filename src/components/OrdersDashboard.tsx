@@ -478,7 +478,7 @@ export const OrdersDashboard: React.FC<Props> = ({
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder={t.searchPlaceholder}
-            className="w-full bg-[#0D131E] border border-[#1E293B] rounded-lg ps-8 pe-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#E25B26] transition"
+            className="w-full bg-[#0D131E] border border-[#1E293B] rounded-lg ps-8 pe-3 py-1.5 text-xs text-white placeholder-[#94A3B8] focus:outline-none focus:border-[#E25B26] transition"
           />
         </div>
 
@@ -692,7 +692,7 @@ export const OrdersDashboard: React.FC<Props> = ({
               value={carrierWebhookUrl}
               onChange={(e) => setCarrierWebhookUrl(e.target.value)}
               placeholder="https://api.carrier.ma/webhook..."
-              className="bg-[#0D131E] border border-[#1E293B] rounded-lg px-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#E25B26] min-w-[200px]"
+              className="bg-[#0D131E] border border-[#1E293B] rounded-lg px-3 py-1.5 text-xs text-white placeholder-[#94A3B8] focus:outline-none focus:border-[#E25B26] min-w-[200px]"
             />
 
             <button

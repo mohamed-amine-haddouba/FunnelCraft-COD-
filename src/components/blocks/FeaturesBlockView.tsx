@@ -17,17 +17,17 @@ export const FeaturesBlockView: React.FC<Props> = ({ block, theme, isRtl }) => {
   return (
     <section className="max-w-6xl mx-auto px-4 py-12 md:py-20" dir={isRtl ? 'rtl' : 'ltr'}>
       <div className="text-center max-w-2xl mx-auto mb-12">
-        <h2 className="text-3xl md:text-4xl font-black text-gray-900 mb-3 tracking-tight">
+        <h2 className="text-3xl md:text-4xl font-black text-[#F8FAFC] mb-3 tracking-tight">
           {block.title}
         </h2>
-        <p className="text-gray-600 text-sm md:text-base leading-relaxed">{block.subtitle}</p>
+        <p className="text-[#CBD5E1] text-sm md:text-base leading-relaxed">{block.subtitle}</p>
       </div>
 
       <div className={`grid ${gridClass} gap-6`}>
         {block.items.map((item, idx) => (
           <div
             key={idx}
-            className="p-6 rounded-3xl bg-white border border-gray-200/90 shadow-sm hover:shadow-xl hover:border-emerald-500/50 transition-all duration-300 group flex flex-col justify-between"
+            className="p-6 rounded-3xl bg-[#131B2A] border border-[#1E293B] shadow-sm hover:shadow-xl hover:border-emerald-500/50 transition-all duration-300 group flex flex-col justify-between"
           >
             <div>
               <div
@@ -52,8 +52,8 @@ export const FeaturesBlockView: React.FC<Props> = ({ block, theme, isRtl }) => {
                 </span>
               )}
 
-              <h3 className="font-bold text-lg text-gray-900 mb-2 leading-snug">{item.title}</h3>
-              <p className="text-gray-600 text-sm leading-relaxed">{item.description}</p>
+              <h3 className="font-bold text-lg text-[#F8FAFC] mb-2 leading-snug">{item.title}</h3>
+              <p className="text-[#CBD5E1] text-sm leading-relaxed">{item.description}</p>
             </div>
           </div>
         ))}
