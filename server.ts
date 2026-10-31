@@ -1,4 +1,4 @@
-import express, { Request, Response, NextFunction } from 'express';
+import express, { Request as ExpressRequest, Response, NextFunction } from 'express';
 import { createServer as createViteServer } from 'vite';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -115,6 +115,10 @@ import {
 
 dotenv.config();
 
+if (process.env.NODE_ENV === 'production' && process.env.BYPASS_CAPTCHA === 'true') {
+  throw new Error('BYPASS_CAPTCHA=true is forbidden in production');
+}
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -224,19 +228,24 @@ console.log(
 );
 
 // Initialize Gemini SDK with recommended user-agent header
-const ai = new GoogleGenAI({
-  apiKey: process.env.GEMINI_API_KEY || '',
-  httpOptions: {
-    headers: {
-      'User-Agent': 'aistudio-build',
-    },
-  },
-});
+const resolvedServerGeminiKey = process.env.GEMINI_API_KEY || process.env.AI_API_KEY;
+const ai = resolvedServerGeminiKey
+  ? new GoogleGenAI({
+      apiKey: resolvedServerGeminiKey,
+      httpOptions: {
+        headers: {
+          'User-Agent': 'aistudio-build',
+        },
+      },
+    })
+  : null;
 
-interface AuthRequest extends Request {
+type Request = ExpressRequest & {
   user?: ReturnType<typeof toSafeProfile>;
   token?: string;
-}
+};
+
+type AuthRequest = Request;
 
 // Authentication Middleware
 function authMiddleware(req: AuthRequest, res: Response, next: NextFunction) {
@@ -344,8 +353,12 @@ const forgotPasswordLimiter = rateLimit({
   },
 });
 
-async function startServer() {
-  const app = express();
+export const app = express();
+
+export async function startServer() {
+  if (process.env.NODE_ENV === 'production' && process.env.BYPASS_CAPTCHA === 'true') {
+    throw new Error('BYPASS_CAPTCHA=true is forbidden in production');
+  }
   const PORT = Number(process.env.PORT) || 3000;
 
   // Task 1: Trust Nginx Reverse Proxy so req.ip reflects the real client IP
@@ -2599,7 +2612,7 @@ async function startServer() {
       ).length;
       const deliveryRate =
         totalOrders > 0 ? Number(((deliveredCount / totalOrders) * 100).toFixed(1)) : 0;
-      const formStarts = Math.max(totalOrders, Math.round(totalVisitors * 0.25));
+      const formStarts = 0; // TODO: real form-start tracking requires a client beacon at POST /api/analytics/form-start (out of scope).
 
       const cityAggregation: Record<string, { count: number; revenue: number }> = {};
       for (const order of scopedOrders) {
@@ -3810,8 +3823,24 @@ async function startServer() {
   app.put('/api/orders/:id', authMiddleware, handleUpdateOrder);
 
   // Public COD order submission legacy alias endpoint
-  app.post('/api/orders/submit', (req: Request, res: Response) => {
+  app.post('/api/orders/submit', async (req: Request, res: Response) => {
     try {
+      const isCaptchaValid = await verifyCaptchaToken({
+        recaptchaToken: req.body.recaptchaToken || req.body['g-recaptcha-response'],
+        turnstileToken: req.body.turnstileToken || req.body['cf-turnstile-response'],
+        captchaToken: req.body.captchaToken,
+        remoteIp: extractClientIp(req),
+        expectedAction: 'cod_checkout',
+        email: req.user?.email,
+        role: req.user?.role,
+      });
+      if (!isCaptchaValid) {
+        return res.status(400).json({
+          success: false,
+          error: 'يرجى إتمام التحقق الأمني (CAPTCHA) قبل تأكيد الطلب.',
+        });
+      }
+
       const {
         pageSlug,
         pageTitle,
@@ -3987,7 +4016,7 @@ async function startServer() {
     const isFrench = language === 'fr';
 
     try {
-      if (process.env.GEMINI_API_KEY) {
+      if (ai && (process.env.GEMINI_API_KEY || process.env.AI_API_KEY)) {
         const prompt = `You are a world-class conversion rate optimization (CRO) copywriter and landing page architect specializing in high-converting e-commerce and Cash on Delivery (COD) sales funnels (similar to top stores on Lightfunnels, Framer, and Shopify).
 
 Create a complete landing page JSON schema for this product:
@@ -4117,7 +4146,7 @@ Return ONLY a valid JSON object with: id, title, language, direction, theme, blo
       const currency = language === 'ar-ma' || language === 'ar' ? 'MAD' : '$';
 
       // 2. Feed extracted details into Gemini Pro using Master COD Funnel Architect Prompt
-      if (process.env.GEMINI_API_KEY) {
+      if (ai && (process.env.GEMINI_API_KEY || process.env.AI_API_KEY)) {
         try {
           const prompt = `Act as an expert E-commerce Product Analyst, Master Copywriter, and High-Converting COD (Cash on Delivery) Funnel Architect for the Moroccan and Global market.
 
@@ -4304,6 +4333,11 @@ Return ONLY a valid JSON object matching this exact schema (no markdown outside 
   });
 
   // Serve with Vite in development
+  if (process.env.NODE_TEST_NO_LISTEN === '1') {
+    ensureDataFiles();
+    return;
+  }
+
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({
       server: { middlewareMode: true },
@@ -5027,4 +5061,6 @@ export function buildDefaultArchitectAnalysis(
   };
 }
 
-startServer();
+if (process.env.NODE_TEST_NO_LISTEN !== '1') {
+  startServer();
+}

@@ -6,6 +6,8 @@ const TURNSTILE_VERIFY_URL = 'https://challenges.cloudflare.com/turnstile/v0/sit
 const RECAPTCHA_VERIFY_URL = 'https://www.google.com/recaptcha/api/siteverify';
 const DEFAULT_OWNER_EMAIL = 'naadianajah2020@gmail.com';
 
+let hasLoggedMissingCaptchaSecret = false;
+
 export interface TurnstileVerifyResponse {
   success: boolean;
   challenge_ts?: string;
@@ -63,8 +65,7 @@ export function extractClientIp(req: {
   if (typeof forwarded === 'string' && forwarded.trim()) {
     return forwarded.split(',')[0].trim();
   }
-  if (Array.isArray(forwarded) && forwarded.length 
-    > 0) {
+  if (Array.isArray(forwarded) && forwarded.length > 0) {
     return forwarded[0].trim();
   }
 
@@ -94,10 +95,8 @@ export async function verifyRecaptchaToken(
   const secretKey = (process.env.RECAPTCHA_SECRET_KEY || '').trim();
 
   if (!secretKey) {
-    console.warn(
-      '[reCAPTCHA v3] RECAPTCHA_SECRET_KEY is not configured. Skipping server-side reCAPTCHA check.'
-    );
-    return true;
+    console.error('[CAPTCHA][FATAL] RECAPTCHA_SECRET_KEY is missing at runtime. Rejecting.');
+    return false;
   }
 
   if (!token || typeof token !== 'string' || !token.trim()) {
@@ -170,6 +169,7 @@ export async function verifyRecaptchaToken(
  * - Reads TURNSTILE_SECRET_KEY from .env.
  * - If process.env.BYPASS_CAPTCHA === 'true', logs a warning and returns true.
  * - If the user is Owner (naadianajah2020@gmail.com) or role === 'admin', bypasses CAPTCHA and returns true.
+ * - Fails closed (returns false) if secret key is missing.
  */
 export async function verifyTurnstileToken(
   token: string,
@@ -193,12 +193,9 @@ export async function verifyTurnstileToken(
     return verifyRecaptchaToken(token, remoteIp, undefined, 0.5, email, role);
   }
 
-  // Graceful fallback when TURNSTILE_SECRET_KEY is not configured in dev/preview environment
   if (!secretKey) {
-    console.warn(
-      '[Turnstile] TURNSTILE_SECRET_KEY is not configured. Skipping server-side CAPTCHA check.'
-    );
-    return true;
+    console.error('[CAPTCHA][FATAL] TURNSTILE_SECRET_KEY is missing at runtime. Rejecting.');
+    return false;
   }
 
   if (!token || typeof token !== 'string' || !token.trim()) {
@@ -254,10 +251,11 @@ export async function verifyTurnstileToken(
 
 /**
  * Unified CAPTCHA verifier supporting both Cloudflare Turnstile and Google reCAPTCHA v3.
- * - Reads TURNSTILE_SECRET_KEY from .env.
+ * - Reads TURNSTILE_SECRET_KEY / RECAPTCHA_SECRET_KEY from .env.
  * - If process.env.BYPASS_CAPTCHA === 'true', logs a warning and returns true.
  * - CRITICAL: Even if BYPASS_CAPTCHA is false, if the user logging in is the Owner
  *   (naadianajah2020@gmail.com) or role === 'admin', bypasses CAPTCHA and returns true.
+ * - Fails closed (returns false) when neither secret is configured.
  */
 export async function verifyCaptchaToken(options: {
   recaptchaToken?: string;
@@ -306,5 +304,11 @@ export async function verifyCaptchaToken(options: {
     );
   }
 
-  return true;
+  if (!hasLoggedMissingCaptchaSecret) {
+    console.error(
+      '[CAPTCHA] No CAPTCHA secret configured (TURNSTILE_SECRET_KEY / RECAPTCHA_SECRET_KEY). All CAPTCHA checks will FAIL CLOSED.'
+    );
+    hasLoggedMissingCaptchaSecret = true;
+  }
+  return false;
 }

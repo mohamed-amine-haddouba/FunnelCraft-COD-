@@ -1,88 +1,181 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { verifyCaptchaToken, verifyTurnstileToken, isAdminCaptchaBypass } from './captcha';
+import fs from 'node:fs';
+import path from 'node:path';
+import http from 'node:http';
+import {
+  verifyCaptchaToken,
+  verifyTurnstileToken,
+  verifyRecaptchaToken,
+  isAdminCaptchaBypass,
+} from './captcha';
 import { getPlanCapabilities, checkFeatureAccess } from '../src/utils/planLimits';
 
-test('CAPTCHA Verification & Admin Bypass', async (t) => {
-  await t.test('bypasses CAPTCHA when BYPASS_CAPTCHA === "true" even with TURNSTILE_SECRET_KEY set', async () => {
+test('P0 CAPTCHA Fail-Closed & Admin Bypass Regression Suite', async (t) => {
+  await t.test('verifyCaptchaToken({}) with no secret env and BYPASS_CAPTCHA unset -> false', async () => {
     const prevBypass = process.env.BYPASS_CAPTCHA;
-    const prevSecret = process.env.TURNSTILE_SECRET_KEY;
+    const prevTurnstile = process.env.TURNSTILE_SECRET_KEY;
+    const prevRecaptcha = process.env.RECAPTCHA_SECRET_KEY;
     try {
-      process.env.BYPASS_CAPTCHA = 'true';
-      process.env.TURNSTILE_SECRET_KEY = 'secret-live-turnstile-key';
+      delete process.env.BYPASS_CAPTCHA;
+      delete process.env.TURNSTILE_SECRET_KEY;
+      delete process.env.RECAPTCHA_SECRET_KEY;
 
-      const valid = await verifyCaptchaToken({
-        turnstileToken: '',
-        email: 'merchant@example.com',
-        role: 'merchant',
-      });
-      assert.equal(valid, true);
+      const valid = await verifyCaptchaToken({});
+      assert.equal(valid, false);
+      assert.equal(await verifyTurnstileToken('some-token'), false);
+      assert.equal(await verifyRecaptchaToken('some-token'), false);
     } finally {
-      process.env.BYPASS_CAPTCHA = prevBypass;
-      process.env.TURNSTILE_SECRET_KEY = prevSecret;
+      if (prevBypass !== undefined) process.env.BYPASS_CAPTCHA = prevBypass;
+      else delete process.env.BYPASS_CAPTCHA;
+      if (prevTurnstile !== undefined) process.env.TURNSTILE_SECRET_KEY = prevTurnstile;
+      else delete process.env.TURNSTILE_SECRET_KEY;
+      if (prevRecaptcha !== undefined) process.env.RECAPTCHA_SECRET_KEY = prevRecaptcha;
+      else delete process.env.RECAPTCHA_SECRET_KEY;
     }
   });
 
-  await t.test('bypasses CAPTCHA for Owner email (naadianajah2020@gmail.com) even when BYPASS_CAPTCHA === "false"', async () => {
+  await t.test('verifyCaptchaToken({ turnstileToken: "" }) -> false', async () => {
     const prevBypass = process.env.BYPASS_CAPTCHA;
-    const prevSecret = process.env.TURNSTILE_SECRET_KEY;
+    const prevTurnstile = process.env.TURNSTILE_SECRET_KEY;
+    try {
+      delete process.env.BYPASS_CAPTCHA;
+      process.env.TURNSTILE_SECRET_KEY = 'secret-live-turnstile-key';
+
+      const valid = await verifyCaptchaToken({ turnstileToken: '' });
+      assert.equal(valid, false);
+    } finally {
+      if (prevBypass !== undefined) process.env.BYPASS_CAPTCHA = prevBypass;
+      else delete process.env.BYPASS_CAPTCHA;
+      if (prevTurnstile !== undefined) process.env.TURNSTILE_SECRET_KEY = prevTurnstile;
+      else delete process.env.TURNSTILE_SECRET_KEY;
+    }
+  });
+
+  await t.test('verifyCaptchaToken({ email: "naadianajah2020@gmail.com" }) -> true', async () => {
+    const prevBypass = process.env.BYPASS_CAPTCHA;
+    const prevTurnstile = process.env.TURNSTILE_SECRET_KEY;
     try {
       process.env.BYPASS_CAPTCHA = 'false';
       process.env.TURNSTILE_SECRET_KEY = 'secret-live-turnstile-key';
 
       assert.equal(isAdminCaptchaBypass('naadianajah2020@gmail.com', 'merchant'), true);
-
-      const valid = await verifyCaptchaToken({
-        turnstileToken: '',
-        email: 'naadianajah2020@gmail.com',
-      });
+      const valid = await verifyCaptchaToken({ email: 'naadianajah2020@gmail.com' });
       assert.equal(valid, true);
-
-      const turnstileDirect = await verifyTurnstileToken('', '1.2.3.4', 'naadianajah2020@gmail.com');
-      assert.equal(turnstileDirect, true);
     } finally {
-      process.env.BYPASS_CAPTCHA = prevBypass;
-      process.env.TURNSTILE_SECRET_KEY = prevSecret;
+      if (prevBypass !== undefined) process.env.BYPASS_CAPTCHA = prevBypass;
+      else delete process.env.BYPASS_CAPTCHA;
+      if (prevTurnstile !== undefined) process.env.TURNSTILE_SECRET_KEY = prevTurnstile;
+      else delete process.env.TURNSTILE_SECRET_KEY;
     }
   });
 
-  await t.test('bypasses CAPTCHA for role === "admin" even when BYPASS_CAPTCHA === "false"', async () => {
+  await t.test('verifyCaptchaToken({ email: "random@user.com", role: "merchant" }) -> false (no valid token)', async () => {
     const prevBypass = process.env.BYPASS_CAPTCHA;
-    const prevSecret = process.env.TURNSTILE_SECRET_KEY;
+    const prevTurnstile = process.env.TURNSTILE_SECRET_KEY;
     try {
-      process.env.BYPASS_CAPTCHA = 'false';
+      delete process.env.BYPASS_CAPTCHA;
       process.env.TURNSTILE_SECRET_KEY = 'secret-live-turnstile-key';
 
       const valid = await verifyCaptchaToken({
-        turnstileToken: '',
-        email: 'other-admin@codworth.me',
-        role: 'admin',
-      });
-      assert.equal(valid, true);
-    } finally {
-      process.env.BYPASS_CAPTCHA = prevBypass;
-      process.env.TURNSTILE_SECRET_KEY = prevSecret;
-    }
-  });
-
-  await t.test('rejects empty token for non-admin merchant when BYPASS_CAPTCHA === "false" and TURNSTILE_SECRET_KEY is set', async () => {
-    const prevBypass = process.env.BYPASS_CAPTCHA;
-    const prevSecret = process.env.TURNSTILE_SECRET_KEY;
-    try {
-      process.env.BYPASS_CAPTCHA = 'false';
-      process.env.TURNSTILE_SECRET_KEY = 'secret-live-turnstile-key';
-
-      const valid = await verifyCaptchaToken({
-        turnstileToken: '',
-        email: 'regular-merchant@example.com',
+        email: 'random@user.com',
         role: 'merchant',
       });
       assert.equal(valid, false);
     } finally {
-      process.env.BYPASS_CAPTCHA = prevBypass;
-      process.env.TURNSTILE_SECRET_KEY = prevSecret;
+      if (prevBypass !== undefined) process.env.BYPASS_CAPTCHA = prevBypass;
+      else delete process.env.BYPASS_CAPTCHA;
+      if (prevTurnstile !== undefined) process.env.TURNSTILE_SECRET_KEY = prevTurnstile;
+      else delete process.env.TURNSTILE_SECRET_KEY;
     }
   });
+
+  await t.test('verifyCaptchaToken({}) with BYPASS_CAPTCHA="true" -> true', async () => {
+    const prevBypass = process.env.BYPASS_CAPTCHA;
+    const prevTurnstile = process.env.TURNSTILE_SECRET_KEY;
+    try {
+      process.env.BYPASS_CAPTCHA = 'true';
+      process.env.TURNSTILE_SECRET_KEY = 'secret-live-turnstile-key';
+
+      const valid = await verifyCaptchaToken({});
+      assert.equal(valid, true);
+    } finally {
+      if (prevBypass !== undefined) process.env.BYPASS_CAPTCHA = prevBypass;
+      else delete process.env.BYPASS_CAPTCHA;
+      if (prevTurnstile !== undefined) process.env.TURNSTILE_SECRET_KEY = prevTurnstile;
+      else delete process.env.TURNSTILE_SECRET_KEY;
+    }
+  });
+
+  await t.test(
+    'POST /api/orders/submit integration test: empty body and missing CAPTCHA token return 400 and do NOT modify data/orders.json',
+    async () => {
+      process.env.NODE_TEST_NO_LISTEN = '1';
+      const prevBypass = process.env.BYPASS_CAPTCHA;
+      const prevTurnstile = process.env.TURNSTILE_SECRET_KEY;
+      const ordersFilePath = path.resolve(process.cwd(), 'data', 'orders.json');
+
+      const { app, startServer } = await import('../server');
+      await startServer();
+
+      const beforeContent = fs.existsSync(ordersFilePath)
+        ? fs.readFileSync(ordersFilePath, 'utf-8')
+        : '[]';
+
+      const server = http.createServer(app);
+      await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', () => resolve()));
+      const addr = server.address() as { port: number };
+      const baseUrl = `http://127.0.0.1:${addr.port}`;
+
+      try {
+        delete process.env.BYPASS_CAPTCHA;
+        process.env.TURNSTILE_SECRET_KEY = 'secret-live-turnstile-key';
+
+        // 1. Empty body -> 400 CAPTCHA error
+        const emptyRes = await fetch(`${baseUrl}/api/orders/submit`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({}),
+        });
+        assert.equal(emptyRes.status, 400);
+        const emptyBody = (await emptyRes.json()) as { success: boolean; error: string };
+        assert.equal(emptyBody.success, false);
+        assert.equal(
+          emptyBody.error,
+          'يرجى إتمام التحقق الأمني (CAPTCHA) قبل تأكيد الطلب.'
+        );
+
+        // 2. Payload with customerPhone but no CAPTCHA token -> 400 CAPTCHA error
+        const phoneOnlyRes = await fetch(`${baseUrl}/api/orders/submit`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ customerPhone: '0000000000' }),
+        });
+        assert.equal(phoneOnlyRes.status, 400);
+        const phoneOnlyBody = (await phoneOnlyRes.json()) as { success: boolean; error: string };
+        assert.equal(phoneOnlyBody.success, false);
+        assert.equal(
+          phoneOnlyBody.error,
+          'يرجى إتمام التحقق الأمني (CAPTCHA) قبل تأكيد الطلب.'
+        );
+
+        const afterContent = fs.existsSync(ordersFilePath)
+          ? fs.readFileSync(ordersFilePath, 'utf-8')
+          : '[]';
+        assert.equal(
+          afterContent,
+          beforeContent,
+          'data/orders.json must remain completely unchanged when CAPTCHA fails'
+        );
+      } finally {
+        await new Promise<void>((resolve) => server.close(() => resolve()));
+        if (prevBypass !== undefined) process.env.BYPASS_CAPTCHA = prevBypass;
+        else delete process.env.BYPASS_CAPTCHA;
+        if (prevTurnstile !== undefined) process.env.TURNSTILE_SECRET_KEY = prevTurnstile;
+        else delete process.env.TURNSTILE_SECRET_KEY;
+      }
+    }
+  );
 });
 
 test('Admin Plan Bypass for Custom Domains & Pixels', async (t) => {
@@ -118,7 +211,7 @@ test('Admin Plan Bypass for Custom Domains & Pixels', async (t) => {
       'custom_domain',
       {
         plan_id: 'free',
-        role: 'merchant',
+        role: 'admin',
         email: 'naadianajah2020@gmail.com',
       },
       10,

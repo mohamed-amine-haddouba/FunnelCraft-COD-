@@ -168,17 +168,6 @@ export const ColorWithHexInput: React.FC<{
   return (
     <div>
       <div className="flex items-center justify-between mb-1">
-        <button
-          onClick={() => {
-            if (onDeleteBlock && selectedBlockIndex !== undefined && selectedBlockIndex !== -1) {
-              onDeleteBlock(selectedBlockIndex);
-            }
-          }}
-          className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg transition-colors ml-2"
-          title="حذف القسم (Delete Block)"
-        >
-          <Trash2 className="w-4 h-4" />
-        </button>
         <label className="text-[11px] font-bold text-slate-700">{label}</label>
         {value && (
           <button

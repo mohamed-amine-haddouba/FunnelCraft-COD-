@@ -5,6 +5,10 @@
 
 import { scrapeProductData } from './scraper';
 
+export function resolveScraperGeminiKey(): string | undefined {
+  return process.env.GEMINI_API_KEY || process.env.AI_API_KEY;
+}
+
 export interface ProductSpecification {
   label: string;
   value: string;

@@ -3,9 +3,20 @@ import { GoogleGenAI } from '@google/genai';
 
 dotenv.config();
 
-const geminiClient = process.env.GEMINI_API_KEY
+const resolvedGeminiApiKey = process.env.GEMINI_API_KEY || process.env.AI_API_KEY;
+console.log(
+  `[Scraper] Gemini key source: ${
+    process.env.GEMINI_API_KEY
+      ? 'GEMINI_API_KEY'
+      : process.env.AI_API_KEY
+      ? 'AI_API_KEY'
+      : 'none'
+  }`
+);
+
+const geminiClient = resolvedGeminiApiKey
   ? new GoogleGenAI({
-      apiKey: process.env.GEMINI_API_KEY,
+      apiKey: resolvedGeminiApiKey,
       httpOptions: {
         headers: {
           'User-Agent': 'aistudio-build',
@@ -1228,7 +1239,7 @@ async function enrichWithGeminiAi(
   }
 ): Promise<AiEnrichmentResult | null> {
   const baseUrl = (process.env.AI_BASE_URL || 'https://api.openai.com/v1').replace(/\/+$/, '');
-  const apiKey = process.env.AI_API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY || process.env.AI_API_KEY;
   const model = process.env.AI_MODEL || 'gpt-4o-mini';
 
   if (!apiKey) return null;
