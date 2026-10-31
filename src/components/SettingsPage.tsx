@@ -22,6 +22,9 @@ import {
   Layers,
   Crown,
   LogOut,
+  Gift,
+  Users,
+  MessageCircle,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { SubscriptionPlanId } from '../types/orders';
@@ -31,7 +34,7 @@ import { UserIpTransparencyWidget } from './Dashboard';
 interface SettingsPageProps {
   isOpen?: boolean;
   onClose?: () => void;
-  initialTab?: 'profile' | 'domain' | 'security';
+  initialTab?: 'profile' | 'domain' | 'security' | 'referrals';
   currentPlan?: SubscriptionPlanId;
   onUpgradeClick?: () => void;
   asModal?: boolean;
@@ -80,7 +83,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
     isPro;
 
   // Active sub-tab
-  const [activeTab, setActiveTab] = useState<'profile' | 'domain' | 'security'>(initialTab);
+  const [activeTab, setActiveTab] = useState<'profile' | 'domain' | 'security' | 'referrals'>(initialTab);
+  const [hasCopiedReferral, setHasCopiedReferral] = useState(false);
 
   // Profile Form State (prioritize authenticated user profile from server)
   const [fullName, setFullName] = useState<string>(() => {
@@ -532,6 +536,20 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
             <Globe className="w-3.5 h-3.5 text-[#E25B26]" />
             <span>{t.tabDomain}</span>
             {!isProUser && <span className="text-[10px] bg-amber-500/20 text-amber-300 px-1 rounded">Pro</span>}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('referrals')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition cursor-pointer ${
+              activeTab === 'referrals'
+                ? 'bg-brand-surface text-white font-semibold shadow-xs'
+                : 'text-brand-secondary hover:text-brand-primary'
+            }`}
+          >
+            <Gift className="w-3.5 h-3.5 text-brand-accent" />
+            <span>{t.tabReferrals}</span>
+            <span className="text-[10px] bg-brand-accent/20 text-brand-accent px-1.5 py-0.2 rounded-full font-bold">20%</span>
           </button>
 
           <button
@@ -1130,6 +1148,135 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
 
           {/* Task 4: User IP Transparency & Last Login Forensics */}
           <UserIpTransparencyWidget />
+        </div>
+      )}
+
+      {/* TAB: Referrals */}
+      {activeTab === 'referrals' && (
+        <div className="space-y-4">
+          {/* Header Card */}
+          <div className="bg-brand-surface border border-brand rounded-2xl p-5 md:p-6 space-y-4 shadow-sm">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-brand-accent/15 border border-brand-accent/30 text-brand-accent flex items-center justify-center shrink-0">
+                  <Gift className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-brand-primary flex items-center gap-2">
+                    <span>{t.referralsTitle}</span>
+                    <span className="text-[10px] bg-brand-accent/20 text-brand-accent px-2 py-0.5 rounded-full font-black uppercase">
+                      20% Commission
+                    </span>
+                  </h3>
+                  <p className="text-xs text-brand-secondary mt-0.5 max-w-xl leading-relaxed">
+                    {t.referralsDesc}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Unique Referral Link Box */}
+            <div className="p-4 rounded-xl bg-brand-bg border border-brand space-y-2">
+              <label className="block text-xs font-semibold text-brand-primary">
+                {t.referralLink}
+              </label>
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2" dir="ltr">
+                <input
+                  type="text"
+                  readOnly
+                  value={`https://codworth.me/${language}/login?ref=${user?.id || 'partner'}`}
+                  className="flex-1 bg-brand-surface border border-brand rounded-xl px-3.5 py-2 text-xs font-mono text-brand-primary select-all focus:outline-none focus:border-brand-accent"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    const link = `https://codworth.me/${language}/login?ref=${user?.id || 'partner'}`;
+                    navigator.clipboard.writeText(link);
+                    setHasCopiedReferral(true);
+                    setSaveSuccessMessage(t.referralLinkCopied);
+                    setTimeout(() => setHasCopiedReferral(false), 2500);
+                  }}
+                  className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-brand-accent hover:opacity-90 text-white font-bold text-xs transition cursor-pointer shadow-sm shrink-0"
+                >
+                  {hasCopiedReferral ? (
+                    <>
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span>{t.copied}</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-4 h-4" />
+                      <span>{t.copyReferralLink}</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* Quick Share via WhatsApp */}
+            <div className="flex items-center justify-between text-xs pt-1">
+              <span className="text-brand-secondary">{t.referralStep1}</span>
+              <a
+                href={`https://wa.me/?text=${encodeURIComponent(
+                  language === 'ar'
+                    ? `السلام عليكم، جرب منصة CodWorth لبناء صفحات الهبوط للدفع عند الاستلام بالذكاء الاصطناعي: https://codworth.me/${language}/login?ref=${user?.id || 'partner'}`
+                    : `Check out CodWorth for high-converting COD landing pages: https://codworth.me/${language}/login?ref=${user?.id || 'partner'}`
+                )}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-brand-accent hover:underline font-semibold"
+              >
+                <MessageCircle className="w-4 h-4" />
+                <span>مشاركة عبر واتساب</span>
+              </a>
+            </div>
+          </div>
+
+          {/* Stats Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+            <div className="bg-brand-surface border border-brand rounded-xl p-4 text-center">
+              <div className="w-9 h-9 rounded-xl bg-brand-bg border border-brand text-brand-accent mx-auto flex items-center justify-center mb-2">
+                <Users className="w-4 h-4" />
+              </div>
+              <div className="text-xl sm:text-2xl font-black text-brand-primary">0</div>
+              <div className="text-xs font-semibold text-brand-secondary mt-0.5">{t.merchantsInvited}</div>
+            </div>
+
+            <div className="bg-brand-surface border border-brand rounded-xl p-4 text-center">
+              <div className="w-9 h-9 rounded-xl bg-brand-bg border border-brand text-emerald-400 mx-auto flex items-center justify-center mb-2">
+                <Sparkles className="w-4 h-4" />
+              </div>
+              <div className="text-xl sm:text-2xl font-black text-brand-primary">0 MAD</div>
+              <div className="text-xs font-semibold text-brand-secondary mt-0.5">{t.rewardsEarned}</div>
+            </div>
+
+            <div className="bg-brand-surface border border-brand rounded-xl p-4 text-center">
+              <div className="w-9 h-9 rounded-xl bg-brand-bg border border-brand text-amber-400 mx-auto flex items-center justify-center mb-2">
+                <Crown className="w-4 h-4" />
+              </div>
+              <div className="text-xl sm:text-2xl font-black text-brand-accent">20%</div>
+              <div className="text-xs font-semibold text-brand-secondary mt-0.5">{t.referralCommissionRate}</div>
+            </div>
+          </div>
+
+          {/* How it works Banner */}
+          <div className="bg-brand-surface/70 border border-brand rounded-xl p-4 space-y-3">
+            <h4 className="text-xs font-bold text-brand-primary flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-brand-accent" />
+              <span>{t.howItWorks}</span>
+            </h4>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs text-brand-secondary">
+              <div className="p-3 rounded-lg bg-brand-bg border border-brand/60">
+                <p className="font-medium">{t.referralStep1}</p>
+              </div>
+              <div className="p-3 rounded-lg bg-brand-bg border border-brand/60">
+                <p className="font-medium">{t.referralStep2}</p>
+              </div>
+              <div className="p-3 rounded-lg bg-brand-bg border border-brand/60">
+                <p className="font-medium">{t.referralStep3}</p>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>

@@ -117,12 +117,32 @@ export const AuthPage: React.FC<AuthPageProps> = ({
     turnstileRef.current?.reset();
   }, [mode]);
 
-  // Detect URL parameters (?mode=register, ?token=...&email=..., or ?verified=1&email=...)
+  const [referralCode, setReferralCode] = useState<string | null>(() => {
+    try {
+      return localStorage.getItem('referral_code');
+    } catch {
+      return null;
+    }
+  });
+
+  // Detect URL parameters (?mode=register, ?token=...&email=..., or ?verified=1&email=..., or ?ref=...)
   useEffect(() => {
     const tokenParam = searchParams.get('token');
     const emailParam = searchParams.get('email');
     const verifiedParam = searchParams.get('verified');
     const modeParam = searchParams.get('mode');
+    const refParam = searchParams.get('ref');
+
+    if (refParam && refParam.trim()) {
+      const cleanRef = refParam.trim();
+      try {
+        localStorage.setItem('referral_code', cleanRef);
+      } catch {}
+      setReferralCode(cleanRef);
+      if (!modeParam) {
+        setMode('register');
+      }
+    }
 
     if (tokenParam && emailParam) {
       setResetToken(tokenParam.trim());
@@ -1026,6 +1046,24 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                     {mode === 'login' ? t.authSubLogin : t.authSubRegister}
                   </p>
                 </div>
+
+                {/* Referral Invitation Banner */}
+                {mode === 'register' && referralCode && (
+                  <div className="p-3 rounded-xl bg-brand-accent/15 border border-brand-accent/40 text-[#F8FAFC] text-xs flex items-center gap-3 animate-in fade-in">
+                    <span className="text-2xl shrink-0">🎁</span>
+                    <div className="min-w-0">
+                      <div className="font-extrabold text-brand-accent text-[13px] leading-tight">
+                        {t.invitedByFriendBanner}
+                      </div>
+                      <div className="text-[11px] text-[#CBD5E1] mt-0.5 truncate">
+                        <span>{t.referralCodeApplied}: </span>
+                        <span className="font-mono text-white font-bold bg-brand-surface px-1.5 py-0.5 rounded border border-brand">
+                          {referralCode}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Form Body */}
                 <form

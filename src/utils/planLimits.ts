@@ -15,6 +15,8 @@ export interface PlanCapabilities {
   effectivePlan: PlanTier;
   isAdmin: boolean;
   maxPages: number; // Infinity for unlimited
+  maxOrdersMonthly: number;
+  maxVisitsMonthly: number;
   canUseCustomDomain: boolean;
   canUsePixels: boolean;
   canUseApiIntegrations: boolean;
@@ -23,6 +25,67 @@ export interface PlanCapabilities {
   canUseProBlocks: boolean;
   prioritySupport: boolean;
 }
+
+export interface PlanLimitDetails {
+  id: PlanTier;
+  name: string;
+  nameAr: string;
+  nameFr: string;
+  priceUSD: number;
+  priceMAD: number;
+  maxPages: number;
+  maxOrdersMonthly: number;
+  maxVisitsMonthly: number;
+  highlighted?: boolean;
+}
+
+export const PLAN_LIMITS_MAP: Record<PlanTier, PlanLimitDetails> = {
+  free: {
+    id: 'free',
+    name: 'Free Trial',
+    nameAr: 'تجربة مجانية',
+    nameFr: 'Essai Gratuit',
+    priceUSD: 0,
+    priceMAD: 0,
+    maxPages: 2,
+    maxOrdersMonthly: 50,
+    maxVisitsMonthly: 1000,
+  },
+  starter: {
+    id: 'starter',
+    name: 'Starter',
+    nameAr: 'المبتدئ',
+    nameFr: 'Débutant',
+    priceUSD: 39,
+    priceMAD: 390,
+    maxPages: 50,
+    maxOrdersMonthly: 2000,
+    maxVisitsMonthly: 15000,
+  },
+  pro: {
+    id: 'pro',
+    name: 'Professional',
+    nameAr: 'بريميوم',
+    nameFr: 'Professionnel',
+    priceUSD: 59,
+    priceMAD: 590,
+    maxPages: 150,
+    maxOrdersMonthly: 5000,
+    maxVisitsMonthly: 50000,
+    highlighted: true,
+  },
+  enterprise: {
+    id: 'enterprise',
+    name: 'Business',
+    nameAr: 'الأعمال',
+    nameFr: 'Entreprise / Business',
+    priceUSD: 79,
+    priceMAD: 790,
+    maxPages: Infinity,
+    maxOrdersMonthly: Infinity,
+    maxVisitsMonthly: Infinity,
+  },
+};
 
 export interface FeatureAccessResult {
   allowed: boolean;
@@ -55,8 +118,8 @@ const RESERVED_PLATFORM_DOMAINS = new Set([
 
 export function normalizePlanId(planId?: string | null): PlanTier {
   const clean = (planId || 'free').toString().trim().toLowerCase();
-  if (clean === 'starter' || clean === 'pro' || clean === 'enterprise') {
-    return clean;
+  if (clean === 'starter' || clean === 'pro' || clean === 'enterprise' || clean === 'business') {
+    return clean === 'business' ? 'enterprise' : clean;
   }
   return 'free';
 }
@@ -96,6 +159,8 @@ export function getPlanCapabilities(
       effectivePlan: 'enterprise',
       isAdmin: true,
       maxPages: Infinity,
+      maxOrdersMonthly: Infinity,
+      maxVisitsMonthly: Infinity,
       canUseCustomDomain: true,
       canUsePixels: true,
       canUseApiIntegrations: true,
@@ -114,6 +179,8 @@ export function getPlanCapabilities(
         effectivePlan: 'enterprise',
         isAdmin: false,
         maxPages: Infinity,
+        maxOrdersMonthly: Infinity,
+        maxVisitsMonthly: Infinity,
         canUseCustomDomain: true,
         canUsePixels: true,
         canUseApiIntegrations: true,
@@ -126,7 +193,9 @@ export function getPlanCapabilities(
       return {
         effectivePlan: 'pro',
         isAdmin: false,
-        maxPages: Infinity,
+        maxPages: 150,
+        maxOrdersMonthly: 5000,
+        maxVisitsMonthly: 50000,
         canUseCustomDomain: true,
         canUsePixels: true,
         canUseApiIntegrations: true,
@@ -139,13 +208,15 @@ export function getPlanCapabilities(
       return {
         effectivePlan: 'starter',
         isAdmin: false,
-        maxPages: 5,
-        canUseCustomDomain: false,
-        canUsePixels: false,
+        maxPages: 50,
+        maxOrdersMonthly: 2000,
+        maxVisitsMonthly: 15000,
+        canUseCustomDomain: true,
+        canUsePixels: true,
         canUseApiIntegrations: false,
         canExportOrders: false,
         canRemoveWatermark: true,
-        canUseProBlocks: false,
+        canUseProBlocks: true,
         prioritySupport: false,
       };
     case 'free':
@@ -154,6 +225,8 @@ export function getPlanCapabilities(
         effectivePlan: 'free',
         isAdmin: false,
         maxPages: 2,
+        maxOrdersMonthly: 50,
+        maxVisitsMonthly: 1000,
         canUseCustomDomain: false,
         canUsePixels: false,
         canUseApiIntegrations: false,

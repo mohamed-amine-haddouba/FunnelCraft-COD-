@@ -140,6 +140,31 @@ export interface Translations {
   twoFactorDesc: string;
   enable2fa: string;
 
+  // Merchant Referrals System
+  tabReferrals: string;
+  referralsTitle: string;
+  referralsDesc: string;
+  referralLink: string;
+  copyReferralLink: string;
+  referralLinkCopied: string;
+  merchantsInvited: string;
+  rewardsEarned: string;
+  referralCommissionRate: string;
+  howItWorks: string;
+  referralStep1: string;
+  referralStep2: string;
+  referralStep3: string;
+  invitedByFriendBanner: string;
+  referralCodeApplied: string;
+
+  // New Pricing Tiers
+  tierStarterName: string;
+  tierProName: string;
+  tierBusinessName: string;
+  tierPopularBadge: string;
+  billedMonthly: string;
+  billedAnnually: string;
+
   // Pro Gating & Paywall
   proFeatureTitle: string;
   proFeatureDesc: string;
@@ -371,8 +396,33 @@ export const translations: Record<Language, Translations> = {
     newPassword: 'كلمة المرور الجديدة',
     confirmPassword: 'تأكيد كلمة المرور الجديدة',
     twoFactorTitle: 'التحقق بخطوتين (2FA)',
-    twoFactorDesc: 'حماية إضافية لحسابك وأموالك عبر رمز OTP',
+    twoFactorDesc: 'تأمين إضافي لحسابك يتطلب رمز تأكيد عند تسجيل الدخول',
     enable2fa: 'تفعيل التحقق بخطوتين',
+
+    // Merchant Referrals System (AR)
+    tabReferrals: 'الإحالات',
+    referralsTitle: 'برنامج إحالة التجار',
+    referralsDesc: 'شارك رابط الإحالة الخاص بك واكسب مكافآت وعمولات مع كل تاجر جديد يشترك في المنصة.',
+    referralLink: 'رابط الإحالة الخاص بك',
+    copyReferralLink: 'نسخ الرابط',
+    referralLinkCopied: 'تم نسخ رابط الإحالة بنجاح!',
+    merchantsInvited: 'التجار المدعوون',
+    rewardsEarned: 'المكافآت المحققة',
+    referralCommissionRate: 'نسبة العمولة',
+    howItWorks: 'كيف يعمل النظام؟',
+    referralStep1: '1. شارك رابط الإحالة الفريد الخاص بك مع التجار وأصحاب المتاجر.',
+    referralStep2: '2. يسجل التاجر في المنصة ويبدأ باستخدام باقاتنا الاحترافية.',
+    referralStep3: '3. احصل على عمولة ومكافأة فورية تضاف إلى رصيدك.',
+    invitedByFriendBanner: 'لقد تمت دعوتك بواسطة صديق! 🎁',
+    referralCodeApplied: 'كود الإحالة مفعل',
+
+    // New Pricing Tiers (AR)
+    tierStarterName: 'المبتدئ (Starter)',
+    tierProName: 'بريميوم (Professional)',
+    tierBusinessName: 'الأعمال (Business)',
+    tierPopularBadge: 'الأكثر شعبية ⭐',
+    billedMonthly: 'دفع شهري',
+    billedAnnually: 'دفع سنوي (وفر 20%)',
 
     // Pro Gating & Paywall
     proFeatureTitle: 'ميزة حصرية لمشتركي باقة Pro 👑',
@@ -604,8 +654,33 @@ export const translations: Record<Language, Translations> = {
     newPassword: 'Nouveau mot de passe',
     confirmPassword: 'Confirmer le mot de passe',
     twoFactorTitle: 'Authentification à Deux Facteurs (2FA)',
-    twoFactorDesc: 'Sécurité accrue pour votre compte via code OTP',
+    twoFactorDesc: 'Sécurisez votre compte en exigeant un code de vérification à chaque connexion',
     enable2fa: 'Activer la 2FA',
+
+    // Merchant Referrals System (FR)
+    tabReferrals: 'Parrainages',
+    referralsTitle: 'Programme de Parrainage Marchand',
+    referralsDesc: 'Partagez votre lien de parrainage et gagnez des récompenses et commissions pour chaque nouveau marchand.',
+    referralLink: 'Votre lien de parrainage',
+    copyReferralLink: 'Copier le lien',
+    referralLinkCopied: 'Lien de parrainage copié avec succès !',
+    merchantsInvited: 'Marchands invités',
+    rewardsEarned: 'Gains cumulés',
+    referralCommissionRate: 'Taux de commission',
+    howItWorks: 'Comment ça fonctionne ?',
+    referralStep1: '1. Partagez votre lien de parrainage unique avec d’autres commerçants.',
+    referralStep2: '2. Le marchand s’inscrit sur la plateforme et choisit un forfait.',
+    referralStep3: '3. Vous recevez directement votre commission et vos récompenses.',
+    invitedByFriendBanner: 'Vous avez été invité par un ami ! 🎁',
+    referralCodeApplied: 'Code de parrainage appliqué',
+
+    // New Pricing Tiers (FR)
+    tierStarterName: 'Débutant (Starter)',
+    tierProName: 'Professionnel (Pro)',
+    tierBusinessName: 'Affaires (Business)',
+    tierPopularBadge: 'Le Plus Populaire ⭐',
+    billedMonthly: 'Facturation mensuelle',
+    billedAnnually: 'Facturation annuelle (-20%)',
 
     // Pro Gating & Paywall
     proFeatureTitle: 'Fonctionnalité Réservée aux Membres Pro 👑',
@@ -837,8 +912,33 @@ export const translations: Record<Language, Translations> = {
     newPassword: 'New Password',
     confirmPassword: 'Confirm Password',
     twoFactorTitle: 'Two-Factor Authentication (2FA)',
-    twoFactorDesc: 'Extra security for your merchant earnings and account via OTP',
+    twoFactorDesc: 'Add an extra layer of security requiring a verification code upon login',
     enable2fa: 'Enable 2FA',
+
+    // Merchant Referrals System (EN)
+    tabReferrals: 'Referrals',
+    referralsTitle: 'Merchant Referral Program',
+    referralsDesc: 'Share your referral link and earn recurring commission & bonuses with every merchant you invite.',
+    referralLink: 'Your Referral Link',
+    copyReferralLink: 'Copy Link',
+    referralLinkCopied: 'Referral link copied successfully!',
+    merchantsInvited: 'Merchants Invited',
+    rewardsEarned: 'Rewards Earned',
+    referralCommissionRate: 'Commission Rate',
+    howItWorks: 'How it Works',
+    referralStep1: '1. Share your unique referral link with fellow merchants and store owners.',
+    referralStep2: '2. The merchant creates an account and subscribes to any paid plan.',
+    referralStep3: '3. You earn immediate commission credited to your balance.',
+    invitedByFriendBanner: 'You were invited by a friend! 🎁',
+    referralCodeApplied: 'Referral code applied',
+
+    // New Pricing Tiers (EN)
+    tierStarterName: 'Starter Plan',
+    tierProName: 'Professional Plan',
+    tierBusinessName: 'Business Plan',
+    tierPopularBadge: 'Most Popular ⭐',
+    billedMonthly: 'Billed monthly',
+    billedAnnually: 'Billed annually (Save 20%)',
 
     // Pro Gating & Paywall
     proFeatureTitle: 'Pro Plan Exclusive Feature 👑',

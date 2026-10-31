@@ -53,8 +53,10 @@ interface PricingTier {
   id: SubscriptionPlanId;
   nameAr: string;
   nameEn: string;
-  badge?: string;
+  priceUSD: number;
   monthlyPriceMAD: number;
+  limits: string;
+  badge?: string;
   description: string;
   highlighted?: boolean;
   ctaLabel: string;
@@ -64,69 +66,73 @@ interface PricingTier {
 
 const PRICING_TIERS: PricingTier[] = [
   {
-    id: 'free',
-    nameAr: 'الباقة المجانية (Free)',
-    nameEn: 'Free Starter',
-    monthlyPriceMAD: 0,
-    description: 'لتجربة المنصة وبناء أول صفحة هبوط لمنتجك بسرعة وسهولة.',
-    ctaLabel: 'ابدأ مجاناً',
-    icon: Zap,
-    features: [
-      'صفحة واحدة',
-      '50 طلب/شهر',
-      'علامة مائية (Watermark)',
-      'دعم أساسي',
-    ],
-  },
-  {
     id: 'starter',
-    nameAr: 'باقة المبتدئين (Starter)',
+    nameAr: 'المبتدئ (Starter)',
     nameEn: 'Starter Plan',
-    badge: 'للتجار الجدد',
-    monthlyPriceMAD: 99,
-    description: 'انطلاقة احترافية للتجار المبتدئين في الدفع عند الاستلام بدون علامة مائية.',
-    ctaLabel: 'اشترك الآن',
+    priceUSD: 39,
+    monthlyPriceMAD: 390,
+    limits: '50 صفحة / منتج • 2,000 طلب/شهر • 15,000 زيارة/شهر',
+    description: 'انطلاقة قوية ومثالية للتجار والمتاجر الناشئة بدون علامة مائية ومع أدوات الذكاء الاصطناعي.',
+    ctaLabel: 'اشترك في باقة المبتدئ',
     icon: Rocket,
     features: [
-      '3 صفحات',
-      '500 طلب/شهر',
-      'بدون علامة مائية',
-      'إحصائيات أساسية',
+      '50 صفحة هبوط / منتج (50 Products & Pages)',
+      '2,000 طلب شهرياً (2,000 Orders / Month)',
+      '15,000 زيارة شهرياً (15,000 Visits / Month)',
+      'متاجر إلكترونية بالذكاء الاصطناعي (AI E-commerce Stores)',
+      'توليد صور المنتجات بالذكاء الاصطناعي (AI Images)',
+      'إزالة العلامة المائية بالكامل (No Watermark)',
+      'ربط الدومين المخصص (Custom Domain)',
+      'بيكسل الإعلانات (Meta, TikTok, Snapchat)',
+      'دعم فني سريع عبر واتساب',
     ],
   },
   {
     id: 'pro',
-    nameAr: 'باقة المحترفين (Pro)',
-    nameEn: 'Pro Unlimited',
+    nameAr: 'بريميوم (Professional)',
+    nameEn: 'Professional Plan',
     badge: 'الأكثر شعبية ⭐',
-    monthlyPriceMAD: 179,
-    description: 'الباقة المتكاملة لمحترفي التجارة الإلكترونية في المغرب لتحقيق أعلى نسبة تحويل.',
     highlighted: true,
-    ctaLabel: 'اشترك الآن',
+    priceUSD: 59,
+    monthlyPriceMAD: 590,
+    limits: '150 صفحة / منتج • 5,000 طلب/شهر • 50,000 زيارة/شهر',
+    description: 'الباقة الأكثر طلباً للتجار المحترفين لمضاعفة المبيعات مع فيديوهات UGC والربط المباشر مع شركات الشحن.',
+    ctaLabel: 'اشترك في باقة بريميوم',
     icon: Crown,
     features: [
-      'صفحات غير محدودة',
-      'طلبات غير محدودة',
-      'إزالة العلامة المائية',
-      'دومين مخصص',
-      'ربط بيكسل الإعلانات',
-      'دعم فوري واتساب',
+      '150 صفحة هبوط / منتج (150 Products & Pages)',
+      '5,000 طلب شهرياً (5,000 Orders / Month)',
+      '50,000 زيارة شهرياً (50,000 Visits / Month)',
+      'فيديوهات إعلانية UGC بالذكاء الاصطناعي (AI UGC Videos)',
+      'متاجر التجارة الإلكترونية بالذكاء الاصطناعي (AI E-commerce Stores)',
+      'توليد صور منتجات احترافية غير محدودة (AI Images)',
+      'ربط مباشر مع شركات الشحن والتوصيل (Shipping API Integration)',
+      'تصدير الطلبات المتقدم CSV و Google Sheets',
+      'تحليلات مباشرة ونسبة تأكيد الشحن والتسليم',
+      'دعم فني مخصص ذو أولوية',
     ],
   },
   {
     id: 'enterprise',
-    nameAr: 'باقة الشركات (Enterprise)',
-    nameEn: 'Enterprise Scale',
+    nameAr: 'الأعمال (Business)',
+    nameEn: 'Business Scale',
     badge: 'للشركات والوكالات 🚀',
-    monthlyPriceMAD: 349,
-    description: 'حلول متقدمة للمتاجر الكبرى وفرق التأكيد مع ربط مباشر مع شركات التوصيل.',
-    ctaLabel: 'اشترك الآن',
+    priceUSD: 79,
+    monthlyPriceMAD: 790,
+    limits: 'غير محدود • Unlimited Everything',
+    description: 'حل متكامل وبلا حدود للشركات الكبرى والوكالات مع دعم VIP فوري ومدير حساب خاص.',
+    ctaLabel: 'اشترك في باقة الأعمال',
     icon: Building2,
     features: [
-      'كل ميزات Pro',
-      'مدير حساب مخصص',
-      'ربط شركات التوصيل API',
-      'تقارير متقدمة',
+      'صفحات ومنتجات غير محدودة (Unlimited Products & Pages)',
+      'طلبات ومبيعات غير محدودة (Unlimited Orders)',
+      'زيارات غير محدودة (Unlimited Traffic)',
+      'كل مميزات باقتي المبتدئ وبريميوم',
+      'فيديوهات تسويقية UGC متقدمة غير محدودة (AI UGC Videos)',
+      'توليد وتعديل صور المنتجات بالذكاء الاصطناعي بلا حدود (AI Images)',
+      'ربط شامل مع كافة شركات الشحن والتوصيل (Shipping API Integration)',
+      'Webhooks وتكامل مباشر مع منصات الشحن والتخزين',
+      'دعم VIP فوري 24/7 مع مدير حساب خاص (VIP Dedicated Support)',
     ],
   },
 ];
@@ -710,34 +716,36 @@ export const PricingPage: React.FC<PricingPageProps> = ({
           </div>
         </div>
 
-        {/* 4 Pricing Tiers Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 items-stretch">
+        {/* 3 Pricing Tiers Bento Grid (Competitor to SellCOD) */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8 items-stretch max-w-7xl mx-auto">
           {pricingTiers.map((tier) => {
             const Icon = tier.icon;
             const effectiveMonthlyMAD = getEffectivePriceMAD(tier);
-            const isCurrentTier =
-              (tier.id === 'free' && !isPro && effectivePlan === 'free') ||
-              (isPro && effectivePlan === tier.id);
+            const effectiveMonthlyUSD =
+              billingCycle === 'yearly'
+                ? Math.round((tier.priceUSD || Math.round(tier.monthlyPriceMAD / 10)) * 0.8)
+                : tier.priceUSD || Math.round(tier.monthlyPriceMAD / 10);
+            const isCurrentTier = isPro && effectivePlan === tier.id;
             const isSelectedForCheckout = selectedPaidTier?.id === tier.id;
 
             return (
               <div
                 key={tier.id}
-                className={`relative rounded-3xl p-6 flex flex-col justify-between transition-all duration-300 ${
+                className={`relative rounded-3xl p-6 sm:p-7 flex flex-col justify-between transition-all duration-300 ${
                   tier.highlighted
-                    ? 'bg-[#131B2A] border-2 border-[#E25B26] shadow-[0_0_40px_-10px_rgba(226,91,38,0.35)] ring-1 ring-[#E25B26]/50 scale-[1.02]'
+                    ? 'bg-brand-surface border-2 border-brand-accent shadow-[0_0_50px_-10px_rgba(226,91,38,0.45)] ring-2 ring-brand-accent/50 lg:-translate-y-2'
                     : isSelectedForCheckout
-                    ? 'bg-[#131B2A] border-2 border-[#E25B26] shadow-xl'
-                    : 'bg-[#131B2A] border border-[#1E293B] hover:border-[#334155]'
+                    ? 'bg-brand-surface border-2 border-brand-accent shadow-xl'
+                    : 'bg-brand-surface border border-brand hover:border-brand-accent/50 shadow-md'
                 }`}
               >
-                {/* Top Popular Ribbon */}
+                {/* Popular / Highlight Ribbon */}
                 {tier.badge && (
                   <div
-                    className={`absolute -top-3.5 right-6 px-3 py-1 rounded-full text-[11px] font-black tracking-wide shadow-md ${
+                    className={`absolute -top-3.5 right-6 px-3.5 py-1 rounded-full text-[11px] font-black tracking-wide shadow-md ${
                       tier.highlighted
-                        ? 'bg-[#E25B26] text-[#F8FAFC]'
-                        : 'bg-[#1E293B] text-[#E25B26] border border-[#334155]'
+                        ? 'bg-brand-accent text-white ring-2 ring-brand-accent/30 animate-pulse'
+                        : 'bg-brand-elevated text-brand-accent border border-brand'
                     }`}
                   >
                     {tier.badge}
@@ -746,104 +754,102 @@ export const PricingPage: React.FC<PricingPageProps> = ({
 
                 <div className="space-y-5">
                   {/* Tier Header */}
-                  <div className="flex items-center justify-between gap-2 pt-1">
+                  <div className="flex items-center justify-between gap-3 pt-1">
                     <div>
-                      <h3 className="text-lg font-black text-[#F8FAFC]">{tier.nameAr}</h3>
-                      <span className="text-[11px] font-semibold text-[#CBD5E1]">
+                      <h3 className="text-xl font-black text-brand-primary">{tier.nameAr}</h3>
+                      <span className="text-xs font-semibold text-brand-secondary">
                         {tier.nameEn}
                       </span>
                     </div>
                     <div
-                      className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 ${
+                      className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-sm ${
                         tier.highlighted
-                          ? 'bg-[#E25B26]/20 text-[#E25B26] border border-[#E25B26]/40'
-                          : 'bg-[#1E293B] text-[#CBD5E1] border border-[#334155]'
+                          ? 'bg-brand-accent/20 text-brand-accent border border-brand-accent/40'
+                          : 'bg-brand-elevated text-brand-secondary border border-brand'
                       }`}
                     >
-                      <Icon className="w-5 h-5" />
+                      <Icon className="w-6 h-6" />
                     </div>
                   </div>
+
+                  {/* Limits Badge (Bento Metric Pill) */}
+                  {tier.limits && (
+                    <div className="px-3 py-1.5 rounded-xl bg-brand-bg border border-brand text-[11px] font-extrabold text-brand-accent flex items-center justify-center text-center">
+                      <span>{tier.limits}</span>
+                    </div>
+                  )}
 
                   {/* Price Display */}
-                  <div className="pt-2 border-t border-[#1E293B]">
-                    <div className="flex items-baseline gap-1.5">
-                      <span className="text-3xl sm:text-4xl font-black text-[#F8FAFC] font-mono">
-                        {effectiveMonthlyMAD}
+                  <div className="pt-2 border-t border-brand">
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-4xl sm:text-5xl font-black text-brand-primary font-mono tracking-tight">
+                        ${effectiveMonthlyUSD}
                       </span>
-                      <span className="text-sm font-extrabold text-[#E25B26]">درهم</span>
-                      {tier.monthlyPriceMAD > 0 && (
-                        <span className="text-xs text-[#CBD5E1] font-semibold">/ شهر</span>
-                      )}
+                      <span className="text-sm font-bold text-brand-secondary">/ {language === 'ar' ? 'شهر' : 'mo'}</span>
+                      <span className="text-xs font-mono font-bold text-brand-accent ms-1">
+                        (~{effectiveMonthlyMAD} MAD)
+                      </span>
                     </div>
 
-                    {tier.monthlyPriceMAD > 0 ? (
-                      <div className="mt-1 text-[11px] text-[#CBD5E1] font-medium">
-                        {billingCycle === 'yearly' ? (
-                          <span className="text-[#E25B26] font-bold">
-                            تُدفع سنوياً ({getTotalBilledMAD(tier)} درهم/سنة) • بدل{' '}
-                            <span className="line-through text-[#CBD5E1]/60">
-                              {tier.monthlyPriceMAD} درهم
-                            </span>
-                          </span>
-                        ) : (
-                          <span>أو وفّر 20% عند اختيار الدفع السنوي</span>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="mt-1 text-[11px] text-[#CBD5E1] font-medium">
-                        مجاناً للأبد بدون بطاقة بنكية
-                      </div>
-                    )}
+                    <div className="mt-1.5 text-xs text-brand-secondary font-medium">
+                      {billingCycle === 'yearly' ? (
+                        <span className="text-brand-accent font-bold">
+                          {language === 'ar'
+                            ? `تُدفع سنوياً (${getTotalBilledMAD(tier)} MAD/سنة) • توفير 20%`
+                            : `Billed annually (${getTotalBilledMAD(tier)} MAD/yr) • 20% OFF`}
+                        </span>
+                      ) : (
+                        <span>
+                          {language === 'ar'
+                            ? 'أو وفّر 20% باختيار الدفع السنوي'
+                            : 'Or save 20% with annual billing'}
+                        </span>
+                      )}
+                    </div>
                   </div>
 
-                  <p className="text-xs text-[#CBD5E1] leading-relaxed">{tier.description}</p>
+                  <p className="text-xs text-brand-secondary leading-relaxed">{tier.description}</p>
 
-                  {/* Feature List */}
-                  <ul className="space-y-2.5 pt-2">
-                    {tier.features.map((feat, idx) => (
-                      <li key={idx} className="flex items-start gap-2.5 text-xs font-bold text-[#F8FAFC]">
-                        <div
-                          className={`w-4 h-4 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${
-                            tier.highlighted
-                              ? 'bg-[#E25B26] text-[#F8FAFC]'
-                              : 'bg-[#1E293B] text-[#E25B26]'
-                          }`}
-                        >
-                          <Check className="w-3 h-3 stroke-[3]" />
-                        </div>
-                        <span>{feat}</span>
-                      </li>
-                    ))}
-                  </ul>
+                  {/* Feature List with Checkmarks */}
+                  <div className="pt-2 border-t border-brand/60 space-y-2.5">
+                    <div className="text-[11px] font-bold uppercase tracking-wider text-brand-secondary">
+                      {language === 'ar' ? 'المميزات المضمنة:' : 'Included Features:'}
+                    </div>
+                    <ul className="space-y-2.5">
+                      {tier.features.map((feat, idx) => (
+                        <li key={idx} className="flex items-start gap-2.5 text-xs font-bold text-brand-primary">
+                          <div
+                            className={`w-4 h-4 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${
+                              tier.highlighted
+                                ? 'bg-brand-accent text-white shadow-xs'
+                                : 'bg-brand-elevated text-brand-accent'
+                            }`}
+                          >
+                            <Check className="w-3 h-3 stroke-[3]" />
+                          </div>
+                          <span className="leading-tight">{feat}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
                 </div>
 
                 {/* Action CTA Button */}
-                <div className="pt-6 mt-6 border-t border-[#1E293B]">
-                  {tier.id === 'free' ? (
-                    <button
-                      type="button"
-                      disabled={isCurrentTier}
-                      onClick={() => handleChooseTier(tier)}
-                      className={`w-full py-3 px-4 rounded-2xl text-xs font-black transition flex items-center justify-center gap-2 ${
-                        isCurrentTier
-                          ? 'bg-[#1E293B]/60 text-[#CBD5E1]/50 border border-[#1E293B] cursor-not-allowed'
-                          : 'bg-[#1E293B] hover:bg-[#334155] text-[#F8FAFC] border border-[#334155] cursor-pointer'
-                      }`}
-                    >
-                      <span>{isCurrentTier ? 'باقتك الحالية (Free)' : tier.ctaLabel}</span>
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => handleChooseTier(tier)}
-                      className="w-full py-3.5 px-4 rounded-2xl text-xs sm:text-sm font-black transition flex items-center justify-center gap-2 cursor-pointer shadow-lg bg-[#E25B26] hover:bg-[#F16F3C] text-[#F8FAFC]"
-                    >
-                      <Crown className="w-4 h-4 shrink-0" />
-                      <span>
-                        {isCurrentTier ? 'تحديث / تجديد الباقة' : tier.ctaLabel}
-                      </span>
-                    </button>
-                  )}
+                <div className="pt-6 mt-6 border-t border-brand">
+                  <button
+                    type="button"
+                    onClick={() => handleChooseTier(tier)}
+                    className={`w-full py-3.5 px-4 rounded-2xl text-xs sm:text-sm font-black transition flex items-center justify-center gap-2 cursor-pointer shadow-lg ${
+                      tier.highlighted
+                        ? 'bg-brand-accent hover:opacity-90 text-white ring-2 ring-brand-accent/50'
+                        : 'bg-brand-elevated hover:bg-brand-accent hover:text-white text-brand-primary border border-brand'
+                    }`}
+                  >
+                    <Crown className="w-4 h-4 shrink-0" />
+                    <span>
+                      {isCurrentTier ? (language === 'ar' ? 'تجديد / ترقية الباقة' : 'Renew / Manage') : tier.ctaLabel}
+                    </span>
+                  </button>
                 </div>
               </div>
             );
