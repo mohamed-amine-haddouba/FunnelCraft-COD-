@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { X, Lock, Mail, User as UserIcon, AlertCircle, ArrowRight, CheckCircle2, ShieldCheck } from 'lucide-react';
 import { Turnstile, type TurnstileInstance } from '@marsidev/react-turnstile';
 import { GoogleLogin, type CredentialResponse } from '@react-oauth/google';
@@ -22,9 +22,18 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 }) => {
   const { user, login, register, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const queryMode = searchParams.get('mode');
   
   // Normalize initial mode between signin/login and signup/register
-  const normalizedInitialMode = initialMode === 'login' || initialMode === 'signin' ? 'signin' : 'signup';
+  const effectiveInitialMode =
+    queryMode === 'register'
+      ? 'register'
+      : queryMode === 'login'
+      ? 'login'
+      : initialMode;
+  const normalizedInitialMode =
+    effectiveInitialMode === 'login' || effectiveInitialMode === 'signin' ? 'signin' : 'signup';
   const [mode, setMode] = useState<'signin' | 'signup'>(normalizedInitialMode);
   
   const [fullName, setFullName] = useState('');
@@ -43,17 +52,25 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     import.meta.env.VITE_BYPASS_CAPTCHA === 'true';
   const shouldRequireTurnstile = Boolean(TURNSTILE_SITE_KEY) && !isAdminBypass && !turnstileLoadError;
 
-  // Sync mode whenever initialMode changes while opened
+  // Sync mode whenever initialMode or queryMode changes while opened
   useEffect(() => {
     if (isOpen) {
       void preloadRecaptchaScript();
-      setMode(initialMode === 'login' || initialMode === 'signin' ? 'signin' : 'signup');
+      const targetMode =
+        queryMode === 'register'
+          ? 'signup'
+          : queryMode === 'login'
+          ? 'signin'
+          : initialMode === 'login' || initialMode === 'signin'
+          ? 'signin'
+          : 'signup';
+      setMode(targetMode);
       setLocalError(null);
       setSuccessNotice(null);
       setTurnstileToken(null);
       turnstileRef.current?.reset();
     }
-  }, [isOpen, initialMode]);
+  }, [isOpen, initialMode, queryMode]);
 
   useEffect(() => {
     setTurnstileToken(null);

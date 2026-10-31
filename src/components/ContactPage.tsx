@@ -109,7 +109,7 @@ export const ContactPage: React.FC<ContactPageProps> = ({
   return (
     <div
       dir="rtl"
-      className="min-h-full bg-[#0D131E] text-[#F8FAFC] flex flex-col font-sans selection:bg-[#E25B26] selection:text-[#F8FAFC]"
+      className="min-h-screen bg-[#0D131E] text-[#F8FAFC] flex flex-col font-sans selection:bg-[#E25B26] selection:text-[#F8FAFC]"
     >
       {/* Top Header Bar */}
       <header className="border-b border-[#1E293B]/80 bg-[#0D131E]/80 backdrop-blur-md sticky top-0 z-40 px-4 sm:px-8 py-3.5 flex items-center justify-between">

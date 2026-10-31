@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import { PayPalScriptProvider, PayPalButtons } from '@paypal/react-paypal-js';
 import {
   Crown,
@@ -22,6 +23,8 @@ import {
   Tag,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage, Language } from '../i18n/translations';
+import { PublicFooter } from './PublicFooter';
 import { SubscriptionPlanId } from '../types/orders';
 import { MoroccanBankAccount } from '../types/user';
 import {
@@ -136,7 +139,8 @@ export const PricingPage: React.FC<PricingPageProps> = ({
   onNavigateToTerms,
   onNavigateToPrivacy,
 }) => {
-  const { user, token, isPro, upgradeToPro, refreshUser, submitManualPayment, userPayments } = useAuth();
+  const { user, token, isLoggedIn, isPro, upgradeToPro, refreshUser, submitManualPayment, userPayments } = useAuth();
+  const { t, language, setLanguage } = useLanguage();
   const effectivePlan: SubscriptionPlanId =
     user?.plan_id && user.plan_id !== 'free'
       ? user.plan_id
@@ -532,35 +536,120 @@ export const PricingPage: React.FC<PricingPageProps> = ({
     paypalClientId !== 'sb' &&
     paypalClientId !== 'undefined';
 
+  const guestLanguages: { code: Language; label: string }[] = [
+    { code: 'ar', label: 'AR' },
+    { code: 'fr', label: 'FR' },
+    { code: 'en', label: 'EN' },
+  ];
+
   return (
     <div
       dir="rtl"
-      className="min-h-screen w-full bg-[#0D131E] text-[#F8FAFC] py-10 px-4 sm:px-6 lg:px-8 relative overflow-y-auto overflow-x-hidden select-none"
+      className="min-h-screen w-full bg-[#0D131E] text-[#F8FAFC] flex flex-col relative overflow-x-hidden select-none"
     >
-      {/* Ambient Soft Brand Glow */}
-      <div className="pointer-events-none absolute top-0 left-1/2 -translate-x-1/2 w-[720px] h-[320px] bg-[#E25B26]/10 blur-[120px] rounded-full" />
+      {/* Persistent Sticky Guest Header when unauthenticated */}
+      {!isLoggedIn && (
+        <header className="w-full border-b border-[#1E293B] bg-[#0D131E]/95 backdrop-blur-md sticky top-0 z-40">
+          <div className="max-w-7xl mx-auto h-16 px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-4">
+            <Link to="/home" className="flex items-center shrink-0">
+              <img
+                src="/assets/brand/logo.jpg"
+                alt="CodWorth"
+                className="h-10 w-auto object-contain rounded-lg"
+              />
+            </Link>
 
-      <div className="max-w-7xl mx-auto relative z-10 space-y-10">
-        {/* Top Back Navigation & Trigger Banner */}
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          {onBackToBuilder && (
-            <button
-              type="button"
-              onClick={onBackToBuilder}
-              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-[#131B2A] hover:bg-[#1E293B] border border-[#1E293B] text-xs font-bold text-[#CBD5E1] hover:text-[#F8FAFC] transition cursor-pointer"
-            >
-              <ArrowRight className="w-4 h-4 text-[#E25B26]" />
-              <span>العودة</span>
-            </button>
-          )}
+            <nav className="hidden md:flex items-center gap-7 text-sm font-semibold text-[#CBD5E1]">
+              <Link
+                to="/home"
+                className="text-[#CBD5E1] hover:text-[#F8FAFC] transition"
+              >
+                {t['home.hero.nav.home']}
+              </Link>
+              <Link
+                to="/home#features"
+                className="text-[#CBD5E1] hover:text-[#F8FAFC] transition"
+              >
+                {t['home.hero.nav.features']}
+              </Link>
+              <Link
+                to="/pricing"
+                className="text-[#F8FAFC] hover:text-[#E25B26] transition"
+              >
+                {t['home.hero.nav.pricing']}
+              </Link>
+              <Link
+                to="/login"
+                className="text-[#CBD5E1] hover:text-[#F8FAFC] transition"
+              >
+                {t['home.hero.nav.templates']}
+              </Link>
+            </nav>
 
-          {isPro && (
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#E25B26]/10 border border-[#E25B26]/30 text-[#E25B26] text-xs font-extrabold">
-              <Crown className="w-4 h-4 text-[#E25B26]" />
-              <span>حسابك الحالي مفعل على الباقة الاحترافية ({effectivePlan.toUpperCase()})</span>
+            <div className="flex items-center gap-2.5 shrink-0">
+              <div
+                dir="ltr"
+                className="hidden sm:flex items-center gap-1 p-1 rounded-lg bg-[#131B2A] border border-[#1E293B]"
+              >
+                {guestLanguages.map((lang) => (
+                  <button
+                    key={lang.code}
+                    type="button"
+                    onClick={() => setLanguage(lang.code)}
+                    className={`px-2 py-1 rounded text-[11px] font-bold transition cursor-pointer ${
+                      language === lang.code
+                        ? 'bg-[#E25B26] text-[#F8FAFC]'
+                        : 'text-[#CBD5E1] hover:text-[#F8FAFC]'
+                    }`}
+                  >
+                    {lang.label}
+                  </button>
+                ))}
+              </div>
+
+              <Link
+                to="/login"
+                className="px-3.5 py-2 rounded-xl border border-transparent hover:border-[#334155] hover:bg-[#131B2A] text-[#CBD5E1] hover:text-[#F8FAFC] text-xs sm:text-[13px] font-semibold transition"
+              >
+                {t['home.hero.nav.login']}
+              </Link>
+
+              <Link
+                to="/login?mode=register"
+                className="px-4 py-2 rounded-xl bg-[#E25B26] hover:bg-[#F16F3C] text-[#F8FAFC] text-xs sm:text-[13px] font-bold shadow-md transition"
+              >
+                {t['home.hero.nav.signup']}
+              </Link>
             </div>
-          )}
-        </div>
+          </div>
+        </header>
+      )}
+
+      <main className="flex-1 py-10 px-4 sm:px-6 lg:px-8 relative">
+        {/* Ambient Soft Brand Glow */}
+        <div className="pointer-events-none absolute top-0 left-1/2 -translate-x-1/2 w-[720px] h-[320px] bg-[#E25B26]/10 blur-[120px] rounded-full" />
+
+        <div className="max-w-7xl mx-auto relative z-10 space-y-10">
+          {/* Top Back Navigation & Trigger Banner */}
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            {onBackToBuilder && (
+              <button
+                type="button"
+                onClick={onBackToBuilder}
+                className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-[#131B2A] hover:bg-[#1E293B] border border-[#1E293B] text-xs font-bold text-[#CBD5E1] hover:text-[#F8FAFC] transition cursor-pointer"
+              >
+                <ArrowRight className="w-4 h-4 text-[#E25B26]" />
+                <span>العودة</span>
+              </button>
+            )}
+
+            {isPro && (
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#E25B26]/10 border border-[#E25B26]/30 text-[#E25B26] text-xs font-extrabold">
+                <Crown className="w-4 h-4 text-[#E25B26]" />
+                <span>حسابك الحالي مفعل على الباقة الاحترافية ({effectivePlan.toUpperCase()})</span>
+              </div>
+            )}
+          </div>
 
         {triggerReason && (
           <div className="max-w-3xl mx-auto p-4 rounded-2xl bg-[#E25B26]/10 border border-[#E25B26]/30 flex items-center gap-3 text-[#F8FAFC] text-xs sm:text-sm font-bold shadow-lg">
@@ -1359,64 +1448,11 @@ export const PricingPage: React.FC<PricingPageProps> = ({
             </div>
           </div>
         )}
+        </div>
+      </main>
 
-        {/* Pricing Page Legal & Support Footer */}
-        <footer className="mt-20 pt-8 border-t border-[#1E293B] text-xs text-[#CBD5E1]">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-2">
-              <span className="font-extrabold text-[#F8FAFC]">CodWorth</span>
-              <span>•</span>
-              <span>بوابتك لزيادة مبيعات الدفع عند الاستلام بالمغرب</span>
-            </div>
-
-            <div className="flex items-center gap-4 text-xs">
-              {onBackToBuilder && (
-                <button
-                  type="button"
-                  onClick={onBackToBuilder}
-                  className="hover:text-[#F8FAFC] transition cursor-pointer"
-                >
-                  الرئيسية
-                </button>
-              )}
-              {onNavigateToContact && (
-                <button
-                  type="button"
-                  onClick={onNavigateToContact}
-                  className="hover:text-[#F8FAFC] transition cursor-pointer"
-                >
-                  تواصل معنا
-                </button>
-              )}
-              {onNavigateToTerms && (
-                <button
-                  type="button"
-                  onClick={onNavigateToTerms}
-                  className="hover:text-[#F8FAFC] transition cursor-pointer"
-                >
-                  شروط الاستخدام
-                </button>
-              )}
-              {onNavigateToPrivacy && (
-                <button
-                  type="button"
-                  onClick={onNavigateToPrivacy}
-                  className="hover:text-[#F8FAFC] transition cursor-pointer"
-                >
-                  سياسة الخصوصية
-                </button>
-              )}
-              <a href="mailto:codworth.me@gmail.com" className="hover:text-[#F8FAFC] transition">
-                الدعم الفني
-              </a>
-            </div>
-          </div>
-
-          <div className="mt-4 pt-4 border-t border-[#1E293B] text-center text-[11px] text-[#CBD5E1]/70">
-            © {new Date().getFullYear()} CodWorth SARL. جميع الحقوق محفوظة. المملكة المغربية 🇲🇦
-          </div>
-        </footer>
-      </div>
+      {/* Public Footer */}
+      <PublicFooter />
     </div>
   );
 };

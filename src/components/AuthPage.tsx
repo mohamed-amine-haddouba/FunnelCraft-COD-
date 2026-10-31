@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage, Language } from '../i18n/translations';
 import {
@@ -58,8 +58,12 @@ export const AuthPage: React.FC<AuthPageProps> = ({
 
   const { t, language, setLanguage, dir, isRtl } = useLanguage();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const queryMode = searchParams.get('mode');
 
-  const [mode, setMode] = useState<AuthViewMode>(initialMode);
+  const [mode, setMode] = useState<AuthViewMode>(
+    queryMode === 'register' ? 'register' : initialMode
+  );
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
@@ -115,12 +119,12 @@ export const AuthPage: React.FC<AuthPageProps> = ({
     turnstileRef.current?.reset();
   }, [mode]);
 
-  // Detect URL parameters (?token=...&email=... or ?verified=1&email=...) on mount
+  // Detect URL parameters (?mode=register, ?token=...&email=..., or ?verified=1&email=...)
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const tokenParam = params.get('token');
-    const emailParam = params.get('email');
-    const verifiedParam = params.get('verified');
+    const tokenParam = searchParams.get('token');
+    const emailParam = searchParams.get('email');
+    const verifiedParam = searchParams.get('verified');
+    const modeParam = searchParams.get('mode');
 
     if (tokenParam && emailParam) {
       setResetToken(tokenParam.trim());
@@ -134,8 +138,14 @@ export const AuthPage: React.FC<AuthPageProps> = ({
       }
       setMode('login');
       showToast('تم تأكيد بريدك الإلكتروني بنجاح! يمكنك تسجيل الدخول الآن.');
+    } else if (modeParam === 'register') {
+      setMode('register');
+      setErrorMessage(null);
+    } else if (modeParam === 'login') {
+      setMode('login');
+      setErrorMessage(null);
     }
-  }, []);
+  }, [searchParams]);
 
   // Outside click for language dropdown
   useEffect(() => {
@@ -491,13 +501,13 @@ export const AuthPage: React.FC<AuthPageProps> = ({
   return (
     <div className="min-h-screen w-screen bg-[#0D131E] text-[#F8FAFC] flex flex-col font-sans select-none overflow-x-hidden" dir={dir}>
       {/* Top Bar: Brand & Language Switcher */}
-      <header className="h-16 px-4 sm:px-8 border-b border-[#1E293B] bg-[#0D131E] flex items-center justify-between z-30 shrink-0">
+      <header className="h-16 px-4 sm:px-8 border-b border-[#1E293B] bg-[#0D131E]/95 backdrop-blur-md sticky top-0 z-40 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-2.5">
           <Link to="/home" className="flex items-center shrink-0">
             <img
               src="/assets/brand/logo.jpg"
+              alt="CodWorth"
               className="h-10 w-auto object-contain rounded-lg"
-              alt="CodWorth Logo"
             />
           </Link>
           <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#E25B26]/10 text-[#E25B26] border border-[#E25B26]/30">

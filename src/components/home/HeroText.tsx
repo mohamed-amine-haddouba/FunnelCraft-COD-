@@ -29,7 +29,7 @@ export const HeroText: React.FC = () => {
       {/* 4. Primary CTA Button Only */}
       <div className="mt-8 flex items-center w-full sm:w-auto">
         <Link
-          to="/login"
+          to="/login?mode=register"
           className="inline-flex items-center justify-center px-7 py-3.5 rounded-xl bg-[#E25B26] hover:bg-[#F16F3C] text-[#F8FAFC] font-bold text-[15px] shadow-lg transition cursor-pointer text-center w-full sm:w-auto"
         >
           <span>{t['home.hero.ctaPrimary']}</span>
