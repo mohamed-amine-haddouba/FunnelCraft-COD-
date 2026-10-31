@@ -19,13 +19,15 @@ export const HomeLandingPage: React.FC = () => {
       className="min-h-screen w-screen bg-[#0D131E] text-[#F8FAFC] flex flex-col justify-between overflow-x-hidden select-none"
     >
       {/* Top Public Header */}
-      <header className="w-full border-b border-[#1E293B] bg-[#0D131E]/90 backdrop-blur-md sticky top-0 z-40">
+      <header className="w-full border-b border-[#1E293B] bg-[#0D131E] sticky top-0 z-40">
         <div className="max-w-7xl mx-auto h-16 px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-4">
           {/* Brand Logo (Right in RTL / Left in LTR) */}
           <Link to="/home" className="flex items-center gap-2.5 shrink-0">
-            <div className="w-9 h-9 rounded-xl bg-[#E25B26] text-[#F8FAFC] font-black text-xs flex items-center justify-center shadow-md shrink-0">
-              CW
-            </div>
+            <img
+              src="/assets/brand/logo.jpg"
+              className="h-8 w-auto object-contain rounded"
+              alt="CodWorth Logo"
+            />
             <span className="font-black text-base sm:text-lg tracking-tight text-[#F8FAFC]">
               {t['home.hero.brandName']}
             </span>
@@ -34,26 +36,26 @@ export const HomeLandingPage: React.FC = () => {
           {/* Center Nav Links */}
           <nav className="hidden md:flex items-center gap-7 text-sm font-semibold text-[#CBD5E1]">
             <Link
-              to="#"
+              to="/home"
               className="text-[#F8FAFC] hover:text-[#E25B26] transition"
             >
               {t['home.hero.nav.home']}
             </Link>
             <Link
-              to="#"
-              className="hover:text-[#F8FAFC] transition"
+              to="/home"
+              className="text-[#CBD5E1] hover:text-[#F8FAFC] transition"
             >
               {t['home.hero.nav.features']}
             </Link>
             <Link
-              to="#"
-              className="hover:text-[#F8FAFC] transition"
+              to="/home"
+              className="text-[#CBD5E1] hover:text-[#F8FAFC] transition"
             >
               {t['home.hero.nav.pricing']}
             </Link>
             <Link
-              to="#"
-              className="hover:text-[#F8FAFC] transition"
+              to="/home"
+              className="text-[#CBD5E1] hover:text-[#F8FAFC] transition"
             >
               {t['home.hero.nav.templates']}
             </Link>
@@ -73,7 +75,7 @@ export const HomeLandingPage: React.FC = () => {
                   className={`px-2 py-1 rounded text-[11px] font-bold transition cursor-pointer ${
                     language === lang.code
                       ? 'bg-[#E25B26] text-[#F8FAFC]'
-                      : 'text-[#94A3B8] hover:text-[#F8FAFC]'
+                      : 'text-[#CBD5E1] hover:text-[#F8FAFC]'
                   }`}
                 >
                   {lang.label}
@@ -99,7 +101,7 @@ export const HomeLandingPage: React.FC = () => {
       </header>
 
       {/* Main Hero Section */}
-      <main className="flex-1 flex flex-col justify-center">
+      <main className="flex-1 flex flex-col justify-center bg-[#0D131E]">
         <HeroSection />
       </main>
 

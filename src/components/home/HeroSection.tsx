@@ -8,15 +8,16 @@ export const HeroSection: React.FC = () => {
 
   return (
     <section
+      id="hero"
       dir={dir}
       className="relative w-full bg-[#0D131E] text-[#F8FAFC] overflow-hidden py-12 sm:py-16 lg:py-24"
     >
-      {/* Subtle Radial Accent Glow in Top-Right (LTR) / Top-Left (RTL) at 10% Opacity */}
+      {/* Subtle Orange Glow at 5% Opacity in Top Corner */}
       <div
         aria-hidden="true"
         className={`pointer-events-none absolute -top-32 ${
           isRtl ? '-left-32' : '-right-32'
-        } w-[520px] h-[520px] rounded-full bg-[#E25B26]/10 blur-3xl`}
+        } w-[520px] h-[520px] rounded-full bg-[#E25B26]/5 blur-3xl`}
       />
 
       {/* Faint Geometric Zellij Pattern Overlay at 3% Opacity */}
@@ -29,16 +30,14 @@ export const HeroSection: React.FC = () => {
         }}
       />
 
-      {/* Centered Content Container (55% Text / 45% Visual on Desktop) */}
+      {/* Symmetrical RTL/LTR Grid: Text on Right in AR / Left in EN-FR; Mockups on Left in AR / Right in EN-FR */}
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-10 items-center">
-          {/* Left Column in LTR / Right Column in RTL (55% -> 7 of 12 cols) */}
-          <div className="lg:col-span-7">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-12 items-center">
+          <div className="lg:col-span-6">
             <HeroText />
           </div>
 
-          {/* Right Column in LTR / Left Column in RTL (45% -> 5 of 12 cols) */}
-          <div className="lg:col-span-5">
+          <div className="lg:col-span-6">
             <HeroVisual />
           </div>
         </div>

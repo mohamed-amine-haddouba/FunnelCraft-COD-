@@ -23,25 +23,19 @@ export const HeroVisual: React.FC = () => {
         }
       `}</style>
 
-      {/* Radial Background Glow behind Laptop */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute -inset-6 rounded-full bg-gradient-to-br from-[#E25B26]/20 to-transparent blur-3xl"
-      />
-
       {/* Primary Laptop Mockup */}
       <div className="relative z-10">
         <MockupLaptop />
       </div>
 
-      {/* Overlapping Mobile Phone Mockup (-bottom-8 -start-4 sm:-start-8) */}
+      {/* Overlapping Mobile Phone Mockup (-bottom-8 -start-4 sm:-start-6) */}
       <div className="absolute -bottom-6 start-2 sm:-bottom-8 sm:-start-6 z-20 scale-90 sm:scale-100 origin-bottom">
         <MockupPhone />
       </div>
 
       {/* Floating Card 1 (Top-End of Laptop): Daily Orders / 12,450 MAD */}
       <div className="codworth-float-slow absolute -top-4 end-2 sm:-top-5 sm:-end-4 z-30 bg-[#1E293B] border border-[#334155] rounded-xl p-3 shadow-xl flex items-center gap-2.5">
-        <div className="w-8 h-8 rounded-lg bg-[#2CD36F]/15 border border-[#2CD36F]/30 flex items-center justify-center text-[#2CD36F] shrink-0">
+        <div className="w-8 h-8 rounded-lg bg-[#E25B26]/15 border border-[#E25B26]/30 flex items-center justify-center text-[#E25B26] shrink-0">
           <TrendingUp className="w-4 h-4" />
         </div>
         <div>

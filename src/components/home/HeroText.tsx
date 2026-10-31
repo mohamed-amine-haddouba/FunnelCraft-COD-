@@ -1,10 +1,10 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Play, Truck } from 'lucide-react';
+import { Truck } from 'lucide-react';
 import { useLanguage } from '../../i18n/translations';
 
 export const HeroText: React.FC = () => {
-  const { t, dir, isRtl } = useLanguage();
+  const { t, dir } = useLanguage();
 
   return (
     <div dir={dir} className="flex flex-col items-start text-start">
@@ -26,39 +26,27 @@ export const HeroText: React.FC = () => {
         {t['home.hero.subheadline']}
       </p>
 
-      {/* 4. CTA Row */}
-      <div className="mt-8 flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
+      {/* 4. Primary CTA Button Only */}
+      <div className="mt-8 flex items-center w-full sm:w-auto">
         <Link
           to="/login"
-          className="inline-flex items-center justify-center px-6 py-3.5 rounded-xl bg-[#E25B26] hover:bg-[#F16F3C] text-[#F8FAFC] font-bold text-[15px] shadow-lg transition cursor-pointer text-center"
+          className="inline-flex items-center justify-center px-7 py-3.5 rounded-xl bg-[#E25B26] hover:bg-[#F16F3C] text-[#F8FAFC] font-bold text-[15px] shadow-lg transition cursor-pointer text-center w-full sm:w-auto"
         >
           <span>{t['home.hero.ctaPrimary']}</span>
-        </Link>
-
-        <Link
-          to="/login"
-          className="inline-flex items-center justify-center gap-2.5 px-6 py-3.5 rounded-xl bg-transparent hover:bg-[#131B2A] border border-[#334155] text-[#F8FAFC] font-semibold text-[15px] transition cursor-pointer text-center"
-        >
-          <span>{t['home.hero.ctaSecondary']}</span>
-          <Play
-            className={`w-4 h-4 text-[#E25B26] fill-[#E25B26] shrink-0 ${
-              isRtl ? 'rotate-180' : ''
-            }`}
-          />
         </Link>
       </div>
 
       {/* 5. Social Proof Row */}
       <div className="mt-10 flex items-center gap-3">
-        {/* Three overlapping circular avatars (28px, pure CSS divs) */}
+        {/* Three overlapping circular avatars using strict brand palette */}
         <div className="flex items-center -space-x-2 rtl:space-x-reverse">
           <div className="w-7 h-7 rounded-full bg-[#E25B26] border-2 border-[#0D131E] flex items-center justify-center text-[10px] font-extrabold text-[#F8FAFC]">
             M
           </div>
-          <div className="w-7 h-7 rounded-full bg-[#2CD36F] border-2 border-[#0D131E] flex items-center justify-center text-[10px] font-extrabold text-[#0D131E]">
+          <div className="w-7 h-7 rounded-full bg-[#1E293B] border-2 border-[#0D131E] flex items-center justify-center text-[10px] font-extrabold text-[#F8FAFC]">
             Y
           </div>
-          <div className="w-7 h-7 rounded-full bg-[#F59E0B] border-2 border-[#0D131E] flex items-center justify-center text-[10px] font-extrabold text-[#0D131E]">
+          <div className="w-7 h-7 rounded-full bg-[#334155] border-2 border-[#0D131E] flex items-center justify-center text-[10px] font-extrabold text-[#F8FAFC]">
             S
           </div>
         </div>
@@ -67,7 +55,7 @@ export const HeroText: React.FC = () => {
           {t['home.hero.socialProof']}
         </span>
 
-        <Truck className="w-4 h-4 text-[#94A3B8] shrink-0" aria-hidden="true" />
+        <Truck className="w-4 h-4 text-[#CBD5E1] shrink-0" aria-hidden="true" />
       </div>
     </div>
   );
