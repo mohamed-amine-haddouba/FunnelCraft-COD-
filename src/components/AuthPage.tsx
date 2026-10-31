@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage, Language } from '../i18n/translations';
 import {
@@ -44,9 +44,6 @@ const LANGUAGES: { code: Language; label: string; flag: string }[] = [
 export const AuthPage: React.FC<AuthPageProps> = ({
   initialMode = 'login',
   onSuccess,
-  onNavigateToContact,
-  onNavigateToTerms,
-  onNavigateToPrivacy,
 }) => {
   const {
     user,
@@ -212,11 +209,11 @@ export const AuthPage: React.FC<AuthPageProps> = ({
       case 2:
         return { label: t.authPasswordFair, color: 'text-amber-400', bg: 'bg-amber-500' };
       case 3:
-        return { label: t.authPasswordGood, color: 'text-blue-400', bg: 'bg-blue-500' };
+        return { label: t.authPasswordGood, color: 'text-[#E25B26]', bg: 'bg-[#E25B26]' };
       case 4:
-        return { label: t.authPasswordStrong, color: 'text-emerald-400', bg: 'bg-emerald-500' };
+        return { label: t.authPasswordStrong, color: 'text-[#E25B26]', bg: 'bg-[#E25B26]' };
       default:
-        return { label: '', color: 'text-slate-500', bg: 'bg-slate-700' };
+        return { label: '', color: 'text-[#CBD5E1]', bg: 'bg-[#334155]' };
     }
   };
 
@@ -492,19 +489,20 @@ export const AuthPage: React.FC<AuthPageProps> = ({
   const currentLangObj = LANGUAGES.find((l) => l.code === language) || LANGUAGES[0];
 
   return (
-    <div className="min-h-screen w-screen bg-slate-950 text-slate-100 flex flex-col font-sans select-none overflow-x-hidden" dir={dir}>
+    <div className="min-h-screen w-screen bg-[#0D131E] text-[#F8FAFC] flex flex-col font-sans select-none overflow-x-hidden" dir={dir}>
       {/* Top Bar: Brand & Language Switcher */}
-      <header className="h-14 px-4 sm:px-8 border-b border-slate-800/80 bg-slate-950/80 backdrop-blur-md flex items-center justify-between z-30 shrink-0">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-400 text-slate-950 flex items-center justify-center font-black text-sm shadow-md shadow-emerald-500/20">
-            ⚡
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="font-bold text-sm tracking-tight text-white">{t.funnelCraft || 'CodWorth'}</span>
-            <span className="text-[10px] font-semibold px-1.5 py-0.2 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
-              {t.codBadge}
-            </span>
-          </div>
+      <header className="h-16 px-4 sm:px-8 border-b border-[#1E293B] bg-[#0D131E] flex items-center justify-between z-30 shrink-0">
+        <div className="flex items-center gap-2.5">
+          <Link to="/home" className="flex items-center shrink-0">
+            <img
+              src="/assets/brand/logo.jpg"
+              className="h-10 w-auto object-contain rounded-lg"
+              alt="CodWorth Logo"
+            />
+          </Link>
+          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#E25B26]/10 text-[#E25B26] border border-[#E25B26]/30">
+            {t.codBadge}
+          </span>
         </div>
 
         {/* Language Switcher Dropdown */}
@@ -512,15 +510,15 @@ export const AuthPage: React.FC<AuthPageProps> = ({
           <button
             type="button"
             onClick={() => setShowLangDropdown(!showLangDropdown)}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 text-xs font-medium text-slate-300 transition cursor-pointer"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[#131B2A] hover:bg-[#1E293B] border border-[#1E293B] text-xs font-medium text-[#CBD5E1] transition cursor-pointer"
           >
             <span>{currentLangObj.flag}</span>
             <span className="text-xs uppercase font-mono">{currentLangObj.code}</span>
-            <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+            <ChevronDown className="w-3.5 h-3.5 text-[#CBD5E1]" />
           </button>
 
           {showLangDropdown && (
-            <div className={`absolute ${isRtl ? 'start-0' : 'end-0'} top-10 w-36 bg-slate-900 border border-slate-800 rounded-xl shadow-xl p-1 z-50 text-xs`}>
+            <div className={`absolute ${isRtl ? 'start-0' : 'end-0'} top-10 w-36 bg-[#131B2A] border border-[#1E293B] rounded-xl shadow-xl p-1 z-50 text-xs`}>
               {LANGUAGES.map((lang) => (
                 <button
                   key={lang.code}
@@ -531,15 +529,15 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                   }}
                   className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg transition cursor-pointer ${
                     language === lang.code
-                      ? 'bg-slate-800 text-emerald-400 font-semibold'
-                      : 'text-slate-300 hover:bg-slate-800/50'
+                      ? 'bg-[#1E293B] text-[#E25B26] font-semibold'
+                      : 'text-[#CBD5E1] hover:bg-[#1E293B]/60'
                   }`}
                 >
                   <div className="flex items-center gap-1.5">
                     <span>{lang.flag}</span>
                     <span>{lang.label}</span>
                   </div>
-                  {language === lang.code && <Check className="w-3.5 h-3.5 text-emerald-400" />}
+                  {language === lang.code && <Check className="w-3.5 h-3.5 text-[#E25B26]" />}
                 </button>
               ))}
             </div>
@@ -549,7 +547,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
 
       {/* Floating Toast */}
       {toastMessage && (
-        <div className="fixed top-16 end-5 z-50 bg-emerald-500 text-slate-950 font-bold px-3.5 py-2 rounded-lg text-xs shadow-xl flex items-center gap-2 animate-in fade-in slide-in-from-top-2">
+        <div className="fixed top-16 end-5 z-50 bg-[#E25B26] text-[#F8FAFC] font-bold px-3.5 py-2 rounded-lg text-xs shadow-xl flex items-center gap-2 animate-in fade-in slide-in-from-top-2">
           <CheckCircle2 className="w-4 h-4 shrink-0" />
           <span>{toastMessage}</span>
         </div>
@@ -562,32 +560,32 @@ export const AuthPage: React.FC<AuthPageProps> = ({
           <div className="w-full max-w-md space-y-5">
             {/* 2FA OTP VERIFICATION VIEW */}
             {twoFactorData?.isRequired ? (
-              <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 shadow-2xl backdrop-blur-sm space-y-4">
+              <div className="bg-[#131B2A] border border-[#1E293B] rounded-2xl p-6 shadow-2xl space-y-4">
                 {/* 2FA Header */}
                 <div className="text-center space-y-1">
-                  <div className="w-11 h-11 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-400 flex items-center justify-center mx-auto shadow-inner">
+                  <div className="w-11 h-11 rounded-2xl bg-[#E25B26]/10 border border-[#E25B26]/30 text-[#E25B26] flex items-center justify-center mx-auto shadow-inner">
                     <ShieldCheck className="w-6 h-6" />
                   </div>
-                  <h2 className="text-base font-bold text-white pt-1">{t.tfaTitle}</h2>
-                  <p className="text-xs text-slate-400 max-w-xs mx-auto leading-relaxed">{t.tfaSub}</p>
+                  <h2 className="text-base font-bold text-[#F8FAFC] pt-1">{t.tfaTitle}</h2>
+                  <p className="text-xs text-[#CBD5E1] max-w-xs mx-auto leading-relaxed">{t.tfaSub}</p>
                 </div>
 
                 {/* Device & Verification Fingerprint Badge */}
-                <div className="p-2.5 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-between text-[11px] text-slate-400">
+                <div className="p-2.5 rounded-xl bg-[#0D131E] border border-[#1E293B] flex items-center justify-between text-[11px] text-[#CBD5E1]">
                   <div className="flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                    <span className="w-2 h-2 rounded-full bg-[#E25B26] animate-pulse" />
                     <span>{t.tfaDeviceVerified}</span>
                   </div>
-                  <span className="font-mono text-slate-500">
+                  <span className="font-mono text-[#CBD5E1]/70">
                     {twoFactorData.device?.browser || 'Chrome'} • {twoFactorData.device?.os || 'Windows/Mac'}
                   </span>
                 </div>
 
                 {/* Delivery Channel Selector: WhatsApp vs Email */}
                 <div className="space-y-1.5">
-                  <div className="flex items-center justify-between text-[11px] text-slate-400">
+                  <div className="flex items-center justify-between text-[11px] text-[#CBD5E1]">
                     <span>{t.tfaSelectChannel}</span>
-                    <span className="text-[10px] text-emerald-400 font-mono bg-emerald-500/10 px-1.5 py-0.2 rounded border border-emerald-500/30">
+                    <span className="text-[10px] text-[#E25B26] font-mono bg-[#E25B26]/10 px-1.5 py-0.2 rounded border border-[#E25B26]/30">
                       {t.tfaTtlBadge}
                     </span>
                   </div>
@@ -602,15 +600,15 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                       }}
                       className={`p-2.5 rounded-xl border text-center transition cursor-pointer ${
                         selectedChannel === 'whatsapp'
-                          ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-300 font-semibold shadow-xs'
-                          : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-slate-200'
+                          ? 'bg-[#E25B26]/10 border-[#E25B26]/40 text-[#F8FAFC] font-semibold shadow-xs'
+                          : 'bg-[#0D131E] border-[#1E293B] text-[#CBD5E1] hover:text-[#F8FAFC]'
                       }`}
                     >
                       <div className="flex items-center justify-center gap-1 text-[11px] font-bold">
-                        <Smartphone className="w-3.5 h-3.5 text-emerald-400" />
+                        <Smartphone className="w-3.5 h-3.5 text-[#E25B26]" />
                         <span>WhatsApp</span>
                       </div>
-                      <div className="text-[10px] text-slate-500 font-mono mt-0.5 truncate" dir="ltr">
+                      <div className="text-[10px] text-[#CBD5E1]/70 font-mono mt-0.5 truncate" dir="ltr">
                         {twoFactorData.maskedPhone || '+212 7•• ••6897'}
                       </div>
                     </button>
@@ -625,15 +623,15 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                       }}
                       className={`p-2.5 rounded-xl border text-center transition cursor-pointer ${
                         selectedChannel === 'email'
-                          ? 'bg-indigo-500/10 border-indigo-500/40 text-indigo-300 font-semibold shadow-xs'
-                          : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-slate-200'
+                          ? 'bg-[#E25B26]/10 border-[#E25B26]/40 text-[#F8FAFC] font-semibold shadow-xs'
+                          : 'bg-[#0D131E] border-[#1E293B] text-[#CBD5E1] hover:text-[#F8FAFC]'
                       }`}
                     >
                       <div className="flex items-center justify-center gap-1 text-[11px] font-bold">
-                        <Mail className="w-3.5 h-3.5 text-indigo-400" />
+                        <Mail className="w-3.5 h-3.5 text-[#E25B26]" />
                         <span>Email</span>
                       </div>
-                      <div className="text-[10px] text-slate-500 font-mono mt-0.5 truncate" dir="ltr">
+                      <div className="text-[10px] text-[#CBD5E1]/70 font-mono mt-0.5 truncate" dir="ltr">
                         {twoFactorData.maskedEmail || twoFactorData.email || 'user@example.com'}
                       </div>
                     </button>
@@ -642,7 +640,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
 
                 {/* 6 Individual Auto-Advancing Digit Inputs */}
                 <div className="space-y-2">
-                  <label className="block text-xs font-medium text-slate-300 text-center">
+                  <label className="block text-xs font-medium text-[#CBD5E1] text-center">
                     {t.tfaOtpPlaceholder}
                   </label>
                   <div className="flex items-center justify-center gap-2" dir="ltr">
@@ -659,10 +657,10 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                         onChange={(e) => handleOtpDigitChange(idx, e.target.value)}
                         onKeyDown={(e) => handleOtpKeyDown(idx, e)}
                         onPaste={idx === 0 ? handleOtpPaste : undefined}
-                        className={`w-11 h-12 text-center text-lg font-bold font-mono rounded-xl bg-slate-950 border transition focus:outline-none ${
+                        className={`w-11 h-12 text-center text-lg font-bold font-mono rounded-xl bg-[#0D131E] border transition focus:outline-none ${
                           digit
-                            ? 'border-emerald-500 text-white shadow-xs'
-                            : 'border-slate-800 text-slate-400 focus:border-slate-600'
+                            ? 'border-[#E25B26] text-[#F8FAFC] shadow-xs'
+                            : 'border-[#1E293B] text-[#CBD5E1] focus:border-[#334155]'
                         }`}
                       />
                     ))}
@@ -682,10 +680,10 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                   type="button"
                   onClick={() => handleVerifyOtpSubmit()}
                   disabled={isVerifyingOtp || otpDigits.includes('')}
-                  className="w-full py-2.5 rounded-xl text-xs font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-md shadow-emerald-500/20 transition cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="w-full py-2.5 rounded-xl text-xs font-bold bg-[#E25B26] hover:bg-[#F16F3C] text-[#F8FAFC] shadow-md transition cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                   {isVerifyingOtp ? (
-                    <RefreshCw className="w-4 h-4 animate-spin text-slate-950" />
+                    <RefreshCw className="w-4 h-4 animate-spin text-[#F8FAFC]" />
                   ) : (
                     <>
                       <ShieldCheck className="w-4 h-4" />
@@ -695,12 +693,12 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                 </button>
 
                 {/* Resend & Back Actions */}
-                <div className="pt-2 flex items-center justify-between text-xs text-slate-400">
+                <div className="pt-2 flex items-center justify-between text-xs text-[#CBD5E1]">
                   <button
                     type="button"
                     onClick={handleResendOtp}
                     disabled={resendTimer > 0 || isLoading}
-                    className="hover:text-emerald-400 disabled:opacity-40 transition cursor-pointer flex items-center gap-1"
+                    className="hover:text-[#E25B26] disabled:opacity-40 transition cursor-pointer flex items-center gap-1"
                   >
                     <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
                     <span>
@@ -713,7 +711,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                   <button
                     type="button"
                     onClick={clearTwoFactorState}
-                    className="hover:text-slate-200 transition cursor-pointer"
+                    className="hover:text-[#F8FAFC] transition cursor-pointer"
                   >
                     {t.tfaBackToLogin}
                   </button>
@@ -723,15 +721,15 @@ export const AuthPage: React.FC<AuthPageProps> = ({
               /* FORGOT PASSWORD VIEW */
               <div
                 dir="rtl"
-                className="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 sm:p-7 shadow-2xl backdrop-blur-sm space-y-5 text-right"
+                className="bg-[#131B2A] border border-[#1E293B] rounded-2xl p-6 sm:p-7 shadow-2xl space-y-5 text-right"
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-11 h-11 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 flex items-center justify-center shrink-0">
+                  <div className="w-11 h-11 rounded-2xl bg-[#E25B26]/10 border border-[#E25B26]/30 text-[#E25B26] flex items-center justify-center shrink-0">
                     <KeyRound className="w-5 h-5" />
                   </div>
                   <div>
-                    <h1 className="text-base font-bold text-white">نسيت كلمة المرور؟</h1>
-                    <p className="text-xs text-slate-400 mt-0.5">
+                    <h1 className="text-base font-bold text-[#F8FAFC]">نسيت كلمة المرور؟</h1>
+                    <p className="text-xs text-[#CBD5E1] mt-0.5">
                       أدخل بريدك الإلكتروني وسنرسل لك رابطاً لإعادة تعيين كلمة المرور
                     </p>
                   </div>
@@ -739,11 +737,11 @@ export const AuthPage: React.FC<AuthPageProps> = ({
 
                 {forgotPasswordSubmitted ? (
                   <div className="space-y-4">
-                    <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs leading-relaxed flex items-start gap-2.5">
-                      <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+                    <div className="p-4 rounded-xl bg-[#E25B26]/10 border border-[#E25B26]/30 text-[#F8FAFC] text-xs leading-relaxed flex items-start gap-2.5">
+                      <CheckCircle2 className="w-5 h-5 text-[#E25B26] shrink-0 mt-0.5" />
                       <div>
-                        <p className="font-bold text-emerald-200 mb-1">تم استلام طلبك بنجاح</p>
-                        <p>إذا كان البريد مسجلاً، تم إرسال رابط إعادة التعيين.</p>
+                        <p className="font-bold text-[#F8FAFC] mb-1">تم استلام طلبك بنجاح</p>
+                        <p className="text-[#CBD5E1]">إذا كان البريد مسجلاً، تم إرسال رابط إعادة التعيين.</p>
                       </div>
                     </div>
 
@@ -754,7 +752,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                         setErrorMessage(null);
                         setMode('login');
                       }}
-                      className="w-full py-2.5 rounded-xl text-xs font-bold bg-slate-800 hover:bg-slate-700 text-white transition cursor-pointer"
+                      className="w-full py-2.5 rounded-xl text-xs font-bold bg-[#1E293B] hover:bg-[#334155] text-[#F8FAFC] transition cursor-pointer"
                     >
                       العودة إلى تسجيل الدخول
                     </button>
@@ -762,7 +760,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                 ) : (
                   <form onSubmit={handleForgotPasswordSubmit} className="space-y-4">
                     <div>
-                      <label className="block text-xs font-medium text-slate-300 mb-1.5">
+                      <label className="block text-xs font-medium text-[#CBD5E1] mb-1.5">
                         البريد الإلكتروني المسجل *
                       </label>
                       <input
@@ -772,7 +770,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                         onChange={(e) => setEmail(e.target.value)}
                         placeholder="merchant@example.com"
                         dir="ltr"
-                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 transition"
+                        className="w-full bg-[#0D131E] border border-[#1E293B] rounded-xl px-3.5 py-2.5 text-xs text-[#F8FAFC] placeholder-[#CBD5E1]/50 focus:outline-none focus:border-[#E25B26] transition"
                       />
                     </div>
 
@@ -806,10 +804,10 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                     <button
                       type="submit"
                       disabled={isLoading || (shouldRequireTurnstile && !turnstileToken)}
-                      className="w-full py-2.5 rounded-xl text-xs font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-md shadow-emerald-500/20 transition cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
+                      className="w-full py-2.5 rounded-xl text-xs font-bold bg-[#E25B26] hover:bg-[#F16F3C] text-[#F8FAFC] shadow-md transition cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
                     >
                       {isLoading ? (
-                        <RefreshCw className="w-4 h-4 animate-spin text-slate-950" />
+                        <RefreshCw className="w-4 h-4 animate-spin text-[#F8FAFC]" />
                       ) : (
                         <>
                           <span>إرسال رابط إعادة التعيين</span>
@@ -825,7 +823,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                           setErrorMessage(null);
                           setMode('login');
                         }}
-                        className="text-xs text-slate-400 hover:text-white transition cursor-pointer"
+                        className="text-xs text-[#CBD5E1] hover:text-[#F8FAFC] transition cursor-pointer"
                       >
                         العودة إلى تسجيل الدخول
                       </button>
@@ -837,15 +835,15 @@ export const AuthPage: React.FC<AuthPageProps> = ({
               /* RESET PASSWORD VIEW */
               <div
                 dir="rtl"
-                className="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 sm:p-7 shadow-2xl backdrop-blur-sm space-y-5 text-right"
+                className="bg-[#131B2A] border border-[#1E293B] rounded-2xl p-6 sm:p-7 shadow-2xl space-y-5 text-right"
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-11 h-11 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 flex items-center justify-center shrink-0">
+                  <div className="w-11 h-11 rounded-2xl bg-[#E25B26]/10 border border-[#E25B26]/30 text-[#E25B26] flex items-center justify-center shrink-0">
                     <Lock className="w-5 h-5" />
                   </div>
                   <div>
-                    <h1 className="text-base font-bold text-white">تعيين كلمة مرور جديدة</h1>
-                    <p className="text-xs text-slate-400 mt-0.5">
+                    <h1 className="text-base font-bold text-[#F8FAFC]">تعيين كلمة مرور جديدة</h1>
+                    <p className="text-xs text-[#CBD5E1] mt-0.5">
                       أدخل كلمة المرور الجديدة لحسابك ({resetEmail || email})
                     </p>
                   </div>
@@ -853,13 +851,13 @@ export const AuthPage: React.FC<AuthPageProps> = ({
 
                 {resetPasswordSuccess ? (
                   <div className="space-y-4">
-                    <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs leading-relaxed flex items-start gap-2.5">
-                      <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+                    <div className="p-4 rounded-xl bg-[#E25B26]/10 border border-[#E25B26]/30 text-[#F8FAFC] text-xs leading-relaxed flex items-start gap-2.5">
+                      <CheckCircle2 className="w-5 h-5 text-[#E25B26] shrink-0 mt-0.5" />
                       <div>
-                        <p className="font-bold text-emerald-200 mb-1">
+                        <p className="font-bold text-[#F8FAFC] mb-1">
                           تم إعادة تعيين كلمة المرور بنجاح!
                         </p>
-                        <p>سيتم تحويلك تلقائياً إلى صفحة تسجيل الدخول خلال 3 ثوانٍ...</p>
+                        <p className="text-[#CBD5E1]">سيتم تحويلك تلقائياً إلى صفحة تسجيل الدخول خلال 3 ثوانٍ...</p>
                       </div>
                     </div>
 
@@ -869,7 +867,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                         setResetPasswordSuccess(false);
                         setMode('login');
                       }}
-                      className="w-full py-2.5 rounded-xl text-xs font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 transition cursor-pointer"
+                      className="w-full py-2.5 rounded-xl text-xs font-bold bg-[#E25B26] hover:bg-[#F16F3C] text-[#F8FAFC] transition cursor-pointer"
                     >
                       الانتقال لتسجيل الدخول الآن
                     </button>
@@ -877,7 +875,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                 ) : (
                   <form onSubmit={handleResetPasswordSubmit} className="space-y-4">
                     <div>
-                      <label className="block text-xs font-medium text-slate-300 mb-1.5">
+                      <label className="block text-xs font-medium text-[#CBD5E1] mb-1.5">
                         كلمة المرور الجديدة (8 أحرف على الأقل) *
                       </label>
                       <div className="relative">
@@ -889,12 +887,12 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                           onChange={(e) => setNewPassword(e.target.value)}
                           placeholder="••••••••"
                           dir="ltr"
-                          className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 pe-9 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 transition"
+                          className="w-full bg-[#0D131E] border border-[#1E293B] rounded-xl px-3.5 py-2.5 pe-9 text-xs text-[#F8FAFC] placeholder-[#CBD5E1]/50 focus:outline-none focus:border-[#E25B26] transition"
                         />
                         <button
                           type="button"
                           onClick={() => setShowPassword(!showPassword)}
-                          className="absolute top-1/2 -translate-y-1/2 end-2.5 text-slate-500 hover:text-slate-300 cursor-pointer"
+                          className="absolute top-1/2 -translate-y-1/2 end-2.5 text-[#CBD5E1] hover:text-[#F8FAFC] cursor-pointer"
                         >
                           {showPassword ? (
                             <EyeOff className="w-3.5 h-3.5" />
@@ -906,7 +904,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                     </div>
 
                     <div>
-                      <label className="block text-xs font-medium text-slate-300 mb-1.5">
+                      <label className="block text-xs font-medium text-[#CBD5E1] mb-1.5">
                         تأكيد كلمة المرور الجديدة *
                       </label>
                       <div className="relative">
@@ -918,12 +916,12 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                           onChange={(e) => setConfirmNewPassword(e.target.value)}
                           placeholder="••••••••"
                           dir="ltr"
-                          className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 pe-9 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 transition"
+                          className="w-full bg-[#0D131E] border border-[#1E293B] rounded-xl px-3.5 py-2.5 pe-9 text-xs text-[#F8FAFC] placeholder-[#CBD5E1]/50 focus:outline-none focus:border-[#E25B26] transition"
                         />
                         <button
                           type="button"
                           onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                          className="absolute top-1/2 -translate-y-1/2 end-2.5 text-slate-500 hover:text-slate-300 cursor-pointer"
+                          className="absolute top-1/2 -translate-y-1/2 end-2.5 text-[#CBD5E1] hover:text-[#F8FAFC] cursor-pointer"
                         >
                           {showConfirmPassword ? (
                             <EyeOff className="w-3.5 h-3.5" />
@@ -944,10 +942,10 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                     <button
                       type="submit"
                       disabled={isLoading}
-                      className="w-full py-2.5 rounded-xl text-xs font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-md shadow-emerald-500/20 transition cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
+                      className="w-full py-2.5 rounded-xl text-xs font-bold bg-[#E25B26] hover:bg-[#F16F3C] text-[#F8FAFC] shadow-md transition cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
                     >
                       {isLoading ? (
-                        <RefreshCw className="w-4 h-4 animate-spin text-slate-950" />
+                        <RefreshCw className="w-4 h-4 animate-spin text-[#F8FAFC]" />
                       ) : (
                         <>
                           <span>حفظ كلمة المرور الجديدة</span>
@@ -963,7 +961,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                           setErrorMessage(null);
                           setMode('login');
                         }}
-                        className="text-xs text-slate-400 hover:text-white transition cursor-pointer"
+                        className="text-xs text-[#CBD5E1] hover:text-[#F8FAFC] transition cursor-pointer"
                       >
                         إلغاء والعودة لتسجيل الدخول
                       </button>
@@ -973,9 +971,9 @@ export const AuthPage: React.FC<AuthPageProps> = ({
               </div>
             ) : (
               /* STANDARD LOGIN & REGISTRATION VIEW */
-              <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 sm:p-7 shadow-2xl backdrop-blur-sm space-y-4">
+              <div className="bg-[#131B2A] border border-[#1E293B] rounded-2xl p-6 sm:p-7 shadow-2xl space-y-4">
                 {/* Mode Segmented Tab Switcher */}
-                <div className="grid grid-cols-2 p-1 bg-slate-950 border border-slate-800 rounded-xl">
+                <div className="grid grid-cols-2 p-1 bg-[#0D131E] border border-[#1E293B] rounded-xl">
                   <button
                     type="button"
                     onClick={() => {
@@ -984,8 +982,8 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                     }}
                     className={`py-1.5 text-xs font-semibold rounded-lg transition cursor-pointer ${
                       mode === 'login'
-                        ? 'bg-slate-800 text-white shadow-xs'
-                        : 'text-slate-400 hover:text-slate-200'
+                        ? 'bg-[#E25B26] text-[#F8FAFC] shadow-xs'
+                        : 'text-[#CBD5E1] hover:text-[#F8FAFC]'
                     }`}
                   >
                     {t.authLoginTab}
@@ -998,8 +996,8 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                     }}
                     className={`py-1.5 text-xs font-semibold rounded-lg transition cursor-pointer ${
                       mode === 'register'
-                        ? 'bg-slate-800 text-white shadow-xs'
-                        : 'text-slate-400 hover:text-slate-200'
+                        ? 'bg-[#E25B26] text-[#F8FAFC] shadow-xs'
+                        : 'text-[#CBD5E1] hover:text-[#F8FAFC]'
                     }`}
                   >
                     {t.authRegisterTab}
@@ -1008,10 +1006,10 @@ export const AuthPage: React.FC<AuthPageProps> = ({
 
                 {/* Title & Description */}
                 <div>
-                  <h1 className="text-base font-bold text-white tracking-tight">
+                  <h1 className="text-base font-bold text-[#F8FAFC] tracking-tight">
                     {mode === 'login' ? t.authTitleLogin : t.authTitleRegister}
                   </h1>
-                  <p className="text-xs text-slate-400 mt-0.5">
+                  <p className="text-xs text-[#CBD5E1] mt-0.5">
                     {mode === 'login' ? t.authSubLogin : t.authSubRegister}
                   </p>
                 </div>
@@ -1025,7 +1023,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                   {mode === 'register' && (
                     <>
                       <div>
-                        <label className="block text-xs font-medium text-slate-300 mb-1">
+                        <label className="block text-xs font-medium text-[#CBD5E1] mb-1">
                           {t.authFullNameLabel} *
                         </label>
                         <div className="relative">
@@ -1035,14 +1033,14 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                             value={fullName}
                             onChange={(e) => setFullName(e.target.value)}
                             placeholder="محمد أمين"
-                            className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 transition"
+                            className="w-full bg-[#0D131E] border border-[#1E293B] rounded-lg px-3 py-2 text-xs text-[#F8FAFC] placeholder-[#CBD5E1]/50 focus:outline-none focus:border-[#E25B26] transition"
                           />
                         </div>
                       </div>
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                         <div>
-                          <label className="block text-xs font-medium text-slate-300 mb-1">
+                          <label className="block text-xs font-medium text-[#CBD5E1] mb-1">
                             {t.authStoreNameLabel}
                           </label>
                           <input
@@ -1050,12 +1048,12 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                             value={storeName}
                             onChange={(e) => setStoreName(e.target.value)}
                             placeholder="متجر أطلس"
-                            className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 transition"
+                            className="w-full bg-[#0D131E] border border-[#1E293B] rounded-lg px-3 py-2 text-xs text-[#F8FAFC] placeholder-[#CBD5E1]/50 focus:outline-none focus:border-[#E25B26] transition"
                           />
                         </div>
 
                         <div>
-                          <label className="block text-xs font-medium text-slate-300 mb-1">
+                          <label className="block text-xs font-medium text-[#CBD5E1] mb-1">
                             {t.authPhoneLabel}
                           </label>
                           <input
@@ -1064,7 +1062,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                             onChange={(e) => setPhone(e.target.value)}
                             placeholder="+212 661-000000"
                             dir="ltr"
-                            className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 font-mono transition"
+                            className="w-full bg-[#0D131E] border border-[#1E293B] rounded-lg px-3 py-2 text-xs text-[#F8FAFC] placeholder-[#CBD5E1]/50 focus:outline-none focus:border-[#E25B26] font-mono transition"
                           />
                         </div>
                       </div>
@@ -1073,7 +1071,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
 
                   {/* Email Field */}
                   <div>
-                    <label className="block text-xs font-medium text-slate-300 mb-1">
+                    <label className="block text-xs font-medium text-[#CBD5E1] mb-1">
                       {t.authEmailLabel} *
                     </label>
                     <div className="relative">
@@ -1084,7 +1082,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                         onChange={(e) => setEmail(e.target.value)}
                         placeholder="merchant@example.com"
                         dir="ltr"
-                        className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 transition"
+                        className="w-full bg-[#0D131E] border border-[#1E293B] rounded-lg px-3 py-2 text-xs text-[#F8FAFC] placeholder-[#CBD5E1]/50 focus:outline-none focus:border-[#E25B26] transition"
                       />
                     </div>
                   </div>
@@ -1092,7 +1090,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                   {/* Password Field */}
                   <div>
                     <div className="flex items-center justify-between mb-1">
-                      <label className="block text-xs font-medium text-slate-300">
+                      <label className="block text-xs font-medium text-[#CBD5E1]">
                         {t.authPasswordLabel} *
                       </label>
                       {mode === 'login' && (
@@ -1103,7 +1101,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                             setForgotPasswordSubmitted(false);
                             setMode('forgot-password');
                           }}
-                          className="text-[11px] text-emerald-400 hover:text-emerald-300 transition cursor-pointer"
+                          className="text-[11px] text-[#E25B26] hover:text-[#F16F3C] transition cursor-pointer"
                         >
                           نسيت كلمة المرور؟
                         </button>
@@ -1117,12 +1115,12 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                         onChange={(e) => setPassword(e.target.value)}
                         placeholder="••••••••"
                         dir="ltr"
-                        className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 pe-9 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 transition"
+                        className="w-full bg-[#0D131E] border border-[#1E293B] rounded-lg px-3 py-2 pe-9 text-xs text-[#F8FAFC] placeholder-[#CBD5E1]/50 focus:outline-none focus:border-[#E25B26] transition"
                       />
                       <button
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
-                        className="absolute top-1/2 -translate-y-1/2 end-2.5 text-slate-500 hover:text-slate-300 cursor-pointer"
+                        className="absolute top-1/2 -translate-y-1/2 end-2.5 text-[#CBD5E1] hover:text-[#F8FAFC] cursor-pointer"
                       >
                         {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                       </button>
@@ -1138,13 +1136,13 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                               className={`h-1 rounded-full transition-all ${
                                 step <= passwordStrength
                                   ? getStrengthLabel().bg
-                                  : 'bg-slate-800'
+                                  : 'bg-[#1E293B]'
                               }`}
                             />
                           ))}
                         </div>
                         <div className="flex justify-between items-center text-[10px]">
-                          <span className="text-slate-400">{t.authPasswordStrengthLabel}</span>
+                          <span className="text-[#CBD5E1]">{t.authPasswordStrengthLabel}</span>
                           <span className={getStrengthLabel().color}>{getStrengthLabel().label}</span>
                         </div>
                       </div>
@@ -1153,23 +1151,23 @@ export const AuthPage: React.FC<AuthPageProps> = ({
 
                   {/* Remember Me & 2FA toggle options on login */}
                   {mode === 'login' && (
-                    <div className="pt-1 flex items-center justify-between text-xs text-slate-400">
+                    <div className="pt-1 flex items-center justify-between text-xs text-[#CBD5E1]">
                       <label className="flex items-center gap-2 cursor-pointer">
                         <input
                           type="checkbox"
                           checked={rememberMe}
                           onChange={(e) => setRememberMe(e.target.checked)}
-                          className="rounded bg-slate-950 border-slate-800 text-emerald-500 focus:ring-0 cursor-pointer"
+                          className="rounded bg-[#0D131E] border-[#1E293B] text-[#E25B26] focus:ring-0 cursor-pointer"
                         />
                         <span>{t.authRememberMe}</span>
                       </label>
 
-                      <label className="flex items-center gap-1.5 text-[11px] text-amber-400/90 cursor-pointer">
+                      <label className="flex items-center gap-1.5 text-[11px] text-[#E25B26] cursor-pointer">
                         <input
                           type="checkbox"
                           checked={simulate2fa}
                           onChange={(e) => setSimulate2fa(e.target.checked)}
-                          className="rounded bg-slate-950 border-slate-800 text-amber-500 focus:ring-0 cursor-pointer"
+                          className="rounded bg-[#0D131E] border-[#1E293B] text-[#E25B26] focus:ring-0 cursor-pointer"
                         />
                         <span>{t.twoFactorTitle}</span>
                       </label>
@@ -1208,10 +1206,10 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                   <button
                     type="submit"
                     disabled={isLoading || (shouldRequireTurnstile && !turnstileToken)}
-                    className="w-full py-2.5 rounded-xl text-xs font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-md shadow-emerald-500/20 transition cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2 mt-2"
+                    className="w-full py-2.5 rounded-xl text-xs font-bold bg-[#E25B26] hover:bg-[#F16F3C] text-[#F8FAFC] shadow-md transition cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2 mt-2"
                   >
                     {isLoading ? (
-                      <RefreshCw className="w-4 h-4 animate-spin text-slate-950" />
+                      <RefreshCw className="w-4 h-4 animate-spin text-[#F8FAFC]" />
                     ) : (
                       <>
                         <span>{mode === 'login' ? t.authSignInBtn : t.authSignUpBtn}</span>
@@ -1224,9 +1222,9 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                 {/* Divider */}
                 <div className="relative py-2 flex items-center justify-center">
                   <div className="absolute inset-0 flex items-center">
-                    <div className="w-full border-t border-slate-800" />
+                    <div className="w-full border-t border-[#1E293B]" />
                   </div>
-                  <span className="relative bg-slate-900 px-3 text-[11px] text-slate-500">
+                  <span className="relative bg-[#131B2A] px-3 text-[11px] text-[#CBD5E1]">
                     {t.authOrContinueWith}
                   </span>
                 </div>
@@ -1248,38 +1246,38 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                       />
                     </div>
                   ) : (
-                    <div className="w-full py-2 px-3 rounded-xl bg-slate-950/60 border border-slate-800/80 text-slate-500 text-[11px] text-center">
-                      تسجيل الدخول عبر Google يتطلب ضبط <code className="font-mono text-slate-400">VITE_GOOGLE_CLIENT_ID</code>
+                    <div className="w-full py-2 px-3 rounded-xl bg-[#0D131E] border border-[#1E293B] text-[#CBD5E1] text-[11px] text-center">
+                      تسجيل الدخول عبر Google يتطلب ضبط <code className="font-mono text-[#E25B26]">VITE_GOOGLE_CLIENT_ID</code>
                     </div>
                   )}
                 </div>
 
                 {/* Terms Notice */}
-                <p className="text-[10px] text-slate-500 text-center leading-relaxed pt-1">
+                <p className="text-[10px] text-[#CBD5E1]/70 text-center leading-relaxed pt-1">
                   {t.authTermsNotice}
                 </p>
               </div>
             )}
 
             {/* Public Legal & Contact Links (Always Accessible Without Login) */}
-            <div className="mt-6 pt-4 border-t border-slate-800/80 flex flex-wrap items-center justify-center gap-4 text-xs text-slate-400">
+            <div className="mt-6 pt-4 border-t border-[#1E293B] flex flex-wrap items-center justify-center gap-4 text-xs text-[#CBD5E1]">
               <a
                 href="/terms"
-                className="hover:text-emerald-400 transition cursor-pointer"
+                className="hover:text-[#E25B26] transition cursor-pointer"
               >
                 شروط الاستخدام
               </a>
-              <span className="text-slate-700">•</span>
+              <span className="text-[#334155]">•</span>
               <a
                 href="/privacy"
-                className="hover:text-emerald-400 transition cursor-pointer"
+                className="hover:text-[#E25B26] transition cursor-pointer"
               >
                 سياسة الخصوصية
               </a>
-              <span className="text-slate-700">•</span>
+              <span className="text-[#334155]">•</span>
               <a
                 href="/contact"
-                className="hover:text-emerald-400 transition cursor-pointer"
+                className="hover:text-[#E25B26] transition cursor-pointer"
               >
                 تواصل معنا
               </a>
@@ -1288,14 +1286,13 @@ export const AuthPage: React.FC<AuthPageProps> = ({
         </div>
 
         {/* RIGHT / MOROCCAN COD PLATFORM SHOWCASE PANEL */}
-        <div className="hidden lg:flex flex-1 bg-gradient-to-br from-slate-900 via-slate-950 to-emerald-950/30 border-s border-slate-800/80 p-12 flex-col justify-between relative overflow-hidden">
-          {/* Subtle Background Glows */}
-          <div className="absolute top-1/4 start-1/4 w-72 h-72 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
-          <div className="absolute bottom-1/4 end-1/4 w-72 h-72 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="hidden lg:flex flex-1 bg-[#131B2A] border-s border-[#1E293B] p-12 flex-col justify-between relative overflow-hidden">
+          {/* Soft Orange Glow */}
+          <div className="absolute top-1/4 start-1/4 w-96 h-96 bg-[#E25B26]/10 rounded-full blur-[120px] pointer-events-none" />
 
           {/* Top Badge */}
           <div>
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#E25B26]/10 border border-[#E25B26]/30 text-[#E25B26] text-xs font-semibold">
               <ShieldCheck className="w-3.5 h-3.5" />
               <span>{t.authShowcaseBadge}</span>
             </div>
@@ -1303,29 +1300,29 @@ export const AuthPage: React.FC<AuthPageProps> = ({
 
           {/* Center Showcase Content */}
           <div className="max-w-md space-y-6">
-            <h2 className="text-2xl font-black text-white leading-tight">
+            <h2 className="text-2xl font-black text-[#F8FAFC] leading-tight">
               {t.authShowcaseTitle}
             </h2>
-            <p className="text-xs text-slate-300 leading-relaxed">
+            <p className="text-xs text-[#CBD5E1] leading-relaxed">
               {t.authShowcaseDesc}
             </p>
 
             {/* Key Metrics Cards */}
             <div className="grid grid-cols-2 gap-3 pt-2">
-              <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-3.5 backdrop-blur-sm">
-                <div className="text-lg font-bold text-emerald-400">
+              <div className="bg-[#0D131E] border border-[#1E293B] rounded-xl p-3.5">
+                <div className="text-lg font-bold text-[#E25B26]">
                   {t.authShowcaseStat1Title}
                 </div>
-                <div className="text-[11px] text-slate-400 mt-0.5">
+                <div className="text-[11px] text-[#CBD5E1] mt-0.5">
                   {t.authShowcaseStat1Sub}
                 </div>
               </div>
 
-              <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-3.5 backdrop-blur-sm">
-                <div className="text-lg font-bold text-teal-400">
+              <div className="bg-[#0D131E] border border-[#1E293B] rounded-xl p-3.5">
+                <div className="text-lg font-bold text-[#E25B26]">
                   {t.authShowcaseStat2Title}
                 </div>
-                <div className="text-[11px] text-slate-400 mt-0.5">
+                <div className="text-[11px] text-[#CBD5E1] mt-0.5">
                   {t.authShowcaseStat2Sub}
                 </div>
               </div>
@@ -1333,14 +1330,14 @@ export const AuthPage: React.FC<AuthPageProps> = ({
 
             {/* Top Moroccan Cities Badges */}
             <div className="space-y-2 pt-2">
-              <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+              <div className="text-[11px] font-semibold text-[#CBD5E1] uppercase tracking-wider">
                 {t.authTopMoroccanCities}
               </div>
               <div className="flex flex-wrap gap-1.5 text-xs">
                 {['الدار البيضاء', 'الرباط', 'مراكش', 'طنجة', 'فاس', 'أكادير', 'تطوان'].map((city) => (
                   <span
                     key={city}
-                    className="px-2.5 py-1 rounded-lg bg-slate-900/90 border border-slate-800 text-slate-300 text-[11px] font-medium"
+                    className="px-2.5 py-1 rounded-lg bg-[#0D131E] border border-[#1E293B] text-[#CBD5E1] text-[11px] font-medium"
                   >
                     📍 {city}
                   </span>
@@ -1350,7 +1347,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
           </div>
 
           {/* Bottom Trust Footer */}
-          <div className="text-[11px] text-slate-500 flex items-center justify-between border-t border-slate-800/80 pt-4">
+          <div className="text-[11px] text-[#CBD5E1]/70 flex items-center justify-between border-t border-[#1E293B] pt-4">
             <span>© {new Date().getFullYear()} CodWorth Platform</span>
             <span>Morocco • MENA</span>
           </div>

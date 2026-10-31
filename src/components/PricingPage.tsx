@@ -34,10 +34,10 @@ import {
 } from '../utils/currencyAndBanks';
 
 export interface PricingPageProps {
-  currentPlan: SubscriptionPlanId;
+  currentPlan?: SubscriptionPlanId;
   triggerReason?: string;
   onSelectFreePlan?: () => void;
-  onUpgradeSuccess: (tier: SubscriptionPlanId) => void;
+  onUpgradeSuccess?: (tier: SubscriptionPlanId) => void;
   onBackToBuilder?: () => void;
   onNavigateToContact?: () => void;
   onNavigateToTerms?: () => void;
@@ -127,10 +127,10 @@ const PRICING_TIERS: PricingTier[] = [
 ];
 
 export const PricingPage: React.FC<PricingPageProps> = ({
-  currentPlan,
+  currentPlan = 'free',
   triggerReason,
   onSelectFreePlan,
-  onUpgradeSuccess,
+  onUpgradeSuccess = () => {},
   onBackToBuilder,
   onNavigateToContact,
   onNavigateToTerms,
@@ -535,10 +535,10 @@ export const PricingPage: React.FC<PricingPageProps> = ({
   return (
     <div
       dir="rtl"
-      className="min-h-full w-full bg-slate-950 text-slate-100 py-10 px-4 sm:px-6 lg:px-8 relative overflow-y-auto overflow-x-hidden select-none"
+      className="min-h-screen w-full bg-[#0D131E] text-[#F8FAFC] py-10 px-4 sm:px-6 lg:px-8 relative overflow-y-auto overflow-x-hidden select-none"
     >
-      {/* Ambient Background Glows */}
-      <div className="pointer-events-none absolute top-0 left-1/2 -translate-x-1/2 w-[720px] h-[320px] bg-gradient-to-tr from-emerald-500/15 via-amber-500/10 to-teal-500/15 blur-3xl rounded-full" />
+      {/* Ambient Soft Brand Glow */}
+      <div className="pointer-events-none absolute top-0 left-1/2 -translate-x-1/2 w-[720px] h-[320px] bg-[#E25B26]/10 blur-[120px] rounded-full" />
 
       <div className="max-w-7xl mx-auto relative z-10 space-y-10">
         {/* Top Back Navigation & Trigger Banner */}
@@ -547,53 +547,53 @@ export const PricingPage: React.FC<PricingPageProps> = ({
             <button
               type="button"
               onClick={onBackToBuilder}
-              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-xs font-bold text-slate-300 hover:text-white transition cursor-pointer"
+              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-[#131B2A] hover:bg-[#1E293B] border border-[#1E293B] text-xs font-bold text-[#CBD5E1] hover:text-[#F8FAFC] transition cursor-pointer"
             >
-              <ArrowRight className="w-4 h-4 text-emerald-400" />
-              <span>العودة إلى محرر الصفحات</span>
+              <ArrowRight className="w-4 h-4 text-[#E25B26]" />
+              <span>العودة</span>
             </button>
           )}
 
           {isPro && (
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-extrabold">
-              <Crown className="w-4 h-4 text-amber-400" />
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#E25B26]/10 border border-[#E25B26]/30 text-[#E25B26] text-xs font-extrabold">
+              <Crown className="w-4 h-4 text-[#E25B26]" />
               <span>حسابك الحالي مفعل على الباقة الاحترافية ({effectivePlan.toUpperCase()})</span>
             </div>
           )}
         </div>
 
         {triggerReason && (
-          <div className="max-w-3xl mx-auto p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center gap-3 text-amber-200 text-xs sm:text-sm font-bold shadow-lg">
-            <Lock className="w-5 h-5 text-amber-400 shrink-0" />
+          <div className="max-w-3xl mx-auto p-4 rounded-2xl bg-[#E25B26]/10 border border-[#E25B26]/30 flex items-center gap-3 text-[#F8FAFC] text-xs sm:text-sm font-bold shadow-lg">
+            <Lock className="w-5 h-5 text-[#E25B26] shrink-0" />
             <span>{triggerReason}</span>
           </div>
         )}
 
         {/* Header Section */}
         <div className="text-center space-y-4 max-w-3xl mx-auto">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs font-extrabold">
-            <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#E25B26]/10 border border-[#E25B26]/30 text-[#E25B26] text-xs font-extrabold">
+            <Sparkles className="w-3.5 h-3.5 text-[#E25B26]" />
             <span>باقات مرنة مصممة لتجار الدفع عند الاستلام COD</span>
           </div>
 
-          <h1 className="text-2xl sm:text-4xl lg:text-5xl font-black tracking-tight text-white leading-tight">
+          <h1 className="text-2xl sm:text-4xl lg:text-5xl font-black tracking-tight text-[#F8FAFC] leading-tight">
             اختر الباقة المناسبة لنمو متجرك
           </h1>
 
-          <p className="text-sm sm:text-base text-slate-400 max-w-2xl mx-auto leading-relaxed">
+          <p className="text-sm sm:text-base text-[#CBD5E1] max-w-2xl mx-auto leading-relaxed">
             افتح جميع الأقسام الاحترافية، تخلص من العلامة المائية، واربط دومينك الخاص لزيادة المبيعات ونسبة التأكيد.
           </p>
 
           {/* Monthly vs Yearly Billing Toggle */}
           <div className="pt-3 flex items-center justify-center">
-            <div className="inline-flex items-center p-1 rounded-2xl bg-slate-900 border border-slate-800 shadow-inner">
+            <div className="inline-flex items-center p-1 rounded-2xl bg-[#131B2A] border border-[#1E293B] shadow-inner">
               <button
                 type="button"
                 onClick={() => setBillingCycle('monthly')}
                 className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-extrabold transition cursor-pointer ${
                   billingCycle === 'monthly'
-                    ? 'bg-emerald-500 text-slate-950 shadow-sm'
-                    : 'text-slate-400 hover:text-white'
+                    ? 'bg-[#E25B26] text-[#F8FAFC] shadow-sm'
+                    : 'text-[#CBD5E1] hover:text-[#F8FAFC]'
                 }`}
               >
                 دفع شهري (Monthly)
@@ -603,16 +603,16 @@ export const PricingPage: React.FC<PricingPageProps> = ({
                 onClick={() => setBillingCycle('yearly')}
                 className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-extrabold flex items-center gap-2 transition cursor-pointer ${
                   billingCycle === 'yearly'
-                    ? 'bg-emerald-500 text-slate-950 shadow-sm'
-                    : 'text-slate-400 hover:text-white'
+                    ? 'bg-[#E25B26] text-[#F8FAFC] shadow-sm'
+                    : 'text-[#CBD5E1] hover:text-[#F8FAFC]'
                 }`}
               >
                 <span>دفع سنوي (Yearly)</span>
                 <span
                   className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
                     billingCycle === 'yearly'
-                      ? 'bg-slate-950 text-amber-400'
-                      : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                      ? 'bg-[#0D131E] text-[#F8FAFC]'
+                      : 'bg-[#E25B26]/20 text-[#E25B26] border border-[#E25B26]/30'
                   }`}
                 >
                   وفر 20%
@@ -637,19 +637,19 @@ export const PricingPage: React.FC<PricingPageProps> = ({
                 key={tier.id}
                 className={`relative rounded-3xl p-6 flex flex-col justify-between transition-all duration-300 ${
                   tier.highlighted
-                    ? 'bg-gradient-to-b from-slate-900 via-slate-900 to-emerald-950/40 border-2 border-emerald-400 shadow-[0_0_40px_-10px_rgba(16,185,129,0.45)] ring-1 ring-emerald-400/50 scale-[1.02]'
+                    ? 'bg-[#131B2A] border-2 border-[#E25B26] shadow-[0_0_40px_-10px_rgba(226,91,38,0.35)] ring-1 ring-[#E25B26]/50 scale-[1.02]'
                     : isSelectedForCheckout
-                    ? 'bg-slate-900 border-2 border-amber-400 shadow-xl'
-                    : 'bg-slate-900/90 border border-slate-800 hover:border-slate-700'
+                    ? 'bg-[#131B2A] border-2 border-[#E25B26] shadow-xl'
+                    : 'bg-[#131B2A] border border-[#1E293B] hover:border-[#334155]'
                 }`}
               >
-                {/* Top Popular Glowing Ribbon */}
+                {/* Top Popular Ribbon */}
                 {tier.badge && (
                   <div
                     className={`absolute -top-3.5 right-6 px-3 py-1 rounded-full text-[11px] font-black tracking-wide shadow-md ${
                       tier.highlighted
-                        ? 'bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500 text-slate-950'
-                        : 'bg-slate-800 text-emerald-300 border border-slate-700'
+                        ? 'bg-[#E25B26] text-[#F8FAFC]'
+                        : 'bg-[#1E293B] text-[#E25B26] border border-[#334155]'
                     }`}
                   >
                     {tier.badge}
@@ -660,16 +660,16 @@ export const PricingPage: React.FC<PricingPageProps> = ({
                   {/* Tier Header */}
                   <div className="flex items-center justify-between gap-2 pt-1">
                     <div>
-                      <h3 className="text-lg font-black text-white">{tier.nameAr}</h3>
-                      <span className="text-[11px] font-semibold text-slate-400">
+                      <h3 className="text-lg font-black text-[#F8FAFC]">{tier.nameAr}</h3>
+                      <span className="text-[11px] font-semibold text-[#CBD5E1]">
                         {tier.nameEn}
                       </span>
                     </div>
                     <div
                       className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 ${
                         tier.highlighted
-                          ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
-                          : 'bg-slate-800 text-slate-300 border border-slate-700'
+                          ? 'bg-[#E25B26]/20 text-[#E25B26] border border-[#E25B26]/40'
+                          : 'bg-[#1E293B] text-[#CBD5E1] border border-[#334155]'
                       }`}
                     >
                       <Icon className="w-5 h-5" />
@@ -677,23 +677,23 @@ export const PricingPage: React.FC<PricingPageProps> = ({
                   </div>
 
                   {/* Price Display */}
-                  <div className="pt-2 border-t border-slate-800/80">
+                  <div className="pt-2 border-t border-[#1E293B]">
                     <div className="flex items-baseline gap-1.5">
-                      <span className="text-3xl sm:text-4xl font-black text-white font-mono">
+                      <span className="text-3xl sm:text-4xl font-black text-[#F8FAFC] font-mono">
                         {effectiveMonthlyMAD}
                       </span>
-                      <span className="text-sm font-extrabold text-emerald-400">درهم</span>
+                      <span className="text-sm font-extrabold text-[#E25B26]">درهم</span>
                       {tier.monthlyPriceMAD > 0 && (
-                        <span className="text-xs text-slate-400 font-semibold">/ شهر</span>
+                        <span className="text-xs text-[#CBD5E1] font-semibold">/ شهر</span>
                       )}
                     </div>
 
                     {tier.monthlyPriceMAD > 0 ? (
-                      <div className="mt-1 text-[11px] text-slate-400 font-medium">
+                      <div className="mt-1 text-[11px] text-[#CBD5E1] font-medium">
                         {billingCycle === 'yearly' ? (
-                          <span className="text-amber-300 font-bold">
+                          <span className="text-[#E25B26] font-bold">
                             تُدفع سنوياً ({getTotalBilledMAD(tier)} درهم/سنة) • بدل{' '}
-                            <span className="line-through text-slate-500">
+                            <span className="line-through text-[#CBD5E1]/60">
                               {tier.monthlyPriceMAD} درهم
                             </span>
                           </span>
@@ -702,23 +702,23 @@ export const PricingPage: React.FC<PricingPageProps> = ({
                         )}
                       </div>
                     ) : (
-                      <div className="mt-1 text-[11px] text-slate-400 font-medium">
+                      <div className="mt-1 text-[11px] text-[#CBD5E1] font-medium">
                         مجاناً للأبد بدون بطاقة بنكية
                       </div>
                     )}
                   </div>
 
-                  <p className="text-xs text-slate-300 leading-relaxed">{tier.description}</p>
+                  <p className="text-xs text-[#CBD5E1] leading-relaxed">{tier.description}</p>
 
                   {/* Feature List */}
                   <ul className="space-y-2.5 pt-2">
                     {tier.features.map((feat, idx) => (
-                      <li key={idx} className="flex items-start gap-2.5 text-xs font-bold text-slate-200">
+                      <li key={idx} className="flex items-start gap-2.5 text-xs font-bold text-[#F8FAFC]">
                         <div
                           className={`w-4 h-4 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${
                             tier.highlighted
-                              ? 'bg-emerald-500 text-slate-950'
-                              : 'bg-slate-800 text-emerald-400'
+                              ? 'bg-[#E25B26] text-[#F8FAFC]'
+                              : 'bg-[#1E293B] text-[#E25B26]'
                           }`}
                         >
                           <Check className="w-3 h-3 stroke-[3]" />
@@ -730,7 +730,7 @@ export const PricingPage: React.FC<PricingPageProps> = ({
                 </div>
 
                 {/* Action CTA Button */}
-                <div className="pt-6 mt-6 border-t border-slate-800/80">
+                <div className="pt-6 mt-6 border-t border-[#1E293B]">
                   {tier.id === 'free' ? (
                     <button
                       type="button"
@@ -738,8 +738,8 @@ export const PricingPage: React.FC<PricingPageProps> = ({
                       onClick={() => handleChooseTier(tier)}
                       className={`w-full py-3 px-4 rounded-2xl text-xs font-black transition flex items-center justify-center gap-2 ${
                         isCurrentTier
-                          ? 'bg-slate-800/60 text-slate-500 border border-slate-800 cursor-not-allowed'
-                          : 'bg-slate-800 hover:bg-slate-700 text-white border border-slate-700 cursor-pointer'
+                          ? 'bg-[#1E293B]/60 text-[#CBD5E1]/50 border border-[#1E293B] cursor-not-allowed'
+                          : 'bg-[#1E293B] hover:bg-[#334155] text-[#F8FAFC] border border-[#334155] cursor-pointer'
                       }`}
                     >
                       <span>{isCurrentTier ? 'باقتك الحالية (Free)' : tier.ctaLabel}</span>
@@ -748,11 +748,7 @@ export const PricingPage: React.FC<PricingPageProps> = ({
                     <button
                       type="button"
                       onClick={() => handleChooseTier(tier)}
-                      className={`w-full py-3.5 px-4 rounded-2xl text-xs sm:text-sm font-black transition flex items-center justify-center gap-2 cursor-pointer shadow-lg ${
-                        tier.highlighted
-                          ? 'bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-slate-950 shadow-emerald-500/20'
-                          : 'bg-white hover:bg-slate-100 text-slate-950'
-                      }`}
+                      className="w-full py-3.5 px-4 rounded-2xl text-xs sm:text-sm font-black transition flex items-center justify-center gap-2 cursor-pointer shadow-lg bg-[#E25B26] hover:bg-[#F16F3C] text-[#F8FAFC]"
                     >
                       <Crown className="w-4 h-4 shrink-0" />
                       <span>
@@ -770,30 +766,30 @@ export const PricingPage: React.FC<PricingPageProps> = ({
         {selectedPaidTier && (
           <div
             ref={checkoutSectionRef}
-            className="max-w-4xl mx-auto mt-10 rounded-3xl bg-slate-900 border-2 border-emerald-500/40 shadow-2xl overflow-hidden animate-in fade-in duration-200"
+            className="max-w-4xl mx-auto mt-10 rounded-3xl bg-[#131B2A] border-2 border-[#E25B26]/50 shadow-2xl overflow-hidden animate-in fade-in duration-200"
           >
             {/* Checkout Header */}
-            <div className="px-6 py-5 bg-gradient-to-l from-emerald-950/80 via-slate-900 to-slate-900 border-b border-slate-800 flex flex-wrap items-center justify-between gap-4">
+            <div className="px-6 py-5 bg-[#0D131E] border-b border-[#1E293B] flex flex-wrap items-center justify-between gap-4">
               <div className="flex items-center gap-3">
-                <div className="w-11 h-11 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400">
+                <div className="w-11 h-11 rounded-2xl bg-[#E25B26]/20 border border-[#E25B26]/40 flex items-center justify-center text-[#E25B26]">
                   <ShieldCheck className="w-6 h-6" />
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <h2 className="text-base sm:text-lg font-black text-white">
+                    <h2 className="text-base sm:text-lg font-black text-[#F8FAFC]">
                       إتمام الاشتراك — {selectedPaidTier.nameAr}
                     </h2>
-                    <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                    <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black bg-[#E25B26]/20 text-[#E25B26] border border-[#E25B26]/30">
                       {billingCycle === 'yearly' ? 'سنوي (خصم 20%)' : 'شهري'}
                     </span>
                   </div>
-                  <p className="text-xs text-slate-400 mt-0.5">
+                  <p className="text-xs text-[#CBD5E1] mt-0.5">
                     المبلغ الإجمالي المطلوب:{' '}
-                    <strong className="text-emerald-400 font-mono">
+                    <strong className="text-[#E25B26] font-mono">
                       {totalChargeMAD} MAD
                     </strong>{' '}
                     (يعادل تقريباً{' '}
-                    <strong className="text-white font-mono">
+                    <strong className="text-[#F8FAFC] font-mono">
                       ${paypalSettlement.formattedUSD} USD
                     </strong>
                     )
@@ -804,7 +800,7 @@ export const PricingPage: React.FC<PricingPageProps> = ({
               <button
                 type="button"
                 onClick={() => setSelectedPaidTier(null)}
-                className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition cursor-pointer"
+                className="p-2 rounded-xl bg-[#1E293B] hover:bg-[#334155] text-[#CBD5E1] hover:text-[#F8FAFC] transition cursor-pointer"
                 title="إغلاق نافذة الدفع"
               >
                 <X className="w-4 h-4" />
@@ -814,8 +810,8 @@ export const PricingPage: React.FC<PricingPageProps> = ({
             <div className="p-6 space-y-6">
               {/* Alerts */}
               {checkoutSuccess && (
-                <div className="p-4 rounded-2xl bg-emerald-950/90 border border-emerald-500/50 text-emerald-200 flex items-center gap-3 text-xs sm:text-sm font-bold">
-                  <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+                <div className="p-4 rounded-2xl bg-[#E25B26]/15 border border-[#E25B26]/50 text-[#F8FAFC] flex items-center gap-3 text-xs sm:text-sm font-bold">
+                  <CheckCircle2 className="w-5 h-5 text-[#E25B26] shrink-0" />
                   <span className="flex-1">{checkoutSuccess}</span>
                 </div>
               )}
@@ -828,21 +824,21 @@ export const PricingPage: React.FC<PricingPageProps> = ({
               )}
 
               {pendingPayment && (
-                <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs font-bold flex items-center justify-between gap-2">
+                <div className="p-3.5 rounded-2xl bg-[#E25B26]/10 border border-[#E25B26]/30 text-[#F8FAFC] text-xs font-bold flex items-center justify-between gap-2">
                   <span>
                     ⏳ لديك طلب تحويل بنكي قيد المراجعة ({pendingPayment.amount} درهم -{' '}
                     {pendingPayment.method}).
                   </span>
-                  <span className="font-mono text-[11px] text-amber-300">
+                  <span className="font-mono text-[11px] text-[#E25B26]">
                     #{pendingPayment.transactionReference}
                   </span>
                 </div>
               )}
 
               {/* Coupon Code Input Box */}
-              <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-3">
-                <label className="block text-xs font-black text-slate-300 flex items-center gap-2">
-                  <Tag className="w-4 h-4 text-emerald-400" />
+              <div className="p-4 rounded-2xl bg-[#0D131E] border border-[#1E293B] space-y-3">
+                <label className="block text-xs font-black text-[#CBD5E1] flex items-center gap-2">
+                  <Tag className="w-4 h-4 text-[#E25B26]" />
                   <span>هل لديك كود خصم؟ (Have a coupon code?)</span>
                 </label>
 
@@ -855,13 +851,13 @@ export const PricingPage: React.FC<PricingPageProps> = ({
                       setCouponInput(e.target.value.toUpperCase().replace(/[^A-Z0-9_-]/g, ''))
                     }
                     placeholder="Enter coupon code (e.g. WELCOME20)"
-                    className="flex-1 h-10 px-3.5 rounded-xl bg-slate-900 border border-slate-800 text-xs font-mono text-white uppercase focus:border-emerald-500 outline-none"
+                    className="flex-1 h-10 px-3.5 rounded-xl bg-[#131B2A] border border-[#1E293B] text-xs font-mono text-[#F8FAFC] uppercase focus:border-[#E25B26] outline-none"
                   />
                   <button
                     type="button"
                     onClick={handleApplyCoupon}
                     disabled={isApplyingCoupon || !couponInput.trim()}
-                    className="h-10 px-5 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-slate-950 font-black text-xs transition flex items-center justify-center gap-2 cursor-pointer shrink-0"
+                    className="h-10 px-5 rounded-xl bg-[#E25B26] hover:bg-[#F16F3C] disabled:opacity-50 text-[#F8FAFC] font-black text-xs transition flex items-center justify-center gap-2 cursor-pointer shrink-0"
                   >
                     {isApplyingCoupon ? (
                       <>
@@ -880,7 +876,7 @@ export const PricingPage: React.FC<PricingPageProps> = ({
                         setCouponInput('');
                         setCouponError(null);
                       }}
-                      className="h-10 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition cursor-pointer shrink-0"
+                      className="h-10 px-3 rounded-xl bg-[#1E293B] hover:bg-[#334155] text-[#CBD5E1] text-xs font-bold transition cursor-pointer shrink-0"
                     >
                       إزالة
                     </button>
@@ -888,19 +884,19 @@ export const PricingPage: React.FC<PricingPageProps> = ({
                 </div>
 
                 {appliedCoupon && (
-                  <div className="p-3 rounded-xl bg-emerald-950/70 border border-emerald-500/40 text-emerald-300 text-xs font-bold flex flex-wrap items-center justify-between gap-2">
+                  <div className="p-3 rounded-xl bg-[#E25B26]/15 border border-[#E25B26]/40 text-[#F8FAFC] text-xs font-bold flex flex-wrap items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                      <CheckCircle2 className="w-4 h-4 text-[#E25B26] shrink-0" />
                       <span>
                         تم تطبيق الكوبون <strong className="font-mono">{appliedCoupon.code}</strong> بنجاح! خصم{' '}
                         <strong className="font-mono">{appliedCoupon.discountAmount} درهم</strong>
                       </span>
                     </div>
                     <div className="font-mono text-xs">
-                      <span className="line-through text-slate-400 mr-2">
+                      <span className="line-through text-[#CBD5E1] mr-2">
                         {appliedCoupon.originalPrice} MAD
                       </span>
-                      <span className="text-emerald-400 font-black">
+                      <span className="text-[#E25B26] font-black">
                         {appliedCoupon.finalPrice} MAD (${paypalSettlement.formattedUSD} USD)
                       </span>
                     </div>
@@ -922,18 +918,18 @@ export const PricingPage: React.FC<PricingPageProps> = ({
                   onClick={() => setPaymentMethod('paypal')}
                   className={`p-4 rounded-2xl border text-right transition flex items-center gap-3 cursor-pointer ${
                     paymentMethod === 'paypal'
-                      ? 'bg-emerald-950/40 border-emerald-500 ring-1 ring-emerald-500 text-white'
-                      : 'bg-slate-950/70 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-slate-200'
+                      ? 'bg-[#E25B26]/15 border-[#E25B26] ring-1 ring-[#E25B26] text-[#F8FAFC]'
+                      : 'bg-[#0D131E] border-[#1E293B] text-[#CBD5E1] hover:border-[#334155] hover:text-[#F8FAFC]'
                   }`}
                 >
-                  <div className="w-10 h-10 rounded-xl bg-blue-500/20 border border-blue-400/30 text-blue-400 flex items-center justify-center shrink-0">
+                  <div className="w-10 h-10 rounded-xl bg-[#E25B26]/20 border border-[#E25B26]/30 text-[#E25B26] flex items-center justify-center shrink-0">
                     <CreditCard className="w-5 h-5" />
                   </div>
                   <div>
-                    <div className="text-xs sm:text-sm font-black text-white">
+                    <div className="text-xs sm:text-sm font-black text-[#F8FAFC]">
                       الدفع الفوري عبر PayPal / البطاقة البنكية
                     </div>
-                    <div className="text-[11px] text-slate-400">
+                    <div className="text-[11px] text-[#CBD5E1]">
                       تفعيل تلقائي فوري للباقة ({paypalSettlement.formattedUSD} USD)
                     </div>
                   </div>
@@ -944,18 +940,18 @@ export const PricingPage: React.FC<PricingPageProps> = ({
                   onClick={() => setPaymentMethod('bank')}
                   className={`p-4 rounded-2xl border text-right transition flex items-center gap-3 cursor-pointer ${
                     paymentMethod === 'bank'
-                      ? 'bg-emerald-950/40 border-emerald-500 ring-1 ring-emerald-500 text-white'
-                      : 'bg-slate-950/70 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-slate-200'
+                      ? 'bg-[#E25B26]/15 border-[#E25B26] ring-1 ring-[#E25B26] text-[#F8FAFC]'
+                      : 'bg-[#0D131E] border-[#1E293B] text-[#CBD5E1] hover:border-[#334155] hover:text-[#F8FAFC]'
                   }`}
                 >
-                  <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-400/30 text-amber-400 flex items-center justify-center shrink-0">
+                  <div className="w-10 h-10 rounded-xl bg-[#E25B26]/20 border border-[#E25B26]/30 text-[#E25B26] flex items-center justify-center shrink-0">
                     <Landmark className="w-5 h-5" />
                   </div>
                   <div>
-                    <div className="text-xs sm:text-sm font-black text-white">
+                    <div className="text-xs sm:text-sm font-black text-[#F8FAFC]">
                       تحويل بنكي مغربي (CIH / التجاري / الشعبي)
                     </div>
-                    <div className="text-[11px] text-slate-400">
+                    <div className="text-[11px] text-[#CBD5E1]">
                       ادفع بالدرهم المغربي ({totalChargeMAD} MAD) وارفع وصل التحويل
                     </div>
                   </div>
@@ -964,19 +960,19 @@ export const PricingPage: React.FC<PricingPageProps> = ({
 
               {/* Option 1: PayPal Automatic Upgrade */}
               {paymentMethod === 'paypal' ? (
-                <div className="p-6 rounded-2xl bg-slate-950 border border-slate-800 space-y-5">
-                  <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-4">
+                <div className="p-6 rounded-2xl bg-[#0D131E] border border-[#1E293B] space-y-5">
+                  <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#1E293B] pb-4">
                     <div>
-                      <h3 className="text-sm font-black text-white">
+                      <h3 className="text-sm font-black text-[#F8FAFC]">
                         الدفع الآمن عبر PayPal (تفعيل فوري)
                       </h3>
-                      <p className="text-xs text-slate-400 mt-0.5">
+                      <p className="text-xs text-[#CBD5E1] mt-0.5">
                         يتم تحويل المبلغ تلقائياً إلى الدولار الأمريكي وفق سعر الصرف المعتمد لتسوية الدفع الدولي.
                       </p>
                     </div>
-                    <div className="px-3.5 py-2 rounded-xl bg-slate-900 border border-slate-800 text-left">
-                      <div className="text-[10px] text-slate-400 font-bold">المبلغ للدفع الآن</div>
-                      <div className="text-sm font-black text-emerald-400 font-mono">
+                    <div className="px-3.5 py-2 rounded-xl bg-[#131B2A] border border-[#1E293B] text-left">
+                      <div className="text-[10px] text-[#CBD5E1] font-bold">المبلغ للدفع الآن</div>
+                      <div className="text-sm font-black text-[#E25B26] font-mono">
                         {paypalSettlement.formattedUSD} USD
                       </div>
                     </div>
@@ -987,7 +983,7 @@ export const PricingPage: React.FC<PricingPageProps> = ({
                     <div className="bg-white rounded-2xl p-4 shadow-inner">
                       {!isPayPalConfigLoaded ? (
                         <div className="py-6 flex items-center justify-center gap-2 text-slate-600 text-xs font-bold">
-                          <Loader2 className="w-4 h-4 animate-spin text-emerald-600" />
+                          <Loader2 className="w-4 h-4 animate-spin text-[#E25B26]" />
                           <span>جاري تهيئة بوابة الدفع PayPal...</span>
                         </div>
                       ) : !isValidPayPalClientId ? (
@@ -1179,7 +1175,7 @@ export const PricingPage: React.FC<PricingPageProps> = ({
                       type="button"
                       disabled={isProcessing}
                       onClick={handleDirectPayPalUpgrade}
-                      className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 disabled:opacity-50 text-white font-black text-xs flex items-center justify-center gap-2 shadow-lg transition cursor-pointer"
+                      className="w-full py-3 px-4 rounded-xl bg-[#E25B26] hover:bg-[#F16F3C] disabled:opacity-50 text-[#F8FAFC] font-black text-xs flex items-center justify-center gap-2 shadow-lg transition cursor-pointer"
                     >
                       {isProcessing ? (
                         <>
@@ -1198,9 +1194,9 @@ export const PricingPage: React.FC<PricingPageProps> = ({
                   </div>
                 </div>
               ) : banks.length === 0 || !selectedBank ? (
-                <div className="p-6 rounded-2xl bg-slate-950 border border-slate-800 text-center space-y-2">
-                  <Landmark className="w-8 h-8 text-amber-400 mx-auto" />
-                  <p className="text-xs font-bold text-slate-200">
+                <div className="p-6 rounded-2xl bg-[#0D131E] border border-[#1E293B] text-center space-y-2">
+                  <Landmark className="w-8 h-8 text-[#E25B26] mx-auto" />
+                  <p className="text-xs font-bold text-[#F8FAFC]">
                     لا توجد حسابات بنكية متاحة حالياً. يرجى التواصل مع الدعم.
                   </p>
                 </div>
@@ -1208,10 +1204,10 @@ export const PricingPage: React.FC<PricingPageProps> = ({
                 /* Option 2: Moroccan Bank Transfer (Dynamic Banks from /api/settings/banks) */
                 <form
                   onSubmit={handleManualBankSubmit}
-                  className="p-6 rounded-2xl bg-slate-950 border border-slate-800 space-y-6"
+                  className="p-6 rounded-2xl bg-[#0D131E] border border-[#1E293B] space-y-6"
                 >
                   <div>
-                    <label className="block text-xs font-black text-slate-300 mb-3">
+                    <label className="block text-xs font-black text-[#CBD5E1] mb-3">
                       1. اختر البنك المغربي للتحويل:
                     </label>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -1224,21 +1220,21 @@ export const PricingPage: React.FC<PricingPageProps> = ({
                             onClick={() => setSelectedBankId(bank.id)}
                             className={`p-3.5 rounded-2xl border text-right transition flex flex-col justify-between gap-2 cursor-pointer ${
                               isSelected
-                                ? 'bg-amber-500/10 border-amber-400 ring-1 ring-amber-400'
-                                : 'bg-slate-900 border-slate-800 hover:border-slate-700'
+                                ? 'bg-[#E25B26]/10 border-[#E25B26] ring-1 ring-[#E25B26]'
+                                : 'bg-[#131B2A] border-[#1E293B] hover:border-[#334155]'
                             }`}
                           >
                             <div className="flex items-center justify-between gap-2">
-                              <span className="text-xs font-black text-white">
+                              <span className="text-xs font-black text-[#F8FAFC]">
                                 {bank.bankName || bank.name}
                               </span>
                               {bank.badge && (
-                                <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 text-[10px] font-bold">
+                                <span className="px-2 py-0.5 rounded-full bg-[#E25B26]/20 text-[#E25B26] text-[10px] font-bold">
                                   {bank.badge}
                                 </span>
                               )}
                             </div>
-                            <div className="text-[11px] text-slate-400 truncate">
+                            <div className="text-[11px] text-[#CBD5E1] truncate">
                               المستفيد: {bank.beneficiary}
                             </div>
                           </button>
@@ -1249,14 +1245,14 @@ export const PricingPage: React.FC<PricingPageProps> = ({
 
                   {/* Selected Bank RIB & Details Card */}
                   {selectedBank && (
-                    <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 space-y-3">
+                    <div className="p-4 rounded-2xl bg-[#131B2A] border border-[#1E293B] space-y-3">
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <div>
-                          <div className="text-xs font-black text-amber-400">
+                          <div className="text-xs font-black text-[#E25B26]">
                             بيانات الحساب البنكي — {selectedBank.bankName || selectedBank.name}
                           </div>
-                          <div className="text-[11px] text-slate-400 mt-0.5">
-                            اسم المستفيد: <strong className="text-white">{selectedBank.beneficiary}</strong>
+                          <div className="text-[11px] text-[#CBD5E1] mt-0.5">
+                            اسم المستفيد: <strong className="text-[#F8FAFC]">{selectedBank.beneficiary}</strong>
                           </div>
                         </div>
 
@@ -1264,7 +1260,7 @@ export const PricingPage: React.FC<PricingPageProps> = ({
                           <button
                             type="button"
                             onClick={() => handleCopyText(selectedBank.rib || '', selectedBank.id)}
-                            className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs flex items-center gap-1.5 transition cursor-pointer"
+                            className="px-3 py-1.5 rounded-xl bg-[#E25B26] hover:bg-[#F16F3C] text-[#F8FAFC] font-black text-xs flex items-center gap-1.5 transition cursor-pointer"
                           >
                             <Copy className="w-3.5 h-3.5" />
                             <span>
@@ -1277,14 +1273,14 @@ export const PricingPage: React.FC<PricingPageProps> = ({
                       {selectedBank.rib && (
                         <div
                           dir="ltr"
-                          className="p-3 rounded-xl bg-slate-950 border border-slate-800 font-mono text-xs sm:text-sm font-black text-emerald-400 tracking-wider text-center select-all"
+                          className="p-3 rounded-xl bg-[#0D131E] border border-[#1E293B] font-mono text-xs sm:text-sm font-black text-[#E25B26] tracking-wider text-center select-all"
                         >
                           {selectedBank.rib}
                         </div>
                       )}
 
                       {selectedBank.instructions && (
-                        <p className="text-[11px] text-slate-400 leading-relaxed">
+                        <p className="text-[11px] text-[#CBD5E1] leading-relaxed">
                           💡 {selectedBank.instructions}
                         </p>
                       )}
@@ -1294,7 +1290,7 @@ export const PricingPage: React.FC<PricingPageProps> = ({
                   {/* Upload Receipt & Reference Inputs */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-bold text-slate-300 mb-1.5">
+                      <label className="block text-xs font-bold text-[#CBD5E1] mb-1.5">
                         2. رقم عملية التحويل (أو اسم المرسل)
                       </label>
                       <input
@@ -1302,12 +1298,12 @@ export const PricingPage: React.FC<PricingPageProps> = ({
                         value={transactionRef}
                         onChange={(e) => setTransactionRef(e.target.value)}
                         placeholder="مثال: رقم الوصل أو اسم صاحب الحساب..."
-                        className="w-full h-10 px-3 rounded-xl bg-slate-900 border border-slate-800 text-xs text-white focus:border-emerald-500 outline-none"
+                        className="w-full h-10 px-3 rounded-xl bg-[#131B2A] border border-[#1E293B] text-xs text-[#F8FAFC] focus:border-[#E25B26] outline-none"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold text-slate-300 mb-1.5">
+                      <label className="block text-xs font-bold text-[#CBD5E1] mb-1.5">
                         3. إرفاق صورة وصل التحويل (Receipt)
                       </label>
                       <input
@@ -1322,18 +1318,18 @@ export const PricingPage: React.FC<PricingPageProps> = ({
                         onClick={() => fileInputRef.current?.click()}
                         className={`w-full h-10 px-3 rounded-xl border border-dashed text-xs font-bold flex items-center justify-center gap-2 transition cursor-pointer ${
                           receiptDataUrl
-                            ? 'bg-emerald-950/50 border-emerald-500 text-emerald-300'
-                            : 'bg-slate-900 border-slate-700 text-slate-300 hover:border-emerald-400'
+                            ? 'bg-[#E25B26]/15 border-[#E25B26] text-[#F8FAFC]'
+                            : 'bg-[#131B2A] border-[#334155] text-[#CBD5E1] hover:border-[#E25B26]'
                         }`}
                       >
                         {receiptDataUrl ? (
                           <>
-                            <FileCheck2 className="w-4 h-4 text-emerald-400" />
+                            <FileCheck2 className="w-4 h-4 text-[#E25B26]" />
                             <span className="truncate">{receiptFileName || 'تم إرفاق الوصل بنجاح'}</span>
                           </>
                         ) : (
                           <>
-                            <UploadCloud className="w-4 h-4 text-amber-400" />
+                            <UploadCloud className="w-4 h-4 text-[#E25B26]" />
                             <span>اختر صورة وصل التحويل البنكي</span>
                           </>
                         )}
@@ -1344,7 +1340,7 @@ export const PricingPage: React.FC<PricingPageProps> = ({
                   <button
                     type="submit"
                     disabled={isProcessing}
-                    className="w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-amber-400 to-yellow-500 hover:from-amber-300 hover:to-yellow-400 disabled:opacity-50 text-slate-950 font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg transition cursor-pointer"
+                    className="w-full py-3.5 px-6 rounded-2xl bg-[#E25B26] hover:bg-[#F16F3C] disabled:opacity-50 text-[#F8FAFC] font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg transition cursor-pointer"
                   >
                     {isProcessing ? (
                       <>
@@ -1365,10 +1361,10 @@ export const PricingPage: React.FC<PricingPageProps> = ({
         )}
 
         {/* Pricing Page Legal & Support Footer */}
-        <footer className="mt-20 pt-8 border-t border-slate-800/80 text-xs text-slate-400">
+        <footer className="mt-20 pt-8 border-t border-[#1E293B] text-xs text-[#CBD5E1]">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-2">
-              <span className="font-extrabold text-white">CodWorth</span>
+              <span className="font-extrabold text-[#F8FAFC]">CodWorth</span>
               <span>•</span>
               <span>بوابتك لزيادة مبيعات الدفع عند الاستلام بالمغرب</span>
             </div>
@@ -1378,7 +1374,7 @@ export const PricingPage: React.FC<PricingPageProps> = ({
                 <button
                   type="button"
                   onClick={onBackToBuilder}
-                  className="hover:text-white transition cursor-pointer"
+                  className="hover:text-[#F8FAFC] transition cursor-pointer"
                 >
                   الرئيسية
                 </button>
@@ -1387,7 +1383,7 @@ export const PricingPage: React.FC<PricingPageProps> = ({
                 <button
                   type="button"
                   onClick={onNavigateToContact}
-                  className="hover:text-white transition cursor-pointer"
+                  className="hover:text-[#F8FAFC] transition cursor-pointer"
                 >
                   تواصل معنا
                 </button>
@@ -1396,7 +1392,7 @@ export const PricingPage: React.FC<PricingPageProps> = ({
                 <button
                   type="button"
                   onClick={onNavigateToTerms}
-                  className="hover:text-white transition cursor-pointer"
+                  className="hover:text-[#F8FAFC] transition cursor-pointer"
                 >
                   شروط الاستخدام
                 </button>
@@ -1405,18 +1401,18 @@ export const PricingPage: React.FC<PricingPageProps> = ({
                 <button
                   type="button"
                   onClick={onNavigateToPrivacy}
-                  className="hover:text-white transition cursor-pointer"
+                  className="hover:text-[#F8FAFC] transition cursor-pointer"
                 >
                   سياسة الخصوصية
                 </button>
               )}
-              <a href="mailto:codworth.me@gmail.com" className="hover:text-white transition">
+              <a href="mailto:codworth.me@gmail.com" className="hover:text-[#F8FAFC] transition">
                 الدعم الفني
               </a>
             </div>
           </div>
 
-          <div className="mt-4 pt-4 border-t border-slate-900 text-center text-[11px] text-slate-500">
+          <div className="mt-4 pt-4 border-t border-[#1E293B] text-center text-[11px] text-[#CBD5E1]/70">
             © {new Date().getFullYear()} CodWorth SARL. جميع الحقوق محفوظة. المملكة المغربية 🇲🇦
           </div>
         </footer>

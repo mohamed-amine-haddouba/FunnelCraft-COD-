@@ -1976,6 +1976,22 @@ function PrivacyRoute() {
   );
 }
 
+function PricingRoute() {
+  const navigate = useNavigate();
+  const { user, isLoggedIn } = useAuth();
+  return (
+    <PricingPage
+      currentPlan={user?.plan_id || 'free'}
+      onSelectFreePlan={() => navigate(isLoggedIn ? '/dashboard/builder' : '/login')}
+      onUpgradeSuccess={() => navigate('/dashboard/builder')}
+      onBackToBuilder={() => navigate(isLoggedIn ? '/dashboard/builder' : '/home')}
+      onNavigateToContact={() => navigate('/contact')}
+      onNavigateToTerms={() => navigate('/terms')}
+      onNavigateToPrivacy={() => navigate('/privacy')}
+    />
+  );
+}
+
 export default function App() {
   const location = useLocation();
   const isBuilderOrSandbox =
@@ -1990,6 +2006,7 @@ export default function App() {
           <Routes>
             <Route path="/" element={<RootRedirect />} />
             <Route path="/home" element={<HomeLandingPage />} />
+            <Route path="/pricing" element={<PricingRoute />} />
             <Route path="/login" element={<LoginRoute />} />
             <Route path="/verify-email" element={<VerifyEmailPage />} />
             <Route path="/reset-password" element={<LoginRoute />} />

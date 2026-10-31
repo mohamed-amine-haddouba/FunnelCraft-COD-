@@ -12,12 +12,12 @@ export const HeroSection: React.FC = () => {
       dir={dir}
       className="relative w-full bg-[#0D131E] text-[#F8FAFC] overflow-hidden py-12 sm:py-16 lg:py-24"
     >
-      {/* Subtle Orange Glow at 5% Opacity in Top Corner */}
+      {/* Soft Premium Orange Glow at 10% Opacity with blur-[120px] in Top Corner */}
       <div
         aria-hidden="true"
         className={`pointer-events-none absolute -top-32 ${
           isRtl ? '-left-32' : '-right-32'
-        } w-[520px] h-[520px] rounded-full bg-[#E25B26]/5 blur-3xl`}
+        } w-[520px] h-[520px] rounded-full bg-[#E25B26]/10 blur-[120px]`}
       />
 
       {/* Faint Geometric Zellij Pattern Overlay at 3% Opacity */}

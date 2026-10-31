@@ -1,8 +1,27 @@
 @import "tailwindcss";
 
+@theme {
+  --color-brand-bg: #0D131E;
+  --color-brand-surface: #131B2A;
+  --color-brand-elevated: #1E293B;
+  --color-brand-border: #1E293B;
+  --color-brand-border-strong: #334155;
+  --color-brand-text: #F8FAFC;
+  --color-brand-secondary: #CBD5E1;
+  --color-brand-muted: #94A3B8;
+  --color-brand-accent: #E25B26;
+  --color-brand-accent-hover: #F16F3C;
+}
+
 @layer base {
-  body, input, textarea, select, button {
-    font-family: 'Plus Jakarta Sans', 'Inter', 'Cairo', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  body {
+    background-color: #0D131E;
+    color: #F8FAFC;
+    font-family: 'Cairo', 'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+
+  input, textarea, select, button {
+    font-family: 'Cairo', 'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   }
 
   [dir="rtl"], [dir="rtl"] input, [dir="rtl"] textarea, [dir="rtl"] select, [dir="rtl"] button {

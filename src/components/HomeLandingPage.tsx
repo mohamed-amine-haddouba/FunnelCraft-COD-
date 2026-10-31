@@ -22,15 +22,12 @@ export const HomeLandingPage: React.FC = () => {
       <header className="w-full border-b border-[#1E293B] bg-[#0D131E] sticky top-0 z-40">
         <div className="max-w-7xl mx-auto h-16 px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-4">
           {/* Brand Logo (Right in RTL / Left in LTR) */}
-          <Link to="/home" className="flex items-center gap-2.5 shrink-0">
+          <Link to="/home" className="flex items-center shrink-0">
             <img
               src="/assets/brand/logo.jpg"
-              className="h-8 w-auto object-contain rounded"
+              className="h-10 w-auto object-contain rounded-lg"
               alt="CodWorth Logo"
             />
-            <span className="font-black text-base sm:text-lg tracking-tight text-[#F8FAFC]">
-              {t['home.hero.brandName']}
-            </span>
           </Link>
 
           {/* Center Nav Links */}
@@ -42,19 +39,19 @@ export const HomeLandingPage: React.FC = () => {
               {t['home.hero.nav.home']}
             </Link>
             <Link
-              to="/home"
+              to="/home#features"
               className="text-[#CBD5E1] hover:text-[#F8FAFC] transition"
             >
               {t['home.hero.nav.features']}
             </Link>
             <Link
-              to="/home"
+              to="/pricing"
               className="text-[#CBD5E1] hover:text-[#F8FAFC] transition"
             >
               {t['home.hero.nav.pricing']}
             </Link>
             <Link
-              to="/home"
+              to="/login"
               className="text-[#CBD5E1] hover:text-[#F8FAFC] transition"
             >
               {t['home.hero.nav.templates']}
@@ -101,7 +98,7 @@ export const HomeLandingPage: React.FC = () => {
       </header>
 
       {/* Main Hero Section */}
-      <main className="flex-1 flex flex-col justify-center bg-[#0D131E]">
+      <main id="features" className="flex-1 flex flex-col justify-center bg-[#0D131E]">
         <HeroSection />
       </main>
 

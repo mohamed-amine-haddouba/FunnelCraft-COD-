@@ -17,7 +17,7 @@ export const MockupPhone: React.FC = () => {
       <div className="relative h-24 rounded-t-xl bg-[#0D131E] border border-[#334155] shrink-0 overflow-hidden">
         <img
           src="/assets/brand/photo1.jpg"
-          className="w-full h-full object-cover rounded-t-xl"
+          className="w-full h-full object-cover"
           alt="Product"
         />
       </div>
