@@ -827,7 +827,7 @@ export const PropertiesSidebar: React.FC<Props> = ({
                     </span>
                   )}
                 </div>
-                <div className="text-[10px] text-slate-500">
+                <div className="text-[10px] text-[#CBD5E1]/70">
                   تتبع زيارات الصفحة وأحداث الشراء (Purchase / PageView) تلقائياً
                 </div>
               </div>
@@ -891,7 +891,7 @@ export const PropertiesSidebar: React.FC<Props> = ({
                   <div
                     className={`flex items-center gap-1.5 text-[10px] font-bold px-2 py-1 rounded-md ${
                       pixelsSavedMsg.type === 'success'
-                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                        ? 'bg-[#E25B26] text-[#E25B26] border border-[#E25B26]'
                         : 'bg-rose-50 text-rose-700 border border-rose-200'
                     }`}
                   >
@@ -1167,7 +1167,7 @@ const HeroEditor: React.FC<{
             onChange={(e) =>
               onUpdate({ ...block, priceDiscounted: Number(e.target.value) || 0 })
             }
-            className="w-full h-8 px-2 py-1 rounded-lg border border-slate-200 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none text-xs font-mono font-bold text-emerald-600 bg-white"
+            className="w-full h-8 px-2 py-1 rounded-lg border border-slate-200 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none text-xs font-mono font-bold text-[#E25B26] bg-white"
           />
         </div>
 
@@ -1181,7 +1181,7 @@ const HeroEditor: React.FC<{
             onChange={(e) =>
               onUpdate({ ...block, priceOriginal: Number(e.target.value) || 0 })
             }
-            className="w-full h-8 px-2 py-1 rounded-lg border border-slate-200 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none text-xs font-mono text-slate-500 bg-white"
+            className="w-full h-8 px-2 py-1 rounded-lg border border-slate-200 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none text-xs font-mono text-[#CBD5E1]/70 bg-white"
           />
         </div>
 
@@ -1321,14 +1321,14 @@ const ProblemSolutionEditor: React.FC<{
       </div>
 
       <div>
-        <label className="block text-[11px] font-bold text-emerald-700 mb-1">
+        <label className="block text-[11px] font-bold text-[#E25B26] mb-1">
           عنوان بطاقة الحل
         </label>
         <input
           type="text"
           value={block.solutionTitle}
           onChange={(e) => onUpdate({ ...block, solutionTitle: e.target.value })}
-          className="w-full h-8 px-2 py-1 rounded-lg border border-emerald-200 text-xs outline-none focus:border-[#E25B26] bg-white"
+          className="w-full h-8 px-2 py-1 rounded-lg border border-[#E25B26] text-xs outline-none focus:border-[#E25B26] bg-white"
         />
       </div>
     </div>
@@ -1633,7 +1633,7 @@ const CodFormEditor: React.FC<{
 
             <div className="grid grid-cols-2 gap-1.5">
               <div className="min-w-0">
-                <label className="block text-[10px] text-slate-500 font-bold truncate mb-0.5">
+                <label className="block text-[10px] text-[#CBD5E1]/70 font-bold truncate mb-0.5">
                   السعر ({block.currency})
                 </label>
                 <input
@@ -1649,7 +1649,7 @@ const CodFormEditor: React.FC<{
               </div>
 
               <div className="min-w-0">
-                <label className="block text-[10px] text-slate-500 font-bold truncate mb-0.5">
+                <label className="block text-[10px] text-[#CBD5E1]/70 font-bold truncate mb-0.5">
                   السعر قبل الخصم
                 </label>
                 <input
@@ -1790,7 +1790,7 @@ const FloatingCtaEditor: React.FC<{
           type="text"
           value={block.priceText}
           onChange={(e) => onUpdate({ ...block, priceText: e.target.value })}
-          className="w-full h-8 px-2 py-1 rounded-lg border border-gray-200 text-xs font-bold text-emerald-600 outline-none focus:border-[#E25B26] bg-white"
+          className="w-full h-8 px-2 py-1 rounded-lg border border-gray-200 text-xs font-bold text-[#E25B26] outline-none focus:border-[#E25B26] bg-white"
         />
       </div>
 

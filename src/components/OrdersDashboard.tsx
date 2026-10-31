@@ -154,7 +154,7 @@ export const OrdersDashboard: React.FC<Props> = ({
         return {
           label: t.statusDelivered,
           bg: 'bg-[#E25B26]/10 text-[#E25B26] border-[#E25B26]/20',
-          dot: 'bg-emerald-400',
+          dot: 'bg-[#E25B26]',
         };
       case 'cancelled':
         return {
@@ -348,7 +348,7 @@ export const OrdersDashboard: React.FC<Props> = ({
     <div className="min-h-full bg-[#0D131E] text-[#F8FAFC] p-4 md:p-6 space-y-4" dir={dir}>
       {/* Toast Notification */}
       {toastMessage && (
-        <div className="fixed bottom-5 end-5 z-50 bg-[#E25B26] text-slate-950 font-bold px-3.5 py-2 rounded-lg text-xs shadow-xl flex items-center gap-2 animate-in fade-in slide-in-from-bottom-2">
+        <div className="fixed bottom-5 end-5 z-50 bg-[#E25B26] text-[#F8FAFC] font-bold px-3.5 py-2 rounded-lg text-xs shadow-xl flex items-center gap-2 animate-in fade-in slide-in-from-bottom-2">
           <CheckCircle2 className="w-4 h-4 shrink-0" />
           <span>{toastMessage}</span>
         </div>
@@ -376,7 +376,7 @@ export const OrdersDashboard: React.FC<Props> = ({
             type="button"
             onClick={handleSimulateOrder}
             disabled={isSimulatingOrder}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-[#E25B26] hover:bg-[#E25B26] text-slate-950 font-bold cursor-pointer transition shadow-xs disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-[#E25B26] hover:bg-[#E25B26] text-[#F8FAFC] font-bold cursor-pointer transition shadow-xs disabled:opacity-50"
           >
             <PlusCircle className={`w-3.5 h-3.5 ${isSimulatingOrder ? 'animate-spin' : ''}`} />
             <span>{isSimulatingOrder ? '...' : t.newTestOrder}</span>
@@ -458,7 +458,7 @@ export const OrdersDashboard: React.FC<Props> = ({
         <div className="bg-[#131B2A]/70 border border-[#1E293B] rounded-xl p-3 hover:border-[#334155] transition">
           <div className="flex items-center justify-between text-[#CBD5E1] text-xs mb-1">
             <span>{t.totalRevenue}</span>
-            <div className="w-6 h-6 rounded-md bg-teal-500/10 text-[#E25B26] flex items-center justify-center">
+            <div className="w-6 h-6 rounded-md bg-[#E25B26]/10 text-[#E25B26] flex items-center justify-center">
               <DollarSign className="w-3.5 h-3.5" />
             </div>
           </div>
@@ -534,7 +534,7 @@ export const OrdersDashboard: React.FC<Props> = ({
             <tbody className="divide-y divide-slate-800/60">
               {filteredOrders.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-8 text-center text-slate-500 text-xs">
+                  <td colSpan={7} className="py-8 text-center text-[#CBD5E1]/70 text-xs">
                     {t.noOrdersFound}
                   </td>
                 </tr>
@@ -555,7 +555,7 @@ export const OrdersDashboard: React.FC<Props> = ({
                         <div className="font-mono text-[11px] font-semibold text-[#CBD5E1]">
                           {order.id}
                         </div>
-                        <div className="text-[10px] text-slate-500">
+                        <div className="text-[10px] text-[#CBD5E1]/70">
                           {order.createdAt ? new Date(order.createdAt).toLocaleDateString() : 'اليوم'}
                         </div>
                       </td>
@@ -575,7 +575,7 @@ export const OrdersDashboard: React.FC<Props> = ({
                           <span>{order.customerCity}</span>
                         </div>
                         {order.customerAddress && (
-                          <div className="text-[10px] text-slate-500 truncate max-w-[150px]">
+                          <div className="text-[10px] text-[#CBD5E1]/70 truncate max-w-[150px]">
                             {order.customerAddress}
                           </div>
                         )}
@@ -704,7 +704,7 @@ export const OrdersDashboard: React.FC<Props> = ({
                     : `Synced orders with ${selectedCarrier}!`
                 )
               }
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-[#E25B26] hover:bg-[#E25B26] text-slate-950 transition cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-[#E25B26] hover:bg-[#E25B26] text-[#F8FAFC] transition cursor-pointer"
             >
               <LinkIcon className="w-3.5 h-3.5" />
               <span>{language === 'ar' ? 'مزامنة مع شركة التوصيل' : 'Sync Carrier'}</span>
@@ -713,7 +713,7 @@ export const OrdersDashboard: React.FC<Props> = ({
             <button
               type="button"
               onClick={handleExportCsv}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-[#131B2A] hover:bg-slate-700 border border-[#334155] text-white transition cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-[#131B2A] hover:bg-[#1E293B] border border-[#334155] text-white transition cursor-pointer"
             >
               <FileSpreadsheet className="w-3.5 h-3.5 text-[#E25B26]" />
               <span>{t.exportCsv}</span>

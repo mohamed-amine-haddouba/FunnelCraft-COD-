@@ -162,7 +162,7 @@ export const UserIpTransparencyWidget: React.FC<UserIpTransparencyWidgetProps> =
           <button
             type="button"
             onClick={handleCopyCurrentIp}
-            className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-[#131B2A] hover:bg-slate-700 text-[#F8FAFC] text-[11px] font-mono transition cursor-pointer"
+            className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-[#131B2A] hover:bg-[#1E293B] text-[#F8FAFC] text-[11px] font-mono transition cursor-pointer"
           >
             {copiedIp ? (
               <>

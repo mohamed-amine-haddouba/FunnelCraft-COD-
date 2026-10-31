@@ -441,7 +441,7 @@ export const AiGeneratorModal: React.FC<Props> = ({
         className="bg-white rounded-3xl max-w-2xl w-full shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-200 my-6"
       >
         {/* Header */}
-        <div className="bg-gradient-to-l from-emerald-900 via-teal-900 to-slate-900 p-6 text-white relative">
+        <div className="bg-gradient-to-l from-[#E25B26] via-[#F16F3C] to-slate-900 p-6 text-white relative">
           <button
             onClick={onClose}
             className="absolute top-5 left-5 w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors cursor-pointer"
@@ -474,7 +474,7 @@ export const AiGeneratorModal: React.FC<Props> = ({
               }}
               className={`py-2.5 px-3 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
                 activeTab === 'url'
-                  ? 'bg-[#E25B26] text-slate-950 shadow-md'
+                  ? 'bg-[#E25B26] text-[#F8FAFC] shadow-md'
                   : 'text-[#CBD5E1] hover:text-white hover:bg-white/5'
               }`}
             >
@@ -489,7 +489,7 @@ export const AiGeneratorModal: React.FC<Props> = ({
               }}
               className={`py-2.5 px-3 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
                 activeTab === 'prompt'
-                  ? 'bg-[#E25B26] text-slate-950 shadow-md'
+                  ? 'bg-[#E25B26] text-[#F8FAFC] shadow-md'
                   : 'text-[#CBD5E1] hover:text-white hover:bg-white/5'
               }`}
             >
@@ -512,7 +512,7 @@ export const AiGeneratorModal: React.FC<Props> = ({
             {/* Supported Platforms Banner */}
             <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-50 border border-slate-200/80 px-3.5 py-2.5 rounded-xl text-xs">
               <span className="font-bold text-slate-600 flex items-center gap-1.5">
-                <ShoppingBag className="w-4 h-4 text-emerald-600" />
+                <ShoppingBag className="w-4 h-4 text-[#E25B26]" />
                 استخراج متعدد الطبقات (JSON-LD + معرض الصور + Gemini):
               </span>
               <div className="flex flex-wrap items-center gap-1.5">
@@ -531,13 +531,13 @@ export const AiGeneratorModal: React.FC<Props> = ({
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label className="text-sm font-bold text-slate-700 flex items-center gap-1.5">
-                  <Link2 className="w-4 h-4 text-emerald-600" />
+                  <Link2 className="w-4 h-4 text-[#E25B26]" />
                   {useRawData ? 'بيانات أو نص المنتج الخام (Raw Text / HTML)' : 'رابط صفحة المنتج (Product URL)'}
                 </label>
                 <button
                   type="button"
                   onClick={() => setUseRawData(!useRawData)}
-                  className="text-xs font-bold text-emerald-600 hover:text-emerald-700 underline cursor-pointer"
+                  className="text-xs font-bold text-[#E25B26] hover:text-[#E25B26] underline cursor-pointer"
                 >
                   {useRawData ? 'استخدام رابط URL بدلاً من ذلك' : 'أو الصق نص/مواصفات المنتج يدوياً'}
                 </button>
@@ -551,7 +551,7 @@ export const AiGeneratorModal: React.FC<Props> = ({
                     value={productUrl}
                     onChange={(e) => setProductUrl(e.target.value)}
                     placeholder="https://www.aliexpress.com/item/... or https://store.myshopify.com/products/..."
-                    className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:border-[#E25B26] focus:ring-2 focus:ring-emerald-200 outline-none text-sm font-mono text-left bg-slate-50/50"
+                    className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:border-[#E25B26] focus:ring-2 focus:ring-[#E25B26] outline-none text-sm font-mono text-left bg-slate-50/50"
                   />
                   {/* Quick Demo Preset Links */}
                   <div className="flex flex-wrap items-center gap-1.5 pt-1">
@@ -578,7 +578,7 @@ export const AiGeneratorModal: React.FC<Props> = ({
                         key={sample.label}
                         type="button"
                         onClick={() => setProductUrl(sample.url)}
-                        className="text-[11px] px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-emerald-50 text-slate-600 hover:text-emerald-700 font-medium transition-colors cursor-pointer"
+                        className="text-[11px] px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-[#E25B26] text-slate-600 hover:text-[#E25B26] font-medium transition-colors cursor-pointer"
                       >
                         {sample.label}
                       </button>
@@ -591,7 +591,7 @@ export const AiGeneratorModal: React.FC<Props> = ({
                   value={rawProductData}
                   onChange={(e) => setRawProductData(e.target.value)}
                   placeholder="الصق هنا عنوان المنتج، السعر، المميزات، والمواصفات التقنية أو كود HTML..."
-                  className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:border-[#E25B26] focus:ring-2 focus:ring-emerald-200 outline-none text-sm"
+                  className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:border-[#E25B26] focus:ring-2 focus:ring-[#E25B26] outline-none text-sm"
                 />
               )}
             </div>
@@ -599,7 +599,7 @@ export const AiGeneratorModal: React.FC<Props> = ({
             {/* Language Selection */}
             <div>
               <label className="block text-sm font-bold text-slate-700 mb-1.5 flex items-center gap-1.5">
-                <Globe className="w-4 h-4 text-emerald-600" />
+                <Globe className="w-4 h-4 text-[#E25B26]" />
                 لغة الصياغة التسويقية المستهدفة
               </label>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -615,7 +615,7 @@ export const AiGeneratorModal: React.FC<Props> = ({
                     onClick={() => setUrlLanguage(lang.id as 'ar-ma' | 'ar' | 'fr' | 'en')}
                     className={`py-2.5 px-3 rounded-xl font-bold text-xs border transition-all cursor-pointer ${
                       urlLanguage === lang.id
-                        ? 'bg-emerald-50 border-emerald-600 text-emerald-800 shadow-sm'
+                        ? 'bg-[#E25B26] border-[#E25B26] text-[#E25B26] shadow-sm'
                         : 'border-slate-200 text-slate-600 hover:bg-slate-50'
                     }`}
                   >
@@ -635,16 +635,16 @@ export const AiGeneratorModal: React.FC<Props> = ({
                 value={urlOfferAngle}
                 onChange={(e) => setUrlOfferAngle(e.target.value)}
                 placeholder="مثال: تخفيض 50% + توصيل مجاني والدفع عند الاستلام"
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:border-[#E25B26] focus:ring-2 focus:ring-emerald-200 outline-none text-sm"
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:border-[#E25B26] focus:ring-2 focus:ring-[#E25B26] outline-none text-sm"
               />
             </div>
 
             {/* Extracted Gallery Preview if available */}
             {scrapedPreview && scrapedPreview.images.length > 0 && (
-              <div className="bg-emerald-50/70 border border-emerald-200 rounded-2xl p-3.5 space-y-2">
-                <div className="flex items-center justify-between text-xs font-bold text-emerald-900">
+              <div className="bg-[#E25B26]/70 border border-[#E25B26] rounded-2xl p-3.5 space-y-2">
+                <div className="flex items-center justify-between text-xs font-bold text-[#E25B26]">
                   <span className="flex items-center gap-1.5">
-                    <ImageIcon className="w-4 h-4 text-emerald-600" />
+                    <ImageIcon className="w-4 h-4 text-[#E25B26]" />
                     تم استخراج {scrapedPreview.images.length} صور عالية الدقة للمعرض
                   </span>
                   <span>{scrapedPreview.price} MAD</span>
@@ -655,7 +655,7 @@ export const AiGeneratorModal: React.FC<Props> = ({
                       key={i}
                       src={img}
                       alt=""
-                      className="w-12 h-12 rounded-lg object-cover border border-emerald-300 shrink-0"
+                      className="w-12 h-12 rounded-lg object-cover border border-[#E25B26] shrink-0"
                       referrerPolicy="no-referrer"
                     />
                   ))}
@@ -664,26 +664,26 @@ export const AiGeneratorModal: React.FC<Props> = ({
             )}
 
             {/* What the 3-Layer Scraper builds */}
-            <div className="bg-emerald-50/60 border border-emerald-200/80 rounded-2xl p-4 space-y-2">
-              <div className="text-xs font-extrabold text-emerald-900 flex items-center gap-1.5">
-                <Layers className="w-4 h-4 text-emerald-600" />
+            <div className="bg-[#E25B26]/60 border border-[#E25B26]/80 rounded-2xl p-4 space-y-2">
+              <div className="text-xs font-extrabold text-[#E25B26] flex items-center gap-1.5">
+                <Layers className="w-4 h-4 text-[#E25B26]" />
                 ماذا سيقوم المستخرج الذكي ببنائه تلقائياً؟
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-[11px] text-emerald-800 font-medium">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-[11px] text-[#E25B26] font-medium">
                 <div className="flex items-center gap-1.5">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                  <CheckCircle2 className="w-3.5 h-3.5 text-[#E25B26] shrink-0" />
                   <span>استخراج جميع صور المعرض (JSON-LD + DOM + Gemini)</span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                  <CheckCircle2 className="w-3.5 h-3.5 text-[#E25B26] shrink-0" />
                   <span>تعبئة Hero Block بالصور والوصف والمواصفات كاملة</span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                  <CheckCircle2 className="w-3.5 h-3.5 text-[#E25B26] shrink-0" />
                   <span>قوائم الدول والمدن المتسلسلة (Country/City COD)</span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                  <CheckCircle2 className="w-3.5 h-3.5 text-[#E25B26] shrink-0" />
                   <span>قسم الأسئلة الشائعة (FAQ) لكسر اعتراضات المشتري</span>
                 </div>
               </div>
@@ -700,7 +700,7 @@ export const AiGeneratorModal: React.FC<Props> = ({
               <button
                 type="submit"
                 disabled={loading}
-                className="px-6 py-3 rounded-xl font-bold text-white bg-gradient-to-l from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 shadow-lg shadow-emerald-600/20 flex items-center gap-2 text-sm disabled:opacity-60 cursor-pointer"
+                className="px-6 py-3 rounded-xl font-bold text-white bg-gradient-to-l from-[#E25B26] to-[#F16F3C] hover:from-[#E25B26] hover:to-[#F16F3C] shadow-lg shadow-[#E25B26]/20 flex items-center gap-2 text-sm disabled:opacity-60 cursor-pointer"
               >
                 {loading ? (
                   <>
@@ -734,14 +734,14 @@ export const AiGeneratorModal: React.FC<Props> = ({
                 value={productName}
                 onChange={(e) => setProductName(e.target.value)}
                 placeholder="مثال: خلاط محمول قابل للشحن، سيروم فيتامين سي..."
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:border-[#E25B26] focus:ring-2 focus:ring-emerald-200 outline-none text-sm"
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:border-[#E25B26] focus:ring-2 focus:ring-[#E25B26] outline-none text-sm"
               />
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-bold text-slate-700 mb-1.5 flex items-center gap-1.5">
-                  <Tag className="w-4 h-4 text-emerald-600" />
+                  <Tag className="w-4 h-4 text-[#E25B26]" />
                   التصنيف / النيش
                 </label>
                 <select
@@ -760,7 +760,7 @@ export const AiGeneratorModal: React.FC<Props> = ({
 
               <div>
                 <label className="block text-sm font-bold text-slate-700 mb-1.5 flex items-center gap-1.5">
-                  <Globe className="w-4 h-4 text-emerald-600" />
+                  <Globe className="w-4 h-4 text-[#E25B26]" />
                   لغة صفحة الهبوط
                 </label>
                 <div className="grid grid-cols-3 gap-2">
@@ -775,7 +775,7 @@ export const AiGeneratorModal: React.FC<Props> = ({
                       onClick={() => setLanguage(lang.id as 'ar' | 'fr' | 'en')}
                       className={`py-2 px-3 rounded-xl font-bold text-xs border transition-all cursor-pointer ${
                         language === lang.id
-                          ? 'bg-emerald-50 border-emerald-600 text-emerald-700'
+                          ? 'bg-[#E25B26] border-[#E25B26] text-[#E25B26]'
                           : 'border-slate-200 text-slate-600 hover:bg-slate-50'
                       }`}
                     >
@@ -788,7 +788,7 @@ export const AiGeneratorModal: React.FC<Props> = ({
 
             <div>
               <label className="block text-sm font-bold text-slate-700 mb-1.5 flex items-center gap-1.5">
-                <Users className="w-4 h-4 text-emerald-600" />
+                <Users className="w-4 h-4 text-[#E25B26]" />
                 الجمهور المستهدف
               </label>
               <input
@@ -796,7 +796,7 @@ export const AiGeneratorModal: React.FC<Props> = ({
                 value={targetAudience}
                 onChange={(e) => setTargetAudience(e.target.value)}
                 placeholder="مثال: النساء المهتمات بالعناية بالبشرة في المغرب والخليج"
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:border-[#E25B26] focus:ring-2 focus:ring-emerald-200 outline-none text-sm"
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:border-[#E25B26] focus:ring-2 focus:ring-[#E25B26] outline-none text-sm"
               />
             </div>
 
@@ -809,7 +809,7 @@ export const AiGeneratorModal: React.FC<Props> = ({
                 value={offerAngle}
                 onChange={(e) => setOfferAngle(e.target.value)}
                 placeholder="مثال: اشتري 1 واحصل على الثاني بنصف السعر + شحن مجاني"
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:border-[#E25B26] focus:ring-2 focus:ring-emerald-200 outline-none text-sm"
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:border-[#E25B26] focus:ring-2 focus:ring-[#E25B26] outline-none text-sm"
               />
             </div>
 
@@ -824,7 +824,7 @@ export const AiGeneratorModal: React.FC<Props> = ({
               <button
                 type="submit"
                 disabled={loading}
-                className="px-6 py-2.5 rounded-xl font-bold text-white bg-gradient-to-l from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 shadow-lg shadow-emerald-600/20 flex items-center gap-2 text-sm disabled:opacity-60 cursor-pointer"
+                className="px-6 py-2.5 rounded-xl font-bold text-white bg-gradient-to-l from-[#E25B26] to-[#F16F3C] hover:from-[#E25B26] hover:to-[#F16F3C] shadow-lg shadow-[#E25B26]/20 flex items-center gap-2 text-sm disabled:opacity-60 cursor-pointer"
               >
                 {loading ? (
                   <>
@@ -843,13 +843,13 @@ export const AiGeneratorModal: React.FC<Props> = ({
         )}
 
         {/* Footer Security / Speed Note */}
-        <div className="px-6 py-3 bg-slate-50 border-t border-slate-200/80 flex items-center justify-between text-[11px] text-slate-500">
+        <div className="px-6 py-3 bg-slate-50 border-t border-slate-200/80 flex items-center justify-between text-[11px] text-[#CBD5E1]/70">
           <span className="flex items-center gap-1.5 font-semibold">
-            <ShieldCheck className="w-4 h-4 text-emerald-600" />
+            <ShieldCheck className="w-4 h-4 text-[#E25B26]" />
             <span>JSON-LD + DOM Gallery Heuristics + Gemini AI Fallback</span>
           </span>
           {lastAnalysis && (
-            <span className="text-emerald-700 font-bold">
+            <span className="text-[#E25B26] font-bold">
               آخر تحليل: {lastAnalysis.productName.slice(0, 28)}
             </span>
           )}

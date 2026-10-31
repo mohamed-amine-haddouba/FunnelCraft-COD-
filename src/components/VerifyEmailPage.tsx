@@ -216,7 +216,7 @@ export const VerifyEmailPage: React.FC = () => {
       {/* Header */}
       <header className="h-14 px-4 sm:px-8 border-b border-[#1E293B]/80 bg-[#0D131E]/80 backdrop-blur-md flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-400 text-slate-950 flex items-center justify-center font-black text-sm shadow-md shadow-[#E25B26]/20">
+          <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#E25B26] to-[#F16F3C] text-[#F8FAFC] flex items-center justify-center font-black text-sm shadow-md shadow-[#E25B26]/20">
             ⚡
           </div>
           <span className="font-bold text-sm tracking-tight text-white">CodWorth</span>
@@ -315,7 +315,7 @@ export const VerifyEmailPage: React.FC = () => {
             type="button"
             onClick={() => void submitVerificationCode()}
             disabled={isSubmitting || verifiedSuccess || digits.join('').length !== 6}
-            className="w-full py-3 rounded-xl text-xs font-black bg-[#E25B26] hover:bg-[#F16F3C] text-slate-950 shadow-lg shadow-[#E25B26]/20 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            className="w-full py-3 rounded-xl text-xs font-black bg-[#E25B26] hover:bg-[#F16F3C] text-[#F8FAFC] shadow-lg shadow-[#E25B26]/20 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             {isSubmitting ? (
               <RefreshCw className="w-4 h-4 animate-spin text-slate-950" />

@@ -56,7 +56,7 @@ export const ProFeatureLock: React.FC<Props> = ({
           </div>
 
           {/* Icon */}
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-500/20 to-emerald-500/20 border border-amber-500/40 text-amber-400 flex items-center justify-center mx-auto mb-3 shadow-lg">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-500/20 to-[#F16F3C] border border-amber-500/40 text-amber-400 flex items-center justify-center mx-auto mb-3 shadow-lg">
             <Lock className="w-6 h-6 text-amber-300" />
           </div>
 
@@ -72,7 +72,7 @@ export const ProFeatureLock: React.FC<Props> = ({
           <button
             type="button"
             onClick={onUpgradeClick}
-            className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-emerald-400 hover:from-amber-400 hover:to-emerald-300 text-slate-950 font-black text-xs shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2 cursor-pointer transition transform active:scale-98"
+            className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-[#F16F3C] hover:from-amber-400 hover:to-[#F16F3C] text-[#F8FAFC] font-black text-xs shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2 cursor-pointer transition transform active:scale-98"
           >
             <Crown className="w-4 h-4 text-slate-950" />
             <span>{buttonText}</span>

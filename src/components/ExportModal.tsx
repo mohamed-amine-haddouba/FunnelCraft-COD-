@@ -86,13 +86,13 @@ export const ExportModal: React.FC<Props> = ({
         {/* Modal Header */}
         <div className="p-5 border-b border-gray-200 flex items-center justify-between bg-gray-50/70">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold">
+            <div className="w-10 h-10 rounded-2xl bg-[#E25B26] text-[#E25B26] flex items-center justify-center font-bold">
               <FileCode className="w-5 h-5" />
             </div>
             <div>
               <h3 className="text-base font-black text-gray-900 flex items-center gap-2">
                 <span>Export & Publish Engine</span>
-                <span className="text-[10px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full uppercase">
+                <span className="text-[10px] font-bold bg-[#E25B26] text-[#E25B26] px-2 py-0.5 rounded-full uppercase">
                   Production Ready
                 </span>
               </h3>
@@ -118,7 +118,7 @@ export const ExportModal: React.FC<Props> = ({
             onClick={() => setActiveTab('html')}
             className={`py-2 px-4 text-xs font-bold border-b-2 transition flex items-center gap-1.5 ${
               activeTab === 'html'
-                ? 'border-emerald-600 text-emerald-700'
+                ? 'border-[#E25B26] text-[#E25B26]'
                 : 'border-transparent text-gray-500 hover:text-gray-900'
             }`}
           >
@@ -131,7 +131,7 @@ export const ExportModal: React.FC<Props> = ({
             onClick={() => setActiveTab('json')}
             className={`py-2 px-4 text-xs font-bold border-b-2 transition flex items-center gap-1.5 ${
               activeTab === 'json'
-                ? 'border-emerald-600 text-emerald-700'
+                ? 'border-[#E25B26] text-[#E25B26]'
                 : 'border-transparent text-gray-500 hover:text-gray-900'
             }`}
           >
@@ -146,9 +146,9 @@ export const ExportModal: React.FC<Props> = ({
             <>
               {/* Feature Highlights Banner */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
-                <div className="p-3 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-900">
+                <div className="p-3 rounded-2xl bg-[#E25B26] border border-[#E25B26] text-[#E25B26]">
                   <span className="font-black block mb-0.5">🚀 0 Dependencies</span>
-                  <span className="text-[11px] text-emerald-700">Pure HTML + Tailwind CDN + Vanilla JS.</span>
+                  <span className="text-[11px] text-[#E25B26]">Pure HTML + Tailwind CDN + Vanilla JS.</span>
                 </div>
                 <div className="p-3 rounded-2xl bg-indigo-50 border border-indigo-200 text-indigo-900">
                   <span className="font-black block mb-0.5">💵 Built-in COD Engine</span>
@@ -227,8 +227,8 @@ export const ExportModal: React.FC<Props> = ({
             >
               {copied ? (
                 <>
-                  <Check className="w-3.5 h-3.5 text-emerald-600" />
-                  <span className="text-emerald-600 font-black">Copied!</span>
+                  <Check className="w-3.5 h-3.5 text-[#E25B26]" />
+                  <span className="text-[#E25B26] font-black">Copied!</span>
                 </>
               ) : (
                 <>

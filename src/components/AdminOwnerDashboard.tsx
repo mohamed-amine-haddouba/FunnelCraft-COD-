@@ -502,7 +502,7 @@ export const AdminOwnerDashboard: React.FC<Props> = ({ onImpersonateSuccess }) =
           >
             <Users className="w-3.5 h-3.5 text-indigo-400" />
             <span>{language === 'ar' ? 'إدارة التجار والحسابات' : language === 'fr' ? 'Marchands & Comptes' : 'Merchants & Accounts'}</span>
-            <span className="px-1.5 py-0.2 rounded-full bg-slate-700 text-[10px] text-[#F8FAFC]">
+            <span className="px-1.5 py-0.2 rounded-full bg-[#1E293B] text-[10px] text-[#F8FAFC]">
               {usersList.length}
             </span>
             {pendingUsersCount > 0 && (
@@ -542,7 +542,7 @@ export const AdminOwnerDashboard: React.FC<Props> = ({ onImpersonateSuccess }) =
           >
             <Landmark className="w-3.5 h-3.5 text-amber-400" />
             <span>{language === 'ar' ? 'إدارة الأبناك المغربية' : language === 'fr' ? 'Banques Marocaines' : 'Moroccan Banks'}</span>
-            <span className="px-1.5 py-0.2 rounded-full bg-slate-700 text-[10px] text-[#F8FAFC]">
+            <span className="px-1.5 py-0.2 rounded-full bg-[#1E293B] text-[10px] text-[#F8FAFC]">
               {banksList.filter((b) => b.isActive !== false).length}
             </span>
           </button>
@@ -572,7 +572,7 @@ export const AdminOwnerDashboard: React.FC<Props> = ({ onImpersonateSuccess }) =
               <div className="flex flex-wrap items-center gap-2 flex-1 max-w-3xl">
                 {/* Search */}
                 <div className="relative flex-1 min-w-[200px]">
-                  <Search className="w-3.5 h-3.5 absolute top-2.5 right-3 text-slate-500 rtl:right-3 ltr:left-3" />
+                  <Search className="w-3.5 h-3.5 absolute top-2.5 right-3 text-[#CBD5E1]/70 rtl:right-3 ltr:left-3" />
                   <input
                     type="text"
                     value={searchQuery}
@@ -632,7 +632,7 @@ export const AdminOwnerDashboard: React.FC<Props> = ({ onImpersonateSuccess }) =
                 <button
                   type="button"
                   onClick={loadAllData}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[#131B2A] hover:bg-slate-700 text-[#CBD5E1] text-xs font-medium transition cursor-pointer border border-[#334155]"
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[#131B2A] hover:bg-[#1E293B] text-[#CBD5E1] text-xs font-medium transition cursor-pointer border border-[#334155]"
                   title="تحديث البيانات"
                 >
                   <RefreshCw className={`w-3 h-3 ${isLoading ? 'animate-spin' : ''}`} />
@@ -669,7 +669,7 @@ export const AdminOwnerDashboard: React.FC<Props> = ({ onImpersonateSuccess }) =
                   <tbody className="divide-y divide-slate-800/50">
                     {filteredUsers.length === 0 ? (
                       <tr>
-                        <td colSpan={8} className="py-8 text-center text-slate-500 text-xs">
+                        <td colSpan={8} className="py-8 text-center text-[#CBD5E1]/70 text-xs">
                           لا يوجد تجار مطابقين للبحث.
                         </td>
                       </tr>
@@ -811,7 +811,7 @@ export const AdminOwnerDashboard: React.FC<Props> = ({ onImpersonateSuccess }) =
                             {/* 1-Click Live Account Impersonation */}
                             <td className="py-2.5 px-3 text-center">
                               {isSelf ? (
-                                <span className="text-[10px] text-slate-500 italic">حسابك الحالي</span>
+                                <span className="text-[10px] text-[#CBD5E1]/70 italic">حسابك الحالي</span>
                               ) : (
                                 <button
                                   type="button"
@@ -831,7 +831,7 @@ export const AdminOwnerDashboard: React.FC<Props> = ({ onImpersonateSuccess }) =
                                 <button
                                   type="button"
                                   onClick={() => handleDeleteUser(u)}
-                                  className="p-1 rounded text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition cursor-pointer"
+                                  className="p-1 rounded text-[#CBD5E1]/70 hover:text-rose-400 hover:bg-rose-500/10 transition cursor-pointer"
                                   title="حذف الحساب"
                                 >
                                   <Trash2 className="w-3.5 h-3.5" />
@@ -866,7 +866,7 @@ export const AdminOwnerDashboard: React.FC<Props> = ({ onImpersonateSuccess }) =
               <button
                 type="button"
                 onClick={loadAllData}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[#131B2A] hover:bg-slate-700 text-[#CBD5E1] text-xs font-medium border border-[#334155] cursor-pointer"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[#131B2A] hover:bg-[#1E293B] text-[#CBD5E1] text-xs font-medium border border-[#334155] cursor-pointer"
               >
                 <RefreshCw className="w-3 h-3" />
                 <span>تحديث الطلبات</span>
@@ -891,7 +891,7 @@ export const AdminOwnerDashboard: React.FC<Props> = ({ onImpersonateSuccess }) =
                   <tbody className="divide-y divide-slate-800/50">
                     {paymentsList.length === 0 ? (
                       <tr>
-                        <td colSpan={7} className="py-8 text-center text-slate-500 text-xs">
+                        <td colSpan={7} className="py-8 text-center text-[#CBD5E1]/70 text-xs">
                           لا توجد طلبات ترقية مسجلة حالياً.
                         </td>
                       </tr>
@@ -902,7 +902,7 @@ export const AdminOwnerDashboard: React.FC<Props> = ({ onImpersonateSuccess }) =
                             {/* ID & Date */}
                             <td className="py-2.5 px-3">
                               <div className="font-mono font-semibold text-white text-[11px]">{p.id}</div>
-                              <div className="text-[10px] text-slate-500">
+                              <div className="text-[10px] text-[#CBD5E1]/70">
                                 {new Date(p.createdAt).toLocaleDateString('ar-MA', {
                                   hour: '2-digit',
                                   minute: '2-digit',
@@ -982,7 +982,7 @@ export const AdminOwnerDashboard: React.FC<Props> = ({ onImpersonateSuccess }) =
                                   </button>
                                 </div>
                               ) : (
-                                <span className="text-[10px] text-slate-500 italic">تمت المعالجة</span>
+                                <span className="text-[10px] text-[#CBD5E1]/70 italic">تمت المعالجة</span>
                               )}
                             </td>
                           </tr>
@@ -1014,7 +1014,7 @@ export const AdminOwnerDashboard: React.FC<Props> = ({ onImpersonateSuccess }) =
                 <button
                   type="button"
                   onClick={handleAddNewBank}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#131B2A] hover:bg-slate-700 text-[#F8FAFC] text-xs font-semibold border border-[#334155] transition cursor-pointer"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#131B2A] hover:bg-[#1E293B] text-[#F8FAFC] text-xs font-semibold border border-[#334155] transition cursor-pointer"
                 >
                   <Plus className="w-3.5 h-3.5 text-[#E25B26]" />
                   <span>+ إضافة حساب بنكي</span>
@@ -1034,11 +1034,11 @@ export const AdminOwnerDashboard: React.FC<Props> = ({ onImpersonateSuccess }) =
 
             {banksList.length === 0 ? (
               <div className="bg-[#131B2A]/50 border border-[#1E293B] rounded-xl p-8 text-center space-y-3">
-                <Landmark className="w-8 h-8 text-slate-500 mx-auto" />
+                <Landmark className="w-8 h-8 text-[#CBD5E1]/70 mx-auto" />
                 <div className="text-xs font-bold text-[#CBD5E1]">
                   لا توجد حسابات بنكية مسجلة حالياً في <code className="font-mono text-[#E25B26]">data/settings.json</code>
                 </div>
-                <p className="text-[11px] text-slate-500">
+                <p className="text-[11px] text-[#CBD5E1]/70">
                   اضغط على زر &ldquo;+ إضافة حساب بنكي&rdquo; أعلاه لإضافة حسابك البنكي المغربي الأول.
                 </p>
               </div>
@@ -1089,7 +1089,7 @@ export const AdminOwnerDashboard: React.FC<Props> = ({ onImpersonateSuccess }) =
                         <button
                           type="button"
                           onClick={() => handleRemoveBank(bank.id)}
-                          className="p-1 rounded text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition cursor-pointer"
+                          className="p-1 rounded text-[#CBD5E1]/70 hover:text-rose-400 hover:bg-rose-500/10 transition cursor-pointer"
                           title="حذف الحساب البنكي"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -1105,7 +1105,7 @@ export const AdminOwnerDashboard: React.FC<Props> = ({ onImpersonateSuccess }) =
                           value={bank.name || ''}
                           onChange={(e) => handleBankFieldChange(bank.id, 'name', e.target.value)}
                           placeholder="مثال: CIH Bank"
-                          className="w-full bg-[#0D131E] border border-[#1E293B] rounded-lg px-2.5 py-1.5 text-white placeholder:text-slate-500 outline-none focus:border-[#E25B26]"
+                          className="w-full bg-[#0D131E] border border-[#1E293B] rounded-lg px-2.5 py-1.5 text-white placeholder:text-[#CBD5E1]/70 outline-none focus:border-[#E25B26]"
                         />
                       </div>
                       <div>
@@ -1115,7 +1115,7 @@ export const AdminOwnerDashboard: React.FC<Props> = ({ onImpersonateSuccess }) =
                           value={bank.bankName || ''}
                           onChange={(e) => handleBankFieldChange(bank.id, 'bankName', e.target.value)}
                           placeholder="مثال: بنك CIH المغرب"
-                          className="w-full bg-[#0D131E] border border-[#1E293B] rounded-lg px-2.5 py-1.5 text-white placeholder:text-slate-500 outline-none focus:border-[#E25B26]"
+                          className="w-full bg-[#0D131E] border border-[#1E293B] rounded-lg px-2.5 py-1.5 text-white placeholder:text-[#CBD5E1]/70 outline-none focus:border-[#E25B26]"
                         />
                       </div>
                       <div>
@@ -1125,7 +1125,7 @@ export const AdminOwnerDashboard: React.FC<Props> = ({ onImpersonateSuccess }) =
                           value={bank.beneficiary || ''}
                           onChange={(e) => handleBankFieldChange(bank.id, 'beneficiary', e.target.value)}
                           placeholder="مثال: الاسم الكامل لصاحب الحساب"
-                          className="w-full bg-[#0D131E] border border-[#1E293B] rounded-lg px-2.5 py-1.5 text-white placeholder:text-slate-500 outline-none focus:border-[#E25B26]"
+                          className="w-full bg-[#0D131E] border border-[#1E293B] rounded-lg px-2.5 py-1.5 text-white placeholder:text-[#CBD5E1]/70 outline-none focus:border-[#E25B26]"
                         />
                       </div>
                       <div>
@@ -1135,7 +1135,7 @@ export const AdminOwnerDashboard: React.FC<Props> = ({ onImpersonateSuccess }) =
                           value={bank.badge || ''}
                           onChange={(e) => handleBankFieldChange(bank.id, 'badge', e.target.value)}
                           placeholder="مثال: تحويل فوري مجاني"
-                          className="w-full bg-[#0D131E] border border-[#1E293B] rounded-lg px-2.5 py-1.5 text-white placeholder:text-slate-500 outline-none focus:border-[#E25B26]"
+                          className="w-full bg-[#0D131E] border border-[#1E293B] rounded-lg px-2.5 py-1.5 text-white placeholder:text-[#CBD5E1]/70 outline-none focus:border-[#E25B26]"
                         />
                       </div>
                       <div className="sm:col-span-2">
@@ -1148,7 +1148,7 @@ export const AdminOwnerDashboard: React.FC<Props> = ({ onImpersonateSuccess }) =
                           value={bank.rib || ''}
                           onChange={(e) => handleBankFieldChange(bank.id, 'rib', e.target.value)}
                           placeholder="مثال: 230 780 00000000000000 00"
-                          className="w-full bg-[#0D131E] border border-[#1E293B] rounded-lg px-2.5 py-1.5 text-[#E25B26] placeholder:text-slate-500 font-mono outline-none focus:border-[#E25B26]"
+                          className="w-full bg-[#0D131E] border border-[#1E293B] rounded-lg px-2.5 py-1.5 text-[#E25B26] placeholder:text-[#CBD5E1]/70 font-mono outline-none focus:border-[#E25B26]"
                         />
                       </div>
                       <div>
@@ -1159,7 +1159,7 @@ export const AdminOwnerDashboard: React.FC<Props> = ({ onImpersonateSuccess }) =
                           value={bank.cin || ''}
                           onChange={(e) => handleBankFieldChange(bank.id, 'cin', e.target.value)}
                           placeholder="مثال: AB123456"
-                          className="w-full bg-[#0D131E] border border-[#1E293B] rounded-lg px-2.5 py-1.5 text-white placeholder:text-slate-500 font-mono outline-none focus:border-[#E25B26]"
+                          className="w-full bg-[#0D131E] border border-[#1E293B] rounded-lg px-2.5 py-1.5 text-white placeholder:text-[#CBD5E1]/70 font-mono outline-none focus:border-[#E25B26]"
                         />
                       </div>
                       <div>
@@ -1170,7 +1170,7 @@ export const AdminOwnerDashboard: React.FC<Props> = ({ onImpersonateSuccess }) =
                           value={bank.phone || ''}
                           onChange={(e) => handleBankFieldChange(bank.id, 'phone', e.target.value)}
                           placeholder="مثال: +212 600 000 000"
-                          className="w-full bg-[#0D131E] border border-[#1E293B] rounded-lg px-2.5 py-1.5 text-white placeholder:text-slate-500 font-mono outline-none focus:border-[#E25B26]"
+                          className="w-full bg-[#0D131E] border border-[#1E293B] rounded-lg px-2.5 py-1.5 text-white placeholder:text-[#CBD5E1]/70 font-mono outline-none focus:border-[#E25B26]"
                         />
                       </div>
                       <div className="sm:col-span-2">
@@ -1180,7 +1180,7 @@ export const AdminOwnerDashboard: React.FC<Props> = ({ onImpersonateSuccess }) =
                           value={bank.instructions || ''}
                           onChange={(e) => handleBankFieldChange(bank.id, 'instructions', e.target.value)}
                           placeholder="مثال: قم بإجراء تحويل بنكي مباشر وأرفق وصل العملية"
-                          className="w-full bg-[#0D131E] border border-[#1E293B] rounded-lg px-2.5 py-1.5 text-[#F8FAFC] placeholder:text-slate-500 outline-none focus:border-[#E25B26]"
+                          className="w-full bg-[#0D131E] border border-[#1E293B] rounded-lg px-2.5 py-1.5 text-[#F8FAFC] placeholder:text-[#CBD5E1]/70 outline-none focus:border-[#E25B26]"
                         />
                       </div>
                     </div>
@@ -1316,7 +1316,7 @@ export const AdminOwnerDashboard: React.FC<Props> = ({ onImpersonateSuccess }) =
                         <div className="flex items-center gap-1.5">
                           <span className="font-mono font-bold text-white text-[11px]">{o.id}</span>
                           <span className="text-[#CBD5E1] font-medium truncate">— {o.customerName}</span>
-                          <span className="text-[10px] text-slate-500">📍 {o.customerCity}</span>
+                          <span className="text-[10px] text-[#CBD5E1]/70">📍 {o.customerCity}</span>
                         </div>
                         <div className="text-[10px] text-[#CBD5E1] mt-0.5 truncate">
                           <span>📦 {o.productName}</span>
@@ -1456,7 +1456,7 @@ export const AdminOwnerDashboard: React.FC<Props> = ({ onImpersonateSuccess }) =
                 <button
                   type="button"
                   onClick={() => setIsCreateUserModalOpen(false)}
-                  className="px-3 py-1.5 rounded-lg bg-[#131B2A] hover:bg-slate-700 text-[#CBD5E1] cursor-pointer"
+                  className="px-3 py-1.5 rounded-lg bg-[#131B2A] hover:bg-[#1E293B] text-[#CBD5E1] cursor-pointer"
                 >
                   إلغاء
                 </button>

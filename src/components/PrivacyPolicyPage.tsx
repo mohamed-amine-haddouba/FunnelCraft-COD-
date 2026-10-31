@@ -34,7 +34,7 @@ export const PrivacyPolicyPage: React.FC<PrivacyPolicyPageProps> = ({
   return (
     <div
       dir="rtl"
-      className="min-h-full bg-[#0D131E] text-[#F8FAFC] flex flex-col font-sans selection:bg-[#E25B26] selection:text-slate-950"
+      className="min-h-full bg-[#0D131E] text-[#F8FAFC] flex flex-col font-sans selection:bg-[#E25B26] selection:text-[#F8FAFC]"
     >
       {/* Top Navigation */}
       <header className="border-b border-[#1E293B]/80 bg-[#0D131E]/80 backdrop-blur-md sticky top-0 z-40 px-4 sm:px-8 py-3.5 flex items-center justify-between print:hidden">
@@ -54,7 +54,7 @@ export const PrivacyPolicyPage: React.FC<PrivacyPolicyPageProps> = ({
           </a>
 
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center shadow-sm shadow-[#E25B26]/20">
+            <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-[#E25B26] to-[#F16F3C] flex items-center justify-center shadow-sm shadow-[#E25B26]/20">
               <Sparkles className="w-3.5 h-3.5 text-slate-950" />
             </div>
             <span className="font-black text-sm tracking-tight text-white">CodWorth</span>

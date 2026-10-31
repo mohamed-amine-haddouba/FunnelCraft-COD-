@@ -163,13 +163,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         <div className="p-7 md:p-8">
           {/* أيقونة وعنوان المودال */}
           <div className="text-center mb-6">
-            <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-inner">
+            <div className="w-12 h-12 bg-[#E25B26] text-[#E25B26] rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-inner">
               <Lock className="w-6 h-6" />
             </div>
             <h2 className="text-2xl font-black text-slate-900 tracking-tight">
               {mode === 'signup' ? 'إنشاء حساب مجاني جديد' : 'تسجيل الدخول'}
             </h2>
-            <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+            <p className="text-xs text-[#CBD5E1]/70 mt-1 leading-relaxed">
               {mode === 'signup' 
                 ? 'احصل فوراً على صفحتين مجاناً لتصميم صفحات هبوط احترافية ومربحة' 
                 : 'أهلاً بك مجدداً في منصة CodWorth! أدخل بياناتك للمتابعة'}
@@ -187,7 +187,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               className={`py-2.5 rounded-xl transition cursor-pointer text-center ${
                 mode === 'signin' 
                   ? 'bg-white text-slate-900 shadow-sm font-extrabold' 
-                  : 'text-slate-500 hover:text-slate-800'
+                  : 'text-[#CBD5E1]/70 hover:text-slate-800'
               }`}
             >
               تسجيل الدخول
@@ -200,8 +200,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               }}
               className={`py-2.5 rounded-xl transition cursor-pointer text-center ${
                 mode === 'signup' 
-                  ? 'bg-white text-emerald-700 shadow-sm font-extrabold' 
-                  : 'text-slate-500 hover:text-slate-800'
+                  ? 'bg-white text-[#E25B26] shadow-sm font-extrabold' 
+                  : 'text-[#CBD5E1]/70 hover:text-slate-800'
               }`}
             >
               حساب جديد (2 صفحات مجاناً)
@@ -218,8 +218,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
           {/* رسالة النجاح */}
           {successNotice && (
-            <div className="mb-4 p-3 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold flex items-center gap-2 animate-in fade-in duration-150">
-              <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
+            <div className="mb-4 p-3 rounded-2xl bg-[#E25B26] border border-[#E25B26] text-[#E25B26] text-xs font-semibold flex items-center gap-2 animate-in fade-in duration-150">
+              <CheckCircle2 className="w-4 h-4 shrink-0 text-[#E25B26]" />
               <span className="flex-1">{successNotice}</span>
             </div>
           )}
@@ -304,7 +304,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             <button
               type="submit"
               disabled={isSubmitting || (shouldRequireTurnstile && !turnstileToken)}
-              className="w-full py-3.5 px-4 bg-[#E25B26] hover:bg-[#F16F3C] active:scale-[0.99] text-white font-black text-xs rounded-xl shadow-lg shadow-emerald-600/20 transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed mt-3"
+              className="w-full py-3.5 px-4 bg-[#E25B26] hover:bg-[#F16F3C] active:scale-[0.99] text-white font-black text-xs rounded-xl shadow-lg shadow-[#E25B26]/20 transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed mt-3"
             >
               <span>
                 {isSubmitting
@@ -349,7 +349,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
           {/* شارة الثقة والأمان */}
           <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-center gap-1.5 text-[11px] text-[#CBD5E1] font-medium">
-            <ShieldCheck className="w-4 h-4 text-emerald-600" />
+            <ShieldCheck className="w-4 h-4 text-[#E25B26]" />
             <span>بياناتك محمية ومشفرة 100% • لا حاجة لبطاقة بنكية للبدء</span>
           </div>
         </div>

@@ -109,7 +109,7 @@ export const ContactPage: React.FC<ContactPageProps> = ({
   return (
     <div
       dir="rtl"
-      className="min-h-full bg-[#0D131E] text-[#F8FAFC] flex flex-col font-sans selection:bg-[#E25B26] selection:text-slate-950"
+      className="min-h-full bg-[#0D131E] text-[#F8FAFC] flex flex-col font-sans selection:bg-[#E25B26] selection:text-[#F8FAFC]"
     >
       {/* Top Header Bar */}
       <header className="border-b border-[#1E293B]/80 bg-[#0D131E]/80 backdrop-blur-md sticky top-0 z-40 px-4 sm:px-8 py-3.5 flex items-center justify-between">
@@ -129,7 +129,7 @@ export const ContactPage: React.FC<ContactPageProps> = ({
           </a>
 
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center shadow-sm shadow-[#E25B26]/20">
+            <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-[#E25B26] to-[#F16F3C] flex items-center justify-center shadow-sm shadow-[#E25B26]/20">
               <Sparkles className="w-3.5 h-3.5 text-slate-950" />
             </div>
             <span className="font-black text-sm tracking-tight text-white">CodWorth</span>
@@ -266,7 +266,7 @@ export const ContactPage: React.FC<ContactPageProps> = ({
                 <button
                   type="button"
                   onClick={() => setIsSubmitted(false)}
-                  className="mt-3 px-4 py-2 rounded-xl bg-[#131B2A] hover:bg-slate-700 text-xs font-bold text-[#F8FAFC] transition cursor-pointer"
+                  className="mt-3 px-4 py-2 rounded-xl bg-[#131B2A] hover:bg-[#1E293B] text-xs font-bold text-[#F8FAFC] transition cursor-pointer"
                 >
                   إرسال رسالة أخرى
                 </button>
@@ -344,7 +344,7 @@ export const ContactPage: React.FC<ContactPageProps> = ({
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="w-full py-3 px-6 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 disabled:opacity-50 text-white font-bold text-xs sm:text-sm shadow-lg shadow-emerald-600/20 flex items-center justify-center gap-2 transition cursor-pointer"
+                  className="w-full py-3 px-6 rounded-xl bg-gradient-to-r from-[#E25B26] to-[#F16F3C] hover:from-[#E25B26] hover:to-[#F16F3C] disabled:opacity-50 text-white font-bold text-xs sm:text-sm shadow-lg shadow-[#E25B26]/20 flex items-center justify-center gap-2 transition cursor-pointer"
                 >
                   <Send className="w-4 h-4" />
                   <span>{isSubmitting ? 'جاري الإرسال...' : 'إرسال الرسالة'}</span>
@@ -395,7 +395,7 @@ export const ContactPage: React.FC<ContactPageProps> = ({
             </div>
 
             {/* Quick Contact Box */}
-            <div className="p-5 rounded-2xl bg-gradient-to-br from-slate-900 to-emerald-950/40 border border-[#E25B26]/20 text-xs space-y-2">
+            <div className="p-5 rounded-2xl bg-gradient-to-br from-slate-900 to-[#F16F3C] border border-[#E25B26]/20 text-xs space-y-2">
               <div className="font-bold text-white flex items-center gap-1.5">
                 <Phone className="w-3.5 h-3.5 text-[#E25B26]" />
                 <span>هل تحتاج استشارة عاجلة بخصوص متجرك؟</span>

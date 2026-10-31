@@ -106,7 +106,7 @@ export const AdminPaymentsModal: React.FC<Props> = ({ isOpen, onClose }) => {
         {/* Header */}
         <div className="p-5 border-b border-gray-200 flex items-center justify-between bg-gray-50/80">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-[#E25B26] text-white flex items-center justify-center font-bold shadow-md shadow-emerald-600/20">
+            <div className="w-10 h-10 rounded-2xl bg-[#E25B26] text-white flex items-center justify-center font-bold shadow-md shadow-[#E25B26]/20">
               <ShieldCheck className="w-5 h-5" />
             </div>
             <div>
@@ -161,7 +161,7 @@ export const AdminPaymentsModal: React.FC<Props> = ({ isOpen, onClose }) => {
             onClick={() => setFilter('all')}
             className={`py-2 px-3 text-xs font-bold border-b-2 transition ${
               filter === 'all'
-                ? 'border-emerald-600 text-emerald-700'
+                ? 'border-[#E25B26] text-[#E25B26]'
                 : 'border-transparent text-gray-500 hover:text-gray-900'
             }`}
           >
@@ -172,7 +172,7 @@ export const AdminPaymentsModal: React.FC<Props> = ({ isOpen, onClose }) => {
             onClick={() => setFilter('pending')}
             className={`py-2 px-3 text-xs font-bold border-b-2 transition flex items-center gap-1.5 ${
               filter === 'pending'
-                ? 'border-emerald-600 text-emerald-700'
+                ? 'border-[#E25B26] text-[#E25B26]'
                 : 'border-transparent text-gray-500 hover:text-gray-900'
             }`}
           >
@@ -184,7 +184,7 @@ export const AdminPaymentsModal: React.FC<Props> = ({ isOpen, onClose }) => {
             onClick={() => setFilter('approved')}
             className={`py-2 px-3 text-xs font-bold border-b-2 transition ${
               filter === 'approved'
-                ? 'border-emerald-600 text-emerald-700'
+                ? 'border-[#E25B26] text-[#E25B26]'
                 : 'border-transparent text-gray-500 hover:text-gray-900'
             }`}
           >
@@ -195,7 +195,7 @@ export const AdminPaymentsModal: React.FC<Props> = ({ isOpen, onClose }) => {
             onClick={() => setFilter('rejected')}
             className={`py-2 px-3 text-xs font-bold border-b-2 transition ${
               filter === 'rejected'
-                ? 'border-emerald-600 text-emerald-700'
+                ? 'border-[#E25B26] text-[#E25B26]'
                 : 'border-transparent text-gray-500 hover:text-gray-900'
             }`}
           >
@@ -241,13 +241,13 @@ export const AdminPaymentsModal: React.FC<Props> = ({ isOpen, onClose }) => {
                     </div>
 
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-black text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200">
+                      <span className="text-sm font-black text-[#E25B26] bg-[#E25B26] px-2.5 py-1 rounded-lg border border-[#E25B26]">
                         {p.amount} MAD (~$10)
                       </span>
                       <span
                         className={`text-[10px] font-black uppercase px-2.5 py-1 rounded-full ${
                           isApproved
-                            ? 'bg-emerald-100 text-emerald-800'
+                            ? 'bg-[#E25B26] text-[#E25B26]'
                             : isRejected
                             ? 'bg-red-100 text-red-800'
                             : 'bg-amber-100 text-amber-800 animate-pulse'
@@ -273,7 +273,7 @@ export const AdminPaymentsModal: React.FC<Props> = ({ isOpen, onClose }) => {
                           title="Copy Code"
                         >
                           {copiedRef === p.transactionReference ? (
-                            <Check className="w-3.5 h-3.5 text-emerald-600" />
+                            <Check className="w-3.5 h-3.5 text-[#E25B26]" />
                           ) : (
                             <Copy className="w-3.5 h-3.5" />
                           )}

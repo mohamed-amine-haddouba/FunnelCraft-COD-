@@ -40,11 +40,11 @@ export const OrderSuccessModal: React.FC<Props> = ({ orderData, onClose, isRtl }
         </button>
 
         <div className="text-center mb-6">
-          <div className="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4 shadow-inner ring-8 ring-emerald-50">
+          <div className="w-20 h-20 bg-[#E25B26] text-[#E25B26] rounded-full flex items-center justify-center mx-auto mb-4 shadow-inner ring-8 ring-[#E25B26]">
             <CheckCircle2 className="w-10 h-10 stroke-[2.5]" />
           </div>
 
-          <span className="inline-block px-3 py-1 bg-emerald-100 text-emerald-800 text-xs font-bold rounded-full mb-2 uppercase tracking-wider">
+          <span className="inline-block px-3 py-1 bg-[#E25B26] text-[#E25B26] text-xs font-bold rounded-full mb-2 uppercase tracking-wider">
             {isRtl ? 'تم تأكيد طلبك بنجاح' : 'Order Successfully Placed • Cash on Delivery'}
           </span>
 
@@ -87,7 +87,7 @@ export const OrderSuccessModal: React.FC<Props> = ({ orderData, onClose, isRtl }
 
           <div className="flex justify-between border-t border-gray-200 pt-2 font-bold text-sm">
             <span>{isRtl ? 'المبلغ المطلوب نقداً عند الاستلام:' : 'Total (Pay on Delivery):'}</span>
-            <span className="text-emerald-600 font-black">
+            <span className="text-[#E25B26] font-black">
               {orderData.totalPrice} {orderData.currency}
             </span>
           </div>

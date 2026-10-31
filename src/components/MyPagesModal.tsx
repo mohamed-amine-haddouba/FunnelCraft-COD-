@@ -148,14 +148,14 @@ export const MyPagesModal: React.FC<MyPagesModalProps> = ({
         {/* Modal Top Header */}
         <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-slate-50 to-white">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center shadow-inner">
+            <div className="w-10 h-10 rounded-2xl bg-[#E25B26] text-[#E25B26] flex items-center justify-center shadow-inner">
               <FolderKanban className="w-5 h-5" />
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-xl font-black text-slate-900">My Pages & Funnels</h2>
                 {isPro ? (
-                  <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 tracking-wider">
+                  <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-[#E25B26] text-[#E25B26] tracking-wider">
                     {planId.toUpperCase()} • Unlimited
                   </span>
                 ) : isStarter ? (
@@ -168,7 +168,7 @@ export const MyPagesModal: React.FC<MyPagesModalProps> = ({
                   </span>
                 )}
               </div>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-[#CBD5E1]/70">
                 All landing pages permanently stored in your cloud account — accessible across devices
               </p>
             </div>
@@ -200,12 +200,12 @@ export const MyPagesModal: React.FC<MyPagesModalProps> = ({
           <div
             className={`px-6 py-2.5 text-xs font-semibold flex items-center gap-2 ${
               actionMessage.type === 'success'
-                ? 'bg-emerald-50 text-emerald-800 border-b border-emerald-100'
+                ? 'bg-[#E25B26] text-[#E25B26] border-b border-[#E25B26]'
                 : 'bg-rose-50 text-rose-800 border-b border-rose-100'
             }`}
           >
             {actionMessage.type === 'success' ? (
-              <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
+              <CheckCircle2 className="w-4 h-4 shrink-0 text-[#E25B26]" />
             ) : (
               <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
             )}
@@ -230,16 +230,16 @@ export const MyPagesModal: React.FC<MyPagesModalProps> = ({
             <button
               type="button"
               onClick={onSaveCurrentPage}
-              className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-emerald-300 text-emerald-700 bg-emerald-50/60 hover:bg-emerald-100 font-bold text-xs transition cursor-pointer"
+              className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-[#E25B26] text-[#E25B26] bg-[#E25B26]/60 hover:bg-[#E25B26] font-bold text-xs transition cursor-pointer"
             >
-              <Cloud className="w-4 h-4 text-emerald-600" />
+              <Cloud className="w-4 h-4 text-[#E25B26]" />
               <span>Save Current Page</span>
             </button>
 
             <button
               type="button"
               onClick={handleCreateNew}
-              className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[#E25B26] hover:bg-[#F16F3C] text-white font-black text-xs shadow-md shadow-emerald-600/20 transition cursor-pointer"
+              className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[#E25B26] hover:bg-[#F16F3C] text-white font-black text-xs shadow-md shadow-[#E25B26]/20 transition cursor-pointer"
             >
               <Plus className="w-4 h-4" />
               <span>+ Create New Page</span>
@@ -257,7 +257,7 @@ export const MyPagesModal: React.FC<MyPagesModalProps> = ({
               <h3 className="text-base font-bold text-slate-800 mb-1">
                 {searchQuery ? 'No landing pages match your search' : 'No Saved Landing Pages Yet'}
               </h3>
-              <p className="text-xs text-slate-500 max-w-sm mx-auto mb-5 leading-relaxed">
+              <p className="text-xs text-[#CBD5E1]/70 max-w-sm mx-auto mb-5 leading-relaxed">
                 {searchQuery
                   ? 'Try searching with different keywords or clear the search field.'
                   : 'Save your current canvas to your account cloud database so you can access and manage it from any browser.'}
@@ -266,7 +266,7 @@ export const MyPagesModal: React.FC<MyPagesModalProps> = ({
                 <button
                   type="button"
                   onClick={onSaveCurrentPage}
-                  className="px-4 py-2.5 rounded-xl bg-[#E25B26] hover:bg-[#F16F3C] text-white text-xs font-bold shadow-md shadow-emerald-600/20 transition cursor-pointer"
+                  className="px-4 py-2.5 rounded-xl bg-[#E25B26] hover:bg-[#F16F3C] text-white text-xs font-bold shadow-md shadow-[#E25B26]/20 transition cursor-pointer"
                 >
                   Save Current Canvas Now
                 </button>
@@ -294,7 +294,7 @@ export const MyPagesModal: React.FC<MyPagesModalProps> = ({
                     key={page.id}
                     className={`p-4 rounded-2xl border transition relative flex flex-col justify-between ${
                       isCurrentlyActive
-                        ? 'border-[#E25B26] bg-emerald-50/30 ring-1 ring-[#E25B26]/20'
+                        ? 'border-[#E25B26] bg-[#E25B26]/30 ring-1 ring-[#E25B26]/20'
                         : 'border-slate-200 hover:border-slate-300 bg-white shadow-sm hover:shadow'
                     }`}
                   >
@@ -304,7 +304,7 @@ export const MyPagesModal: React.FC<MyPagesModalProps> = ({
                         <div className="flex items-center gap-1.5 flex-wrap">
                           {isCurrentlyActive && (
                             <span className="inline-flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-md bg-[#E25B26] text-white shadow-sm">
-                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-300 animate-pulse" />
+                              <span className="w-1.5 h-1.5 rounded-full bg-[#E25B26] animate-pulse" />
                               Active in Editor
                             </span>
                           )}
@@ -320,7 +320,7 @@ export const MyPagesModal: React.FC<MyPagesModalProps> = ({
                           </span>
 
                           {page.isPublished && (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 border border-emerald-200 shadow-2xs">
+                            <span className="inline-flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-md bg-[#E25B26] text-[#E25B26] border border-[#E25B26] shadow-2xs">
                               <span className="w-1.5 h-1.5 rounded-full bg-[#E25B26] animate-pulse" />
                               LIVE
                             </span>
@@ -344,20 +344,20 @@ export const MyPagesModal: React.FC<MyPagesModalProps> = ({
                           /{page.slug || page.id}
                         </p>
                         {page.isPublished ? (
-                          <div className="flex items-center gap-2.5 text-[10px] font-bold text-emerald-700">
+                          <div className="flex items-center gap-2.5 text-[10px] font-bold text-[#E25B26]">
                             <span className="flex items-center gap-0.5" title="إجمالي المشاهدات">
-                              <Eye className="w-3 h-3 text-emerald-600" />
+                              <Eye className="w-3 h-3 text-[#E25B26]" />
                               {page.viewsCount || 0}
                             </span>
                             <span className="flex items-center gap-0.5" title="إجمالي طلبات الدفع عند الاستلام">
-                              <ShoppingBag className="w-3 h-3 text-emerald-600" />
+                              <ShoppingBag className="w-3 h-3 text-[#E25B26]" />
                               {page.ordersCount || 0}
                             </span>
                             <a
                               href={`/p/${page.slug}`}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="text-emerald-700 hover:text-emerald-900 underline flex items-center gap-0.5"
+                              className="text-[#E25B26] hover:text-[#E25B26] underline flex items-center gap-0.5"
                               title="عرض الصفحة المنشورة"
                             >
                               <span>معاينة</span>
@@ -421,7 +421,7 @@ export const MyPagesModal: React.FC<MyPagesModalProps> = ({
         </div>
 
         {/* Modal Bottom Banner / Cloud Sync Info */}
-        <div className="px-6 py-3.5 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+        <div className="px-6 py-3.5 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-xs text-[#CBD5E1]/70">
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-[#E25B26]" />
             <span>Permanent encrypted Cloud persistence • Continue your work from any PC or mobile</span>

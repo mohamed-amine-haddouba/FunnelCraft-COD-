@@ -135,7 +135,7 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
               <span>{t.analyticsTitle}</span>
             </h1>
             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#E25B26]/10 text-[#E25B26] border border-[#E25B26]/20">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="w-1.5 h-1.5 rounded-full bg-[#E25B26] animate-pulse" />
               {t.liveSync}
             </span>
           </div>
@@ -227,7 +227,7 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
               <button
                 type="button"
                 onClick={onNavigateToBuilder}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#E25B26] hover:bg-[#F16F3C] text-slate-950 font-bold text-xs shadow-lg shadow-[#E25B26]/20 transition cursor-pointer"
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#E25B26] hover:bg-[#F16F3C] text-[#F8FAFC] font-bold text-xs shadow-lg shadow-[#E25B26]/20 transition cursor-pointer"
               >
                 <PlusCircle className="w-4 h-4" />
                 <span>{language === 'ar' ? 'إنشاء صفحة هبوط جديدة' : 'Créer une page de vente'}</span>
@@ -252,7 +252,7 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
                   {conversionRate}%
                 </span>
               </div>
-              <p className="text-[11px] text-slate-500 mt-1 truncate">{t.moroccanCodBenchmark}</p>
+              <p className="text-[11px] text-[#CBD5E1]/70 mt-1 truncate">{t.moroccanCodBenchmark}</p>
             </div>
 
             {/* KPI 2: Total Visitors */}
@@ -268,7 +268,7 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
                   {totalVisitors.toLocaleString()}
                 </span>
               </div>
-              <p className="text-[11px] text-slate-500 mt-1 truncate">
+              <p className="text-[11px] text-[#CBD5E1]/70 mt-1 truncate">
                 {language === 'ar' ? 'زيارات صفحات الهبوط النشطة' : 'Visites uniques actives'}
               </p>
             </div>
@@ -287,7 +287,7 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
                   <span className="text-xs font-normal text-[#CBD5E1]">{t.madCurrency}</span>
                 </span>
               </div>
-              <p className="text-[11px] text-slate-500 mt-1 truncate">
+              <p className="text-[11px] text-[#CBD5E1]/70 mt-1 truncate">
                 {language === 'ar' ? 'متوسط قيمة الطلب الفعلي' : 'Panier moyen réel'}
               </p>
             </div>
@@ -296,7 +296,7 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
             <div className="bg-[#131B2A]/70 border border-[#1E293B] rounded-xl p-3.5 hover:border-[#334155] transition">
               <div className="flex items-center justify-between text-[#CBD5E1] text-xs mb-1">
                 <span>{t.deliveryRate}</span>
-                <div className="w-7 h-7 rounded-lg bg-teal-500/10 text-[#E25B26] flex items-center justify-center">
+                <div className="w-7 h-7 rounded-lg bg-[#E25B26]/10 text-[#E25B26] flex items-center justify-center">
                   <Truck className="w-4 h-4" />
                 </div>
               </div>
@@ -305,7 +305,7 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
                   {deliveryRate}%
                 </span>
               </div>
-              <p className="text-[11px] text-slate-500 mt-1 truncate">
+              <p className="text-[11px] text-[#CBD5E1]/70 mt-1 truncate">
                 {language === 'ar' ? 'الطلبات المؤكدة والمسلمة' : 'Commandes confirmées et livrées'}
               </p>
             </div>
@@ -333,7 +333,7 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
                       <span className="text-[#CBD5E1] font-medium">{t.impressions}</span>
                       <span className="text-[#CBD5E1]">
                         {totalVisitors.toLocaleString()}{' '}
-                        <span className="text-[10px] text-slate-500">(100%)</span>
+                        <span className="text-[10px] text-[#CBD5E1]/70">(100%)</span>
                       </span>
                     </div>
                     <div className="h-2 w-full bg-[#131B2A] rounded-full overflow-hidden">
@@ -380,7 +380,7 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
                     </div>
                     <div className="h-2 w-full bg-[#131B2A] rounded-full overflow-hidden">
                       <div
-                        className="h-full bg-emerald-400 rounded-full"
+                        className="h-full bg-[#E25B26] rounded-full"
                         style={{ width: `${Math.min(100, conversionRate)}%` }}
                       />
                     </div>
@@ -407,7 +407,7 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
               </div>
 
               {cityList.length === 0 ? (
-                <div className="py-8 text-center text-xs text-slate-500">
+                <div className="py-8 text-center text-xs text-[#CBD5E1]/70">
                   {EMPTY_ANALYTICS_MESSAGE_AR}
                 </div>
               ) : (
@@ -416,7 +416,7 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
                     <div key={idx} className="flex flex-col gap-1">
                       <div className="flex items-center justify-between text-xs">
                         <span className="text-[#CBD5E1] font-medium flex items-center gap-1.5">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                          <span className="w-1.5 h-1.5 rounded-full bg-[#E25B26]" />
                           <span>{c.city}</span>
                         </span>
                         <div className="flex items-center gap-2">
@@ -430,7 +430,7 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
                       </div>
                       <div className="h-1.5 w-full bg-[#131B2A] rounded-full overflow-hidden">
                         <div
-                          className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 rounded-full transition-all duration-500"
+                          className="h-full bg-gradient-to-r from-[#E25B26] to-[#F16F3C] rounded-full transition-all duration-500"
                           style={{ width: `${Math.max(c.percentage, 8)}%` }}
                         />
                       </div>
@@ -485,7 +485,7 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
                       <tr key={funnel.id || i} className="hover:bg-[#131B2A]/30 transition">
                         <td className="py-2.5 px-3">
                           <div className="font-medium text-white">{funnel.title}</div>
-                          <div className="text-[11px] text-slate-500">/{funnel.slug}</div>
+                          <div className="text-[11px] text-[#CBD5E1]/70">/{funnel.slug}</div>
                         </td>
                         <td className="py-2.5 px-3 text-[#CBD5E1]">
                           {funnel.visitors.toLocaleString()}

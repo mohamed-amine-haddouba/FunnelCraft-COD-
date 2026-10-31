@@ -1031,7 +1031,7 @@ function BuilderWorkspace() {
   if (isLoading) {
     return (
       <div className="min-h-screen w-screen bg-[#0D131E] flex flex-col items-center justify-center text-[#CBD5E1] gap-3" dir={dir}>
-        <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-400 text-slate-950 flex items-center justify-center font-black text-xl shadow-lg shadow-[#E25B26]/20 animate-pulse">
+        <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[#E25B26] to-[#F16F3C] text-[#F8FAFC] flex items-center justify-center font-black text-xl shadow-lg shadow-[#E25B26]/20 animate-pulse">
           ⚡
         </div>
         <div className="text-xs font-semibold text-[#CBD5E1]">CodWorth</div>
@@ -1102,12 +1102,12 @@ function BuilderWorkspace() {
         <div className="min-h-screen w-screen bg-slate-50 overflow-y-auto font-sans relative">
           {/* Floating Customer Live View Exit Pill */}
           <div className="fixed top-14 left-4 z-50 flex items-center gap-2 bg-[#0D131E]/90 backdrop-blur-md text-white border border-[#334155] px-4 py-2 rounded-full shadow-2xl text-xs font-semibold">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="w-2.5 h-2.5 rounded-full bg-[#E25B26] animate-pulse" />
             <span>{t.storefrontLivePreview}</span>
             <button
               type="button"
               onClick={() => setIsCustomerLiveView(false)}
-              className="ms-2 px-3 py-1 rounded-full bg-[#E25B26] hover:bg-[#F16F3C] text-slate-950 text-xs font-bold transition cursor-pointer"
+              className="ms-2 px-3 py-1 rounded-full bg-[#E25B26] hover:bg-[#F16F3C] text-[#F8FAFC] text-xs font-bold transition cursor-pointer"
             >
               {t.exitStorefront}
             </button>
@@ -1131,12 +1131,12 @@ function BuilderWorkspace() {
       >
         {/* Floating Customer Live View Exit Pill */}
         <div className="fixed top-4 end-4 z-50 flex items-center gap-2 bg-[#0D131E]/90 backdrop-blur-md text-white border border-[#334155] px-4 py-2 rounded-full shadow-2xl text-xs font-semibold">
-          <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+          <span className="w-2.5 h-2.5 rounded-full bg-[#E25B26] animate-pulse" />
           <span>{t.storefrontLivePreview}</span>
           <button
             type="button"
             onClick={() => setIsCustomerLiveView(false)}
-            className="ms-2 px-3 py-1 rounded-full bg-[#E25B26] hover:bg-[#F16F3C] text-slate-950 text-xs font-bold transition cursor-pointer"
+            className="ms-2 px-3 py-1 rounded-full bg-[#E25B26] hover:bg-[#F16F3C] text-[#F8FAFC] text-xs font-bold transition cursor-pointer"
           >
             {t.exitStorefront}
           </button>
@@ -1272,7 +1272,7 @@ function BuilderWorkspace() {
       {scrapeSuccessToast && (
         <div
           dir="rtl"
-          className="fixed bottom-6 left-6 z-50 max-w-md bg-emerald-950/95 border border-[#E25B26]/60 text-emerald-100 px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-3 text-xs font-bold backdrop-blur-md"
+          className="fixed bottom-6 left-6 z-50 max-w-md bg-[#E25B26]/95 border border-[#E25B26]/60 text-[#E25B26] px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-3 text-xs font-bold backdrop-blur-md"
         >
           <CheckCircle2 className="w-5 h-5 text-[#E25B26] shrink-0" />
           <span className="flex-1">{scrapeSuccessToast}</span>
@@ -1360,7 +1360,7 @@ function BuilderWorkspace() {
                 <button
                   type="submit"
                   disabled={isScraping}
-                  className="h-7 px-2.5 py-1 rounded-md bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 disabled:opacity-60 text-white font-bold text-xs shadow-sm shadow-emerald-600/20 flex items-center gap-1 transition cursor-pointer shrink-0 whitespace-nowrap"
+                  className="h-7 px-2.5 py-1 rounded-md bg-gradient-to-r from-[#E25B26] to-[#F16F3C] hover:from-[#E25B26] hover:to-[#F16F3C] disabled:opacity-60 text-white font-bold text-xs shadow-sm shadow-[#E25B26]/20 flex items-center gap-1 transition cursor-pointer shrink-0 whitespace-nowrap"
                 >
                   {isScraping ? (
                     <>
@@ -1379,7 +1379,7 @@ function BuilderWorkspace() {
               <div className="flex items-center gap-1.5 shrink-0">
                 {pageData.scrapedData && (
                   <>
-                    <span className="hidden lg:inline-flex text-[10px] font-bold text-[#E25B26] bg-emerald-950/70 border border-emerald-700/50 px-2 py-0.5 rounded-md whitespace-nowrap">
+                    <span className="hidden lg:inline-flex text-[10px] font-bold text-[#E25B26] bg-[#E25B26]/70 border border-[#E25B26]/50 px-2 py-0.5 rounded-md whitespace-nowrap">
                       ✓ {pageData.scrapedData.platform}
                     </span>
                     <button
@@ -1387,7 +1387,7 @@ function BuilderWorkspace() {
                       onClick={() =>
                         setBuilderRenderMode((m) => (m === 'scraped' ? 'blocks' : 'scraped'))
                       }
-                      className="h-7 px-2 py-1 rounded-md bg-[#131B2A] hover:bg-slate-700 text-[#F8FAFC] border border-[#334155] text-[11px] font-bold flex items-center gap-1 transition cursor-pointer whitespace-nowrap"
+                      className="h-7 px-2 py-1 rounded-md bg-[#131B2A] hover:bg-[#1E293B] text-[#F8FAFC] border border-[#334155] text-[11px] font-bold flex items-center gap-1 transition cursor-pointer whitespace-nowrap"
                     >
                       {builderRenderMode === 'scraped' ? (
                         <>
@@ -1497,7 +1497,7 @@ function BuilderWorkspace() {
                 onClick={() => setViewport('desktop')}
                 className={`p-1.5 rounded-lg transition cursor-pointer ${
                   viewport === 'desktop'
-                    ? 'bg-[#E25B26] text-slate-950 shadow-xs'
+                    ? 'bg-[#E25B26] text-[#F8FAFC] shadow-xs'
                     : 'text-[#CBD5E1] hover:text-white'
                 }`}
                 title="Desktop View"
@@ -1509,7 +1509,7 @@ function BuilderWorkspace() {
                 onClick={() => setViewport('tablet')}
                 className={`p-1.5 rounded-lg transition cursor-pointer ${
                   viewport === 'tablet'
-                    ? 'bg-[#E25B26] text-slate-950 shadow-xs'
+                    ? 'bg-[#E25B26] text-[#F8FAFC] shadow-xs'
                     : 'text-[#CBD5E1] hover:text-white'
                 }`}
                 title="Tablet View"
@@ -1521,7 +1521,7 @@ function BuilderWorkspace() {
                 onClick={() => setViewport('mobile')}
                 className={`p-1.5 rounded-lg transition cursor-pointer ${
                   viewport === 'mobile'
-                    ? 'bg-[#E25B26] text-slate-950 shadow-xs'
+                    ? 'bg-[#E25B26] text-[#F8FAFC] shadow-xs'
                     : 'text-[#CBD5E1] hover:text-white'
                 }`}
                 title="Mobile View"
@@ -1530,7 +1530,7 @@ function BuilderWorkspace() {
               </button>
             </div>
 
-            <div className="h-4 w-px bg-slate-700/80" />
+            <div className="h-4 w-px bg-[#1E293B]/80" />
 
             {/* Undo / Redo Controls */}
             <div className="flex items-center gap-0.5">
@@ -1554,7 +1554,7 @@ function BuilderWorkspace() {
               </button>
             </div>
 
-            <div className="h-4 w-px bg-slate-700/80" />
+            <div className="h-4 w-px bg-[#1E293B]/80" />
 
             {/* Preview Mode Toggle */}
             <button
@@ -1563,7 +1563,7 @@ function BuilderWorkspace() {
               className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-bold transition cursor-pointer ${
                 isPreviewMode
                   ? 'bg-amber-500 text-slate-950 shadow-sm'
-                  : 'bg-[#131B2A] hover:bg-slate-700 text-[#F8FAFC] border border-[#334155]'
+                  : 'bg-[#131B2A] hover:bg-[#1E293B] text-[#F8FAFC] border border-[#334155]'
               }`}
               title={isPreviewMode ? t.edit : t.preview}
             >
@@ -1738,7 +1738,7 @@ export function NotFoundPage() {
         </p>
         <Link
           to="/"
-          className="inline-flex items-center justify-center gap-2 w-full py-3 px-6 bg-[#E25B26] hover:bg-[#E25B26] text-slate-950 font-bold text-sm rounded-xl shadow-lg transition"
+          className="inline-flex items-center justify-center gap-2 w-full py-3 px-6 bg-[#E25B26] hover:bg-[#E25B26] text-[#F8FAFC] font-bold text-sm rounded-xl shadow-lg transition"
         >
           <span>العودة إلى الصفحة الرئيسية</span>
         </Link>
@@ -1895,7 +1895,7 @@ function RootRedirect() {
   if (isLoading) {
     return (
       <div className="min-h-screen w-screen bg-[#0D131E] flex flex-col items-center justify-center text-[#CBD5E1] gap-3">
-        <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-400 text-slate-950 flex items-center justify-center font-black text-xl shadow-lg shadow-[#E25B26]/20 animate-pulse">
+        <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[#E25B26] to-[#F16F3C] text-[#F8FAFC] flex items-center justify-center font-black text-xl shadow-lg shadow-[#E25B26]/20 animate-pulse">
           ⚡
         </div>
         <div className="text-xs font-semibold text-[#CBD5E1]">CodWorth</div>
@@ -1915,7 +1915,7 @@ function LoginRoute() {
   if (isLoading) {
     return (
       <div className="min-h-screen w-screen bg-[#0D131E] flex flex-col items-center justify-center text-[#CBD5E1] gap-3">
-        <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-400 text-slate-950 flex items-center justify-center font-black text-xl shadow-lg shadow-[#E25B26]/20 animate-pulse">
+        <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[#E25B26] to-[#F16F3C] text-[#F8FAFC] flex items-center justify-center font-black text-xl shadow-lg shadow-[#E25B26]/20 animate-pulse">
           ⚡
         </div>
         <div className="text-xs font-semibold text-[#CBD5E1]">CodWorth</div>
@@ -1994,10 +1994,12 @@ function PricingRoute() {
 
 export default function App() {
   const location = useLocation();
-  const isBuilderOrSandbox =
+  const hideFloatingWhatsApp =
     location.pathname === '/dashboard/builder' ||
+    location.pathname.startsWith('/dashboard/') ||
     location.pathname.startsWith('/sandbox') ||
-    location.pathname === '/reset';
+    location.pathname === '/reset' ||
+    location.pathname.startsWith('/p/');
 
   return (
     <GoogleOAuthProvider clientId={googleClientId}>
@@ -2021,7 +2023,7 @@ export default function App() {
             <Route path="/dashboard/:tab" element={<BuilderWorkspace />} />
             <Route path="*" element={<NotFoundPage />} />
           </Routes>
-          {!isBuilderOrSandbox && <FloatingWhatsApp />}
+          {!hideFloatingWhatsApp && <FloatingWhatsApp />}
         </AuthProvider>
       </LanguageProvider>
     </GoogleOAuthProvider>

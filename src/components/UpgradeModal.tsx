@@ -439,14 +439,14 @@ export const UpgradeModal: React.FC<Props> = ({
       <div className="bg-[#0D131E] text-white rounded-3xl max-w-2xl w-full p-5 sm:p-7 shadow-2xl relative border border-[#1E293B] overflow-hidden max-h-[94vh] flex flex-col">
         {/* Ambient Top Glow */}
         <div className="absolute -top-24 -start-24 w-72 h-72 bg-[#E25B26]/15 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-24 -end-24 w-72 h-72 bg-teal-500/15 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-24 -end-24 w-72 h-72 bg-[#E25B26]/15 rounded-full blur-3xl pointer-events-none" />
 
         {/* Close Button */}
         <button
           type="button"
           onClick={onClose}
           disabled={isProcessing}
-          className="absolute top-5 end-5 w-8 h-8 rounded-full bg-[#131B2A]/80 hover:bg-slate-700 flex items-center justify-center text-[#CBD5E1] hover:text-white transition z-10 cursor-pointer disabled:opacity-40"
+          className="absolute top-5 end-5 w-8 h-8 rounded-full bg-[#131B2A]/80 hover:bg-[#1E293B] flex items-center justify-center text-[#CBD5E1] hover:text-white transition z-10 cursor-pointer disabled:opacity-40"
           title="إغلاق"
         >
           <X className="w-4 h-4" />
@@ -543,7 +543,7 @@ export const UpgradeModal: React.FC<Props> = ({
                           <div
                             className={`w-4 h-4 rounded-full border flex items-center justify-center ${
                               isSelected
-                                ? 'border-[#E25B26] bg-[#E25B26] text-slate-950'
+                                ? 'border-[#E25B26] bg-[#E25B26] text-[#F8FAFC]'
                                 : 'border-[#334155] bg-[#131B2A]'
                             }`}
                           >
@@ -556,7 +556,7 @@ export const UpgradeModal: React.FC<Props> = ({
                             {tier.priceMAD}
                           </span>
                           <span className="text-xs text-[#CBD5E1] font-bold"> درهم</span>
-                          <span className="text-[10px] text-slate-500"> / شهر</span>
+                          <span className="text-[10px] text-[#CBD5E1]/70"> / شهر</span>
                           <span className="block text-[10px] text-[#E25B26] font-semibold">
                             (~${tier.priceUSD}/mo)
                           </span>
@@ -619,7 +619,7 @@ export const UpgradeModal: React.FC<Props> = ({
                   onClick={() => setPaymentMethod('morocco')}
                   className={`py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer ${
                     paymentMethod === 'morocco'
-                      ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-sm'
+                      ? 'bg-gradient-to-r from-[#E25B26] to-[#F16F3C] text-white shadow-sm'
                       : 'text-[#CBD5E1] hover:text-white'
                   }`}
                 >
@@ -687,7 +687,7 @@ export const UpgradeModal: React.FC<Props> = ({
                     </button>
                   </div>
 
-                  <div className="flex items-center justify-center gap-3 text-[11px] text-slate-500 pt-1">
+                  <div className="flex items-center justify-center gap-3 text-[11px] text-[#CBD5E1]/70 pt-1">
                     <span className="flex items-center gap-1">
                       <ShieldCheck className="w-3.5 h-3.5 text-[#E25B26]" />
                       <span>حماية المشتريات من PayPal</span>
@@ -744,7 +744,7 @@ export const UpgradeModal: React.FC<Props> = ({
                               <div className="flex items-center gap-2">
                                 <Landmark
                                   className={`w-4 h-4 ${
-                                    isSelected ? 'text-[#E25B26]' : 'text-slate-500'
+                                    isSelected ? 'text-[#E25B26]' : 'text-[#CBD5E1]/70'
                                   }`}
                                 />
                                 <div className="text-start">
@@ -757,7 +757,7 @@ export const UpgradeModal: React.FC<Props> = ({
                               <div
                                 className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center shrink-0 ${
                                   isSelected
-                                    ? 'border-[#E25B26] bg-[#E25B26] text-slate-950'
+                                    ? 'border-[#E25B26] bg-[#E25B26] text-[#F8FAFC]'
                                     : 'border-[#334155]'
                                 }`}
                               >
@@ -877,7 +877,7 @@ export const UpgradeModal: React.FC<Props> = ({
                         <button
                           type="button"
                           onClick={() => receiptFileRef.current?.click()}
-                          className="py-2 px-3 rounded-xl bg-[#131B2A] hover:bg-slate-700 text-[#F8FAFC] text-xs font-semibold flex items-center gap-1.5 border border-[#334155] transition cursor-pointer"
+                          className="py-2 px-3 rounded-xl bg-[#131B2A] hover:bg-[#1E293B] text-[#F8FAFC] text-xs font-semibold flex items-center gap-1.5 border border-[#334155] transition cursor-pointer"
                         >
                           <UploadCloud className="w-3.5 h-3.5 text-[#E25B26]" />
                           <span>{receiptImage ? 'تغيير صورة الوصل' : 'رفع لقطة شاشة للوصل'}</span>
@@ -902,7 +902,7 @@ export const UpgradeModal: React.FC<Props> = ({
                     <button
                       type="submit"
                       disabled={isProcessing}
-                      className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 active:scale-98 text-white text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-[#E25B26]/20 disabled:opacity-50"
+                      className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-[#E25B26] to-[#F16F3C] hover:from-[#E25B26] hover:to-[#F16F3C] active:scale-98 text-white text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-[#E25B26]/20 disabled:opacity-50"
                     >
                       <CheckCircle2 className="w-4 h-4" />
                       <span>

@@ -657,7 +657,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
             <button
               type="submit"
               disabled={isSaving}
-              className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-semibold bg-[#E25B26] hover:bg-[#E25B26] text-slate-950 transition cursor-pointer disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-semibold bg-[#E25B26] hover:bg-[#E25B26] text-[#F8FAFC] transition cursor-pointer disabled:opacity-50"
             >
               <Save className="w-3.5 h-3.5" />
               <span>{isSaving ? t.saving : t.saveSettings}</span>
@@ -809,7 +809,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                   onChange={(e) => setCustomDomain(e.target.value)}
                   disabled={false}
                   placeholder="shop.yourdomain.com or yourdomain.com"
-                  className="flex-1 bg-[#131B2A] border border-[#1E293B] rounded-xl px-3.5 py-2 text-xs font-mono text-white placeholder:text-slate-500 focus:outline-none focus:border-[#E25B26]"
+                  className="flex-1 bg-[#131B2A] border border-[#1E293B] rounded-xl px-3.5 py-2 text-xs font-mono text-white placeholder:text-[#CBD5E1]/70 focus:outline-none focus:border-[#E25B26]"
                 />
 
                 <button
@@ -817,7 +817,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                   data-testid="save-custom-domain-btn"
                   onClick={handleSaveCustomDomain}
                   disabled={!isProUser || isSavingDomain}
-                  className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-[#E25B26] hover:bg-[#E25B26] text-slate-950 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-[#E25B26] hover:bg-[#E25B26] text-[#F8FAFC] transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Save className="w-3.5 h-3.5" />
                   <span>
@@ -833,7 +833,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                   type="button"
                   onClick={handleVerifyDomain}
                   disabled={!isProUser || isDomainVerifying || !customDomain.trim()}
-                  className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-[#131B2A] hover:bg-slate-700 border border-[#334155] text-white transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-[#131B2A] hover:bg-[#1E293B] border border-[#334155] text-white transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <RefreshCw className={`w-3.5 h-3.5 ${isDomainVerifying ? 'animate-spin text-[#E25B26]' : 'text-[#E25B26]'}`} />
                   <span>{isDomainVerifying ? (language === 'ar' ? 'جاري الفحص...' : 'Checking DNS...') : t.domainVerifyCta}</span>
@@ -1048,7 +1048,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                 <button
                   type="button"
                   onClick={() => setShowCurrentPass(!showCurrentPass)}
-                  className="absolute top-1/2 -translate-y-1/2 end-2 text-slate-500 hover:text-[#CBD5E1]"
+                  className="absolute top-1/2 -translate-y-1/2 end-2 text-[#CBD5E1]/70 hover:text-[#CBD5E1]"
                 >
                   {showCurrentPass ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                 </button>
@@ -1068,7 +1068,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                   <button
                     type="button"
                     onClick={() => setShowNewPass(!showNewPass)}
-                    className="absolute top-1/2 -translate-y-1/2 end-2 text-slate-500 hover:text-[#CBD5E1]"
+                    className="absolute top-1/2 -translate-y-1/2 end-2 text-[#CBD5E1]/70 hover:text-[#CBD5E1]"
                   >
                     {showNewPass ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                   </button>
@@ -1087,7 +1087,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                   <button
                     type="button"
                     onClick={() => setShowConfirmPass(!showConfirmPass)}
-                    className="absolute top-1/2 -translate-y-1/2 end-2 text-slate-500 hover:text-[#CBD5E1]"
+                    className="absolute top-1/2 -translate-y-1/2 end-2 text-[#CBD5E1]/70 hover:text-[#CBD5E1]"
                   >
                     {showConfirmPass ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                   </button>
@@ -1099,7 +1099,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
               <button
                 type="submit"
                 disabled={isSaving}
-                className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-semibold bg-[#131B2A] hover:bg-slate-700 text-white transition cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-semibold bg-[#131B2A] hover:bg-[#1E293B] text-white transition cursor-pointer"
               >
                 <span>{t.saveSettings}</span>
               </button>
@@ -1121,7 +1121,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
               className={`px-3 py-1.5 rounded-lg text-xs font-medium transition cursor-pointer ${
                 isTwoFactorEnabled
                   ? 'bg-[#E25B26]/20 text-[#E25B26] border border-[#E25B26]/30'
-                  : 'bg-[#131B2A] hover:bg-slate-700 text-[#CBD5E1]'
+                  : 'bg-[#131B2A] hover:bg-[#1E293B] text-[#CBD5E1]'
               }`}
             >
               {isTwoFactorEnabled ? '2FA Active ✓' : t.enable2fa}

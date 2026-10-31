@@ -71,7 +71,7 @@ const BLOCK_CATALOG: BlockCatalogItem[] = [
     desc: 'نموذج طلب سريع مع قوائم الدول والمدن المتسلسلة والعروض',
     category: 'E-commerce (COD)',
     icon: ShoppingCart,
-    accent: 'text-emerald-600 bg-emerald-50 border-emerald-200/70',
+    accent: 'text-[#E25B26] bg-[#E25B26] border-[#E25B26]/70',
   },
   {
     type: 'promo-bar',
@@ -98,7 +98,7 @@ const BLOCK_CATALOG: BlockCatalogItem[] = [
     desc: 'بطاقات أنيقة لعرض فوائد المنتج والمواصفات التقنية',
     category: 'Basic',
     icon: Zap,
-    accent: 'text-teal-600 bg-teal-50 border-teal-200/70',
+    accent: 'text-[#E25B26] bg-[#E25B26] border-[#E25B26]/70',
   },
   {
     type: 'problem-solution',
@@ -160,7 +160,7 @@ const READY_TEMPLATES: {
     name: TEMPLATE_ARABIC_COD.title,
     category: 'عناية وتجميل • الدفع عند الاستلام',
     langBadge: '🇲🇦 عربي (RTL)',
-    accent: 'from-emerald-600 to-teal-700',
+    accent: 'from-[#E25B26] to-[#F16F3C]',
     previewImage:
       'https://images.unsplash.com/photo-1608248597359-0e6d526a682b?auto=format&fit=crop&w=400&q=80',
     data: TEMPLATE_ARABIC_COD,
@@ -340,7 +340,7 @@ export const BlocksToolbar: React.FC<Props> = ({
                       <div className="text-[10px] font-semibold text-[#CBD5E1] truncate" dir="ltr">
                         {item.labelEn} • {item.category}
                       </div>
-                      <p className="text-[11px] text-slate-500 leading-snug mt-1 line-clamp-2">
+                      <p className="text-[11px] text-[#CBD5E1]/70 leading-snug mt-1 line-clamp-2">
                         {item.desc}
                       </p>
                     </div>
@@ -350,7 +350,7 @@ export const BlocksToolbar: React.FC<Props> = ({
             )}
           </div>
 
-          <div className="p-3 bg-slate-50 border-t border-slate-200 text-[11px] text-slate-500 text-center font-medium">
+          <div className="p-3 bg-slate-50 border-t border-slate-200 text-[11px] text-[#CBD5E1]/70 text-center font-medium">
             💡 اسحب أي قسم وأفلته داخل مساحة العمل أو اضغط لإضافته
           </div>
         </>
@@ -400,7 +400,7 @@ export const BlocksToolbar: React.FC<Props> = ({
                     </div>
                   </div>
                   <div className="p-2.5 flex items-center justify-between text-[11px]">
-                    <span className="text-slate-500 font-medium truncate">{tpl.category}</span>
+                    <span className="text-[#CBD5E1]/70 font-medium truncate">{tpl.category}</span>
                     <span className="text-blue-600 font-extrabold group-hover:underline shrink-0">
                       استخدام القالب ←
                     </span>
