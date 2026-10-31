@@ -37,6 +37,7 @@
     "lucide-react": "^0.546.0",
     "motion": "^12.23.24",
     "nodemailer": "^10.2.1",
+    "playwright": "^1.64.1",
     "react": "^19.0.1",
     "react-colorful": "^5.8.1",
     "react-dom": "^19.0.1",
