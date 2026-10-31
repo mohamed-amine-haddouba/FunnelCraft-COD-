@@ -2005,8 +2005,6 @@ function PublicRoutes() {
       <Route path="/terms" element={<TermsRoute />} />
       <Route path="/privacy" element={<PrivacyRoute />} />
       <Route path="/p/:slug" element={<PublicFunnelPage />} />
-      <Route path="/dashboard" element={<Navigate to="/dashboard/builder" replace />} />
-      <Route path="/dashboard/:tab" element={<BuilderWorkspace />} />
       <Route path="*" element={<NotFoundPage />} />
     </Routes>
   );
@@ -2016,9 +2014,14 @@ function LegacyOrPrefixRedirect() {
   const location = useLocation();
   const pathname = location.pathname;
 
-  // Do not prefix API routes or Sandbox routes
-  if (pathname.startsWith('/api/') || pathname.startsWith('/sandbox') || pathname === '/reset') {
-    return null;
+  // Do not prefix API routes, Sandbox routes, or Dashboard routes
+  if (
+    pathname.startsWith('/api/') ||
+    pathname.startsWith('/sandbox') ||
+    pathname === '/reset' ||
+    pathname.startsWith('/dashboard')
+  ) {
+    return null; // Let the specific routes handle it
   }
 
   const savedLang = (() => {
@@ -2047,19 +2050,23 @@ export default function App() {
       <LanguageProvider>
         <AuthProvider>
           <Routes>
-            {/* Sandbox — always root-level, no language prefix */}
+            {/* 1. Dashboard & Builder (Root level - no language prefix) */}
+            <Route path="/dashboard" element={<Navigate to="/dashboard/builder" replace />} />
+            <Route path="/dashboard/:tab" element={<BuilderWorkspace />} />
+
+            {/* 2. Sandbox (Root level - no language prefix) */}
             <Route path="/sandbox" element={<SandboxPage />} />
             <Route path="/sandbox/login" element={<SandboxLoginPage />} />
             <Route path="/sandbox/reset" element={<SandboxResetPage />} />
             <Route path="/reset" element={<SandboxResetPage />} />
 
-            {/* Public merchant landing pages */}
+            {/* 3. Public merchant landing pages */}
             <Route path="/p/:slug" element={<PublicFunnelPage />} />
 
-            {/* Language-prefixed routes */}
+            {/* 4. Language-prefixed public routes */}
             <Route path="/:lang/*" element={<PublicRoutes />} />
 
-            {/* Unprefixed legacy routes: redirect to /:savedLang/... */}
+            {/* 5. Unprefixed legacy routes: redirect to /:savedLang/... */}
             <Route path="*" element={<LegacyOrPrefixRedirect />} />
           </Routes>
           {!hideFloatingWhatsApp && <FloatingWhatsApp />}
