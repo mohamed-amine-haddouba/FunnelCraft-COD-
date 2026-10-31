@@ -1,8 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../i18n/translations';
 import { SUPPORTED_LANGUAGES } from '../i18n/config';
+import { useLocalizedNavigate } from '../hooks/useLocalizedNavigate';
+import { LocalizedLink } from './LocalizedLink';
+import { ThemeToggleButton } from './ThemeToggleButton';
 import {
   Lock,
   Mail,
@@ -52,7 +55,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
   } = useAuth();
 
   const { t, language, setLanguage, dir, isRtl } = useLanguage();
-  const navigate = useNavigate();
+  const navigate = useLocalizedNavigate();
   const [searchParams] = useSearchParams();
   const queryMode = searchParams.get('mode');
 
@@ -498,55 +501,60 @@ export const AuthPage: React.FC<AuthPageProps> = ({
       {/* Top Bar: Brand & Language Switcher */}
       <header className="h-16 px-4 sm:px-8 border-b border-[#1E293B] bg-[#0D131E]/95 backdrop-blur-md sticky top-0 z-40 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-2.5">
-          <Link to="/home" className="flex items-center shrink-0">
+          <LocalizedLink to="/home" className="flex items-center shrink-0">
             <img
               src="/assets/brand/logo.jpg"
               alt="CodWorth"
               className="h-10 w-auto object-contain rounded-lg"
             />
-          </Link>
+          </LocalizedLink>
           <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#E25B26]/10 text-[#E25B26] border border-[#E25B26]/30">
             {t.codBadge}
           </span>
         </div>
 
-        {/* Language Switcher Dropdown */}
-        <div className="relative" ref={langDropdownRef}>
-          <button
-            type="button"
-            onClick={() => setShowLangDropdown(!showLangDropdown)}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[#131B2A] hover:bg-[#1E293B] border border-[#1E293B] text-xs font-medium text-[#CBD5E1] transition cursor-pointer"
-          >
-            <span>{currentLangObj.flag}</span>
-            <span className="text-xs uppercase font-mono">{currentLangObj.code}</span>
-            <ChevronDown className="w-3.5 h-3.5 text-[#CBD5E1]" />
-          </button>
+        <div className="flex items-center gap-2">
+          {/* Global Theme Toggle Button */}
+          <ThemeToggleButton />
 
-          {showLangDropdown && (
-            <div className={`absolute ${isRtl ? 'start-0' : 'end-0'} top-10 w-36 bg-[#131B2A] border border-[#1E293B] rounded-xl shadow-xl p-1 z-50 text-xs`}>
-              {SUPPORTED_LANGUAGES.map((lang) => (
-                <button
-                  key={lang.code}
-                  type="button"
-                  onClick={() => {
-                    setLanguage(lang.code);
-                    setShowLangDropdown(false);
-                  }}
-                  className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg transition cursor-pointer ${
-                    language === lang.code
-                      ? 'bg-[#1E293B] text-[#E25B26] font-semibold'
-                      : 'text-[#CBD5E1] hover:bg-[#1E293B]/60'
-                  }`}
-                >
-                  <div className="flex items-center gap-1.5">
-                    <span>{lang.flag}</span>
-                    <span>{lang.name}</span>
-                  </div>
-                  {language === lang.code && <Check className="w-3.5 h-3.5 text-[#E25B26]" />}
-                </button>
-              ))}
-            </div>
-          )}
+          {/* Language Switcher Dropdown */}
+          <div className="relative" ref={langDropdownRef}>
+            <button
+              type="button"
+              onClick={() => setShowLangDropdown(!showLangDropdown)}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[#131B2A] hover:bg-[#1E293B] border border-[#1E293B] text-xs font-medium text-[#CBD5E1] transition cursor-pointer"
+            >
+              <span>{currentLangObj.flag}</span>
+              <span className="text-xs uppercase font-mono">{currentLangObj.code}</span>
+              <ChevronDown className="w-3.5 h-3.5 text-[#CBD5E1]" />
+            </button>
+
+            {showLangDropdown && (
+              <div className={`absolute ${isRtl ? 'start-0' : 'end-0'} top-10 w-36 bg-[#131B2A] border border-[#1E293B] rounded-xl shadow-xl p-1 z-50 text-xs`}>
+                {SUPPORTED_LANGUAGES.map((lang) => (
+                  <button
+                    key={lang.code}
+                    type="button"
+                    onClick={() => {
+                      setLanguage(lang.code);
+                      setShowLangDropdown(false);
+                    }}
+                    className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg transition cursor-pointer ${
+                      language === lang.code
+                        ? 'bg-[#1E293B] text-[#E25B26] font-semibold'
+                        : 'text-[#CBD5E1] hover:bg-[#1E293B]/60'
+                    }`}
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <span>{lang.flag}</span>
+                      <span>{lang.name}</span>
+                    </div>
+                    {language === lang.code && <Check className="w-3.5 h-3.5 text-[#E25B26]" />}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </header>
 

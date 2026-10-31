@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import {
   Sparkles,
   TrendingUp,
@@ -11,6 +11,8 @@ import {
 } from 'lucide-react';
 import { useLanguage } from '../i18n/translations';
 import { SUPPORTED_LANGUAGES } from '../i18n/config';
+import { LocalizedLink } from './LocalizedLink';
+import { ThemeToggleButton } from './ThemeToggleButton';
 import { HeroSection } from './home/HeroSection';
 import { PublicFooter } from './PublicFooter';
 
@@ -181,44 +183,44 @@ export const HomeLandingPage: React.FC = () => {
       <header className="w-full border-b border-[#1E293B] bg-[#0D131E]/95 backdrop-blur-md sticky top-0 z-40">
         <div className="max-w-7xl mx-auto h-16 px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-4">
           {/* Brand Logo (Right in RTL / Left in LTR) */}
-          <Link to="/home" className="flex items-center shrink-0">
+          <LocalizedLink to="/home" className="flex items-center shrink-0">
             <img
               src="/assets/brand/logo.jpg"
               alt="CodWorth"
               className="h-10 w-auto object-contain rounded-lg"
             />
-          </Link>
+          </LocalizedLink>
 
           {/* Center Nav Links */}
           <nav className="hidden md:flex items-center gap-7 text-sm font-semibold text-[#CBD5E1]">
-            <Link
+            <LocalizedLink
               to="/home"
               className="text-[#F8FAFC] hover:text-[#E25B26] transition"
             >
               {t['home.hero.nav.home']}
-            </Link>
-            <Link
+            </LocalizedLink>
+            <LocalizedLink
               to="/home#features"
               onClick={handleFeaturesClick}
               className="text-[#CBD5E1] hover:text-[#F8FAFC] transition"
             >
               {t['home.hero.nav.features']}
-            </Link>
-            <Link
+            </LocalizedLink>
+            <LocalizedLink
               to="/pricing"
               className="text-[#CBD5E1] hover:text-[#F8FAFC] transition"
             >
               {t['home.hero.nav.pricing']}
-            </Link>
-            <Link
+            </LocalizedLink>
+            <LocalizedLink
               to="/login"
               className="text-[#CBD5E1] hover:text-[#F8FAFC] transition"
             >
               {t['home.hero.nav.templates']}
-            </Link>
+            </LocalizedLink>
           </nav>
 
-          {/* Far Side: Language Switcher + Ghost Login + Solid Accent Signup */}
+          {/* Far Side: Language Switcher + Theme Toggle + Ghost Login + Solid Accent Signup */}
           <div className="flex items-center gap-2.5 shrink-0">
             <div
               dir="ltr"
@@ -240,19 +242,22 @@ export const HomeLandingPage: React.FC = () => {
               ))}
             </div>
 
-            <Link
+            {/* Global Theme Toggle Button */}
+            <ThemeToggleButton />
+
+            <LocalizedLink
               to="/login"
               className="px-3.5 py-2 rounded-xl border border-transparent hover:border-[#334155] hover:bg-[#131B2A] text-[#CBD5E1] hover:text-[#F8FAFC] text-xs sm:text-[13px] font-semibold transition"
             >
               {t['home.hero.nav.login']}
-            </Link>
+            </LocalizedLink>
 
-            <Link
+            <LocalizedLink
               to="/login?mode=register"
               className="px-4 py-2 rounded-xl bg-[#E25B26] hover:bg-[#F16F3C] text-[#F8FAFC] text-xs sm:text-[13px] font-bold shadow-md transition"
             >
               {t['home.hero.nav.signup']}
-            </Link>
+            </LocalizedLink>
           </div>
         </div>
       </header>
@@ -351,7 +356,7 @@ export const HomeLandingPage: React.FC = () => {
 
                     <div className="pt-2 border-t border-[#1E293B]/80 flex items-center justify-between text-xs font-bold text-[#CBD5E1]">
                       <span>CodWorth Pro Engine</span>
-                      <Link
+                      <LocalizedLink
                         to="/login?mode=register"
                         className="text-[#E25B26] hover:underline"
                       >
@@ -360,7 +365,7 @@ export const HomeLandingPage: React.FC = () => {
                           : language === 'fr'
                           ? 'Essayer gratuitement →'
                           : 'Try for free →'}
-                      </Link>
+                      </LocalizedLink>
                     </div>
                   </div>
                 );

@@ -1,11 +1,12 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Mail, MessageCircle, MapPin, ShieldCheck, FileText, Lock, Home } from 'lucide-react';
-
+import { LocalizedLink } from './LocalizedLink';
+import { useLocalizedNavigate } from '../hooks/useLocalizedNavigate';
+import { useLanguage } from '../i18n/translations';
 import { FloatingWhatsApp } from './FloatingWhatsApp';
 
 interface PublicFooterProps {
-  onNavigate?: (path: '/' | '/contact' | '/terms' | '/privacy') => void;
+  onNavigate?: (path: string) => void;
   showWhatsAppFloat?: boolean;
 }
 
@@ -17,17 +18,16 @@ export const PublicFooter: React.FC<PublicFooterProps> = ({
   onNavigate,
   showWhatsAppFloat = false,
 }) => {
-  const navigate = useNavigate();
+  const navigate = useLocalizedNavigate();
+  const { dir } = useLanguage();
 
   const handleLinkClick = (
     e: React.MouseEvent<HTMLAnchorElement>,
-    targetPath: '/' | '/contact' | '/terms' | '/privacy'
+    targetPath: string
   ) => {
-    e.preventDefault();
     if (onNavigate) {
+      e.preventDefault();
       onNavigate(targetPath);
-    } else {
-      navigate(targetPath);
     }
   };
 
@@ -36,15 +36,15 @@ export const PublicFooter: React.FC<PublicFooterProps> = ({
       {showWhatsAppFloat && <FloatingWhatsApp />}
 
       <footer
-        dir="rtl"
+        dir={dir}
         className="border-t border-[#1E293B] bg-[#0D131E] text-[#CBD5E1] pt-12 pb-8 px-4 sm:px-8 mt-auto print:hidden font-sans"
       >
         <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-12 gap-8 pb-10 border-b border-[#1E293B]">
           {/* Brand Column */}
           <div className="md:col-span-5 space-y-3.5">
-            <a
-              href="/"
-              onClick={(e) => handleLinkClick(e, '/')}
+            <LocalizedLink
+              to="/home"
+              onClick={(e) => handleLinkClick(e, '/home')}
               className="inline-flex items-center gap-2.5 text-[#F8FAFC] hover:opacity-90 transition"
             >
               <img
@@ -52,7 +52,7 @@ export const PublicFooter: React.FC<PublicFooterProps> = ({
                 alt="CodWorth"
                 className="h-10 w-auto object-contain rounded-lg"
               />
-            </a>
+            </LocalizedLink>
 
             <p className="text-xs text-[#CBD5E1] leading-relaxed max-w-sm">
               المنصة المغربية الأولى لبناء صفحات الهبوط الاحترافية ومضاعفة مبيعات الدفع عند الاستلام (COD)
@@ -72,44 +72,44 @@ export const PublicFooter: React.FC<PublicFooterProps> = ({
             </h3>
             <ul className="space-y-2.5 text-xs">
               <li>
-                <a
-                  href="/"
-                  onClick={(e) => handleLinkClick(e, '/')}
+                <LocalizedLink
+                  to="/home"
+                  onClick={(e) => handleLinkClick(e, '/home')}
                   className="inline-flex items-center gap-2 text-[#CBD5E1] hover:text-[#E25B26] transition"
                 >
                   <Home className="w-3.5 h-3.5 text-[#E25B26]" />
                   <span>الصفحة الرئيسية (المنصة)</span>
-                </a>
+                </LocalizedLink>
               </li>
               <li>
-                <a
-                  href="/contact"
+                <LocalizedLink
+                  to="/contact"
                   onClick={(e) => handleLinkClick(e, '/contact')}
                   className="inline-flex items-center gap-2 text-[#CBD5E1] hover:text-[#E25B26] transition"
                 >
                   <MessageCircle className="w-3.5 h-3.5 text-[#E25B26]" />
                   <span>تواصل معنا (الدعم الفني)</span>
-                </a>
+                </LocalizedLink>
               </li>
               <li>
-                <a
-                  href="/terms"
+                <LocalizedLink
+                  to="/terms"
                   onClick={(e) => handleLinkClick(e, '/terms')}
                   className="inline-flex items-center gap-2 text-[#CBD5E1] hover:text-[#E25B26] transition"
                 >
                   <FileText className="w-3.5 h-3.5 text-[#E25B26]" />
                   <span>شروط الاستخدام (Terms of Service)</span>
-                </a>
+                </LocalizedLink>
               </li>
               <li>
-                <a
-                  href="/privacy"
+                <LocalizedLink
+                  to="/privacy"
                   onClick={(e) => handleLinkClick(e, '/privacy')}
                   className="inline-flex items-center gap-2 text-[#CBD5E1] hover:text-[#E25B26] transition"
                 >
                   <Lock className="w-3.5 h-3.5 text-[#E25B26]" />
                   <span>سياسة الخصوصية (Privacy Policy)</span>
-                </a>
+                </LocalizedLink>
               </li>
             </ul>
           </div>
@@ -154,17 +154,29 @@ export const PublicFooter: React.FC<PublicFooterProps> = ({
             © {new Date().getFullYear()} CodWorth SARL. جميع الحقوق محفوظة • المملكة المغربية 🇲🇦
           </div>
           <div className="flex items-center gap-4">
-            <a href="/terms" onClick={(e) => handleLinkClick(e, '/terms')} className="hover:text-[#F8FAFC] transition">
+            <LocalizedLink
+              to="/terms"
+              onClick={(e) => handleLinkClick(e, '/terms')}
+              className="hover:text-[#F8FAFC] transition"
+            >
               الشروط والأحكام
-            </a>
+            </LocalizedLink>
             <span>•</span>
-            <a href="/privacy" onClick={(e) => handleLinkClick(e, '/privacy')} className="hover:text-[#F8FAFC] transition">
+            <LocalizedLink
+              to="/privacy"
+              onClick={(e) => handleLinkClick(e, '/privacy')}
+              className="hover:text-[#F8FAFC] transition"
+            >
               الخصوصية
-            </a>
+            </LocalizedLink>
             <span>•</span>
-            <a href="/contact" onClick={(e) => handleLinkClick(e, '/contact')} className="hover:text-[#F8FAFC] transition">
+            <LocalizedLink
+              to="/contact"
+              onClick={(e) => handleLinkClick(e, '/contact')}
+              className="hover:text-[#F8FAFC] transition"
+            >
               الدعم الفني
-            </a>
+            </LocalizedLink>
           </div>
         </div>
       </footer>

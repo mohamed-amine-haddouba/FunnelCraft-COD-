@@ -48,6 +48,7 @@ import { VerifyEmailPage } from './components/VerifyEmailPage';
 import { HomeLandingPage } from './components/HomeLandingPage';
 import { LanguageProvider, useLanguage } from './i18n/translations';
 import { isReservedRootPath, isValidLanguage, DEFAULT_LANGUAGE } from './i18n/config';
+import { useLocalizedNavigate } from './hooks/useLocalizedNavigate';
 import { StoredPage } from './types/user';
 import { SubscriptionPlanId } from './types/orders';
 import {
@@ -1912,7 +1913,7 @@ function RootRedirect() {
 
 function LoginRoute() {
   const { isLoggedIn, user, isLoading } = useAuth();
-  const navigate = useNavigate();
+  const navigate = useLocalizedNavigate();
 
   if (isLoading) {
     return (
@@ -1946,10 +1947,10 @@ function LoginRoute() {
 }
 
 function ContactRoute() {
-  const navigate = useNavigate();
+  const navigate = useLocalizedNavigate();
   return (
     <ContactPage
-      onBackToHome={() => navigate('/')}
+      onBackToHome={() => navigate('/home')}
       onNavigateToTerms={() => navigate('/terms')}
       onNavigateToPrivacy={() => navigate('/privacy')}
     />
@@ -1957,10 +1958,10 @@ function ContactRoute() {
 }
 
 function TermsRoute() {
-  const navigate = useNavigate();
+  const navigate = useLocalizedNavigate();
   return (
     <TermsPage
-      onBackToHome={() => navigate('/')}
+      onBackToHome={() => navigate('/home')}
       onNavigateToContact={() => navigate('/contact')}
       onNavigateToPrivacy={() => navigate('/privacy')}
     />
@@ -1968,10 +1969,10 @@ function TermsRoute() {
 }
 
 function PrivacyRoute() {
-  const navigate = useNavigate();
+  const navigate = useLocalizedNavigate();
   return (
     <PrivacyPolicyPage
-      onBackToHome={() => navigate('/')}
+      onBackToHome={() => navigate('/home')}
       onNavigateToTerms={() => navigate('/terms')}
       onNavigateToContact={() => navigate('/contact')}
     />
@@ -1979,7 +1980,7 @@ function PrivacyRoute() {
 }
 
 function PricingRoute() {
-  const navigate = useNavigate();
+  const navigate = useLocalizedNavigate();
   const { user, isLoggedIn } = useAuth();
   return (
     <PricingPage
@@ -1995,6 +1996,17 @@ function PricingRoute() {
 }
 
 function PublicRoutes() {
+  const { lang } = useParams<{ lang?: string }>();
+  const location = useLocation();
+
+  // Guard: if lang is not supported (e.g. /de/home), gracefully redirect to DEFAULT_LANGUAGE
+  if (!lang || !isValidLanguage(lang)) {
+    const segments = location.pathname.split('/').filter(Boolean);
+    const subpath = segments.length > 1 ? segments.slice(1).join('/') : 'home';
+    const target = `/${DEFAULT_LANGUAGE}/${subpath}${location.search}${location.hash}`;
+    return <Navigate to={target} replace />;
+  }
+
   return (
     <Routes>
       <Route path="/" element={<RootRedirect />} />
@@ -2006,7 +2018,6 @@ function PublicRoutes() {
       <Route path="/contact" element={<ContactRoute />} />
       <Route path="/terms" element={<TermsRoute />} />
       <Route path="/privacy" element={<PrivacyRoute />} />
-      <Route path="/p/:slug" element={<PublicFunnelPage />} />
       <Route path="*" element={<NotFoundPage />} />
     </Routes>
   );

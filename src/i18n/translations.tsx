@@ -1001,6 +1001,11 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       localStorage.setItem('funnelcraft_lang', newLang);
     } catch (_) {}
 
+    // Immediately update document dir and lang for instant RTL/LTR transitions
+    const newConfig = getLanguageConfig(newLang);
+    document.documentElement.dir = newConfig.dir;
+    document.documentElement.lang = newLang;
+
     const currentPath = location.pathname;
 
     // If currently on a reserved root path (e.g. /dashboard or /sandbox), do NOT prefix with language

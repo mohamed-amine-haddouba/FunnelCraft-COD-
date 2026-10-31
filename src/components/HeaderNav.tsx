@@ -31,14 +31,12 @@ import {
   Undo2,
   Redo2,
   ArrowRight,
-  Sun,
-  Moon,
 } from 'lucide-react';
 import { ALL_PRESET_TEMPLATES } from '../data/defaultTemplates';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../i18n/translations';
 import { SUPPORTED_LANGUAGES } from '../i18n/config';
-import { useTheme } from '../context/ThemeContext';
+import { ThemeToggleButton } from './ThemeToggleButton';
 import { SubscriptionPlanId } from '../types/orders';
 
 export type WorkspaceTab =
@@ -138,7 +136,6 @@ export const HeaderNav: React.FC<Props> = ({
     userPayments,
   } = useAuth();
   const { language, setLanguage, t } = useLanguage();
-  const { theme, toggleTheme } = useTheme();
 
   const pendingPaymentsCount = userPayments.filter((r) => r.status === 'pending').length;
 
@@ -412,19 +409,7 @@ export const HeaderNav: React.FC<Props> = ({
           )}
 
           {/* Global Theme Toggle (Sun/Moon) */}
-          <button
-            type="button"
-            onClick={toggleTheme}
-            title={theme === 'dark' ? 'تبديل إلى الوضع النهاري (Light Mode)' : 'تبديل إلى الوضع الليلي (Dark Mode)'}
-            aria-label="Toggle theme"
-            className="flex items-center justify-center w-8 h-8 rounded-lg bg-[#131B2A] hover:bg-[#1E293B] border border-[#1E293B] hover:border-[#334155] text-[#CBD5E1] hover:text-[#E25B26] transition-all duration-200 cursor-pointer shrink-0 shadow-xs"
-          >
-            {theme === 'dark' ? (
-              <Sun className="w-4 h-4 text-[#E25B26] transition-transform hover:rotate-45" />
-            ) : (
-              <Moon className="w-4 h-4 text-[#F8FAFC] transition-transform hover:-rotate-12" />
-            )}
-          </button>
+          <ThemeToggleButton />
 
           {/* User Avatar Dropdown Trigger (Settings, Admin, Profile, Logout) */}
           {isLoggedIn && user ? (

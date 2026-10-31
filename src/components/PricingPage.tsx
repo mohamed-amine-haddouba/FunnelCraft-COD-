@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { LocalizedLink } from './LocalizedLink';
 import { PayPalScriptProvider, PayPalButtons } from '@paypal/react-paypal-js';
 import {
   Crown,
@@ -546,39 +546,39 @@ export const PricingPage: React.FC<PricingPageProps> = ({
       {!isLoggedIn && (
         <header className="w-full border-b border-[#1E293B] bg-[#0D131E]/95 backdrop-blur-md sticky top-0 z-40">
           <div className="max-w-7xl mx-auto h-16 px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-4">
-            <Link to="/home" className="flex items-center shrink-0">
+            <LocalizedLink to="/home" className="flex items-center shrink-0">
               <img
                 src="/assets/brand/logo.jpg"
                 alt="CodWorth"
                 className="h-10 w-auto object-contain rounded-lg"
               />
-            </Link>
+            </LocalizedLink>
 
             <nav className="hidden md:flex items-center gap-7 text-sm font-semibold text-[#CBD5E1]">
-              <Link
+              <LocalizedLink
                 to="/home"
                 className="text-[#CBD5E1] hover:text-[#F8FAFC] transition"
               >
                 {t['home.hero.nav.home']}
-              </Link>
-              <Link
+              </LocalizedLink>
+              <LocalizedLink
                 to="/home#features"
                 className="text-[#CBD5E1] hover:text-[#F8FAFC] transition"
               >
                 {t['home.hero.nav.features']}
-              </Link>
-              <Link
+              </LocalizedLink>
+              <LocalizedLink
                 to="/pricing"
                 className="text-[#F8FAFC] hover:text-[#E25B26] transition"
               >
                 {t['home.hero.nav.pricing']}
-              </Link>
-              <Link
+              </LocalizedLink>
+              <LocalizedLink
                 to="/login"
                 className="text-[#CBD5E1] hover:text-[#F8FAFC] transition"
               >
                 {t['home.hero.nav.templates']}
-              </Link>
+              </LocalizedLink>
             </nav>
 
             <div className="flex items-center gap-2.5 shrink-0">
@@ -602,19 +602,19 @@ export const PricingPage: React.FC<PricingPageProps> = ({
                 ))}
               </div>
 
-              <Link
+              <LocalizedLink
                 to="/login"
                 className="px-3.5 py-2 rounded-xl border border-transparent hover:border-[#334155] hover:bg-[#131B2A] text-[#CBD5E1] hover:text-[#F8FAFC] text-xs sm:text-[13px] font-semibold transition"
               >
                 {t['home.hero.nav.login']}
-              </Link>
+              </LocalizedLink>
 
-              <Link
+              <LocalizedLink
                 to="/login?mode=register"
                 className="px-4 py-2 rounded-xl bg-[#E25B26] hover:bg-[#F16F3C] text-[#F8FAFC] text-xs sm:text-[13px] font-bold shadow-md transition"
               >
                 {t['home.hero.nav.signup']}
-              </Link>
+              </LocalizedLink>
             </div>
           </div>
         </header>
