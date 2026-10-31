@@ -213,6 +213,21 @@ export interface Translations {
   roleMerchantStarter: string;
   roleMerchantFree: string;
   impersonationReturnBtn: string;
+
+  // Public Landing Page Hero Section
+  'home.hero.badge': string;
+  'home.hero.headlineLine1': string;
+  'home.hero.headlineLine2Accent': string;
+  'home.hero.subheadline': string;
+  'home.hero.ctaPrimary': string;
+  'home.hero.ctaSecondary': string;
+  'home.hero.socialProof': string;
+  'home.hero.revenueCardLabel': string;
+  'home.hero.revenueCardValue': string;
+  'home.hero.productCardLabel': string;
+  'home.hero.productCardValue': string;
+  'home.hero.nav.login': string;
+  'home.hero.nav.signup': string;
 }
 
 export const translations: Record<Language, Translations> = {
@@ -427,6 +442,21 @@ export const translations: Record<Language, Translations> = {
     roleMerchantStarter: '💄 تاجر Starter (سلمى)',
     roleMerchantFree: '🛒 تاجر مجاني (كريم)',
     impersonationReturnBtn: '↩️ العودة للوحة تحكم المالك (Admin)',
+
+    // Public Landing Page Hero Section (Arabic)
+    'home.hero.badge': '✨ المنصة المغربية الأولى للدفع عند الاستلام (COD)',
+    'home.hero.headlineLine1': 'أنشئ صفحات هبوط COD احترافية في دقائق',
+    'home.hero.headlineLine2Accent': 'وضاعف مبيعاتك',
+    'home.hero.subheadline': 'صمم صفحات هبوط عالية التحويل لبيع منتجاتك بالدفع عند الاستلام بالمغرب. بدون الحاجة لخبرة في البرمجة، وكل سهولة من هاتفك أو حاسوبك.',
+    'home.hero.ctaPrimary': 'ابدأ تجربتك المجانية الآن',
+    'home.hero.ctaSecondary': 'شاهد كيف يعمل',
+    'home.hero.socialProof': '+5,000 تاجر مغربي يثق بنا',
+    'home.hero.revenueCardLabel': 'الطلبات اليومية',
+    'home.hero.revenueCardValue': '12,450 درهم',
+    'home.hero.productCardLabel': 'العرض على المتن',
+    'home.hero.productCardValue': '249 درهم',
+    'home.hero.nav.login': 'تسجيل الدخول',
+    'home.hero.nav.signup': 'أنشئ حسابك مجاناً',
   },
 
   fr: {
@@ -640,6 +670,21 @@ export const translations: Record<Language, Translations> = {
     roleMerchantStarter: '💄 Marchande Starter (Salma)',
     roleMerchantFree: '🛒 Marchand Gratuit (Karim)',
     impersonationReturnBtn: '↩️ Retour au Tableau Admin',
+
+    // Public Landing Page Hero Section (French)
+    'home.hero.badge': '✨ La 1ère plateforme marocaine pour le COD',
+    'home.hero.headlineLine1': 'Créez des landing pages COD professionnelles en quelques minutes',
+    'home.hero.headlineLine2Accent': 'et multipliez vos ventes',
+    'home.hero.subheadline': 'Concevez des pages à haute conversion pour vendre vos produits en paiement à la livraison au Maroc. Sans coder, depuis votre téléphone ou ordinateur.',
+    'home.hero.ctaPrimary': 'Démarrer l\'essai gratuit',
+    'home.hero.ctaSecondary': 'Voir comment ça marche',
+    'home.hero.socialProof': '+5 000 marchands marocains nous font confiance',
+    'home.hero.revenueCardLabel': 'Commandes du jour',
+    'home.hero.revenueCardValue': '12 450 MAD',
+    'home.hero.productCardLabel': 'Offre en cours',
+    'home.hero.productCardValue': '249 MAD',
+    'home.hero.nav.login': 'Connexion',
+    'home.hero.nav.signup': 'Créer un compte',
   },
 
   en: {
@@ -853,6 +898,21 @@ export const translations: Record<Language, Translations> = {
     roleMerchantStarter: '💄 Starter Merchant (Salma)',
     roleMerchantFree: '🛒 Free Merchant (Karim)',
     impersonationReturnBtn: '↩️ Return to Admin Owner Dashboard',
+
+    // Public Landing Page Hero Section (English)
+    'home.hero.badge': '✨ Morocco\'s #1 COD platform',
+    'home.hero.headlineLine1': 'Build professional COD landing pages in minutes',
+    'home.hero.headlineLine2Accent': 'and multiply your sales',
+    'home.hero.subheadline': 'Design high-converting landing pages to sell your products via Cash on Delivery in Morocco. No coding needed, from your phone or computer.',
+    'home.hero.ctaPrimary': 'Start your free trial',
+    'home.hero.ctaSecondary': 'See how it works',
+    'home.hero.socialProof': '+5,000 Moroccan merchants trust us',
+    'home.hero.revenueCardLabel': 'Today\'s orders',
+    'home.hero.revenueCardValue': '12,450 MAD',
+    'home.hero.productCardLabel': 'Current offer',
+    'home.hero.productCardValue': '249 MAD',
+    'home.hero.nav.login': 'Sign In',
+    'home.hero.nav.signup': 'Create account',
   },
 };
 
