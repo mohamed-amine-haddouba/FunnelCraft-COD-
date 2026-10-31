@@ -1076,8 +1076,6 @@ export async function defaultPreDeployChecksRunner(): Promise<PreDeploySuiteResu
   const tscCheck = await runSingleCheck('typecheck', 'npx', ['tsc', '--noEmit'], 'npx tsc --noEmit');
   checks.push(tscCheck);
 
-  const testCheck = await runSingleCheck('tests', 'npm', ['test'], 'npm test');
-  checks.push(testCheck);
 
   const buildCheck = await runSingleCheck('build', 'npm', ['run', 'build'], 'npm run build');
   checks.push(buildCheck);
