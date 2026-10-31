@@ -9,8 +9,10 @@ import {
   Copy,
   CheckCircle2,
   Lock,
+  BarChart3,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { AnalyticsApiResponse, EMPTY_ANALYTICS_MESSAGE_AR } from './AnalyticsDashboard';
 
 export interface SecurityContextPayload {
   ok?: boolean;
@@ -227,9 +229,76 @@ export const UserIpTransparencyWidget: React.FC<UserIpTransparencyWidgetProps> =
 };
 
 export const Dashboard: React.FC = () => {
+  const { token } = useAuth();
+  const [analytics, setAnalytics] = useState<AnalyticsApiResponse | null>(null);
+  const [isLoadingAnalytics, setIsLoadingAnalytics] = useState<boolean>(true);
+
+  useEffect(() => {
+    const authToken = token || localStorage.getItem('funnelcraft_auth_token');
+    fetch('/api/analytics', {
+      headers: {
+        'Content-Type': 'application/json',
+        ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+      },
+    })
+      .then((res) => res.json())
+      .then((data: AnalyticsApiResponse) => {
+        if (data && data.success) {
+          setAnalytics(data);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setIsLoadingAnalytics(false));
+  }, [token]);
+
+  const hasAnalyticsData =
+    Boolean(analytics?.hasData) &&
+    ((analytics?.totalOrders ?? 0) > 0 ||
+      (analytics?.totalVisitors ?? 0) > 0 ||
+      (analytics?.topFunnels?.length ?? 0) > 0);
+
   return (
     <div className="max-w-4xl mx-auto p-4 md:p-6 space-y-6">
       <UserIpTransparencyWidget />
+
+      <div
+        dir="rtl"
+        className="bg-slate-900/70 border border-slate-800 rounded-xl p-5 text-right space-y-3"
+      >
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-bold text-white flex items-center gap-2">
+            <BarChart3 className="w-4 h-4 text-emerald-400" />
+            <span>ملخص الإحصائيات الحقيقية</span>
+          </h3>
+        </div>
+
+        {!isLoadingAnalytics && !hasAnalyticsData ? (
+          <div className="py-6 text-center text-xs text-slate-300">
+            {EMPTY_ANALYTICS_MESSAGE_AR}
+          </div>
+        ) : (
+          <div className="grid grid-cols-3 gap-3 text-xs">
+            <div className="p-3 rounded-lg bg-slate-950 border border-slate-800">
+              <div className="text-slate-400">الزوار</div>
+              <div className="text-lg font-bold text-white mt-0.5">
+                {analytics?.totalVisitors ?? 0}
+              </div>
+            </div>
+            <div className="p-3 rounded-lg bg-slate-950 border border-slate-800">
+              <div className="text-slate-400">الطلبات</div>
+              <div className="text-lg font-bold text-emerald-400 mt-0.5">
+                {analytics?.totalOrders ?? 0}
+              </div>
+            </div>
+            <div className="p-3 rounded-lg bg-slate-950 border border-slate-800">
+              <div className="text-slate-400">معدل التحويل</div>
+              <div className="text-lg font-bold text-white mt-0.5">
+                {analytics?.conversionRate ?? 0}%
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 };

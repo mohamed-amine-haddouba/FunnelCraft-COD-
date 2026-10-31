@@ -4,6 +4,7 @@ dotenv.config();
 
 const TURNSTILE_VERIFY_URL = 'https://challenges.cloudflare.com/turnstile/v0/siteverify';
 const RECAPTCHA_VERIFY_URL = 'https://www.google.com/recaptcha/api/siteverify';
+const DEFAULT_OWNER_EMAIL = 'naadianajah2020@gmail.com';
 
 export interface TurnstileVerifyResponse {
   success: boolean;
@@ -24,6 +25,29 @@ export interface RecaptchaVerifyResponse {
 }
 
 /**
+ * Checks whether CAPTCHA should be bypassed for the Platform Owner / Admin account.
+ * CRITICAL: Even if BYPASS_CAPTCHA is false, if the user logging in is the Owner
+ * (naadianajah2020@gmail.com) or role === 'admin', bypass the CAPTCHA check and return true.
+ */
+export function isAdminCaptchaBypass(email?: string | null, role?: string | null): boolean {
+  const normalizedRole = (role || '').trim().toLowerCase();
+  if (normalizedRole === 'admin') {
+    return true;
+  }
+
+  const normalizedEmail = (email || '').trim().toLowerCase();
+  if (!normalizedEmail) {
+    return false;
+  }
+
+  const configuredOwner = (process.env.OWNER_EMAIL || DEFAULT_OWNER_EMAIL).trim().toLowerCase();
+  return (
+    normalizedEmail === DEFAULT_OWNER_EMAIL ||
+    (configuredOwner.length > 0 && normalizedEmail === configuredOwner)
+  );
+}
+
+/**
  * Extracts the client IP address from an Express request, prioritizing Cloudflare / proxy headers.
  */
 export function extractClientIp(req: {
@@ -39,7 +63,8 @@ export function extractClientIp(req: {
   if (typeof forwarded === 'string' && forwarded.trim()) {
     return forwarded.split(',')[0].trim();
   }
-  if (Array.isArray(forwarded) && forwarded.length > 0) {
+  if (Array.isArray(forwarded) && forwarded.length 
+    > 0) {
     return forwarded[0].trim();
   }
 
@@ -48,17 +73,24 @@ export function extractClientIp(req: {
 
 /**
  * Verifies a Google reCAPTCHA v3 token against Google's siteverify endpoint.
- *
- * - If RECAPTCHA_SECRET_KEY is not configured in environment variables, logs a warning
- *   and returns true so local development/testing is not blocked.
- * - Enforces a minimum human score threshold (default 0.5).
  */
 export async function verifyRecaptchaToken(
   token: string,
   remoteIp?: string,
   expectedAction?: string,
-  minScore = 0.5
+  minScore = 0.5,
+  email?: string,
+  role?: string
 ): Promise<boolean> {
+  if (isAdminCaptchaBypass(email, role)) {
+    return true;
+  }
+
+  if (process.env.BYPASS_CAPTCHA === 'true') {
+    console.warn('[CAPTCHA] BYPASS_CAPTCHA=true is active. Bypassing reCAPTCHA verification.');
+    return true;
+  }
+
   const secretKey = (process.env.RECAPTCHA_SECRET_KEY || '').trim();
 
   if (!secretKey) {
@@ -135,19 +167,30 @@ export async function verifyRecaptchaToken(
 /**
  * Verifies a Cloudflare Turnstile token against Cloudflare's siteverify endpoint.
  *
- * - If TURNSTILE_SECRET_KEY is not configured in environment variables, logs a warning
- *   and returns true so local development/testing is not blocked.
- * - If token is missing when secret key is configured, returns false.
+ * - Reads TURNSTILE_SECRET_KEY from .env.
+ * - If process.env.BYPASS_CAPTCHA === 'true', logs a warning and returns true.
+ * - If the user is Owner (naadianajah2020@gmail.com) or role === 'admin', bypasses CAPTCHA and returns true.
  */
 export async function verifyTurnstileToken(
   token: string,
-  remoteIp?: string
+  remoteIp?: string,
+  email?: string,
+  role?: string
 ): Promise<boolean> {
+  if (isAdminCaptchaBypass(email, role)) {
+    return true;
+  }
+
   const secretKey = (process.env.TURNSTILE_SECRET_KEY || '').trim();
+
+  if (process.env.BYPASS_CAPTCHA === 'true') {
+    console.warn('[Turnstile] BYPASS_CAPTCHA=true is active in .env. Bypassing Turnstile verification.');
+    return true;
+  }
 
   // If RECAPTCHA_SECRET_KEY is configured instead of TURNSTILE_SECRET_KEY, delegate to reCAPTCHA v3
   if (!secretKey && (process.env.RECAPTCHA_SECRET_KEY || '').trim()) {
-    return verifyRecaptchaToken(token, remoteIp);
+    return verifyRecaptchaToken(token, remoteIp, undefined, 0.5, email, role);
   }
 
   // Graceful fallback when TURNSTILE_SECRET_KEY is not configured in dev/preview environment
@@ -210,7 +253,11 @@ export async function verifyTurnstileToken(
 }
 
 /**
- * Unified CAPTCHA verifier supporting both Google reCAPTCHA v3 and Cloudflare Turnstile.
+ * Unified CAPTCHA verifier supporting both Cloudflare Turnstile and Google reCAPTCHA v3.
+ * - Reads TURNSTILE_SECRET_KEY from .env.
+ * - If process.env.BYPASS_CAPTCHA === 'true', logs a warning and returns true.
+ * - CRITICAL: Even if BYPASS_CAPTCHA is false, if the user logging in is the Owner
+ *   (naadianajah2020@gmail.com) or role === 'admin', bypasses CAPTCHA and returns true.
  */
 export async function verifyCaptchaToken(options: {
   recaptchaToken?: string;
@@ -218,20 +265,45 @@ export async function verifyCaptchaToken(options: {
   captchaToken?: string;
   remoteIp?: string;
   expectedAction?: string;
+  email?: string | null;
+  role?: string | null;
 }): Promise<boolean> {
-  const hasRecaptchaSecret = Boolean((process.env.RECAPTCHA_SECRET_KEY || '').trim());
-  const hasTurnstileSecret = Boolean((process.env.TURNSTILE_SECRET_KEY || '').trim());
+  const turnstileSecretKey = (process.env.TURNSTILE_SECRET_KEY || '').trim();
+  const recaptchaSecretKey = (process.env.RECAPTCHA_SECRET_KEY || '').trim();
 
-  if (hasRecaptchaSecret) {
-    const tokenToVerify =
-      options.recaptchaToken || options.captchaToken || options.turnstileToken || '';
-    return verifyRecaptchaToken(tokenToVerify, options.remoteIp, options.expectedAction);
+  // 1. CRITICAL: Always bypass CAPTCHA for Owner (naadianajah2020@gmail.com) or Admin (role === 'admin')
+  if (isAdminCaptchaBypass(options.email, options.role)) {
+    return true;
   }
 
-  if (hasTurnstileSecret) {
+  // 2. Environment variable bypass (BYPASS_CAPTCHA=true)
+  if (process.env.BYPASS_CAPTCHA === 'true') {
+    console.warn('[CAPTCHA] BYPASS_CAPTCHA=true is enabled. Returning true without blocking login.');
+    return true;
+  }
+
+  if (turnstileSecretKey) {
     const tokenToVerify =
       options.turnstileToken || options.captchaToken || options.recaptchaToken || '';
-    return verifyTurnstileToken(tokenToVerify, options.remoteIp);
+    return verifyTurnstileToken(
+      tokenToVerify,
+      options.remoteIp,
+      options.email || undefined,
+      options.role || undefined
+    );
+  }
+
+  if (recaptchaSecretKey) {
+    const tokenToVerify =
+      options.recaptchaToken || options.captchaToken || options.turnstileToken || '';
+    return verifyRecaptchaToken(
+      tokenToVerify,
+      options.remoteIp,
+      options.expectedAction,
+      0.5,
+      options.email || undefined,
+      options.role || undefined
+    );
   }
 
   return true;

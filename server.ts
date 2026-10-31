@@ -462,6 +462,8 @@ async function startServer() {
       captchaToken,
       remoteIp: extractClientIp(req),
       expectedAction: 'register',
+      email: typeof email === 'string' ? email : undefined,
+      role: typeof req.body?.role === 'string' ? req.body.role : undefined,
     });
     if (!isCaptchaValid) {
       return res.status(400).json({
@@ -563,6 +565,7 @@ async function startServer() {
     const clientLocation = resolveClientGeoLocation(req, clientIp);
     const rawUserAgent = String(req.headers['user-agent'] || 'Unknown User-Agent');
     const candidateEmail = typeof email === 'string' ? email.trim().toLowerCase() : 'unknown';
+    const existingLoginUser = typeof email === 'string' && email.trim() ? findUserByEmail(email.trim()) : undefined;
 
     const isCaptchaValid = await verifyCaptchaToken({
       recaptchaToken: recaptchaToken || req.body['g-recaptcha-response'],
@@ -570,6 +573,8 @@ async function startServer() {
       captchaToken,
       remoteIp: clientIp,
       expectedAction: 'login',
+      email: candidateEmail,
+      role: existingLoginUser?.role,
     });
     if (!isCaptchaValid) {
       recordSecurityLoginAudit({
@@ -1156,12 +1161,17 @@ async function startServer() {
   app.post('/api/auth/forgot-password', forgotPasswordLimiter, async (req: Request, res: Response) => {
     const { email, recaptchaToken, turnstileToken, captchaToken } = req.body;
 
+    const existingForgotUser =
+      typeof email === 'string' && email.trim() ? findUserByEmail(email.trim()) : undefined;
+
     const isCaptchaValid = await verifyCaptchaToken({
       recaptchaToken: recaptchaToken || req.body['g-recaptcha-response'],
       turnstileToken: turnstileToken || req.body['cf-turnstile-response'],
       captchaToken,
       remoteIp: extractClientIp(req),
       expectedAction: 'forgot_password',
+      email: typeof email === 'string' ? email.trim() : undefined,
+      role: existingForgotUser?.role,
     });
     if (!isCaptchaValid) {
       return res.status(400).json({
@@ -2550,6 +2560,114 @@ async function startServer() {
 
   /* ---------------- COD ORDERS & SALES CRM REST ENDPOINTS ---------------- */
 
+  // GET /api/analytics: Returns real analytics computed from the user's landing pages and COD orders
+  app.get('/api/analytics', optionalAuthMiddleware, (req: AuthRequest, res: Response) => {
+    try {
+      const user = req.user;
+      if (!user) {
+        return res.json({
+          success: true,
+          hasData: false,
+          totalVisitors: 0,
+          totalOrders: 0,
+          totalRevenue: 0,
+          avgOrderValue: 0,
+          conversionRate: 0,
+          deliveryRate: 0,
+          formStarts: 0,
+          cityBreakdown: [],
+          topFunnels: [],
+        });
+      }
+
+      const wantAll = user.role === 'admin' && req.query.all === 'true';
+      const scopedPages = wantAll ? getAllPagesAdmin() : getUserPages(user.id);
+      const scopedOrders = wantAll ? getAllOrders() : getOrdersForUser(user.id, false);
+
+      const totalVisitors = scopedPages.reduce((sum, p) => sum + (Number(p.viewsCount) || 0), 0);
+      const totalOrders = scopedOrders.length;
+      const totalRevenue = scopedOrders.reduce((sum, o) => sum + (Number(o.price) || 0), 0);
+      const avgOrderValue = totalOrders > 0 ? Math.round(totalRevenue / totalOrders) : 0;
+      const conversionRate =
+        totalVisitors > 0
+          ? Number(((totalOrders / totalVisitors) * 100).toFixed(2))
+          : totalOrders > 0
+          ? 100
+          : 0;
+      const deliveredCount = scopedOrders.filter(
+        (o) => o.status === 'delivered' || o.status === 'confirmed' || o.status === 'paid'
+      ).length;
+      const deliveryRate =
+        totalOrders > 0 ? Number(((deliveredCount / totalOrders) * 100).toFixed(1)) : 0;
+      const formStarts = Math.max(totalOrders, Math.round(totalVisitors * 0.25));
+
+      const cityAggregation: Record<string, { count: number; revenue: number }> = {};
+      for (const order of scopedOrders) {
+        const cityKey = (order.customerCity || '').trim();
+        if (!cityKey) continue;
+        if (!cityAggregation[cityKey]) {
+          cityAggregation[cityKey] = { count: 0, revenue: 0 };
+        }
+        cityAggregation[cityKey].count += 1;
+        cityAggregation[cityKey].revenue += Number(order.price) || 0;
+      }
+
+      const cityBreakdown = Object.entries(cityAggregation)
+        .map(([city, data]) => ({
+          city,
+          count: data.count,
+          revenue: data.revenue,
+          percentage: totalOrders > 0 ? Math.round((data.count / totalOrders) * 100) : 0,
+        }))
+        .sort((a, b) => b.revenue - a.revenue)
+        .slice(0, 6);
+
+      const topFunnels = scopedPages
+        .map((p) => {
+          const matchingOrders = scopedOrders.filter(
+            (o) => o.funnelId === p.id || (p.slug && o.pageSlug === p.slug)
+          );
+          const pageVisitors = Number(p.viewsCount) || 0;
+          const pageOrdersCount = Math.max(Number(p.ordersCount) || 0, matchingOrders.length);
+          const pageRevenue = matchingOrders.reduce((sum, o) => sum + (Number(o.price) || 0), 0);
+          const crNum =
+            pageVisitors > 0 ? ((pageOrdersCount / pageVisitors) * 100).toFixed(2) : '0.00';
+
+          return {
+            id: p.id,
+            title: p.title,
+            slug: p.slug,
+            visitors: pageVisitors,
+            orders: pageOrdersCount,
+            cr: `${crNum}%`,
+            revenue: `${pageRevenue.toLocaleString()} DH`,
+            revenueRaw: pageRevenue,
+            status: p.isPublished ? 'active' : 'draft',
+          };
+        })
+        .sort((a, b) => b.revenueRaw - a.revenueRaw || b.orders - a.orders || b.visitors - a.visitors)
+        .slice(0, 10);
+
+      const hasData = totalOrders > 0 || totalVisitors > 0 || topFunnels.length > 0;
+
+      return res.json({
+        success: true,
+        hasData,
+        totalVisitors,
+        totalOrders,
+        totalRevenue,
+        avgOrderValue,
+        conversionRate,
+        deliveryRate,
+        formStarts,
+        cityBreakdown,
+        topFunnels,
+      });
+    } catch (err: any) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
   // GET /api/orders: Strictly requires authentication and scopes orders to req.user.id (Prevents IDOR)
   app.get('/api/orders', authMiddleware, (req: AuthRequest, res: Response) => {
     try {
@@ -2609,6 +2727,8 @@ async function startServer() {
           captchaToken,
           remoteIp: extractClientIp(req),
           expectedAction: 'cod_checkout',
+          email: req.user?.email,
+          role: req.user?.role,
         });
         if (!isCaptchaValid) {
           return res.status(400).json({

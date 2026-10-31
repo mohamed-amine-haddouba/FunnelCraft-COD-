@@ -1,5 +1,6 @@
 export const VPS_IP = '217.160.116.237';
 export const CNAME_TARGET = 'domains.codworth.me';
+export const PLATFORM_OWNER_EMAIL = 'naadianajah2020@gmail.com';
 
 export type PlanTier = 'free' | 'starter' | 'pro' | 'enterprise';
 export type PlanFeature =
@@ -60,17 +61,35 @@ export function normalizePlanId(planId?: string | null): PlanTier {
   return 'free';
 }
 
+export function isOwnerOrAdminAccount(
+  role?: string | null,
+  email?: string | null,
+  ownerEmail?: string | null
+): boolean {
+  const normalizedRole = (role || '').toString().trim().toLowerCase();
+  if (normalizedRole === 'admin') {
+    return true;
+  }
+
+  const normalizedEmail = (email || '').toString().trim().toLowerCase();
+  if (!normalizedEmail) {
+    return false;
+  }
+
+  const normalizedOwner = (ownerEmail || PLATFORM_OWNER_EMAIL).toString().trim().toLowerCase();
+  return (
+    normalizedEmail === PLATFORM_OWNER_EMAIL ||
+    (normalizedOwner.length > 0 && normalizedEmail === normalizedOwner)
+  );
+}
+
 export function getPlanCapabilities(
   planId?: string | null,
   role?: string | null,
   email?: string | null,
   ownerEmail?: string | null
 ): PlanCapabilities {
-  const normalizedOwner = (ownerEmail || 'naadianajah2020@gmail.com').trim().toLowerCase();
-  const normalizedEmail = (email || '').trim().toLowerCase();
-  const isAdmin =
-    role === 'admin' ||
-    (normalizedEmail.length > 0 && normalizedEmail === normalizedOwner);
+  const isAdmin = isOwnerOrAdminAccount(role, email, ownerEmail);
 
   if (isAdmin) {
     return {
@@ -152,15 +171,16 @@ export function checkFeatureAccess(
   currentPagesCount = 0,
   ownerEmail?: string | null
 ): FeatureAccessResult {
+  const isAdmin = isOwnerOrAdminAccount(user?.role, user?.email, ownerEmail);
   const caps = getPlanCapabilities(user?.plan_id, user?.role, user?.email, ownerEmail);
 
-  if (caps.isAdmin) {
+  if (isAdmin || caps.isAdmin) {
     return {
       allowed: true,
       statusCode: 200,
       code: 'OK',
       feature,
-      effectivePlan: caps.effectivePlan,
+      effectivePlan: 'enterprise',
       requiredPlan: 'starter',
       maxPages: Infinity,
       currentPagesCount,

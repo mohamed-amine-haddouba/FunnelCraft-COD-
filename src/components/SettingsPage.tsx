@@ -65,10 +65,14 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
     logout,
   } = useAuth();
   const { t, dir, isRtl, language } = useLanguage();
+  const isAdminUser =
+    capabilities.isAdmin ||
+    user?.role === 'admin' ||
+    user?.email?.trim().toLowerCase() === 'naadianajah2020@gmail.com';
   const isProUser =
+    isAdminUser ||
     capabilities.canUseCustomDomain ||
     canUseCustomDomain ||
-    user?.role === 'admin' ||
     user?.plan_id === 'pro' ||
     user?.plan_id === 'enterprise' ||
     currentPlan === 'pro' ||
@@ -152,10 +156,10 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
       }
     } else {
       setSelectedPageId('');
-      setCustomDomain('');
-      setDomainStatus('not_connected');
+      setCustomDomain((prev) => prev || user?.custom_domain || '');
+      setDomainStatus(user?.custom_domain ? 'pending_dns' : 'not_connected');
     }
-  }, [userPages, selectedPageId]);
+  }, [userPages, selectedPageId, user?.custom_domain]);
 
   useEffect(() => {
     if (user) {
@@ -290,20 +294,14 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
     }
   };
 
-  // Save Custom Domain to Backend (`POST /api/pages/:id/custom-domain`)
+  // Save Custom Domain to Backend (`POST /api/pages/:id/custom-domain` or profile fallback if no page created yet)
   const handleSaveCustomDomain = async () => {
     if (!isProUser) {
-      onUpgradeClick?.();
-      return;
-    }
-    if (!selectedPageId) {
       setDomainFeedback({
         type: 'error',
-        message:
-          language === 'ar'
-            ? 'يرجى إنشاء وحفظ صفحة هبوط أولاً قبل ربط النطاق المخصص.'
-            : 'Please create and save a landing page first before connecting a custom domain.',
+        message: 'You need to upgrade to save',
       });
+      onUpgradeClick?.();
       return;
     }
     if (!customDomain.trim()) {
@@ -314,12 +312,39 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
       return;
     }
 
+    if (!selectedPageId) {
+      setIsSavingDomain(true);
+      setDomainFeedback(null);
+      const profileRes = await updateProfile({ custom_domain: customDomain.trim() });
+      setIsSavingDomain(false);
+      if (profileRes.success) {
+        setDomainStatus('pending_dns');
+        setDomainFeedback({
+          type: 'info',
+          message:
+            language === 'ar'
+              ? `تم حفظ النطاق (${customDomain.trim()}) في إعدادات حسابك بحالة "في انتظار DNS".`
+              : `Domain "${customDomain.trim()}" saved (Pending DNS).`,
+        });
+      } else {
+        setDomainFeedback({
+          type: 'error',
+          message:
+            profileRes.error ||
+            (language === 'ar'
+              ? 'يرجى إنشاء وحفظ صفحة هبوط أولاً قبل ربط النطاق المخصص.'
+              : 'Please create and save a landing page first before connecting a custom domain.'),
+        });
+      }
+      return;
+    }
+
     setIsSavingDomain(true);
     setDomainFeedback(null);
     const res = await savePageCustomDomain(selectedPageId, customDomain.trim());
     setIsSavingDomain(false);
 
-    if (res.isLimitReached) {
+    if (res.isLimitReached && !isAdminUser) {
       onUpgradeClick?.();
       return;
     }
@@ -657,34 +682,30 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
               </h2>
               <p className="text-xs text-slate-400 mt-0.5">{t.customDomainDesc}</p>
             </div>
-            {!isProUser && (
+            {!isProUser && !isAdminUser && (
               <button
                 type="button"
                 onClick={onUpgradeClick}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-300 text-xs font-bold transition cursor-pointer shrink-0"
               >
-                <Lock className="w-3.5 h-3.5 text-amber-400" />
-                <span>🔒 Upgrade Required ({planId.toUpperCase()} Plan)</span>
+                <Crown className="w-3.5 h-3.5 text-amber-400" />
+                <span>Upgrade to Pro ({planId.toUpperCase()} Plan)</span>
               </button>
             )}
           </div>
 
-          {/* Upgrade Required Banner for Free & Starter Plans */}
-          {!isProUser && (
+          {/* Upgrade Banner for Free & Starter Plans (Hidden for Admin) */}
+          {!isProUser && !isAdminUser && (
             <div className="p-4 rounded-xl bg-gradient-to-r from-amber-500/10 via-slate-900 to-amber-500/10 border border-amber-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div className="space-y-1">
                 <div className="text-xs font-bold text-amber-300 flex items-center gap-1.5">
                   <Crown className="w-4 h-4 text-amber-400" />
-                  <span>
-                    {language === 'ar'
-                      ? '🔒 الترقية مطلوبة: ربط النطاق المخصص متاح لمشتركي باقة Pro و Enterprise فقط'
-                      : '🔒 Upgrade Required: Custom Domains require the Pro or Enterprise plan'}
-                  </span>
+                  <span>You need to upgrade to save</span>
                 </div>
                 <p className="text-[11px] text-slate-300 leading-relaxed">
                   {language === 'ar'
-                    ? `باقتك الحالية (${planId.toUpperCase()}) لا تدعم ربط الدومين الخاص. قم بالترقية إلى باقة Pro لربط نطاقك الخاص وتفعيل شهادة SSL تلقائياً.`
-                    : `Your current plan (${planId.toUpperCase()}) does not include custom domains. Upgrade to Pro to connect your own domain with live DNS routing.`}
+                    ? `يمكنك تجربة كتابة النطاق المخصص أدناه بحرية. لحفظ النطاق وتفعيل التوجيه التلقائي وشهادة SSL، يرجى الترقية إلى باقة Pro.`
+                    : `You can test typing your custom domain below. You need to upgrade to save and activate live DNS routing.`}
                 </p>
               </div>
               <button
@@ -692,13 +713,13 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                 onClick={onUpgradeClick}
                 className="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-400 to-yellow-500 hover:from-amber-300 hover:to-yellow-400 text-slate-950 font-black text-xs shadow-lg transition cursor-pointer shrink-0"
               >
-                {language === 'ar' ? '🔒 ترقية الباقة الآن' : '🔒 Upgrade to Pro'}
+                {language === 'ar' ? 'ترقية الباقة الآن' : 'Upgrade to Pro'}
               </button>
             </div>
           )}
 
-          {/* Select Target Landing Page */}
-          <div className={!isProUser ? 'opacity-50 pointer-events-none select-none space-y-4' : 'space-y-4'}>
+          {/* Select Target Landing Page (Input and form always interactive) */}
+          <div className="space-y-4">
             <div>
               <label className="block text-xs font-medium text-slate-300 mb-1.5">
                 {language === 'ar'
@@ -708,8 +729,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
               {userPages.length === 0 ? (
                 <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-400">
                   {language === 'ar'
-                    ? 'لا توجد صفحات هبوط محفوظة في حسابك بعد. قم بإنشاء وحفظ صفحة هبوط أولاً من المحرر.'
-                    : 'No saved landing pages found in your account yet. Create and save a page in the builder first.'}
+                    ? 'لا توجد صفحات هبوط محفوظة في حسابك بعد. يمكنك كتابة وحفظ الدومين المخصص لحسابك الآن أو ربطه بصفحة لاحقاً.'
+                    : 'No saved landing pages yet. You can type and configure your custom domain below.'}
                 </div>
               ) : (
                 <select
@@ -722,7 +743,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                     setDomainStatus(found?.domainStatus || (found?.customDomain ? 'pending_dns' : 'not_connected'));
                     setDomainFeedback(null);
                   }}
-                  disabled={!isProUser}
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
                 >
                   {userPages.map((p) => (
@@ -784,18 +804,20 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                 <input
                   type="text"
                   dir="ltr"
+                  data-testid="custom-domain-input"
                   value={customDomain}
                   onChange={(e) => setCustomDomain(e.target.value)}
-                  disabled={!isProUser || userPages.length === 0}
+                  disabled={false}
                   placeholder="shop.yourdomain.com or yourdomain.com"
                   className="flex-1 bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-2 text-xs font-mono text-white placeholder:text-slate-500 focus:outline-none focus:border-emerald-500"
                 />
 
                 <button
                   type="button"
+                  data-testid="save-custom-domain-btn"
                   onClick={handleSaveCustomDomain}
-                  disabled={!isProUser || isSavingDomain || userPages.length === 0}
-                  className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-slate-950 transition cursor-pointer disabled:opacity-50"
+                  disabled={!isProUser || isSavingDomain}
+                  className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-slate-950 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Save className="w-3.5 h-3.5" />
                   <span>
@@ -810,8 +832,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                 <button
                   type="button"
                   onClick={handleVerifyDomain}
-                  disabled={!isProUser || isDomainVerifying || !customDomain.trim() || userPages.length === 0}
-                  className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white transition cursor-pointer disabled:opacity-50"
+                  disabled={!isProUser || isDomainVerifying || !customDomain.trim()}
+                  className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <RefreshCw className={`w-3.5 h-3.5 ${isDomainVerifying ? 'animate-spin text-emerald-400' : 'text-emerald-400'}`} />
                   <span>{isDomainVerifying ? (language === 'ar' ? 'جاري الفحص...' : 'Checking DNS...') : t.domainVerifyCta}</span>
@@ -828,6 +850,24 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                   </button>
                 )}
               </div>
+
+              {!isProUser && !isAdminUser && (
+                <div
+                  data-testid="upgrade-to-save-msg"
+                  className="text-xs font-semibold text-amber-400 flex items-center justify-between gap-2 pt-1"
+                >
+                  <span>You need to upgrade to save</span>
+                  {onUpgradeClick && (
+                    <button
+                      type="button"
+                      onClick={onUpgradeClick}
+                      className="underline hover:text-amber-300 cursor-pointer"
+                    >
+                      {language === 'ar' ? 'ترقية الحساب الآن' : 'Upgrade now'}
+                    </button>
+                  )}
+                </div>
+              )}
 
               {/* Clean Live DNS Feedback Box */}
               {domainFeedback && (

@@ -45,9 +45,11 @@ export const PublishModal: React.FC<PublishModalProps> = ({
   onPageUpdated,
 }) => {
   const {
+    user,
     isLoggedIn,
     planId,
     isPro,
+    isAdmin,
     canUseCustomDomain,
     pagesCreatedCount,
     maxFreePages,
@@ -58,6 +60,12 @@ export const PublishModal: React.FC<PublishModalProps> = ({
     savePageCustomDomain,
     verifyPageCustomDomain,
   } = useAuth();
+
+  const isAdminUser =
+    isAdmin ||
+    user?.role === 'admin' ||
+    user?.email?.trim().toLowerCase() === 'naadianajah2020@gmail.com';
+  const hasCustomDomainAccess = canUseCustomDomain || isAdminUser || isPro;
 
   const [activeTab, setActiveTab] = useState<'platform' | 'custom'>('platform');
   const [slug, setSlug] = useState('');
@@ -282,8 +290,8 @@ export const PublishModal: React.FC<PublishModalProps> = ({
       return;
     }
 
-    if (!canUseCustomDomain) {
-      onRequireUpgrade('ربط النطاق المخصص (Custom Domain) متاح فقط لمشتركي باقة Pro و Enterprise.');
+    if (!hasCustomDomainAccess) {
+      onRequireUpgrade('You need to upgrade to save');
       return;
     }
 
@@ -659,14 +667,14 @@ export const PublishModal: React.FC<PublishModalProps> = ({
         {/* Tab 2: Custom Domain Mapping */}
         {activeTab === 'custom' && (
           <div className="p-5 sm:p-6 overflow-y-auto space-y-5 flex-1">
-            {!canUseCustomDomain && (
+            {!hasCustomDomainAccess && !isAdminUser && (
               <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                 <div className="space-y-1">
                   <div className="text-xs font-black text-amber-900 flex items-center gap-1.5">
-                    <span>🔒 الترقية مطلوبة (Upgrade Required)</span>
+                    <span>You need to upgrade to save</span>
                   </div>
                   <p className="text-[11px] text-amber-800 leading-relaxed">
-                    ربط النطاق المخصص (Custom Domain) متاح فقط لمشتركي باقة Pro و Enterprise. باقتك الحالية هي ({planId.toUpperCase()}).
+                    يمكنك تجربة كتابة اسم الدومين أدناه بحرية. لحفظ النطاق وتفعيل التوجيه التلقائي، قم بالترقية إلى باقة Pro.
                   </p>
                 </div>
                 <button
@@ -676,12 +684,12 @@ export const PublishModal: React.FC<PublishModalProps> = ({
                   }
                   className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs shadow-sm transition cursor-pointer shrink-0"
                 >
-                  🔒 ترقية إلى باقة Pro
+                  ترقية إلى باقة Pro
                 </button>
               </div>
             )}
 
-            <div className={!canUseCustomDomain ? 'opacity-50 pointer-events-none select-none space-y-5' : 'space-y-5'}>
+            <div className="space-y-5">
               <div className="space-y-2">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <label className="block text-xs font-bold text-slate-700">
@@ -719,12 +727,17 @@ export const PublishModal: React.FC<PublishModalProps> = ({
                     type="text"
                     value={customDomain}
                     onChange={(e) => setCustomDomain(e.target.value)}
-                    disabled={!canUseCustomDomain}
+                    disabled={false}
                     placeholder="shop.yourbrand.ma أو yourbrand.com"
                     className="w-full ps-10 pe-4 py-2.5 rounded-2xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-emerald-500 font-mono text-xs outline-none transition"
                     dir="ltr"
                   />
                 </div>
+                {!hasCustomDomainAccess && !isAdminUser && (
+                  <p className="text-xs font-bold text-amber-600">
+                    You need to upgrade to save
+                  </p>
+                )}
                 <p className="text-[11px] text-slate-400">
                   أدخل النطاق الفرعي أو الدومين الرئيسي الذي تريد ربطه بصفحة الهبوط هذه.
                 </p>
@@ -834,7 +847,7 @@ export const PublishModal: React.FC<PublishModalProps> = ({
                 <button
                   type="button"
                   onClick={handleVerifyDns}
-                  disabled={!canUseCustomDomain || isVerifyingDns}
+                  disabled={!hasCustomDomainAccess || isVerifyingDns}
                   className="w-full sm:flex-1 py-3 px-4 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-800 font-bold text-xs transition flex items-center justify-center gap-2 cursor-pointer shadow-xs disabled:opacity-50"
                 >
                   {isVerifyingDns ? (
@@ -848,7 +861,7 @@ export const PublishModal: React.FC<PublishModalProps> = ({
                 <button
                   type="button"
                   onClick={handlePublish}
-                  disabled={!canUseCustomDomain || isPublishing}
+                  disabled={!hasCustomDomainAccess || isPublishing}
                   className="w-full sm:flex-1 py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs shadow-md shadow-emerald-600/20 transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                 >
                   {isPublishing ? (

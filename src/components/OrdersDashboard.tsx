@@ -55,9 +55,7 @@ const MOROCCAN_CITIES = [
 ];
 
 const SAMPLE_PRODUCTS = [
-  { name: 'ساعة ذكية Ultra Pro مقاومة للماء (شاشة AMOLED)', price: 299 },
-  { name: 'بروجيكتور سينمائي مصغر 4K Ultra HD المحمول', price: 499 },
-  { name: 'سماعات لاسلكية Pro عازلة للضوضاء ANC', price: 249 },
+  { name: 'سماعات لاسلكية عازلة للضوضاء ANC', price: 249 },
   { name: 'ماكينة حلاقة كهربائية Vintage T9 للرجال', price: 179 },
   { name: 'حامل هاتف ذكي مغناطيسي للسيارة 360°', price: 149 },
 ];

@@ -48,6 +48,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
   onNavigateToPrivacy,
 }) => {
   const {
+    user,
     login,
     register,
     loginWithGoogle,
@@ -86,6 +87,13 @@ export const AuthPage: React.FC<AuthPageProps> = ({
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [showLangDropdown, setShowLangDropdown] = useState(false);
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const [turnstileLoadError, setTurnstileLoadError] = useState(false);
+
+  const isAdminBypass =
+    user?.role === 'admin' ||
+    email.trim().toLowerCase() === 'naadianajah2020@gmail.com' ||
+    import.meta.env.VITE_BYPASS_CAPTCHA === 'true';
+  const shouldRequireTurnstile = Boolean(TURNSTILE_SITE_KEY) && !isAdminBypass && !turnstileLoadError;
 
   // 2FA OTP state
   const [otpDigits, setOtpDigits] = useState<string[]>(['', '', '', '', '', '']);
@@ -211,7 +219,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
       return;
     }
 
-    if (TURNSTILE_SITE_KEY && !turnstileToken) {
+    if (shouldRequireTurnstile && !turnstileToken) {
       setErrorMessage('يرجى إتمام التحقق الأمني (CAPTCHA) للمتابعة.');
       return;
     }
@@ -219,7 +227,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
     setIsLoading(true);
     setErrorMessage(null);
 
-    const recaptchaToken = await executeRecaptcha('login');
+    const recaptchaToken = isAdminBypass ? undefined : await executeRecaptcha('login');
 
     const res = await login(email.trim(), password, {
       simulate2fa,
@@ -256,7 +264,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
       return;
     }
 
-    if (TURNSTILE_SITE_KEY && !turnstileToken) {
+    if (shouldRequireTurnstile && !turnstileToken) {
       setErrorMessage('يرجى إتمام التحقق الأمني (CAPTCHA) للمتابعة.');
       return;
     }
@@ -264,7 +272,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
     setIsLoading(true);
     setErrorMessage(null);
 
-    const recaptchaToken = await executeRecaptcha('register');
+    const recaptchaToken = isAdminBypass ? undefined : await executeRecaptcha('register');
 
     const res = await register({
       email: email.trim(),
@@ -300,7 +308,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
       return;
     }
 
-    if (TURNSTILE_SITE_KEY && !turnstileToken) {
+    if (shouldRequireTurnstile && !turnstileToken) {
       setErrorMessage('يرجى إتمام التحقق الأمني (CAPTCHA) للمتابعة.');
       return;
     }
@@ -760,15 +768,21 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                       </div>
                     )}
 
-                    {/* Cloudflare Turnstile CAPTCHA */}
-                    {TURNSTILE_SITE_KEY && (
+                    {/* Cloudflare Turnstile CAPTCHA (Hidden for Admin) */}
+                    {TURNSTILE_SITE_KEY && !isAdminBypass && (
                       <div className="flex justify-center py-1" dir="ltr">
                         <Turnstile
                           ref={turnstileRef}
                           siteKey={TURNSTILE_SITE_KEY}
-                          onSuccess={(token) => setTurnstileToken(token)}
+                          onSuccess={(token) => {
+                            setTurnstileToken(token);
+                            setTurnstileLoadError(false);
+                          }}
                           onExpire={() => setTurnstileToken(null)}
-                          onError={() => setTurnstileToken(null)}
+                          onError={() => {
+                            setTurnstileToken(null);
+                            setTurnstileLoadError(true);
+                          }}
                           options={{ theme: 'dark', size: 'normal' }}
                         />
                       </div>
@@ -776,7 +790,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
 
                     <button
                       type="submit"
-                      disabled={isLoading || (Boolean(TURNSTILE_SITE_KEY) && !turnstileToken)}
+                      disabled={isLoading || (shouldRequireTurnstile && !turnstileToken)}
                       className="w-full py-2.5 rounded-xl text-xs font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-md shadow-emerald-500/20 transition cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
                     >
                       {isLoading ? (
@@ -1155,15 +1169,21 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                     </div>
                   )}
 
-                  {/* Cloudflare Turnstile CAPTCHA */}
-                  {TURNSTILE_SITE_KEY && (
+                  {/* Cloudflare Turnstile CAPTCHA (Hidden for Admin) */}
+                  {TURNSTILE_SITE_KEY && !isAdminBypass && (
                     <div className="flex justify-center py-1" dir="ltr">
                       <Turnstile
                         ref={turnstileRef}
                         siteKey={TURNSTILE_SITE_KEY}
-                        onSuccess={(token) => setTurnstileToken(token)}
+                        onSuccess={(token) => {
+                          setTurnstileToken(token);
+                          setTurnstileLoadError(false);
+                        }}
                         onExpire={() => setTurnstileToken(null)}
-                        onError={() => setTurnstileToken(null)}
+                        onError={() => {
+                          setTurnstileToken(null);
+                          setTurnstileLoadError(true);
+                        }}
                         options={{ theme: 'dark', size: 'normal' }}
                       />
                     </div>
@@ -1172,7 +1192,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                   {/* Submit CTA */}
                   <button
                     type="submit"
-                    disabled={isLoading || (Boolean(TURNSTILE_SITE_KEY) && !turnstileToken)}
+                    disabled={isLoading || (shouldRequireTurnstile && !turnstileToken)}
                     className="w-full py-2.5 rounded-xl text-xs font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-md shadow-emerald-500/20 transition cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2 mt-2"
                   >
                     {isLoading ? (
@@ -1317,7 +1337,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
           {/* Bottom Trust Footer */}
           <div className="text-[11px] text-slate-500 flex items-center justify-between border-t border-slate-800/80 pt-4">
             <span>© {new Date().getFullYear()} CodWorth Platform</span>
-            <span>Casablanca • Morocco</span>
+            <span>Morocco • MENA</span>
           </div>
         </div>
       </main>

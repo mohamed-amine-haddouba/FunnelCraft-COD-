@@ -1203,7 +1203,7 @@ export const AdminOwnerDashboard: React.FC<Props> = ({ onImpersonateSuccess }) =
                   <DollarSign className="w-4 h-4 text-emerald-400" />
                 </div>
                 <div className="text-xl font-black text-white font-mono">
-                  {platformStats?.mrrMAD?.toLocaleString() || '14,850'} <span className="text-xs text-emerald-400">MAD/mo</span>
+                  {(platformStats?.mrrMAD ?? 0).toLocaleString()} <span className="text-xs text-emerald-400">MAD/mo</span>
                 </div>
                 <div className="text-[10px] text-slate-400 mt-1">تجديدات دورية نشطة شهرياً</div>
               </div>
@@ -1215,11 +1215,11 @@ export const AdminOwnerDashboard: React.FC<Props> = ({ onImpersonateSuccess }) =
                   <Users className="w-4 h-4 text-indigo-400" />
                 </div>
                 <div className="text-xl font-black text-white font-mono">
-                  {platformStats?.totalMerchants || Math.max(0, usersList.length - 1)}{' '}
+                  {platformStats?.totalMerchants ?? Math.max(0, usersList.length - 1)}{' '}
                   <span className="text-xs text-slate-400">تاجر مغربي</span>
                 </div>
                 <div className="text-[10px] text-emerald-400 mt-1">
-                  ✓ {platformStats?.activeMerchants || usersList.filter((u) => u.status === 'active').length} حساب نشط
+                  ✓ {platformStats?.activeMerchants ?? usersList.filter((u) => u.status === 'active').length} حساب نشط
                 </div>
               </div>
 
@@ -1230,7 +1230,7 @@ export const AdminOwnerDashboard: React.FC<Props> = ({ onImpersonateSuccess }) =
                   <TrendingUp className="w-4 h-4 text-amber-400" />
                 </div>
                 <div className="text-xl font-black text-white font-mono">
-                  {platformStats?.totalGMV?.toLocaleString() || '182,490'}{' '}
+                  {(platformStats?.totalGMV ?? 0).toLocaleString()}{' '}
                   <span className="text-xs text-amber-400">MAD</span>
                 </div>
                 <div className="text-[10px] text-slate-400 mt-1">عبر كافة صفحات الهبوط المنشورة</div>

@@ -19,7 +19,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   onClose,
   initialMode = 'signup',
 }) => {
-  const { login, register, loginWithGoogle } = useAuth();
+  const { user, login, register, loginWithGoogle } = useAuth();
   
   // Normalize initial mode between signin/login and signup/register
   const normalizedInitialMode = initialMode === 'login' || initialMode === 'signin' ? 'signin' : 'signup';
@@ -32,7 +32,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [localError, setLocalError] = useState<string | null>(null);
   const [successNotice, setSuccessNotice] = useState<string | null>(null);
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const [turnstileLoadError, setTurnstileLoadError] = useState(false);
   const turnstileRef = useRef<TurnstileInstance | undefined>(undefined);
+
+  const isAdminBypass =
+    user?.role === 'admin' ||
+    email.trim().toLowerCase() === 'naadianajah2020@gmail.com' ||
+    import.meta.env.VITE_BYPASS_CAPTCHA === 'true';
+  const shouldRequireTurnstile = Boolean(TURNSTILE_SITE_KEY) && !isAdminBypass && !turnstileLoadError;
 
   // Sync mode whenever initialMode changes while opened
   useEffect(() => {
@@ -74,7 +81,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       return;
     }
 
-    if (TURNSTILE_SITE_KEY && !turnstileToken) {
+    if (shouldRequireTurnstile && !turnstileToken) {
       setLocalError('يرجى إتمام التحقق الأمني (CAPTCHA) للمتابعة');
       return;
     }
@@ -82,7 +89,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setIsSubmitting(true);
 
     try {
-      const recaptchaToken = await executeRecaptcha(mode === 'signup' ? 'register' : 'login');
+      const recaptchaToken = isAdminBypass
+        ? undefined
+        : await executeRecaptcha(mode === 'signup' ? 'register' : 'login');
 
       if (mode === 'signup') {
         const res = await register(
@@ -261,14 +270,20 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               </div>
             </div>
 
-            {TURNSTILE_SITE_KEY && (
+            {TURNSTILE_SITE_KEY && !isAdminBypass && (
               <div className="flex justify-center pt-1" dir="ltr">
                 <Turnstile
                   ref={turnstileRef}
                   siteKey={TURNSTILE_SITE_KEY}
-                  onSuccess={(token) => setTurnstileToken(token)}
+                  onSuccess={(token) => {
+                    setTurnstileToken(token);
+                    setTurnstileLoadError(false);
+                  }}
                   onExpire={() => setTurnstileToken(null)}
-                  onError={() => setTurnstileToken(null)}
+                  onError={() => {
+                    setTurnstileToken(null);
+                    setTurnstileLoadError(true);
+                  }}
                   options={{ theme: 'light', size: 'normal' }}
                 />
               </div>
@@ -276,7 +291,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
             <button
               type="submit"
-              disabled={isSubmitting || (Boolean(TURNSTILE_SITE_KEY) && !turnstileToken)}
+              disabled={isSubmitting || (shouldRequireTurnstile && !turnstileToken)}
               className="w-full py-3.5 px-4 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.99] text-white font-black text-xs rounded-xl shadow-lg shadow-emerald-600/20 transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed mt-3"
             >
               <span>

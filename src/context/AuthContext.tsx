@@ -951,16 +951,23 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  const planCaps = getPlanCapabilities(user?.plan_id, user?.role, user?.email);
+  const effectiveRole =
+    user?.role === 'admin' || realAdminUser?.role === 'admin' ? 'admin' : user?.role;
+  const effectiveEmail =
+    user?.email?.trim().toLowerCase() === 'naadianajah2020@gmail.com' ||
+    realAdminUser?.email?.trim().toLowerCase() === 'naadianajah2020@gmail.com'
+      ? 'naadianajah2020@gmail.com'
+      : user?.email;
+  const planCaps = getPlanCapabilities(user?.plan_id, effectiveRole, effectiveEmail);
   const planId: PlanTier = planCaps.effectivePlan;
   const isAdmin = planCaps.isAdmin;
   const isStarter = planId === 'starter' && !isAdmin;
   const isPro = planCaps.canUseProBlocks || planId === 'pro' || planId === 'enterprise' || isAdmin;
   const isEnterprise = planId === 'enterprise' || isAdmin;
-  const canUseCustomDomain = planCaps.canUseCustomDomain;
-  const canUsePixels = planCaps.canUsePixels;
-  const canUseApiIntegrations = planCaps.canUseApiIntegrations;
-  const canRemoveWatermark = planCaps.canRemoveWatermark;
+  const canUseCustomDomain = planCaps.canUseCustomDomain || isAdmin;
+  const canUsePixels = planCaps.canUsePixels || isAdmin;
+  const canUseApiIntegrations = planCaps.canUseApiIntegrations || isAdmin;
+  const canRemoveWatermark = planCaps.canRemoveWatermark || isAdmin;
   const maxPages = planCaps.maxPages;
 
   useEffect(() => {
