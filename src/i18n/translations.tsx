@@ -228,6 +228,11 @@ export interface Translations {
   'home.hero.productCardValue': string;
   'home.hero.nav.login': string;
   'home.hero.nav.signup': string;
+  'home.hero.nav.home': string;
+  'home.hero.nav.features': string;
+  'home.hero.nav.pricing': string;
+  'home.hero.nav.templates': string;
+  'home.hero.brandName': string;
 }
 
 export const translations: Record<Language, Translations> = {
@@ -457,6 +462,11 @@ export const translations: Record<Language, Translations> = {
     'home.hero.productCardValue': '249 درهم',
     'home.hero.nav.login': 'تسجيل الدخول',
     'home.hero.nav.signup': 'أنشئ حسابك مجاناً',
+    'home.hero.nav.home': 'الرئيسية',
+    'home.hero.nav.features': 'المميزات',
+    'home.hero.nav.pricing': 'الأسعار',
+    'home.hero.nav.templates': 'قوالب',
+    'home.hero.brandName': 'CodWorth / كود ورث',
   },
 
   fr: {
@@ -685,6 +695,11 @@ export const translations: Record<Language, Translations> = {
     'home.hero.productCardValue': '249 MAD',
     'home.hero.nav.login': 'Connexion',
     'home.hero.nav.signup': 'Créer un compte',
+    'home.hero.nav.home': 'Accueil',
+    'home.hero.nav.features': 'Fonctionnalités',
+    'home.hero.nav.pricing': 'Tarifs',
+    'home.hero.nav.templates': 'Modèles',
+    'home.hero.brandName': 'CodWorth',
   },
 
   en: {
@@ -913,6 +928,11 @@ export const translations: Record<Language, Translations> = {
     'home.hero.productCardValue': '249 MAD',
     'home.hero.nav.login': 'Sign In',
     'home.hero.nav.signup': 'Create account',
+    'home.hero.nav.home': 'Home',
+    'home.hero.nav.features': 'Features',
+    'home.hero.nav.pricing': 'Pricing',
+    'home.hero.nav.templates': 'Templates',
+    'home.hero.brandName': 'CodWorth',
   },
 };
 

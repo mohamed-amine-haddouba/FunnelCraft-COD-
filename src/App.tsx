@@ -44,6 +44,7 @@ import { SandboxPage } from './components/SandboxPage';
 import { SandboxLoginPage } from './components/SandboxLoginPage';
 import { SandboxResetPage } from './components/SandboxResetPage';
 import { VerifyEmailPage } from './components/VerifyEmailPage';
+import { HomeLandingPage } from './components/HomeLandingPage';
 import { LanguageProvider, useLanguage } from './i18n/translations';
 import { StoredPage } from './types/user';
 import { SubscriptionPlanId } from './types/orders';
@@ -1901,7 +1902,10 @@ function RootRedirect() {
       </div>
     );
   }
-  return <Navigate to={isLoggedIn && user ? '/dashboard/builder' : '/login'} replace />;
+  if (isLoggedIn && user) {
+    return <Navigate to="/dashboard/builder" replace />;
+  }
+  return <HomeLandingPage />;
 }
 
 function LoginRoute() {
@@ -1985,6 +1989,7 @@ export default function App() {
         <AuthProvider>
           <Routes>
             <Route path="/" element={<RootRedirect />} />
+            <Route path="/home" element={<HomeLandingPage />} />
             <Route path="/login" element={<LoginRoute />} />
             <Route path="/verify-email" element={<VerifyEmailPage />} />
             <Route path="/reset-password" element={<LoginRoute />} />
