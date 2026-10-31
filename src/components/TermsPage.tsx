@@ -60,10 +60,10 @@ export const TermsPage: React.FC<TermsPageProps> = ({
   return (
     <div
       dir="rtl"
-      className="min-h-full bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-emerald-500 selection:text-slate-950"
+      className="min-h-full bg-[#0D131E] text-[#F8FAFC] flex flex-col font-sans selection:bg-[#E25B26] selection:text-slate-950"
     >
       {/* Top Navigation */}
-      <header className="border-b border-slate-800/80 bg-slate-950/80 backdrop-blur-md sticky top-0 z-40 px-4 sm:px-8 py-3.5 flex items-center justify-between print:hidden">
+      <header className="border-b border-[#1E293B]/80 bg-[#0D131E]/80 backdrop-blur-md sticky top-0 z-40 px-4 sm:px-8 py-3.5 flex items-center justify-between print:hidden">
         <div className="flex items-center gap-3">
           <a
             href="/"
@@ -73,18 +73,18 @@ export const TermsPage: React.FC<TermsPageProps> = ({
                 onBackToHome();
               }
             }}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-xs font-bold text-slate-300 hover:text-white transition cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#131B2A] hover:bg-[#131B2A] border border-[#1E293B] text-xs font-bold text-[#CBD5E1] hover:text-white transition cursor-pointer"
           >
-            <ArrowRight className="w-3.5 h-3.5 text-emerald-400" />
+            <ArrowRight className="w-3.5 h-3.5 text-[#E25B26]" />
             <span>العودة للمنصة</span>
           </a>
 
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center shadow-sm shadow-emerald-500/20">
+            <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center shadow-sm shadow-[#E25B26]/20">
               <Sparkles className="w-3.5 h-3.5 text-slate-950" />
             </div>
             <span className="font-black text-sm tracking-tight text-white">CodWorth</span>
-            <span className="text-[10px] font-bold text-emerald-400">• الشروط والأحكام</span>
+            <span className="text-[10px] font-bold text-[#E25B26]">• الشروط والأحكام</span>
           </div>
         </div>
 
@@ -92,10 +92,10 @@ export const TermsPage: React.FC<TermsPageProps> = ({
           <button
             type="button"
             onClick={handlePrint}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white transition cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#131B2A] hover:bg-[#131B2A] border border-[#1E293B] text-[#CBD5E1] hover:text-white transition cursor-pointer"
             title="طباعة أو حفظ كملف PDF"
           >
-            <Printer className="w-3.5 h-3.5 text-slate-400" />
+            <Printer className="w-3.5 h-3.5 text-[#CBD5E1]" />
             <span className="hidden sm:inline">طباعة / PDF</span>
           </button>
 
@@ -107,7 +107,7 @@ export const TermsPage: React.FC<TermsPageProps> = ({
                 onNavigateToContact();
               }
             }}
-            className="text-slate-400 hover:text-slate-200 transition"
+            className="text-[#CBD5E1] hover:text-[#F8FAFC] transition"
           >
             اتصل بنا
           </a>
@@ -119,7 +119,7 @@ export const TermsPage: React.FC<TermsPageProps> = ({
                 onNavigateToPrivacy();
               }
             }}
-            className="text-slate-400 hover:text-slate-200 transition"
+            className="text-[#CBD5E1] hover:text-[#F8FAFC] transition"
           >
             سياسة الخصوصية
           </a>
@@ -129,9 +129,9 @@ export const TermsPage: React.FC<TermsPageProps> = ({
       {/* Main Container */}
       <main className="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-14 space-y-10">
         {/* Header Hero */}
-        <div className="text-center space-y-3 max-w-3xl mx-auto border-b border-slate-800/80 pb-8">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs font-extrabold shadow-sm">
-            <Scale className="w-3.5 h-3.5 text-emerald-400" />
+        <div className="text-center space-y-3 max-w-3xl mx-auto border-b border-[#1E293B]/80 pb-8">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#E25B26]/10 border border-[#E25B26]/30 text-[#E25B26] text-xs font-extrabold shadow-sm">
+            <Scale className="w-3.5 h-3.5 text-[#E25B26]" />
             <span>اتفاقية قانونية ملزمة وفقاً للتشريع التجاري المغربي 🇲🇦</span>
           </div>
 
@@ -139,7 +139,7 @@ export const TermsPage: React.FC<TermsPageProps> = ({
             شروط وأحكام الاستخدام (Terms of Service)
           </h1>
 
-          <p className="text-xs sm:text-sm text-slate-400 leading-relaxed max-w-2xl mx-auto">
+          <p className="text-xs sm:text-sm text-[#CBD5E1] leading-relaxed max-w-2xl mx-auto">
             آخر تحديث: 26 أكتوبر 2026 • سارية المفعول على جميع مستخدمي وتجار منصة CodWorth.
           </p>
         </div>
@@ -153,8 +153,8 @@ export const TermsPage: React.FC<TermsPageProps> = ({
               onClick={() => scrollToSection(sec.id)}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition cursor-pointer shrink-0 border ${
                 activeSection === sec.id
-                  ? 'bg-emerald-500 text-slate-950 border-emerald-400 shadow-sm'
-                  : 'bg-slate-900/90 text-slate-400 border-slate-800 hover:text-white hover:bg-slate-800'
+                  ? 'bg-[#E25B26] text-slate-950 border-[#E25B26] shadow-sm'
+                  : 'bg-[#131B2A]/90 text-[#CBD5E1] border-[#1E293B] hover:text-white hover:bg-[#131B2A]'
               }`}
             >
               {sec.title}
@@ -163,11 +163,11 @@ export const TermsPage: React.FC<TermsPageProps> = ({
         </div>
 
         {/* Legal Document Content (12 Sections) */}
-        <div className="bg-slate-900/60 border border-slate-800/80 rounded-3xl p-6 sm:p-10 space-y-10 shadow-2xl leading-relaxed text-sm text-slate-300 text-justify">
+        <div className="bg-[#131B2A]/60 border border-[#1E293B]/80 rounded-3xl p-6 sm:p-10 space-y-10 shadow-2xl leading-relaxed text-sm text-[#CBD5E1] text-justify">
           {/* Section 1 */}
           <section id="acceptance" className="scroll-mt-24 space-y-3">
-            <div className="flex items-center gap-2.5 text-white font-extrabold text-lg sm:text-xl border-b border-slate-800/60 pb-2">
-              <span className="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center text-xs font-mono font-black">
+            <div className="flex items-center gap-2.5 text-white font-extrabold text-lg sm:text-xl border-b border-[#1E293B]/60 pb-2">
+              <span className="w-7 h-7 rounded-lg bg-[#E25B26]/10 text-[#E25B26] flex items-center justify-center text-xs font-mono font-black">
                 01
               </span>
               <h2>1. قبول الشروط والأحكام (Acceptance of Terms)</h2>
@@ -186,8 +186,8 @@ export const TermsPage: React.FC<TermsPageProps> = ({
 
           {/* Section 2 */}
           <section id="service" className="scroll-mt-24 space-y-3">
-            <div className="flex items-center gap-2.5 text-white font-extrabold text-lg sm:text-xl border-b border-slate-800/60 pb-2">
-              <span className="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center text-xs font-mono font-black">
+            <div className="flex items-center gap-2.5 text-white font-extrabold text-lg sm:text-xl border-b border-[#1E293B]/60 pb-2">
+              <span className="w-7 h-7 rounded-lg bg-[#E25B26]/10 text-[#E25B26] flex items-center justify-center text-xs font-mono font-black">
                 02
               </span>
               <h2>2. وصف الخدمة (Description of Service)</h2>
@@ -196,7 +196,7 @@ export const TermsPage: React.FC<TermsPageProps> = ({
               توفر منصة CodWorth برمجيات سحابية (SaaS) موجهة لتجار التجارة الإلكترونية والدفع عند الاستلام
               (Cash on Delivery - COD) في المغرب ومنطقة الشرق الأوسط وشمال إفريقيا. تشمل الخدمات:
             </p>
-            <ul className="list-disc list-inside space-y-1.5 pr-2 text-slate-300">
+            <ul className="list-disc list-inside space-y-1.5 pr-2 text-[#CBD5E1]">
               <li>محرر مرئي تفاعلي لإنشاء وتعديل صفحات هبوط ومنتجات فائقة السرعة بدون برمجة.</li>
               <li>استيراد تلقائي للمنتجات والبيانات عبر الروابط من منصات التجارة الإلكترونية العالمية.</li>
               <li>نماذج دفع عند الاستلام ذكية ومخصصة مع حساب دقيق لخيارات العروض (Bundles).</li>
@@ -208,8 +208,8 @@ export const TermsPage: React.FC<TermsPageProps> = ({
 
           {/* Section 3 */}
           <section id="account" className="scroll-mt-24 space-y-3">
-            <div className="flex items-center gap-2.5 text-white font-extrabold text-lg sm:text-xl border-b border-slate-800/60 pb-2">
-              <span className="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center text-xs font-mono font-black">
+            <div className="flex items-center gap-2.5 text-white font-extrabold text-lg sm:text-xl border-b border-[#1E293B]/60 pb-2">
+              <span className="w-7 h-7 rounded-lg bg-[#E25B26]/10 text-[#E25B26] flex items-center justify-center text-xs font-mono font-black">
                 03
               </span>
               <h2>3. حساب المستخدم والأمان (User Accounts & Security)</h2>
@@ -222,7 +222,7 @@ export const TermsPage: React.FC<TermsPageProps> = ({
               أنت المسؤول الأول والوحيد عن الحفاظ على سرية بيانات تسجيل دخولك وكلمة المرور الخاصة بك وعن جميع
               الأنشطة التي تجري عبر حسابك. نوفر إمكانية تفعيل خاصية التحقق بخطوتين (2FA) لتعزيز حماية حسابك من
               أي دخول غير مصرح به. في حال اشتباهك في أي اختراق، يجب إخطار فريق الدعم فوراً على{' '}
-              <a href="mailto:codworth.me@gmail.com" className="text-emerald-400 font-bold underline">
+              <a href="mailto:codworth.me@gmail.com" className="text-[#E25B26] font-bold underline">
                 codworth.me@gmail.com
               </a>
               .
@@ -231,8 +231,8 @@ export const TermsPage: React.FC<TermsPageProps> = ({
 
           {/* Section 4 */}
           <section id="billing" className="scroll-mt-24 space-y-3">
-            <div className="flex items-center gap-2.5 text-white font-extrabold text-lg sm:text-xl border-b border-slate-800/60 pb-2">
-              <span className="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center text-xs font-mono font-black">
+            <div className="flex items-center gap-2.5 text-white font-extrabold text-lg sm:text-xl border-b border-[#1E293B]/60 pb-2">
+              <span className="w-7 h-7 rounded-lg bg-[#E25B26]/10 text-[#E25B26] flex items-center justify-center text-xs font-mono font-black">
                 04
               </span>
               <h2>4. الاشتراكات والفوترة والدفع (Subscriptions, Billing & Payment)</h2>
@@ -242,31 +242,31 @@ export const TermsPage: React.FC<TermsPageProps> = ({
               (Starter، Pro، Enterprise) بنظام الاشتراك الشهري أو السنوي:
             </p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 my-2">
-              <div className="p-4 rounded-2xl bg-slate-950/70 border border-slate-800 space-y-1.5">
+              <div className="p-4 rounded-2xl bg-[#0D131E]/70 border border-[#1E293B] space-y-1.5">
                 <div className="font-bold text-white flex items-center gap-2 text-xs">
-                  <Building2 className="w-4 h-4 text-emerald-400" />
+                  <Building2 className="w-4 h-4 text-[#E25B26]" />
                   <span>التحويل البنكي المحلي في المغرب (Bank Transfer)</span>
                 </div>
-                <p className="text-xs text-slate-400">
+                <p className="text-xs text-[#CBD5E1]">
                   ندعم الدفع بالدرهم المغربي عبر الحسابات البنكية المعتمدة للمنصة (CIH Bank، التجاري وفا بنك
                   Attijariwafa، والبنك الشعبي Banque Populaire). يتم تفعيل الحساب بعد التحقق اليدوي من صورة
                   وصل التحويل المرفقة عبر لوحة المالك خلال مدة لا تتجاوز 12 ساعة.
                 </p>
               </div>
 
-              <div className="p-4 rounded-2xl bg-slate-950/70 border border-slate-800 space-y-1.5">
+              <div className="p-4 rounded-2xl bg-[#0D131E]/70 border border-[#1E293B] space-y-1.5">
                 <div className="font-bold text-white flex items-center gap-2 text-xs">
-                  <CreditCard className="w-4 h-4 text-emerald-400" />
+                  <CreditCard className="w-4 h-4 text-[#E25B26]" />
                   <span>الدفع الإلكتروني وPayPal (Multi-Currency)</span>
                 </div>
-                <p className="text-xs text-slate-400">
+                <p className="text-xs text-[#CBD5E1]">
                   بما أن PayPal لا يدعم عملة الدرهم المغربي (MAD) بشكل مباشر، تقوم المنصة آلياً بحساب سعر
                   الصرف الفعلي إلى الدولار الأمريكي (USD) بشفافية تامة وعرض السعر المعادل للزبون قبل تأكيد
                   الطلب لمنع أي التباس مالي.
                 </p>
               </div>
             </div>
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-[#CBD5E1]">
               جميع الأسعار المعروضة للباقات نهائية وواضحة. لا نقوم بسحب أي مبالغ تلقائية دون إذن التاجر.
               سياسة الاسترجاع: يحق للمشترك طلب استرداد رسوم الاشتراك خلال 7 أيام من تاريخ الدفع في حال وجود
               خلل تقني جوهري مثبت لم نتمكن من حله.
@@ -275,8 +275,8 @@ export const TermsPage: React.FC<TermsPageProps> = ({
 
           {/* Section 5 */}
           <section id="acceptable-use" className="scroll-mt-24 space-y-3">
-            <div className="flex items-center gap-2.5 text-white font-extrabold text-lg sm:text-xl border-b border-slate-800/60 pb-2">
-              <span className="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center text-xs font-mono font-black">
+            <div className="flex items-center gap-2.5 text-white font-extrabold text-lg sm:text-xl border-b border-[#1E293B]/60 pb-2">
+              <span className="w-7 h-7 rounded-lg bg-[#E25B26]/10 text-[#E25B26] flex items-center justify-center text-xs font-mono font-black">
                 05
               </span>
               <h2>5. الاستخدام المقبول والمحظور (Acceptable & Prohibited Use)</h2>
@@ -285,7 +285,7 @@ export const TermsPage: React.FC<TermsPageProps> = ({
               يلتزم المستخدم باستخدام المنصة للأغراض التجارية المشروعة فقط ووفقاً للأنظمة والقوانين المعمول بها.
               يُحظر حظراً باتاً استخدام صفحات CodWorth لأي من الأغراض التالية:
             </p>
-            <ul className="list-disc list-inside space-y-1.5 pr-2 text-slate-300">
+            <ul className="list-disc list-inside space-y-1.5 pr-2 text-[#CBD5E1]">
               <li>بيع أو الترويج لمنتجات غير قانونية، مقلدة، منتهكة للعلامات التجارية، أو مجهولة المصدر والمخالفة لسلامة المستهلك.</li>
               <li>ممارسة الاحتيال، الخداع الإعلاني، بيع منتجات وهمية لا يتم إرسالها للمشترين، أو التصيد الاحتيالي (Phishing).</li>
               <li>نشر أو تضمين برمجيات خبيثة، فيروسات، أو أكواد تضر بأجهزة الزوار أو تتلاعب ببيانات التصفح.</li>
@@ -303,8 +303,8 @@ export const TermsPage: React.FC<TermsPageProps> = ({
 
           {/* Section 6 */}
           <section id="ip" className="scroll-mt-24 space-y-3">
-            <div className="flex items-center gap-2.5 text-white font-extrabold text-lg sm:text-xl border-b border-slate-800/60 pb-2">
-              <span className="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center text-xs font-mono font-black">
+            <div className="flex items-center gap-2.5 text-white font-extrabold text-lg sm:text-xl border-b border-[#1E293B]/60 pb-2">
+              <span className="w-7 h-7 rounded-lg bg-[#E25B26]/10 text-[#E25B26] flex items-center justify-center text-xs font-mono font-black">
                 06
               </span>
               <h2>6. الملكية الفكرية وحقوق المحتوى (Intellectual Property)</h2>
@@ -323,8 +323,8 @@ export const TermsPage: React.FC<TermsPageProps> = ({
 
           {/* Section 7 */}
           <section id="disclaimer" className="scroll-mt-24 space-y-3">
-            <div className="flex items-center gap-2.5 text-white font-extrabold text-lg sm:text-xl border-b border-slate-800/60 pb-2">
-              <span className="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center text-xs font-mono font-black">
+            <div className="flex items-center gap-2.5 text-white font-extrabold text-lg sm:text-xl border-b border-[#1E293B]/60 pb-2">
+              <span className="w-7 h-7 rounded-lg bg-[#E25B26]/10 text-[#E25B26] flex items-center justify-center text-xs font-mono font-black">
                 07
               </span>
               <h2>7. إخلاء المسؤولية وضمانات الخدمة (Disclaimers & Warranties)</h2>
@@ -343,8 +343,8 @@ export const TermsPage: React.FC<TermsPageProps> = ({
 
           {/* Section 8 */}
           <section id="liability" className="scroll-mt-24 space-y-3">
-            <div className="flex items-center gap-2.5 text-white font-extrabold text-lg sm:text-xl border-b border-slate-800/60 pb-2">
-              <span className="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center text-xs font-mono font-black">
+            <div className="flex items-center gap-2.5 text-white font-extrabold text-lg sm:text-xl border-b border-[#1E293B]/60 pb-2">
+              <span className="w-7 h-7 rounded-lg bg-[#E25B26]/10 text-[#E25B26] flex items-center justify-center text-xs font-mono font-black">
                 08
               </span>
               <h2>8. تحديد المسؤولية (Limitation of Liability)</h2>
@@ -352,7 +352,7 @@ export const TermsPage: React.FC<TermsPageProps> = ({
             <p>
               إلى أقصى حد يسمح به القانون، لا تتحمل شركة CodWorth أو مسؤولوها أو موظفوها أي مسؤولية عن:
             </p>
-            <ul className="list-disc list-inside space-y-1 pr-2 text-slate-300">
+            <ul className="list-disc list-inside space-y-1 pr-2 text-[#CBD5E1]">
               <li>أي نزاعات تجارية تنشأ بين التاجر وعملائه بخصوص جودة المنتجات، مطابقتها، أو مواعيد تسليمها.</li>
               <li>أي تأخير أو تلف أو تعثر في تحصيل الأموال ناتج عن شركات التوصيل والشحن المتعاقد معها التاجر.</li>
               <li>أي خسائر غير مباشرة أو تبعية أو خسارة في الأرباح ناتجة عن استخدام أو عدم القدرة على استخدام الخدمة.</li>
@@ -365,8 +365,8 @@ export const TermsPage: React.FC<TermsPageProps> = ({
 
           {/* Section 9 */}
           <section id="termination" className="scroll-mt-24 space-y-3">
-            <div className="flex items-center gap-2.5 text-white font-extrabold text-lg sm:text-xl border-b border-slate-800/60 pb-2">
-              <span className="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center text-xs font-mono font-black">
+            <div className="flex items-center gap-2.5 text-white font-extrabold text-lg sm:text-xl border-b border-[#1E293B]/60 pb-2">
+              <span className="w-7 h-7 rounded-lg bg-[#E25B26]/10 text-[#E25B26] flex items-center justify-center text-xs font-mono font-black">
                 09
               </span>
               <h2>9. إلغاء الحساب وإنهاء الخدمة (Cancellation & Termination)</h2>
@@ -383,8 +383,8 @@ export const TermsPage: React.FC<TermsPageProps> = ({
 
           {/* Section 10 */}
           <section id="modifications" className="scroll-mt-24 space-y-3">
-            <div className="flex items-center gap-2.5 text-white font-extrabold text-lg sm:text-xl border-b border-slate-800/60 pb-2">
-              <span className="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center text-xs font-mono font-black">
+            <div className="flex items-center gap-2.5 text-white font-extrabold text-lg sm:text-xl border-b border-[#1E293B]/60 pb-2">
+              <span className="w-7 h-7 rounded-lg bg-[#E25B26]/10 text-[#E25B26] flex items-center justify-center text-xs font-mono font-black">
                 10
               </span>
               <h2>10. التعديلات على الشروط والخدمة (Modifications to Terms)</h2>
@@ -398,8 +398,8 @@ export const TermsPage: React.FC<TermsPageProps> = ({
 
           {/* Section 11 */}
           <section id="law" className="scroll-mt-24 space-y-3">
-            <div className="flex items-center gap-2.5 text-white font-extrabold text-lg sm:text-xl border-b border-slate-800/60 pb-2">
-              <span className="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center text-xs font-mono font-black">
+            <div className="flex items-center gap-2.5 text-white font-extrabold text-lg sm:text-xl border-b border-[#1E293B]/60 pb-2">
+              <span className="w-7 h-7 rounded-lg bg-[#E25B26]/10 text-[#E25B26] flex items-center justify-center text-xs font-mono font-black">
                 11
               </span>
               <h2>11. القانون المطبق وحل النزاعات (Governing Law & Jurisdiction)</h2>
@@ -415,8 +415,8 @@ export const TermsPage: React.FC<TermsPageProps> = ({
 
           {/* Section 12 */}
           <section id="contact" className="scroll-mt-24 space-y-4">
-            <div className="flex items-center gap-2.5 text-white font-extrabold text-lg sm:text-xl border-b border-slate-800/60 pb-2">
-              <span className="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center text-xs font-mono font-black">
+            <div className="flex items-center gap-2.5 text-white font-extrabold text-lg sm:text-xl border-b border-[#1E293B]/60 pb-2">
+              <span className="w-7 h-7 rounded-lg bg-[#E25B26]/10 text-[#E25B26] flex items-center justify-center text-xs font-mono font-black">
                 12
               </span>
               <h2>12. معلومات التواصل القانوني (Contact Information)</h2>
@@ -426,22 +426,22 @@ export const TermsPage: React.FC<TermsPageProps> = ({
               الرسمية المعتمدة:
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
-              <div className="p-4 rounded-2xl bg-slate-950/70 border border-slate-800 flex items-start gap-3">
-                <Mail className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+              <div className="p-4 rounded-2xl bg-[#0D131E]/70 border border-[#1E293B] flex items-start gap-3">
+                <Mail className="w-5 h-5 text-[#E25B26] shrink-0 mt-0.5" />
                 <div className="text-xs">
                   <div className="font-bold text-white mb-0.5">البريد الإلكتروني</div>
                   <a
                     href="mailto:codworth.me@gmail.com"
                     dir="ltr"
-                    className="text-emerald-400 hover:underline block"
+                    className="text-[#E25B26] hover:underline block"
                   >
                     codworth.me@gmail.com
                   </a>
                 </div>
               </div>
 
-              <div className="p-4 rounded-2xl bg-slate-950/70 border border-slate-800 flex items-start gap-3">
-                <Phone className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+              <div className="p-4 rounded-2xl bg-[#0D131E]/70 border border-[#1E293B] flex items-start gap-3">
+                <Phone className="w-5 h-5 text-[#E25B26] shrink-0 mt-0.5" />
                 <div className="text-xs">
                   <div className="font-bold text-white mb-0.5">الهاتف والواتساب</div>
                   <a
@@ -449,18 +449,18 @@ export const TermsPage: React.FC<TermsPageProps> = ({
                     target="_blank"
                     rel="noopener noreferrer"
                     dir="ltr"
-                    className="text-emerald-400 hover:underline block"
+                    className="text-[#E25B26] hover:underline block"
                   >
                     +212 722-256897
                   </a>
                 </div>
               </div>
 
-              <div className="p-4 rounded-2xl bg-slate-950/70 border border-slate-800 flex items-start gap-3">
-                <Building2 className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+              <div className="p-4 rounded-2xl bg-[#0D131E]/70 border border-[#1E293B] flex items-start gap-3">
+                <Building2 className="w-5 h-5 text-[#E25B26] shrink-0 mt-0.5" />
                 <div className="text-xs">
                   <div className="font-bold text-white mb-0.5">المقر الرئيسي</div>
-                  <span className="text-slate-300">الدار البيضاء، المملكة المغربية 🇲🇦</span>
+                  <span className="text-[#CBD5E1]">الدار البيضاء، المملكة المغربية 🇲🇦</span>
                 </div>
               </div>
             </div>

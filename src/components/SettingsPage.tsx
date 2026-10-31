@@ -496,24 +496,24 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   const content = (
     <div className="space-y-4 max-w-4xl mx-auto" dir={dir}>
       {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800/80 pb-3">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#1E293B]/80 pb-3">
         <div>
           <h1 className="text-base md:text-lg font-bold tracking-tight text-white flex items-center gap-2">
-            <Store className="w-5 h-5 text-emerald-400" />
+            <Store className="w-5 h-5 text-[#E25B26]" />
             <span>{t.settingsTitle}</span>
           </h1>
-          <p className="text-xs text-slate-400 mt-0.5">{t.settingsDesc}</p>
+          <p className="text-xs text-[#CBD5E1] mt-0.5">{t.settingsDesc}</p>
         </div>
 
         {/* Sub-Nav Tabs */}
-        <div className="inline-flex rounded-lg bg-slate-900 border border-slate-800 p-0.5 text-xs">
+        <div className="inline-flex rounded-lg bg-[#131B2A] border border-[#1E293B] p-0.5 text-xs">
           <button
             type="button"
             onClick={() => setActiveTab('profile')}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition cursor-pointer ${
               activeTab === 'profile'
-                ? 'bg-slate-800 text-white font-semibold shadow-xs'
-                : 'text-slate-400 hover:text-slate-200'
+                ? 'bg-[#131B2A] text-white font-semibold shadow-xs'
+                : 'text-[#CBD5E1] hover:text-[#F8FAFC]'
             }`}
           >
             <User className="w-3.5 h-3.5 text-indigo-400" />
@@ -525,11 +525,11 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
             onClick={() => setActiveTab('domain')}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition cursor-pointer ${
               activeTab === 'domain'
-                ? 'bg-slate-800 text-white font-semibold shadow-xs'
-                : 'text-slate-400 hover:text-slate-200'
+                ? 'bg-[#131B2A] text-white font-semibold shadow-xs'
+                : 'text-[#CBD5E1] hover:text-[#F8FAFC]'
             }`}
           >
-            <Globe className="w-3.5 h-3.5 text-emerald-400" />
+            <Globe className="w-3.5 h-3.5 text-[#E25B26]" />
             <span>{t.tabDomain}</span>
             {!isProUser && <span className="text-[10px] bg-amber-500/20 text-amber-300 px-1 rounded">Pro</span>}
           </button>
@@ -539,8 +539,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
             onClick={() => setActiveTab('security')}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition cursor-pointer ${
               activeTab === 'security'
-                ? 'bg-slate-800 text-white font-semibold shadow-xs'
-                : 'text-slate-400 hover:text-slate-200'
+                ? 'bg-[#131B2A] text-white font-semibold shadow-xs'
+                : 'text-[#CBD5E1] hover:text-[#F8FAFC]'
             }`}
           >
             <Lock className="w-3.5 h-3.5 text-amber-400" />
@@ -551,7 +551,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
 
       {/* Notifications */}
       {saveSuccessMessage && (
-        <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-emerald-400 text-xs flex items-center gap-2">
+        <div className="p-3 bg-[#E25B26]/10 border border-[#E25B26]/30 rounded-xl text-[#E25B26] text-xs flex items-center gap-2">
           <CheckCircle2 className="w-4 h-4 shrink-0" />
           <span>{saveSuccessMessage}</span>
         </div>
@@ -566,18 +566,18 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
 
       {/* TAB 1: Profile */}
       {activeTab === 'profile' && (
-        <form onSubmit={handleSaveProfile} className="bg-slate-900/70 border border-slate-800 rounded-xl p-4 md:p-6 space-y-4">
-          <div className="flex items-center gap-4 pb-4 border-b border-slate-800">
+        <form onSubmit={handleSaveProfile} className="bg-[#131B2A]/70 border border-[#1E293B] rounded-xl p-4 md:p-6 space-y-4">
+          <div className="flex items-center gap-4 pb-4 border-b border-[#1E293B]">
             <div className="relative group">
               <img
                 src={avatarUrl}
                 alt="Avatar"
-                className="w-16 h-16 rounded-xl object-cover border border-slate-700"
+                className="w-16 h-16 rounded-xl object-cover border border-[#334155]"
               />
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="absolute inset-0 bg-slate-950/60 opacity-0 group-hover:opacity-100 rounded-xl flex items-center justify-center transition cursor-pointer"
+                className="absolute inset-0 bg-[#0D131E]/60 opacity-0 group-hover:opacity-100 rounded-xl flex items-center justify-center transition cursor-pointer"
               >
                 <Camera className="w-4 h-4 text-white" />
               </button>
@@ -591,8 +591,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
             </div>
             <div>
               <div className="text-sm font-semibold text-white">{fullName}</div>
-              <div className="text-xs text-slate-400">{email}</div>
-              <span className="inline-block mt-1 text-[10px] px-2 py-0.5 rounded bg-slate-800 text-emerald-400 font-semibold border border-slate-700">
+              <div className="text-xs text-[#CBD5E1]">{email}</div>
+              <span className="inline-block mt-1 text-[10px] px-2 py-0.5 rounded bg-[#131B2A] text-[#E25B26] font-semibold border border-[#334155]">
                 {isProUser ? t.proBadge : t.freeBadge}
               </span>
             </div>
@@ -600,48 +600,48 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1">{t.fullName}</label>
+              <label className="block text-xs font-medium text-[#CBD5E1] mb-1">{t.fullName}</label>
               <input
                 type="text"
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500"
+                className="w-full bg-[#0D131E] border border-[#1E293B] rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-[#E25B26]"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1">{t.email}</label>
+              <label className="block text-xs font-medium text-[#CBD5E1] mb-1">{t.email}</label>
               <input
                 type="email"
                 value={email}
                 disabled
-                className="w-full bg-slate-950/60 border border-slate-800/60 rounded-lg px-3 py-1.5 text-xs text-slate-400 cursor-not-allowed"
+                className="w-full bg-[#0D131E]/60 border border-[#1E293B]/60 rounded-lg px-3 py-1.5 text-xs text-[#CBD5E1] cursor-not-allowed"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1">{t.phone}</label>
+              <label className="block text-xs font-medium text-[#CBD5E1] mb-1">{t.phone}</label>
               <input
                 type="tel"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500 font-mono"
+                className="w-full bg-[#0D131E] border border-[#1E293B] rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-[#E25B26] font-mono"
                 dir="ltr"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1">{t.storeName}</label>
+              <label className="block text-xs font-medium text-[#CBD5E1] mb-1">{t.storeName}</label>
               <input
                 type="text"
                 value={storeName}
                 onChange={(e) => setStoreName(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500"
+                className="w-full bg-[#0D131E] border border-[#1E293B] rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-[#E25B26]"
               />
             </div>
           </div>
 
-          <div className="pt-3 border-t border-slate-800 flex items-center justify-between">
+          <div className="pt-3 border-t border-[#1E293B] flex items-center justify-between">
             <button
               type="button"
               onClick={() => {
@@ -657,7 +657,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
             <button
               type="submit"
               disabled={isSaving}
-              className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-slate-950 transition cursor-pointer disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-semibold bg-[#E25B26] hover:bg-[#E25B26] text-slate-950 transition cursor-pointer disabled:opacity-50"
             >
               <Save className="w-3.5 h-3.5" />
               <span>{isSaving ? t.saving : t.saveSettings}</span>
@@ -665,7 +665,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
           </div>
 
           {/* Task 4: User IP Transparency & Last Login Forensics */}
-          <div className="pt-3 border-t border-slate-800">
+          <div className="pt-3 border-t border-[#1E293B]">
             <UserIpTransparencyWidget />
           </div>
         </form>
@@ -673,14 +673,14 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
 
       {/* TAB 2: Custom Domain (Real DNS Verification & Pro/Enterprise Plan Enforcement) */}
       {activeTab === 'domain' && (
-        <div className="relative bg-slate-900/70 border border-slate-800 rounded-xl p-4 md:p-6 space-y-5 overflow-hidden">
+        <div className="relative bg-[#131B2A]/70 border border-[#1E293B] rounded-xl p-4 md:p-6 space-y-5 overflow-hidden">
           <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
             <div>
               <h2 className="text-sm font-semibold text-white flex items-center gap-2">
-                <Globe className="w-4 h-4 text-emerald-400" />
+                <Globe className="w-4 h-4 text-[#E25B26]" />
                 <span>{t.customDomainTitle}</span>
               </h2>
-              <p className="text-xs text-slate-400 mt-0.5">{t.customDomainDesc}</p>
+              <p className="text-xs text-[#CBD5E1] mt-0.5">{t.customDomainDesc}</p>
             </div>
             {!isProUser && !isAdminUser && (
               <button
@@ -702,7 +702,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                   <Crown className="w-4 h-4 text-amber-400" />
                   <span>You need to upgrade to save</span>
                 </div>
-                <p className="text-[11px] text-slate-300 leading-relaxed">
+                <p className="text-[11px] text-[#CBD5E1] leading-relaxed">
                   {language === 'ar'
                     ? `يمكنك تجربة كتابة النطاق المخصص أدناه بحرية. لحفظ النطاق وتفعيل التوجيه التلقائي وشهادة SSL، يرجى الترقية إلى باقة Pro.`
                     : `You can test typing your custom domain below. You need to upgrade to save and activate live DNS routing.`}
@@ -721,13 +721,13 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
           {/* Select Target Landing Page (Input and form always interactive) */}
           <div className="space-y-4">
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1.5">
+              <label className="block text-xs font-medium text-[#CBD5E1] mb-1.5">
                 {language === 'ar'
                   ? 'اختر صفحة الهبوط المراد ربط الدومين بها'
                   : 'Select Target Landing Page for Custom Domain'}
               </label>
               {userPages.length === 0 ? (
-                <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-400">
+                <div className="p-3 rounded-xl bg-[#0D131E] border border-[#1E293B] text-xs text-[#CBD5E1]">
                   {language === 'ar'
                     ? 'لا توجد صفحات هبوط محفوظة في حسابك بعد. يمكنك كتابة وحفظ الدومين المخصص لحسابك الآن أو ربطه بصفحة لاحقاً.'
                     : 'No saved landing pages yet. You can type and configure your custom domain below.'}
@@ -743,7 +743,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                     setDomainStatus(found?.domainStatus || (found?.customDomain ? 'pending_dns' : 'not_connected'));
                     setDomainFeedback(null);
                   }}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
+                  className="w-full bg-[#0D131E] border border-[#1E293B] rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[#E25B26]"
                 >
                   {userPages.map((p) => (
                     <option key={p.id} value={p.id}>
@@ -755,9 +755,9 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
             </div>
 
             {/* Domain Input + Prominent Visual Status Badges + Save & Verify Actions */}
-            <div className="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-3.5">
+            <div className="bg-[#0D131E] border border-[#1E293B] rounded-xl p-4 space-y-3.5">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <label className="text-xs font-semibold text-slate-300">
+                <label className="text-xs font-semibold text-[#CBD5E1]">
                   {language === 'ar' ? 'اسم النطاق المخصص (Custom Domain FQDN)' : 'Custom Domain Name (FQDN)'}
                 </label>
 
@@ -765,7 +765,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                 {domainStatus === 'active' && (
                   <span
                     data-testid="domain-status-badge"
-                    className="text-xs px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-bold flex items-center gap-1.5 shadow-sm shadow-emerald-500/10"
+                    className="text-xs px-3 py-1 rounded-full bg-[#E25B26]/20 text-[#E25B26] border border-[#E25B26]/40 font-bold flex items-center gap-1.5 shadow-sm shadow-[#E25B26]/10"
                   >
                     <span>🟢</span>
                     <span>Active (نشط ومتصل)</span>
@@ -792,7 +792,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                 {domainStatus === 'not_connected' && (
                   <span
                     data-testid="domain-status-badge"
-                    className="text-xs px-3 py-1 rounded-full bg-slate-800/90 text-slate-300 border border-slate-700 font-bold flex items-center gap-1.5"
+                    className="text-xs px-3 py-1 rounded-full bg-[#131B2A]/90 text-[#CBD5E1] border border-[#334155] font-bold flex items-center gap-1.5"
                   >
                     <span>⚪</span>
                     <span>Not Connected (غير متصل)</span>
@@ -809,7 +809,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                   onChange={(e) => setCustomDomain(e.target.value)}
                   disabled={false}
                   placeholder="shop.yourdomain.com or yourdomain.com"
-                  className="flex-1 bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-2 text-xs font-mono text-white placeholder:text-slate-500 focus:outline-none focus:border-emerald-500"
+                  className="flex-1 bg-[#131B2A] border border-[#1E293B] rounded-xl px-3.5 py-2 text-xs font-mono text-white placeholder:text-slate-500 focus:outline-none focus:border-[#E25B26]"
                 />
 
                 <button
@@ -817,7 +817,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                   data-testid="save-custom-domain-btn"
                   onClick={handleSaveCustomDomain}
                   disabled={!isProUser || isSavingDomain}
-                  className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-slate-950 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-[#E25B26] hover:bg-[#E25B26] text-slate-950 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Save className="w-3.5 h-3.5" />
                   <span>
@@ -833,9 +833,9 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                   type="button"
                   onClick={handleVerifyDomain}
                   disabled={!isProUser || isDomainVerifying || !customDomain.trim()}
-                  className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-[#131B2A] hover:bg-slate-700 border border-[#334155] text-white transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <RefreshCw className={`w-3.5 h-3.5 ${isDomainVerifying ? 'animate-spin text-emerald-400' : 'text-emerald-400'}`} />
+                  <RefreshCw className={`w-3.5 h-3.5 ${isDomainVerifying ? 'animate-spin text-[#E25B26]' : 'text-[#E25B26]'}`} />
                   <span>{isDomainVerifying ? (language === 'ar' ? 'جاري الفحص...' : 'Checking DNS...') : t.domainVerifyCta}</span>
                 </button>
 
@@ -874,7 +874,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                 <div
                   className={`p-3 rounded-xl border text-xs ${
                     domainFeedback.type === 'success'
-                      ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
+                      ? 'bg-[#E25B26]/10 border-[#E25B26]/30 text-[#E25B26]'
                       : domainFeedback.type === 'error'
                       ? 'bg-rose-500/10 border-rose-500/30 text-rose-300'
                       : 'bg-sky-500/10 border-sky-500/30 text-sky-300'
@@ -882,7 +882,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                 >
                   <div className="flex items-start gap-2 font-medium">
                     {domainFeedback.type === 'success' ? (
-                      <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5 text-emerald-400" />
+                      <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5 text-[#E25B26]" />
                     ) : (
                       <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
                     )}
@@ -893,8 +893,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
             </div>
 
             {/* Real DNS Configuration Instructions (A Record -> 217.160.116.237 & CNAME -> domains.codworth.me) */}
-            <div className="bg-slate-950/80 border border-slate-800 rounded-xl p-4 space-y-3">
-              <div className="text-xs font-semibold text-slate-200">
+            <div className="bg-[#0D131E]/80 border border-[#1E293B] rounded-xl p-4 space-y-3">
+              <div className="text-xs font-semibold text-[#F8FAFC]">
                 {language === 'ar'
                   ? 'إعدادات DNS المطلوبة لدى مزود النطاق الخاص بك (Cloudflare, Namecheap, GoDaddy):'
                   : 'Required DNS Records at your Domain Registrar (Cloudflare, Namecheap, GoDaddy):'}
@@ -902,28 +902,28 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
 
               <div className="space-y-2.5 font-mono text-xs" dir="ltr">
                 {/* Option 1: A Record for Root Domain (@) with 1-Click Copy Button next to 217.160.116.237 */}
-                <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-900 border border-slate-800 rounded-lg p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2 bg-[#131B2A] border border-[#1E293B] rounded-lg p-3">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-400 font-bold">A Record</span>
-                    <span className="text-slate-400">Host:</span>
+                    <span className="px-2 py-0.5 rounded bg-[#E25B26]/15 text-[#E25B26] font-bold">A Record</span>
+                    <span className="text-[#CBD5E1]">Host:</span>
                     <span className="text-white font-bold">@</span>
                     <span className="text-slate-600">|</span>
-                    <span className="text-slate-400">Value / IP:</span>
-                    <code className="px-2 py-0.5 rounded bg-slate-950 border border-emerald-500/30 text-emerald-300 font-bold">
+                    <span className="text-[#CBD5E1]">Value / IP:</span>
+                    <code className="px-2 py-0.5 rounded bg-[#0D131E] border border-[#E25B26]/30 text-[#E25B26] font-bold">
                       217.160.116.237
                     </code>
                     <button
                       type="button"
                       onClick={handleCopyIp}
                       data-testid="copy-vps-ip-btn"
-                      className="text-slate-200 hover:text-white px-2.5 py-1 rounded-md bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 transition cursor-pointer inline-flex items-center gap-1.5"
+                      className="text-[#F8FAFC] hover:text-white px-2.5 py-1 rounded-md bg-[#E25B26]/15 hover:bg-[#E25B26]/25 border border-[#E25B26]/30 transition cursor-pointer inline-flex items-center gap-1.5"
                       title="Copy 217.160.116.237"
                     >
                       {hasCopiedIp ? (
-                        <span className="text-[11px] text-emerald-400 font-sans font-bold">✓ {t.copied}</span>
+                        <span className="text-[11px] text-[#E25B26] font-sans font-bold">✓ {t.copied}</span>
                       ) : (
                         <>
-                          <Copy className="w-3.5 h-3.5 text-emerald-400" />
+                          <Copy className="w-3.5 h-3.5 text-[#E25B26]" />
                           <span className="font-sans text-[11px] font-semibold">
                             {language === 'ar' ? 'نسخ (Copy)' : 'Copy'}
                           </span>
@@ -934,25 +934,25 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                 </div>
 
                 {/* Option 2: CNAME Record for Subdomain (www or shop) with 1-Click Copy Button next to domains.codworth.me */}
-                <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-900 border border-slate-800 rounded-lg p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2 bg-[#131B2A] border border-[#1E293B] rounded-lg p-3">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="px-2 py-0.5 rounded bg-indigo-500/15 text-indigo-400 font-bold">CNAME</span>
-                    <span className="text-slate-400">Host:</span>
+                    <span className="text-[#CBD5E1]">Host:</span>
                     <span className="text-white font-bold">www (or subdomain)</span>
                     <span className="text-slate-600">|</span>
-                    <span className="text-slate-400">Target:</span>
-                    <code className="px-2 py-0.5 rounded bg-slate-950 border border-indigo-500/30 text-indigo-300 font-bold">
+                    <span className="text-[#CBD5E1]">Target:</span>
+                    <code className="px-2 py-0.5 rounded bg-[#0D131E] border border-indigo-500/30 text-indigo-300 font-bold">
                       domains.codworth.me
                     </code>
                     <button
                       type="button"
                       onClick={handleCopyCname}
                       data-testid="copy-cname-target-btn"
-                      className="text-slate-200 hover:text-white px-2.5 py-1 rounded-md bg-indigo-500/15 hover:bg-indigo-500/25 border border-indigo-500/30 transition cursor-pointer inline-flex items-center gap-1.5"
+                      className="text-[#F8FAFC] hover:text-white px-2.5 py-1 rounded-md bg-indigo-500/15 hover:bg-indigo-500/25 border border-indigo-500/30 transition cursor-pointer inline-flex items-center gap-1.5"
                       title="Copy domains.codworth.me"
                     >
                       {hasCopiedCname ? (
-                        <span className="text-[11px] text-emerald-400 font-sans font-bold">✓ {t.copied}</span>
+                        <span className="text-[11px] text-[#E25B26] font-sans font-bold">✓ {t.copied}</span>
                       ) : (
                         <>
                           <Copy className="w-3.5 h-3.5 text-indigo-400" />
@@ -968,29 +968,29 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
 
               {/* Collapsible Developer Diagnostic Section (<details>) */}
               <details
-                className="group bg-slate-900/90 border border-slate-800 rounded-xl overflow-hidden text-xs mt-2"
+                className="group bg-[#131B2A]/90 border border-[#1E293B] rounded-xl overflow-hidden text-xs mt-2"
                 data-testid="dns-developer-diagnostics"
               >
-                <summary className="px-3.5 py-2.5 cursor-pointer select-none font-semibold text-slate-300 hover:text-white flex items-center justify-between transition">
+                <summary className="px-3.5 py-2.5 cursor-pointer select-none font-semibold text-[#CBD5E1] hover:text-white flex items-center justify-between transition">
                   <span className="flex items-center gap-2">
-                    <ChevronRight className="w-3.5 h-3.5 text-emerald-400 transition-transform group-open:rotate-90" />
+                    <ChevronRight className="w-3.5 h-3.5 text-[#E25B26] transition-transform group-open:rotate-90" />
                     <span>تفاصيل تقنية للمطورين (Raw DNS Diagnostic Info)</span>
                   </span>
-                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-950 text-slate-400 border border-slate-800">
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#0D131E] text-[#CBD5E1] border border-[#1E293B]">
                     DNS Lookup
                   </span>
                 </summary>
 
-                <div className="p-3.5 border-t border-slate-800 bg-slate-950 font-mono text-[11px] text-slate-300 space-y-2" dir="ltr">
+                <div className="p-3.5 border-t border-[#1E293B] bg-[#0D131E] font-mono text-[11px] text-[#CBD5E1] space-y-2" dir="ltr">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    <div className="p-2.5 rounded-lg bg-slate-900/90 border border-slate-800">
-                      <div className="text-slate-400 text-[10px] mb-1">Expected DNS Targets</div>
-                      <div>A (@): <span className="text-emerald-400 font-bold">217.160.116.237</span></div>
+                    <div className="p-2.5 rounded-lg bg-[#131B2A]/90 border border-[#1E293B]">
+                      <div className="text-[#CBD5E1] text-[10px] mb-1">Expected DNS Targets</div>
+                      <div>A (@): <span className="text-[#E25B26] font-bold">217.160.116.237</span></div>
                       <div>CNAME (www): <span className="text-indigo-400 font-bold">domains.codworth.me</span></div>
                     </div>
 
-                    <div className="p-2.5 rounded-lg bg-slate-900/90 border border-slate-800">
-                      <div className="text-slate-400 text-[10px] mb-1">Live Resolved DNS Records</div>
+                    <div className="p-2.5 rounded-lg bg-[#131B2A]/90 border border-[#1E293B]">
+                      <div className="text-[#CBD5E1] text-[10px] mb-1">Live Resolved DNS Records</div>
                       <div>
                         Resolved A:{' '}
                         <span className="text-white font-bold">
@@ -1006,7 +1006,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                     </div>
                   </div>
 
-                  <pre className="p-2.5 rounded-lg bg-slate-900 border border-slate-800 text-[10px] text-slate-400 overflow-x-auto">
+                  <pre className="p-2.5 rounded-lg bg-[#131B2A] border border-[#1E293B] text-[10px] text-[#CBD5E1] overflow-x-auto">
                     {JSON.stringify(
                       {
                         domain: customDomain || null,
@@ -1030,25 +1030,25 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
       {/* TAB 3: Security & 2FA */}
       {activeTab === 'security' && (
         <div className="space-y-4">
-          <form onSubmit={handleSavePassword} className="bg-slate-900/70 border border-slate-800 rounded-xl p-4 md:p-6 space-y-3">
+          <form onSubmit={handleSavePassword} className="bg-[#131B2A]/70 border border-[#1E293B] rounded-xl p-4 md:p-6 space-y-3">
             <h2 className="text-sm font-semibold text-white flex items-center gap-2 mb-2">
               <Key className="w-4 h-4 text-amber-400" />
               <span>{t.passwordTitle}</span>
             </h2>
 
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1">{t.currentPassword}</label>
+              <label className="block text-xs font-medium text-[#CBD5E1] mb-1">{t.currentPassword}</label>
               <div className="relative">
                 <input
                   type={showCurrentPass ? 'text' : 'password'}
                   value={currentPassword}
                   onChange={(e) => setCurrentPassword(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500 pe-8"
+                  className="w-full bg-[#0D131E] border border-[#1E293B] rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-[#E25B26] pe-8"
                 />
                 <button
                   type="button"
                   onClick={() => setShowCurrentPass(!showCurrentPass)}
-                  className="absolute top-1/2 -translate-y-1/2 end-2 text-slate-500 hover:text-slate-300"
+                  className="absolute top-1/2 -translate-y-1/2 end-2 text-slate-500 hover:text-[#CBD5E1]"
                 >
                   {showCurrentPass ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                 </button>
@@ -1057,18 +1057,18 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">{t.newPassword}</label>
+                <label className="block text-xs font-medium text-[#CBD5E1] mb-1">{t.newPassword}</label>
                 <div className="relative">
                   <input
                     type={showNewPass ? 'text' : 'password'}
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500 pe-8"
+                    className="w-full bg-[#0D131E] border border-[#1E293B] rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-[#E25B26] pe-8"
                   />
                   <button
                     type="button"
                     onClick={() => setShowNewPass(!showNewPass)}
-                    className="absolute top-1/2 -translate-y-1/2 end-2 text-slate-500 hover:text-slate-300"
+                    className="absolute top-1/2 -translate-y-1/2 end-2 text-slate-500 hover:text-[#CBD5E1]"
                   >
                     {showNewPass ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                   </button>
@@ -1076,18 +1076,18 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">{t.confirmPassword}</label>
+                <label className="block text-xs font-medium text-[#CBD5E1] mb-1">{t.confirmPassword}</label>
                 <div className="relative">
                   <input
                     type={showConfirmPass ? 'text' : 'password'}
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500 pe-8"
+                    className="w-full bg-[#0D131E] border border-[#1E293B] rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-[#E25B26] pe-8"
                   />
                   <button
                     type="button"
                     onClick={() => setShowConfirmPass(!showConfirmPass)}
-                    className="absolute top-1/2 -translate-y-1/2 end-2 text-slate-500 hover:text-slate-300"
+                    className="absolute top-1/2 -translate-y-1/2 end-2 text-slate-500 hover:text-[#CBD5E1]"
                   >
                     {showConfirmPass ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                   </button>
@@ -1099,7 +1099,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
               <button
                 type="submit"
                 disabled={isSaving}
-                className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-white transition cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-semibold bg-[#131B2A] hover:bg-slate-700 text-white transition cursor-pointer"
               >
                 <span>{t.saveSettings}</span>
               </button>
@@ -1107,21 +1107,21 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
           </form>
 
           {/* 2FA Card */}
-          <div className="bg-slate-900/70 border border-slate-800 rounded-xl p-4 flex items-center justify-between">
+          <div className="bg-[#131B2A]/70 border border-[#1E293B] rounded-xl p-4 flex items-center justify-between">
             <div>
               <div className="text-xs font-semibold text-white flex items-center gap-1.5">
-                <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                <ShieldCheck className="w-4 h-4 text-[#E25B26]" />
                 <span>{t.twoFactorTitle}</span>
               </div>
-              <p className="text-[11px] text-slate-400 mt-0.5">{t.twoFactorDesc}</p>
+              <p className="text-[11px] text-[#CBD5E1] mt-0.5">{t.twoFactorDesc}</p>
             </div>
             <button
               type="button"
               onClick={handleToggle2FA}
               className={`px-3 py-1.5 rounded-lg text-xs font-medium transition cursor-pointer ${
                 isTwoFactorEnabled
-                  ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                  : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
+                  ? 'bg-[#E25B26]/20 text-[#E25B26] border border-[#E25B26]/30'
+                  : 'bg-[#131B2A] hover:bg-slate-700 text-[#CBD5E1]'
               }`}
             >
               {isTwoFactorEnabled ? '2FA Active ✓' : t.enable2fa}
@@ -1137,13 +1137,13 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
 
   if (asModal) {
     return (
-      <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 text-slate-100">
-        <div className="relative w-full max-w-4xl bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden p-6 max-h-[92vh] overflow-y-auto">
+      <div className="fixed inset-0 z-50 overflow-y-auto bg-[#0D131E]/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 text-[#F8FAFC]">
+        <div className="relative w-full max-w-4xl bg-[#131B2A] border border-[#1E293B] rounded-2xl shadow-2xl overflow-hidden p-6 max-h-[92vh] overflow-y-auto">
           {content}
         </div>
       </div>
     );
   }
 
-  return <div className="min-h-full bg-slate-950 p-4 md:p-6">{content}</div>;
+  return <div className="min-h-full bg-[#0D131E] p-4 md:p-6">{content}</div>;
 };

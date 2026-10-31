@@ -125,21 +125,21 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
       cityList.length === 0);
 
   return (
-    <div className="min-h-full bg-slate-950 text-slate-100 p-4 md:p-6 space-y-5" dir={dir}>
+    <div className="min-h-full bg-[#0D131E] text-[#F8FAFC] p-4 md:p-6 space-y-5" dir={dir}>
       {/* Top Header & Range Filter */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800/80 pb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#1E293B]/80 pb-4">
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-base md:text-lg font-bold tracking-tight text-white flex items-center gap-2">
-              <BarChart3 className="w-5 h-5 text-emerald-400" />
+              <BarChart3 className="w-5 h-5 text-[#E25B26]" />
               <span>{t.analyticsTitle}</span>
             </h1>
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#E25B26]/10 text-[#E25B26] border border-[#E25B26]/20">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
               {t.liveSync}
             </span>
           </div>
-          <p className="text-xs text-slate-400 mt-0.5">{t.analyticsDesc}</p>
+          <p className="text-xs text-[#CBD5E1] mt-0.5">{t.analyticsDesc}</p>
         </div>
 
         {/* Filters & Actions */}
@@ -148,14 +148,14 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
             type="button"
             onClick={() => void fetchAnalytics()}
             disabled={isLoading}
-            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 text-xs transition cursor-pointer disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[#131B2A] hover:bg-[#131B2A] border border-[#1E293B] text-[#CBD5E1] text-xs transition cursor-pointer disabled:opacity-50"
             title="تحديث الإحصائيات"
           >
-            <RefreshCw className={`w-3.5 h-3.5 text-emerald-400 ${isLoading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-3.5 h-3.5 text-[#E25B26] ${isLoading ? 'animate-spin' : ''}`} />
           </button>
 
           {/* Time Filter Pills */}
-          <div className="inline-flex rounded-lg bg-slate-900 border border-slate-800 p-0.5 text-xs">
+          <div className="inline-flex rounded-lg bg-[#131B2A] border border-[#1E293B] p-0.5 text-xs">
             {(['7d', '30d', '90d'] as const).map((range) => (
               <button
                 key={range}
@@ -163,8 +163,8 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
                 onClick={() => setTimeRange(range)}
                 className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition cursor-pointer ${
                   timeRange === range
-                    ? 'bg-slate-800 text-white shadow-xs'
-                    : 'text-slate-400 hover:text-slate-200'
+                    ? 'bg-[#131B2A] text-white shadow-xs'
+                    : 'text-[#CBD5E1] hover:text-[#F8FAFC]'
                 }`}
               >
                 {range === '7d'
@@ -188,13 +188,13 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
             onClick={isPro ? () => {} : onUpgradeClick}
             className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition cursor-pointer ${
               isPro
-                ? 'bg-slate-900 hover:bg-slate-800 border-slate-800 text-slate-200'
+                ? 'bg-[#131B2A] hover:bg-[#131B2A] border-[#1E293B] text-[#F8FAFC]'
                 : 'bg-amber-500/10 hover:bg-amber-500/20 border-amber-500/30 text-amber-300'
             }`}
           >
             {isPro ? (
               <>
-                <Download className="w-3.5 h-3.5 text-slate-400" />
+                <Download className="w-3.5 h-3.5 text-[#CBD5E1]" />
                 <span>PDF / Excel</span>
               </>
             ) : (
@@ -211,15 +211,15 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
       {isEmpty ? (
         <div
           data-testid="analytics-empty-state"
-          className="bg-slate-900/70 border border-slate-800 rounded-2xl p-8 md:p-12 text-center max-w-2xl mx-auto my-6 space-y-4 shadow-xl"
+          className="bg-[#131B2A]/70 border border-[#1E293B] rounded-2xl p-8 md:p-12 text-center max-w-2xl mx-auto my-6 space-y-4 shadow-xl"
         >
-          <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 flex items-center justify-center mx-auto">
+          <div className="w-14 h-14 rounded-2xl bg-[#E25B26]/10 border border-[#E25B26]/30 text-[#E25B26] flex items-center justify-center mx-auto">
             <BarChart3 className="w-7 h-7" />
           </div>
           <h2 className="text-base md:text-lg font-bold text-white">
             {EMPTY_ANALYTICS_MESSAGE_AR}
           </h2>
-          <p className="text-xs text-slate-400 max-w-md mx-auto leading-relaxed">
+          <p className="text-xs text-[#CBD5E1] max-w-md mx-auto leading-relaxed">
             يتم احتساب الزيارات، معدل التحويل، والمبيعات حسب المدن تلقائياً وفورياً من صفحات الهبوط المنشورة والطلبات الحقيقية المسجلة في حسابك.
           </p>
           {onNavigateToBuilder && (
@@ -227,7 +227,7 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
               <button
                 type="button"
                 onClick={onNavigateToBuilder}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs shadow-lg shadow-emerald-500/20 transition cursor-pointer"
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#E25B26] hover:bg-[#F16F3C] text-slate-950 font-bold text-xs shadow-lg shadow-[#E25B26]/20 transition cursor-pointer"
               >
                 <PlusCircle className="w-4 h-4" />
                 <span>{language === 'ar' ? 'إنشاء صفحة هبوط جديدة' : 'Créer une page de vente'}</span>
@@ -240,10 +240,10 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
           {/* 4-Card Compact KPI Strip */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             {/* KPI 1: Conversion Rate */}
-            <div className="bg-slate-900/70 border border-slate-800 rounded-xl p-3.5 hover:border-slate-700 transition">
-              <div className="flex items-center justify-between text-slate-400 text-xs mb-1">
+            <div className="bg-[#131B2A]/70 border border-[#1E293B] rounded-xl p-3.5 hover:border-[#334155] transition">
+              <div className="flex items-center justify-between text-[#CBD5E1] text-xs mb-1">
                 <span>{t.conversionRate}</span>
-                <div className="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center">
+                <div className="w-7 h-7 rounded-lg bg-[#E25B26]/10 text-[#E25B26] flex items-center justify-center">
                   <TrendingUp className="w-4 h-4" />
                 </div>
               </div>
@@ -256,8 +256,8 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
             </div>
 
             {/* KPI 2: Total Visitors */}
-            <div className="bg-slate-900/70 border border-slate-800 rounded-xl p-3.5 hover:border-slate-700 transition">
-              <div className="flex items-center justify-between text-slate-400 text-xs mb-1">
+            <div className="bg-[#131B2A]/70 border border-[#1E293B] rounded-xl p-3.5 hover:border-[#334155] transition">
+              <div className="flex items-center justify-between text-[#CBD5E1] text-xs mb-1">
                 <span>{t.visitors}</span>
                 <div className="w-7 h-7 rounded-lg bg-indigo-500/10 text-indigo-400 flex items-center justify-center">
                   <Users className="w-4 h-4" />
@@ -274,8 +274,8 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
             </div>
 
             {/* KPI 3: Average Order Value (AOV) */}
-            <div className="bg-slate-900/70 border border-slate-800 rounded-xl p-3.5 hover:border-slate-700 transition">
-              <div className="flex items-center justify-between text-slate-400 text-xs mb-1">
+            <div className="bg-[#131B2A]/70 border border-[#1E293B] rounded-xl p-3.5 hover:border-[#334155] transition">
+              <div className="flex items-center justify-between text-[#CBD5E1] text-xs mb-1">
                 <span>{t.aov}</span>
                 <div className="w-7 h-7 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center">
                   <ShoppingBag className="w-4 h-4" />
@@ -284,7 +284,7 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
               <div className="flex items-baseline gap-2">
                 <span className="text-xl md:text-2xl font-bold tracking-tight text-white">
                   {avgOrderValue}{' '}
-                  <span className="text-xs font-normal text-slate-400">{t.madCurrency}</span>
+                  <span className="text-xs font-normal text-[#CBD5E1]">{t.madCurrency}</span>
                 </span>
               </div>
               <p className="text-[11px] text-slate-500 mt-1 truncate">
@@ -293,10 +293,10 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
             </div>
 
             {/* KPI 4: Delivery Rate */}
-            <div className="bg-slate-900/70 border border-slate-800 rounded-xl p-3.5 hover:border-slate-700 transition">
-              <div className="flex items-center justify-between text-slate-400 text-xs mb-1">
+            <div className="bg-[#131B2A]/70 border border-[#1E293B] rounded-xl p-3.5 hover:border-[#334155] transition">
+              <div className="flex items-center justify-between text-[#CBD5E1] text-xs mb-1">
                 <span>{t.deliveryRate}</span>
-                <div className="w-7 h-7 rounded-lg bg-teal-500/10 text-teal-400 flex items-center justify-center">
+                <div className="w-7 h-7 rounded-lg bg-teal-500/10 text-[#E25B26] flex items-center justify-center">
                   <Truck className="w-4 h-4" />
                 </div>
               </div>
@@ -314,14 +314,14 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
           {/* Middle Row: Funnel Conversion Visualizer & City Distribution */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
             {/* Sales Conversion Funnel (7 Cols) */}
-            <div className="lg:col-span-7 bg-slate-900/70 border border-slate-800 rounded-xl p-4 flex flex-col justify-between">
+            <div className="lg:col-span-7 bg-[#131B2A]/70 border border-[#1E293B] rounded-xl p-4 flex flex-col justify-between">
               <div>
                 <div className="flex items-center justify-between mb-3">
                   <h2 className="text-sm font-semibold text-white flex items-center gap-1.5">
-                    <Layers className="w-4 h-4 text-emerald-400" />
+                    <Layers className="w-4 h-4 text-[#E25B26]" />
                     <span>{t.funnelFunnel}</span>
                   </h2>
-                  <span className="text-[11px] text-slate-400">
+                  <span className="text-[11px] text-[#CBD5E1]">
                     {language === 'ar' ? 'مراحل الشراء المتكاملة' : 'Étapes du tunnel'}
                   </span>
                 </div>
@@ -330,13 +330,13 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
                 <div className="space-y-3">
                   <div>
                     <div className="flex items-center justify-between text-xs mb-1">
-                      <span className="text-slate-300 font-medium">{t.impressions}</span>
-                      <span className="text-slate-400">
+                      <span className="text-[#CBD5E1] font-medium">{t.impressions}</span>
+                      <span className="text-[#CBD5E1]">
                         {totalVisitors.toLocaleString()}{' '}
                         <span className="text-[10px] text-slate-500">(100%)</span>
                       </span>
                     </div>
-                    <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden">
+                    <div className="h-2 w-full bg-[#131B2A] rounded-full overflow-hidden">
                       <div
                         className="h-full bg-indigo-500 rounded-full"
                         style={{ width: totalVisitors > 0 ? '100%' : '0%' }}
@@ -347,12 +347,12 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
                   {/* Funnel Step 2: Form Interaction */}
                   <div>
                     <div className="flex items-center justify-between text-xs mb-1">
-                      <span className="text-slate-300 font-medium">{t.formStarts}</span>
-                      <span className="text-slate-400">
+                      <span className="text-[#CBD5E1] font-medium">{t.formStarts}</span>
+                      <span className="text-[#CBD5E1]">
                         {formStarts.toLocaleString()}
                       </span>
                     </div>
-                    <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden">
+                    <div className="h-2 w-full bg-[#131B2A] rounded-full overflow-hidden">
                       <div
                         className="h-full bg-indigo-400 rounded-full"
                         style={{
@@ -369,16 +369,16 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
                   {/* Funnel Step 3: Orders Placed */}
                   <div>
                     <div className="flex items-center justify-between text-xs mb-1">
-                      <span className="text-emerald-300 font-medium flex items-center gap-1">
-                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                      <span className="text-[#E25B26] font-medium flex items-center gap-1">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-[#E25B26]" />
                         <span>{t.ordersPlaced}</span>
                       </span>
-                      <span className="text-emerald-400 font-semibold">
+                      <span className="text-[#E25B26] font-semibold">
                         {totalOrders}{' '}
-                        <span className="text-[10px] text-emerald-500">({conversionRate}%)</span>
+                        <span className="text-[10px] text-[#E25B26]">({conversionRate}%)</span>
                       </span>
                     </div>
-                    <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden">
+                    <div className="h-2 w-full bg-[#131B2A] rounded-full overflow-hidden">
                       <div
                         className="h-full bg-emerald-400 rounded-full"
                         style={{ width: `${Math.min(100, conversionRate)}%` }}
@@ -388,22 +388,22 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
                 </div>
               </div>
 
-              <div className="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs">
-                <span className="text-slate-400">{t.performanceSummary}</span>
-                <span className="text-[11px] text-emerald-400 font-medium">
+              <div className="mt-4 pt-3 border-t border-[#1E293B]/80 flex items-center justify-between text-xs">
+                <span className="text-[#CBD5E1]">{t.performanceSummary}</span>
+                <span className="text-[11px] text-[#E25B26] font-medium">
                   {totalOrders} {t.ordersCountUnit}
                 </span>
               </div>
             </div>
 
             {/* Regional Breakdown (5 Cols) */}
-            <div className="lg:col-span-5 bg-slate-900/70 border border-slate-800 rounded-xl p-4">
+            <div className="lg:col-span-5 bg-[#131B2A]/70 border border-[#1E293B] rounded-xl p-4">
               <div className="flex items-center justify-between mb-3">
                 <h2 className="text-sm font-semibold text-white flex items-center gap-1.5">
-                  <MapPin className="w-4 h-4 text-emerald-400" />
+                  <MapPin className="w-4 h-4 text-[#E25B26]" />
                   <span>{t.salesByCity}</span>
                 </h2>
-                <span className="text-[11px] text-slate-400">Top {cityList.length}</span>
+                <span className="text-[11px] text-[#CBD5E1]">Top {cityList.length}</span>
               </div>
 
               {cityList.length === 0 ? (
@@ -415,12 +415,12 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
                   {cityList.map((c, idx) => (
                     <div key={idx} className="flex flex-col gap-1">
                       <div className="flex items-center justify-between text-xs">
-                        <span className="text-slate-300 font-medium flex items-center gap-1.5">
+                        <span className="text-[#CBD5E1] font-medium flex items-center gap-1.5">
                           <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
                           <span>{c.city}</span>
                         </span>
                         <div className="flex items-center gap-2">
-                          <span className="text-slate-400 text-[11px]">
+                          <span className="text-[#CBD5E1] text-[11px]">
                             {c.count} {t.ordersCountUnit}
                           </span>
                           <span className="font-semibold text-white text-[11px]">
@@ -428,7 +428,7 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
                           </span>
                         </div>
                       </div>
-                      <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
+                      <div className="h-1.5 w-full bg-[#131B2A] rounded-full overflow-hidden">
                         <div
                           className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 rounded-full transition-all duration-500"
                           style={{ width: `${Math.max(c.percentage, 8)}%` }}
@@ -442,7 +442,7 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
           </div>
 
           {/* Top Performing Landing Pages Table */}
-          <div className="bg-slate-900/70 border border-slate-800 rounded-xl p-4">
+          <div className="bg-[#131B2A]/70 border border-[#1E293B] rounded-xl p-4">
             <div className="flex items-center justify-between mb-3">
               <div>
                 <h2 className="text-sm font-semibold text-white flex items-center gap-1.5">
@@ -454,7 +454,7 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
                 <button
                   type="button"
                   onClick={onNavigateToBuilder}
-                  className="text-xs text-emerald-400 hover:text-emerald-300 font-medium flex items-center gap-1 cursor-pointer"
+                  className="text-xs text-[#E25B26] hover:text-[#E25B26] font-medium flex items-center gap-1 cursor-pointer"
                 >
                   <span>{language === 'ar' ? 'فتح المحرر' : 'Aller au builder'}</span>
                   <ArrowUpRight className="w-3.5 h-3.5" />
@@ -463,14 +463,14 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
             </div>
 
             {topFunnels.length === 0 ? (
-              <div className="py-6 text-center text-xs text-slate-400">
+              <div className="py-6 text-center text-xs text-[#CBD5E1]">
                 {EMPTY_ANALYTICS_MESSAGE_AR}
               </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-start text-xs border-collapse">
                   <thead>
-                    <tr className="border-b border-slate-800 text-[11px] text-slate-400">
+                    <tr className="border-b border-[#1E293B] text-[11px] text-[#CBD5E1]">
                       <th className="py-2 px-3 text-start font-medium">
                         {language === 'ar' ? 'صفحة الهبوط' : 'Page'}
                       </th>
@@ -482,23 +482,23 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
                   </thead>
                   <tbody className="divide-y divide-slate-800/60">
                     {topFunnels.map((funnel, i) => (
-                      <tr key={funnel.id || i} className="hover:bg-slate-800/30 transition">
+                      <tr key={funnel.id || i} className="hover:bg-[#131B2A]/30 transition">
                         <td className="py-2.5 px-3">
                           <div className="font-medium text-white">{funnel.title}</div>
                           <div className="text-[11px] text-slate-500">/{funnel.slug}</div>
                         </td>
-                        <td className="py-2.5 px-3 text-slate-300">
+                        <td className="py-2.5 px-3 text-[#CBD5E1]">
                           {funnel.visitors.toLocaleString()}
                         </td>
-                        <td className="py-2.5 px-3 text-slate-300 font-semibold">
+                        <td className="py-2.5 px-3 text-[#CBD5E1] font-semibold">
                           {funnel.orders}
                         </td>
                         <td className="py-2.5 px-3">
-                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-semibold bg-[#E25B26]/10 text-[#E25B26] border border-[#E25B26]/20">
                             {funnel.cr}
                           </span>
                         </td>
-                        <td className="py-2.5 px-3 text-emerald-400 font-bold">
+                        <td className="py-2.5 px-3 text-[#E25B26] font-bold">
                           {funnel.revenue}
                         </td>
                       </tr>

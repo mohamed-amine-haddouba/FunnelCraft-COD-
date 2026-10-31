@@ -224,7 +224,7 @@ export const BlocksToolbar: React.FC<Props> = ({
           onClick={() => setActiveTab('blocks')}
           className={`py-2 px-3 rounded-xl text-xs font-extrabold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
             activeTab === 'blocks'
-              ? 'bg-slate-900 text-white shadow-sm'
+              ? 'bg-[#131B2A] text-white shadow-sm'
               : 'text-slate-600 hover:bg-slate-200/60'
           }`}
         >
@@ -236,7 +236,7 @@ export const BlocksToolbar: React.FC<Props> = ({
           onClick={() => setActiveTab('templates')}
           className={`py-2 px-3 rounded-xl text-xs font-extrabold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
             activeTab === 'templates'
-              ? 'bg-slate-900 text-white shadow-sm'
+              ? 'bg-[#131B2A] text-white shadow-sm'
               : 'text-slate-600 hover:bg-slate-200/60'
           }`}
         >
@@ -251,7 +251,7 @@ export const BlocksToolbar: React.FC<Props> = ({
           <div className="p-3 border-b border-slate-100 space-y-2.5 bg-white">
             {/* Search Bar */}
             <div className="relative">
-              <Search className="w-3.5 h-3.5 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <Search className="w-3.5 h-3.5 text-[#CBD5E1] absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
                 type="text"
                 value={searchQuery}
@@ -264,7 +264,7 @@ export const BlocksToolbar: React.FC<Props> = ({
                 <button
                   type="button"
                   onClick={() => setSearchQuery('')}
-                  className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                  className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#CBD5E1] hover:text-slate-600 cursor-pointer"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
@@ -296,7 +296,7 @@ export const BlocksToolbar: React.FC<Props> = ({
           {/* Draggable Block Cards List */}
           <div className="flex-1 overflow-y-auto p-3 space-y-2">
             {filteredBlocks.length === 0 ? (
-              <div className="text-center py-10 text-slate-400 text-xs">
+              <div className="text-center py-10 text-[#CBD5E1] text-xs">
                 لا توجد أقسام مطابقة لبحثك "{searchQuery}"
               </div>
             ) : (
@@ -316,7 +316,7 @@ export const BlocksToolbar: React.FC<Props> = ({
                   >
                     {/* Minimalist Drag Handle */}
                     <div
-                      className="mt-1.5 text-slate-300 group-hover:text-blue-500 transition-colors shrink-0 flex flex-col items-center"
+                      className="mt-1.5 text-[#CBD5E1] group-hover:text-blue-500 transition-colors shrink-0 flex flex-col items-center"
                       title="Drag onto canvas"
                     >
                       <GripVertical className="w-4 h-4" />
@@ -335,9 +335,9 @@ export const BlocksToolbar: React.FC<Props> = ({
                         <span className="text-xs font-extrabold text-slate-800 group-hover:text-blue-700 truncate">
                           {item.label}
                         </span>
-                        <Plus className="w-3.5 h-3.5 text-slate-400 group-hover:text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+                        <Plus className="w-3.5 h-3.5 text-[#CBD5E1] group-hover:text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
                       </div>
-                      <div className="text-[10px] font-semibold text-slate-400 truncate" dir="ltr">
+                      <div className="text-[10px] font-semibold text-[#CBD5E1] truncate" dir="ltr">
                         {item.labelEn} • {item.category}
                       </div>
                       <p className="text-[11px] text-slate-500 leading-snug mt-1 line-clamp-2">
@@ -360,7 +360,7 @@ export const BlocksToolbar: React.FC<Props> = ({
             <h2 className="text-xs font-extrabold uppercase tracking-wider text-slate-700">
               قوالب احترافية عالية التحويل
             </h2>
-            <p className="text-[11px] text-slate-400 mt-0.5">
+            <p className="text-[11px] text-[#CBD5E1] mt-0.5">
               اختر قالباً جاهزاً وعدّل نصوصه وصوره بحرية
             </p>
           </div>
@@ -378,7 +378,7 @@ export const BlocksToolbar: React.FC<Props> = ({
                       : 'border-slate-200 hover:border-blue-400 bg-white hover:shadow-md'
                   }`}
                 >
-                  <div className="relative h-24 w-full overflow-hidden bg-slate-900">
+                  <div className="relative h-24 w-full overflow-hidden bg-[#131B2A]">
                     <img
                       src={tpl.previewImage}
                       alt={tpl.name}

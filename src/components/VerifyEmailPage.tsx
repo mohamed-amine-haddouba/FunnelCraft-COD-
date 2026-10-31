@@ -211,12 +211,12 @@ export const VerifyEmailPage: React.FC = () => {
   return (
     <div
       dir={dir || 'rtl'}
-      className="min-h-screen w-screen bg-slate-950 text-slate-100 flex flex-col justify-between font-sans select-none overflow-x-hidden"
+      className="min-h-screen w-screen bg-[#0D131E] text-[#F8FAFC] flex flex-col justify-between font-sans select-none overflow-x-hidden"
     >
       {/* Header */}
-      <header className="h-14 px-4 sm:px-8 border-b border-slate-800/80 bg-slate-950/80 backdrop-blur-md flex items-center justify-between">
+      <header className="h-14 px-4 sm:px-8 border-b border-[#1E293B]/80 bg-[#0D131E]/80 backdrop-blur-md flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-400 text-slate-950 flex items-center justify-center font-black text-sm shadow-md shadow-emerald-500/20">
+          <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-400 text-slate-950 flex items-center justify-center font-black text-sm shadow-md shadow-[#E25B26]/20">
             ⚡
           </div>
           <span className="font-bold text-sm tracking-tight text-white">CodWorth</span>
@@ -224,7 +224,7 @@ export const VerifyEmailPage: React.FC = () => {
         <button
           type="button"
           onClick={() => navigate('/login')}
-          className="text-xs font-semibold text-slate-400 hover:text-white flex items-center gap-1.5 transition cursor-pointer"
+          className="text-xs font-semibold text-[#CBD5E1] hover:text-white flex items-center gap-1.5 transition cursor-pointer"
         >
           <span>العودة لتسجيل الدخول</span>
           <ArrowLeft className="w-3.5 h-3.5" />
@@ -233,17 +233,17 @@ export const VerifyEmailPage: React.FC = () => {
 
       {/* Main Content */}
       <main className="flex-1 flex items-center justify-center p-4 sm:p-8">
-        <div className="w-full max-w-md bg-slate-900/90 border border-slate-800 rounded-2xl p-6 sm:p-8 shadow-2xl space-y-6 text-right" dir="rtl">
+        <div className="w-full max-w-md bg-[#131B2A]/90 border border-[#1E293B] rounded-2xl p-6 sm:p-8 shadow-2xl space-y-6 text-right" dir="rtl">
           <div className="text-center space-y-2">
-            <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 flex items-center justify-center mx-auto shadow-inner">
+            <div className="w-14 h-14 rounded-2xl bg-[#E25B26]/10 border border-[#E25B26]/30 text-[#E25B26] flex items-center justify-center mx-auto shadow-inner">
               <Mail className="w-7 h-7" />
             </div>
             <h1 className="text-lg sm:text-xl font-black text-white">
               تأكيد البريد الإلكتروني
             </h1>
-            <p className="text-xs text-slate-300 leading-relaxed">
+            <p className="text-xs text-[#CBD5E1] leading-relaxed">
               أرسلنا رمز تحقق مكون من 6 أرقام إلى{' '}
-              <span className="font-mono font-bold text-emerald-400" dir="ltr">
+              <span className="font-mono font-bold text-[#E25B26]" dir="ltr">
                 {email || 'بريدك الإلكتروني'}
               </span>
             </p>
@@ -251,7 +251,7 @@ export const VerifyEmailPage: React.FC = () => {
 
           {!initialEmail && (
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+              <label className="block text-xs font-semibold text-[#CBD5E1] mb-1.5">
                 البريد الإلكتروني المسجل
               </label>
               <input
@@ -260,14 +260,14 @@ export const VerifyEmailPage: React.FC = () => {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="name@domain.com"
                 dir="ltr"
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 transition text-left"
+                className="w-full bg-[#0D131E] border border-[#1E293B] rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#E25B26] transition text-left"
               />
             </div>
           )}
 
           {/* 6-Digit Input */}
           <div className="space-y-2">
-            <label className="block text-xs font-medium text-slate-400 text-center">
+            <label className="block text-xs font-medium text-[#CBD5E1] text-center">
               أدخل الرمز المكون من 6 أرقام (صالح لمدة 15 دقيقة)
             </label>
             <div className="flex items-center justify-center gap-2" dir="ltr">
@@ -286,10 +286,10 @@ export const VerifyEmailPage: React.FC = () => {
                   onKeyDown={(e) => handleKeyDown(idx, e)}
                   onPaste={idx === 0 ? handlePaste : undefined}
                   aria-label={`Digit ${idx + 1}`}
-                  className={`w-11 h-12 sm:w-12 sm:h-14 text-center text-lg sm:text-xl font-black font-mono rounded-xl bg-slate-950 border transition focus:outline-none ${
+                  className={`w-11 h-12 sm:w-12 sm:h-14 text-center text-lg sm:text-xl font-black font-mono rounded-xl bg-[#0D131E] border transition focus:outline-none ${
                     digit
-                      ? 'border-emerald-500 text-emerald-400 shadow-sm shadow-emerald-500/10'
-                      : 'border-slate-800 text-white focus:border-emerald-500'
+                      ? 'border-[#E25B26] text-[#E25B26] shadow-sm shadow-[#E25B26]/10'
+                      : 'border-[#1E293B] text-white focus:border-[#E25B26]'
                   }`}
                 />
               ))}
@@ -304,8 +304,8 @@ export const VerifyEmailPage: React.FC = () => {
           )}
 
           {successMsg && (
-            <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs font-semibold flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+            <div className="p-3 rounded-xl bg-[#E25B26]/10 border border-[#E25B26]/30 text-[#E25B26] text-xs font-semibold flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-[#E25B26] shrink-0" />
               <span>{successMsg}</span>
             </div>
           )}
@@ -315,7 +315,7 @@ export const VerifyEmailPage: React.FC = () => {
             type="button"
             onClick={() => void submitVerificationCode()}
             disabled={isSubmitting || verifiedSuccess || digits.join('').length !== 6}
-            className="w-full py-3 rounded-xl text-xs font-black bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-lg shadow-emerald-500/20 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            className="w-full py-3 rounded-xl text-xs font-black bg-[#E25B26] hover:bg-[#F16F3C] text-slate-950 shadow-lg shadow-[#E25B26]/20 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             {isSubmitting ? (
               <RefreshCw className="w-4 h-4 animate-spin text-slate-950" />
@@ -348,12 +348,12 @@ export const VerifyEmailPage: React.FC = () => {
           )}
 
           {/* Resend & Back Footer */}
-          <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400">
+          <div className="pt-2 border-t border-[#1E293B]/80 flex items-center justify-between text-xs text-[#CBD5E1]">
             <button
               type="button"
               onClick={() => void handleResendCode()}
               disabled={cooldown > 0 || isResending || verifiedSuccess}
-              className="hover:text-emerald-400 disabled:opacity-40 disabled:cursor-not-allowed transition cursor-pointer flex items-center gap-1.5 font-semibold"
+              className="hover:text-[#E25B26] disabled:opacity-40 disabled:cursor-not-allowed transition cursor-pointer flex items-center gap-1.5 font-semibold"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isResending ? 'animate-spin' : ''}`} />
               <span>

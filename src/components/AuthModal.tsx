@@ -145,7 +145,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#131B2A]/60 backdrop-blur-sm animate-in fade-in duration-200">
       <div 
         className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl border border-slate-100 overflow-hidden text-right" 
         dir="rtl"
@@ -155,7 +155,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           type="button"
           onClick={onClose}
           aria-label="إغلاق"
-          className="absolute top-5 left-5 p-2 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition z-10"
+          className="absolute top-5 left-5 p-2 rounded-full text-[#CBD5E1] hover:text-slate-600 hover:bg-slate-100 transition z-10"
         >
           <X className="w-5 h-5" />
         </button>
@@ -230,14 +230,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               <div>
                 <label className="block text-slate-700 mb-1.5 font-bold">الاسم الكامل</label>
                 <div className="relative">
-                  <UserIcon className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                  <UserIcon className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#CBD5E1] pointer-events-none" />
                   <input
                     type="text"
                     required
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
                     placeholder="محمد أمين"
-                    className="w-full pr-10 pl-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white text-slate-900 text-xs transition placeholder:text-slate-400"
+                    className="w-full pr-10 pl-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-[#E25B26] focus:bg-white text-slate-900 text-xs transition placeholder:text-[#CBD5E1]"
                   />
                 </div>
               </div>
@@ -246,14 +246,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             <div>
               <label className="block text-slate-700 mb-1.5 font-bold">البريد الإلكتروني</label>
               <div className="relative">
-                <Mail className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                <Mail className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#CBD5E1] pointer-events-none" />
                 <input
                   type="email"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="contact@example.com"
-                  className="w-full pr-10 pl-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white text-slate-900 text-xs transition placeholder:text-slate-400 text-left"
+                  className="w-full pr-10 pl-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-[#E25B26] focus:bg-white text-slate-900 text-xs transition placeholder:text-[#CBD5E1] text-left"
                   dir="ltr"
                 />
               </div>
@@ -263,20 +263,20 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               <div className="flex justify-between items-center mb-1.5">
                 <label className="font-bold text-slate-700">كلمة المرور</label>
                 {mode === 'signin' && (
-                  <span className="text-[11px] text-slate-400">
+                  <span className="text-[11px] text-[#CBD5E1]">
                     (6 أحرف على الأقل)
                   </span>
                 )}
               </div>
               <div className="relative">
-                <Lock className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                <Lock className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#CBD5E1] pointer-events-none" />
                 <input
                   type="password"
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full pr-10 pl-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white text-slate-900 text-xs transition placeholder:text-slate-400 text-left"
+                  className="w-full pr-10 pl-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-[#E25B26] focus:bg-white text-slate-900 text-xs transition placeholder:text-[#CBD5E1] text-left"
                   dir="ltr"
                 />
               </div>
@@ -304,7 +304,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             <button
               type="submit"
               disabled={isSubmitting || (shouldRequireTurnstile && !turnstileToken)}
-              className="w-full py-3.5 px-4 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.99] text-white font-black text-xs rounded-xl shadow-lg shadow-emerald-600/20 transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed mt-3"
+              className="w-full py-3.5 px-4 bg-[#E25B26] hover:bg-[#F16F3C] active:scale-[0.99] text-white font-black text-xs rounded-xl shadow-lg shadow-emerald-600/20 transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed mt-3"
             >
               <span>
                 {isSubmitting
@@ -319,7 +319,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
           {GOOGLE_CLIENT_ID && (
             <div className="mt-4 pt-3 border-t border-slate-100 flex flex-col items-center gap-2">
-              <span className="text-[11px] text-slate-400 font-semibold">أو المتابعة عبر</span>
+              <span className="text-[11px] text-[#CBD5E1] font-semibold">أو المتابعة عبر</span>
               <div className="flex justify-center w-full" dir="ltr">
                 <GoogleLogin
                   onSuccess={async (credentialResponse: CredentialResponse) => {
@@ -348,7 +348,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           )}
 
           {/* شارة الثقة والأمان */}
-          <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-center gap-1.5 text-[11px] text-slate-400 font-medium">
+          <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-center gap-1.5 text-[11px] text-[#CBD5E1] font-medium">
             <ShieldCheck className="w-4 h-4 text-emerald-600" />
             <span>بياناتك محمية ومشفرة 100% • لا حاجة لبطاقة بنكية للبدء</span>
           </div>

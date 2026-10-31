@@ -98,7 +98,7 @@ const ProFeatureLockOverlay: React.FC<{
   return (
     <div
       dir="rtl"
-      className={`absolute inset-0 z-20 rounded-xl bg-slate-950/75 backdrop-blur-[2px] border border-amber-400/50 flex flex-col items-center justify-center text-center ${
+      className={`absolute inset-0 z-20 rounded-xl bg-[#0D131E]/75 backdrop-blur-[2px] border border-amber-400/50 flex flex-col items-center justify-center text-center ${
         compact ? 'p-2' : 'p-4'
       }`}
     >
@@ -141,16 +141,16 @@ export const CollapsibleAccordion: React.FC<{
               {title}
             </span>
             {subtitle && (
-              <span className="text-[10px] text-slate-400 font-medium block truncate">
+              <span className="text-[10px] text-[#CBD5E1] font-medium block truncate">
                 {subtitle}
               </span>
             )}
           </div>
         </div>
         {isOpen ? (
-          <ChevronUp className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+          <ChevronUp className="w-3.5 h-3.5 text-[#CBD5E1] shrink-0" />
         ) : (
-          <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+          <ChevronDown className="w-3.5 h-3.5 text-[#CBD5E1] shrink-0" />
         )}
       </button>
       {isOpen && <div className="p-3 space-y-3 border-t border-slate-100">{children}</div>}
@@ -173,7 +173,7 @@ export const ColorWithHexInput: React.FC<{
           <button
             type="button"
             onClick={() => onChange(undefined)}
-            className="text-[10px] text-slate-400 hover:text-blue-600 font-semibold cursor-pointer"
+            className="text-[10px] text-[#CBD5E1] hover:text-blue-600 font-semibold cursor-pointer"
           >
             Reset
           </button>
@@ -230,7 +230,7 @@ export const SliderWithNumericInput: React.FC<{
             }}
             className="w-14 h-6 px-1.5 rounded-md border border-slate-200 bg-white text-[11px] font-mono font-bold text-center text-slate-800 outline-none focus:border-blue-500"
           />
-          <span className="text-[10px] font-mono text-slate-400">{unit}</span>
+          <span className="text-[10px] font-mono text-[#CBD5E1]">{unit}</span>
         </div>
       </div>
       <input
@@ -257,7 +257,7 @@ export const ModernToggleSwitch: React.FC<{
     <div className="flex items-center justify-between gap-2 py-1">
       <div className="min-w-0">
         <div className="text-[11px] font-bold text-slate-800">{label}</div>
-        {description && <div className="text-[10px] text-slate-400 leading-tight">{description}</div>}
+        {description && <div className="text-[10px] text-[#CBD5E1] leading-tight">{description}</div>}
       </div>
       <button
         type="button"
@@ -528,7 +528,7 @@ export const PropertiesSidebar: React.FC<Props> = ({
             <button
               type="button"
               onClick={onCollapse}
-              className="p-1 text-slate-400 hover:text-slate-700 rounded-md hover:bg-slate-100 transition cursor-pointer shrink-0"
+              className="p-1 text-[#CBD5E1] hover:text-slate-700 rounded-md hover:bg-slate-100 transition cursor-pointer shrink-0"
               title="إخفاء القائمة الجانبية"
             >
               <PanelRightClose className="w-4 h-4" />
@@ -883,7 +883,7 @@ export const PropertiesSidebar: React.FC<Props> = ({
                   type="button"
                   onClick={handleSavePixelsToCloud}
                   disabled={savingPixels}
-                  className="w-full py-1.5 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-slate-800 font-bold text-[11px] transition cursor-pointer disabled:opacity-50"
+                  className="w-full py-1.5 px-3 rounded-lg bg-[#E25B26] hover:bg-[#F16F3C] text-slate-800 font-bold text-[11px] transition cursor-pointer disabled:opacity-50"
                 >
                   {savingPixels ? 'جاري حفظ البيكسل...' : 'حفظ وتفعيل البيكسل'}
                 </button>
@@ -935,13 +935,13 @@ export const PropertiesSidebar: React.FC<Props> = ({
                 {selectedBlock.type.replace('-', ' ')}
               </h3>
               {isSelectedBlockPro && (
-                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded-full bg-slate-900 text-amber-400 text-[9px] font-black">
+                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded-full bg-[#131B2A] text-amber-400 text-[9px] font-black">
                   <Crown className="w-2.5 h-2.5 text-amber-400" />
                   <span>PRO</span>
                 </span>
               )}
             </div>
-            <span className="text-[10px] text-slate-400 block truncate">{selectedBlock.id}</span>
+            <span className="text-[10px] text-[#CBD5E1] block truncate">{selectedBlock.id}</span>
           </div>
         </div>
 
@@ -949,7 +949,7 @@ export const PropertiesSidebar: React.FC<Props> = ({
           <button
             type="button"
             onClick={onClose}
-            className="p-1 text-slate-400 hover:text-slate-700 rounded-md hover:bg-slate-100 transition cursor-pointer"
+            className="p-1 text-[#CBD5E1] hover:text-slate-700 rounded-md hover:bg-slate-100 transition cursor-pointer"
             title="إلغاء تحديد القسم"
           >
             <X className="w-3.5 h-3.5" />
@@ -958,7 +958,7 @@ export const PropertiesSidebar: React.FC<Props> = ({
             <button
               type="button"
               onClick={onCollapse}
-              className="p-1 text-slate-400 hover:text-slate-700 rounded-md hover:bg-slate-100 transition cursor-pointer"
+              className="p-1 text-[#CBD5E1] hover:text-slate-700 rounded-md hover:bg-slate-100 transition cursor-pointer"
               title="إخفاء القائمة الجانبية"
             >
               <PanelRightClose className="w-3.5 h-3.5" />
@@ -1328,7 +1328,7 @@ const ProblemSolutionEditor: React.FC<{
           type="text"
           value={block.solutionTitle}
           onChange={(e) => onUpdate({ ...block, solutionTitle: e.target.value })}
-          className="w-full h-8 px-2 py-1 rounded-lg border border-emerald-200 text-xs outline-none focus:border-emerald-500 bg-white"
+          className="w-full h-8 px-2 py-1 rounded-lg border border-emerald-200 text-xs outline-none focus:border-[#E25B26] bg-white"
         />
       </div>
     </div>
@@ -1663,7 +1663,7 @@ const CodFormEditor: React.FC<{
                     };
                     onUpdate({ ...block, bundles });
                   }}
-                  className="w-full h-8 px-2 py-1 bg-white rounded-lg border border-slate-200 text-xs font-mono text-slate-400 outline-none focus:border-blue-500"
+                  className="w-full h-8 px-2 py-1 bg-white rounded-lg border border-slate-200 text-xs font-mono text-[#CBD5E1] outline-none focus:border-blue-500"
                 />
               </div>
             </div>
@@ -1692,7 +1692,7 @@ const CodFormEditor: React.FC<{
                 }}
                 className={`h-8 px-2 py-1 rounded-lg text-[10px] font-bold shrink-0 cursor-pointer ${
                   bundle.popular
-                    ? 'bg-emerald-600 text-slate-800'
+                    ? 'bg-[#E25B26] text-slate-800'
                     : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
                 }`}
               >
@@ -1718,7 +1718,7 @@ const FaqEditor: React.FC<{
           type="text"
           value={block.title}
           onChange={(e) => onUpdate({ ...block, title: e.target.value })}
-          className="w-full h-8 px-2 py-1 rounded-lg border border-gray-200 text-xs font-bold outline-none focus:border-emerald-500 bg-white"
+          className="w-full h-8 px-2 py-1 rounded-lg border border-gray-200 text-xs font-bold outline-none focus:border-[#E25B26] bg-white"
         />
       </div>
 
@@ -1749,7 +1749,7 @@ const FaqEditor: React.FC<{
                 items[idx] = { ...items[idx], question: e.target.value };
                 onUpdate({ ...block, items });
               }}
-              className="w-full h-8 px-2 py-1 bg-white rounded-lg border border-gray-200 text-xs font-bold outline-none focus:border-emerald-500"
+              className="w-full h-8 px-2 py-1 bg-white rounded-lg border border-gray-200 text-xs font-bold outline-none focus:border-[#E25B26]"
             />
             <textarea
               rows={2}
@@ -1759,7 +1759,7 @@ const FaqEditor: React.FC<{
                 items[idx] = { ...items[idx], answer: e.target.value };
                 onUpdate({ ...block, items });
               }}
-              className="w-full px-2 py-1 bg-white rounded-lg border border-gray-200 text-xs outline-none focus:border-emerald-500"
+              className="w-full px-2 py-1 bg-white rounded-lg border border-gray-200 text-xs outline-none focus:border-[#E25B26]"
             />
           </div>
         ))}
@@ -1780,7 +1780,7 @@ const FloatingCtaEditor: React.FC<{
           type="text"
           value={block.title}
           onChange={(e) => onUpdate({ ...block, title: e.target.value })}
-          className="w-full h-8 px-2 py-1 rounded-lg border border-gray-200 text-xs outline-none focus:border-emerald-500 bg-white"
+          className="w-full h-8 px-2 py-1 rounded-lg border border-gray-200 text-xs outline-none focus:border-[#E25B26] bg-white"
         />
       </div>
 
@@ -1790,7 +1790,7 @@ const FloatingCtaEditor: React.FC<{
           type="text"
           value={block.priceText}
           onChange={(e) => onUpdate({ ...block, priceText: e.target.value })}
-          className="w-full h-8 px-2 py-1 rounded-lg border border-gray-200 text-xs font-bold text-emerald-600 outline-none focus:border-emerald-500 bg-white"
+          className="w-full h-8 px-2 py-1 rounded-lg border border-gray-200 text-xs font-bold text-emerald-600 outline-none focus:border-[#E25B26] bg-white"
         />
       </div>
 
@@ -1800,7 +1800,7 @@ const FloatingCtaEditor: React.FC<{
           type="text"
           value={block.buttonText}
           onChange={(e) => onUpdate({ ...block, buttonText: e.target.value })}
-          className="w-full h-8 px-2 py-1 rounded-lg border border-gray-200 text-xs font-bold outline-none focus:border-emerald-500 bg-white"
+          className="w-full h-8 px-2 py-1 rounded-lg border border-gray-200 text-xs font-bold outline-none focus:border-[#E25B26] bg-white"
         />
       </div>
     </div>
@@ -1819,7 +1819,7 @@ const TrustBadgesEditor: React.FC<{
           type="text"
           value={block.title}
           onChange={(e) => onUpdate({ ...block, title: e.target.value })}
-          className="w-full h-8 px-2 py-1 rounded-lg border border-gray-200 text-xs font-bold outline-none focus:border-emerald-500 bg-white"
+          className="w-full h-8 px-2 py-1 rounded-lg border border-gray-200 text-xs font-bold outline-none focus:border-[#E25B26] bg-white"
         />
       </div>
 
@@ -1838,7 +1838,7 @@ const TrustBadgesEditor: React.FC<{
                 onUpdate({ ...block, badges });
               }}
               placeholder="عنوان الشارة"
-              className="w-full h-8 px-2 py-1 bg-white rounded-lg border border-gray-200 text-xs font-bold outline-none focus:border-emerald-500"
+              className="w-full h-8 px-2 py-1 bg-white rounded-lg border border-gray-200 text-xs font-bold outline-none focus:border-[#E25B26]"
             />
             <input
               type="text"
@@ -1849,7 +1849,7 @@ const TrustBadgesEditor: React.FC<{
                 onUpdate({ ...block, badges });
               }}
               placeholder="وصف الشارة"
-              className="w-full h-8 px-2 py-1 bg-white rounded-lg border border-gray-200 text-xs outline-none focus:border-emerald-500"
+              className="w-full h-8 px-2 py-1 bg-white rounded-lg border border-gray-200 text-xs outline-none focus:border-[#E25B26]"
             />
           </div>
         ))}

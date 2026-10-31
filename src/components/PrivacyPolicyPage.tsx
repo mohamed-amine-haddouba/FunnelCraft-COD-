@@ -34,10 +34,10 @@ export const PrivacyPolicyPage: React.FC<PrivacyPolicyPageProps> = ({
   return (
     <div
       dir="rtl"
-      className="min-h-full bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-emerald-500 selection:text-slate-950"
+      className="min-h-full bg-[#0D131E] text-[#F8FAFC] flex flex-col font-sans selection:bg-[#E25B26] selection:text-slate-950"
     >
       {/* Top Navigation */}
-      <header className="border-b border-slate-800/80 bg-slate-950/80 backdrop-blur-md sticky top-0 z-40 px-4 sm:px-8 py-3.5 flex items-center justify-between print:hidden">
+      <header className="border-b border-[#1E293B]/80 bg-[#0D131E]/80 backdrop-blur-md sticky top-0 z-40 px-4 sm:px-8 py-3.5 flex items-center justify-between print:hidden">
         <div className="flex items-center gap-3">
           <a
             href="/"
@@ -47,18 +47,18 @@ export const PrivacyPolicyPage: React.FC<PrivacyPolicyPageProps> = ({
                 onBackToHome();
               }
             }}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-xs font-bold text-slate-300 hover:text-white transition cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#131B2A] hover:bg-[#131B2A] border border-[#1E293B] text-xs font-bold text-[#CBD5E1] hover:text-white transition cursor-pointer"
           >
-            <ArrowRight className="w-3.5 h-3.5 text-emerald-400" />
+            <ArrowRight className="w-3.5 h-3.5 text-[#E25B26]" />
             <span>العودة للمنصة</span>
           </a>
 
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center shadow-sm shadow-emerald-500/20">
+            <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center shadow-sm shadow-[#E25B26]/20">
               <Sparkles className="w-3.5 h-3.5 text-slate-950" />
             </div>
             <span className="font-black text-sm tracking-tight text-white">CodWorth</span>
-            <span className="text-[10px] font-bold text-emerald-400">• سياسة الخصوصية</span>
+            <span className="text-[10px] font-bold text-[#E25B26]">• سياسة الخصوصية</span>
           </div>
         </div>
 
@@ -66,10 +66,10 @@ export const PrivacyPolicyPage: React.FC<PrivacyPolicyPageProps> = ({
           <button
             type="button"
             onClick={handlePrint}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white transition cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#131B2A] hover:bg-[#131B2A] border border-[#1E293B] text-[#CBD5E1] hover:text-white transition cursor-pointer"
             title="طباعة أو حفظ كملف PDF"
           >
-            <Printer className="w-3.5 h-3.5 text-slate-400" />
+            <Printer className="w-3.5 h-3.5 text-[#CBD5E1]" />
             <span className="hidden sm:inline">طباعة / PDF</span>
           </button>
 
@@ -81,7 +81,7 @@ export const PrivacyPolicyPage: React.FC<PrivacyPolicyPageProps> = ({
                 onNavigateToTerms();
               }
             }}
-            className="text-slate-400 hover:text-slate-200 transition"
+            className="text-[#CBD5E1] hover:text-[#F8FAFC] transition"
           >
             شروط الاستخدام
           </a>
@@ -93,7 +93,7 @@ export const PrivacyPolicyPage: React.FC<PrivacyPolicyPageProps> = ({
                 onNavigateToContact();
               }
             }}
-            className="text-slate-400 hover:text-slate-200 transition"
+            className="text-[#CBD5E1] hover:text-[#F8FAFC] transition"
           >
             اتصل بنا
           </a>
@@ -103,9 +103,9 @@ export const PrivacyPolicyPage: React.FC<PrivacyPolicyPageProps> = ({
       {/* Main Container */}
       <main className="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-14 space-y-10">
         {/* Header Hero */}
-        <div className="text-center space-y-3 max-w-3xl mx-auto border-b border-slate-800/80 pb-8">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs font-extrabold shadow-sm">
-            <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+        <div className="text-center space-y-3 max-w-3xl mx-auto border-b border-[#1E293B]/80 pb-8">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#E25B26]/10 border border-[#E25B26]/30 text-[#E25B26] text-xs font-extrabold shadow-sm">
+            <ShieldCheck className="w-3.5 h-3.5 text-[#E25B26]" />
             <span>متوافق مع القانون المغربي 09-08 وسياسات حماية البيانات العالمية 🇲🇦</span>
           </div>
 
@@ -113,15 +113,15 @@ export const PrivacyPolicyPage: React.FC<PrivacyPolicyPageProps> = ({
             سياسة الخصوصية وحماية المعطيات
           </h1>
 
-          <p className="text-xs sm:text-sm text-slate-400 leading-relaxed max-w-2xl mx-auto">
+          <p className="text-xs sm:text-sm text-[#CBD5E1] leading-relaxed max-w-2xl mx-auto">
             آخر تحديث: 26 أكتوبر 2026 • تلتزم CodWorth بحماية خصوصية وأمان بيانات التجار والمشترين.
           </p>
         </div>
 
         {/* Content Box */}
-        <div className="bg-slate-900/60 border border-slate-800/80 rounded-3xl p-6 sm:p-10 space-y-8 shadow-2xl leading-relaxed text-sm text-slate-300 text-justify">
+        <div className="bg-[#131B2A]/60 border border-[#1E293B]/80 rounded-3xl p-6 sm:p-10 space-y-8 shadow-2xl leading-relaxed text-sm text-[#CBD5E1] text-justify">
           <section className="space-y-3">
-            <h2 className="text-white font-extrabold text-lg sm:text-xl border-b border-slate-800/60 pb-2">
+            <h2 className="text-white font-extrabold text-lg sm:text-xl border-b border-[#1E293B]/60 pb-2">
               1. مقدمة والتزام بالخصوصية (Privacy Commitment)
             </h2>
             <p>
@@ -133,7 +133,7 @@ export const PrivacyPolicyPage: React.FC<PrivacyPolicyPageProps> = ({
           </section>
 
           <section className="space-y-3">
-            <h2 className="text-white font-extrabold text-lg sm:text-xl border-b border-slate-800/60 pb-2">
+            <h2 className="text-white font-extrabold text-lg sm:text-xl border-b border-[#1E293B]/60 pb-2">
               2. البيانات التي نقوم بجمعها (Data We Collect)
             </h2>
             <p>نقوم بجمع البيانات الضرورية فقط لتمكينك من إنشاء وإدارة صفحات الهبوط ومعالجة الطلبات:</p>
@@ -157,20 +157,20 @@ export const PrivacyPolicyPage: React.FC<PrivacyPolicyPageProps> = ({
           </section>
 
           <section className="space-y-3">
-            <h2 className="text-white font-extrabold text-lg sm:text-xl border-b border-slate-800/60 pb-2">
+            <h2 className="text-white font-extrabold text-lg sm:text-xl border-b border-[#1E293B]/60 pb-2">
               3. سياسة Google OAuth واستخدام بيانات المستخدم (Google API Policy Compliance)
             </h2>
-            <div className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-2">
+            <div className="p-4 rounded-2xl bg-[#0D131E]/80 border border-[#1E293B] space-y-2">
               <div className="font-bold text-white flex items-center gap-2 text-xs">
-                <Globe className="w-4 h-4 text-emerald-400" />
+                <Globe className="w-4 h-4 text-[#E25B26]" />
                 <span>الامتثال لسياسة بيانات مستخدم خدمات Google API (Limited Use Policy)</span>
               </div>
-              <p className="text-xs text-slate-300 leading-relaxed">
+              <p className="text-xs text-[#CBD5E1] leading-relaxed">
                 في حال قيامك بتسجيل الدخول باستخدام زر Google Sign-In، فإننا نصل حصرياً إلى بيانات ملفك الشخصي
                 الأساسية (الاسم الكامل، عنوان البريد الإلكتروني، ومعرف الحساب الفريد) لغرض المصادقة وتأمين الحساب
                 فقط.
               </p>
-              <p className="text-xs text-emerald-400 font-bold">
+              <p className="text-xs text-[#E25B26] font-bold">
                 تلتزم CodWorth بعدم مشاركة أو بيع أي بيانات يتم الحصول عليها عبر Google APIs لأي جهات إعلانية أو
                 أطراف خارجية تحت أي ظرف، وفقاً لمتطلبات الاستخدام المحدود (Google Limited Use Requirements).
               </p>
@@ -178,7 +178,7 @@ export const PrivacyPolicyPage: React.FC<PrivacyPolicyPageProps> = ({
           </section>
 
           <section className="space-y-3">
-            <h2 className="text-white font-extrabold text-lg sm:text-xl border-b border-slate-800/60 pb-2">
+            <h2 className="text-white font-extrabold text-lg sm:text-xl border-b border-[#1E293B]/60 pb-2">
               4. الغرض من معالجة البيانات (Purpose of Processing)
             </h2>
             <p>نستخدم المعطيات المجمعة للأغراض التالية فقط:</p>
@@ -192,7 +192,7 @@ export const PrivacyPolicyPage: React.FC<PrivacyPolicyPageProps> = ({
           </section>
 
           <section className="space-y-3">
-            <h2 className="text-white font-extrabold text-lg sm:text-xl border-b border-slate-800/60 pb-2">
+            <h2 className="text-white font-extrabold text-lg sm:text-xl border-b border-[#1E293B]/60 pb-2">
               5. تدابير الحماية والأمان (Data Security & Encryption)
             </h2>
             <p>
@@ -207,7 +207,7 @@ export const PrivacyPolicyPage: React.FC<PrivacyPolicyPageProps> = ({
           </section>
 
           <section className="space-y-3">
-            <h2 className="text-white font-extrabold text-lg sm:text-xl border-b border-slate-800/60 pb-2">
+            <h2 className="text-white font-extrabold text-lg sm:text-xl border-b border-[#1E293B]/60 pb-2">
               6. حقوق المستخدم وحذف البيانات (User Rights & Deletion Requests)
             </h2>
             <p>
@@ -218,7 +218,7 @@ export const PrivacyPolicyPage: React.FC<PrivacyPolicyPageProps> = ({
               <li>تعديل أو تصحيح أي بيانات غير دقيقة.</li>
               <li>
                 <strong>طلب حذف حسابك وبياناتك بالكامل:</strong> يمكنك مراسلة مسؤول حماية البيانات مباشرة عبر{' '}
-                <a href="mailto:codworth.me@gmail.com" className="text-emerald-400 font-bold underline">
+                <a href="mailto:codworth.me@gmail.com" className="text-[#E25B26] font-bold underline">
                   codworth.me@gmail.com
                 </a>{' '}
                 وسيتم محو كافة بيانات صفحاتك وطلباتك نهائياً من خوادمنا خلال 48 ساعة من تأكيد الطلب.
@@ -227,21 +227,21 @@ export const PrivacyPolicyPage: React.FC<PrivacyPolicyPageProps> = ({
           </section>
 
           <section className="space-y-3">
-            <h2 className="text-white font-extrabold text-lg sm:text-xl border-b border-slate-800/60 pb-2">
+            <h2 className="text-white font-extrabold text-lg sm:text-xl border-b border-[#1E293B]/60 pb-2">
               7. معلومات الاتصال بمسؤول الخصوصية (Contact DPO)
             </h2>
             <p>
               لأي استفسار أو طلب يتعلق بسياسة الخصوصية وحماية المعطيات، يرجى التواصل مع فريقنا القانوني:
             </p>
-            <div className="p-4 rounded-2xl bg-slate-950/70 border border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-xs">
+            <div className="p-4 rounded-2xl bg-[#0D131E]/70 border border-[#1E293B] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-xs">
               <div className="space-y-1">
                 <div className="font-bold text-white">مسؤول حماية البيانات (Data Protection Officer)</div>
-                <div className="text-slate-400">CodWorth SARL • الدار البيضاء، المملكة المغربية 🇲🇦</div>
+                <div className="text-[#CBD5E1]">CodWorth SARL • الدار البيضاء، المملكة المغربية 🇲🇦</div>
               </div>
               <a
                 href="mailto:codworth.me@gmail.com"
                 dir="ltr"
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-emerald-400 font-bold hover:text-white transition"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#131B2A] border border-[#1E293B] text-[#E25B26] font-bold hover:text-white transition"
               >
                 <Mail className="w-3.5 h-3.5" />
                 <span>codworth.me@gmail.com</span>

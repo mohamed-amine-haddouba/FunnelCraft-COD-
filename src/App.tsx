@@ -1030,11 +1030,11 @@ function BuilderWorkspace() {
   // Loading Screen
   if (isLoading) {
     return (
-      <div className="min-h-screen w-screen bg-slate-950 flex flex-col items-center justify-center text-slate-400 gap-3" dir={dir}>
-        <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-400 text-slate-950 flex items-center justify-center font-black text-xl shadow-lg shadow-emerald-500/20 animate-pulse">
+      <div className="min-h-screen w-screen bg-[#0D131E] flex flex-col items-center justify-center text-[#CBD5E1] gap-3" dir={dir}>
+        <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-400 text-slate-950 flex items-center justify-center font-black text-xl shadow-lg shadow-[#E25B26]/20 animate-pulse">
           ⚡
         </div>
-        <div className="text-xs font-semibold text-slate-300">CodWorth</div>
+        <div className="text-xs font-semibold text-[#CBD5E1]">CodWorth</div>
       </div>
     );
   }
@@ -1058,9 +1058,9 @@ function BuilderWorkspace() {
     return (
       <div
         dir="rtl"
-        className="min-h-screen w-screen bg-slate-950 text-slate-100 font-sans flex items-center justify-center p-4"
+        className="min-h-screen w-screen bg-[#0D131E] text-[#F8FAFC] font-sans flex items-center justify-center p-4"
       >
-        <div className="max-w-md w-full bg-slate-900 border border-rose-500/30 rounded-3xl p-8 text-center shadow-2xl space-y-6">
+        <div className="max-w-md w-full bg-[#131B2A] border border-rose-500/30 rounded-3xl p-8 text-center shadow-2xl space-y-6">
           <div className="w-16 h-16 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-400 flex items-center justify-center mx-auto shadow-inner">
             <AlertCircle className="w-8 h-8" />
           </div>
@@ -1072,7 +1072,7 @@ function BuilderWorkspace() {
             <h1 className="text-xl sm:text-2xl font-black text-white">
               مرحباً بك، {user.full_name}
             </h1>
-            <p className="text-sm text-slate-300 leading-relaxed pt-1">
+            <p className="text-sm text-[#CBD5E1] leading-relaxed pt-1">
               تم إيقاف حسابك مؤقتاً من قبل الإدارة. يرجى التواصل مع فريق الدعم للمزيد من المعلومات.
             </p>
           </div>
@@ -1083,7 +1083,7 @@ function BuilderWorkspace() {
               await logout();
               navigate('/login');
             }}
-            className="w-full py-3.5 px-6 rounded-xl bg-slate-800 hover:bg-rose-600 text-slate-200 hover:text-white font-bold text-sm transition flex items-center justify-center gap-2 cursor-pointer border border-slate-700 hover:border-rose-500"
+            className="w-full py-3.5 px-6 rounded-xl bg-[#131B2A] hover:bg-rose-600 text-[#F8FAFC] hover:text-white font-bold text-sm transition flex items-center justify-center gap-2 cursor-pointer border border-[#334155] hover:border-rose-500"
           >
             <LogOut className="w-4 h-4" />
             <span>تسجيل الخروج (Logout)</span>
@@ -1101,13 +1101,13 @@ function BuilderWorkspace() {
       return (
         <div className="min-h-screen w-screen bg-slate-50 overflow-y-auto font-sans relative">
           {/* Floating Customer Live View Exit Pill */}
-          <div className="fixed top-14 left-4 z-50 flex items-center gap-2 bg-slate-950/90 backdrop-blur-md text-white border border-slate-700 px-4 py-2 rounded-full shadow-2xl text-xs font-semibold">
+          <div className="fixed top-14 left-4 z-50 flex items-center gap-2 bg-[#0D131E]/90 backdrop-blur-md text-white border border-[#334155] px-4 py-2 rounded-full shadow-2xl text-xs font-semibold">
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
             <span>{t.storefrontLivePreview}</span>
             <button
               type="button"
               onClick={() => setIsCustomerLiveView(false)}
-              className="ms-2 px-3 py-1 rounded-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold transition cursor-pointer"
+              className="ms-2 px-3 py-1 rounded-full bg-[#E25B26] hover:bg-[#F16F3C] text-slate-950 text-xs font-bold transition cursor-pointer"
             >
               {t.exitStorefront}
             </button>
@@ -1130,13 +1130,13 @@ function BuilderWorkspace() {
         dir={pageData.direction || (pageData.language === 'ar' ? 'rtl' : 'ltr')}
       >
         {/* Floating Customer Live View Exit Pill */}
-        <div className="fixed top-4 end-4 z-50 flex items-center gap-2 bg-slate-950/90 backdrop-blur-md text-white border border-slate-700 px-4 py-2 rounded-full shadow-2xl text-xs font-semibold">
+        <div className="fixed top-4 end-4 z-50 flex items-center gap-2 bg-[#0D131E]/90 backdrop-blur-md text-white border border-[#334155] px-4 py-2 rounded-full shadow-2xl text-xs font-semibold">
           <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
           <span>{t.storefrontLivePreview}</span>
           <button
             type="button"
             onClick={() => setIsCustomerLiveView(false)}
-            className="ms-2 px-3 py-1 rounded-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold transition cursor-pointer"
+            className="ms-2 px-3 py-1 rounded-full bg-[#E25B26] hover:bg-[#F16F3C] text-slate-950 text-xs font-bold transition cursor-pointer"
           >
             {t.exitStorefront}
           </button>
@@ -1166,7 +1166,7 @@ function BuilderWorkspace() {
   }
 
   return (
-    <div className="flex flex-col h-screen w-screen overflow-hidden overflow-x-hidden bg-slate-950 font-sans text-slate-100" dir={dir}>
+    <div className="flex flex-col h-screen w-screen overflow-hidden overflow-x-hidden bg-[#0D131E] font-sans text-[#F8FAFC]" dir={dir}>
       {/* Top Application Navbar */}
       <HeaderNav
         pageData={pageData}
@@ -1243,7 +1243,7 @@ function BuilderWorkspace() {
               await stopImpersonating();
               navigate('/dashboard/admin');
             }}
-            className="px-3 py-1 rounded-md bg-slate-950 hover:bg-slate-900 text-amber-300 border border-amber-400/50 text-xs font-bold transition cursor-pointer flex items-center gap-1.5 shadow-sm shrink-0"
+            className="px-3 py-1 rounded-md bg-[#0D131E] hover:bg-[#131B2A] text-amber-300 border border-amber-400/50 text-xs font-bold transition cursor-pointer flex items-center gap-1.5 shadow-sm shrink-0"
           >
             <span>↩️</span>
             <span>{t.impersonationReturnBtn}</span>
@@ -1272,14 +1272,14 @@ function BuilderWorkspace() {
       {scrapeSuccessToast && (
         <div
           dir="rtl"
-          className="fixed bottom-6 left-6 z-50 max-w-md bg-emerald-950/95 border border-emerald-500/60 text-emerald-100 px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-3 text-xs font-bold backdrop-blur-md"
+          className="fixed bottom-6 left-6 z-50 max-w-md bg-emerald-950/95 border border-[#E25B26]/60 text-emerald-100 px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-3 text-xs font-bold backdrop-blur-md"
         >
-          <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+          <CheckCircle2 className="w-5 h-5 text-[#E25B26] shrink-0" />
           <span className="flex-1">{scrapeSuccessToast}</span>
           <button
             type="button"
             onClick={() => setScrapeSuccessToast(null)}
-            className="text-emerald-300 hover:text-white cursor-pointer"
+            className="text-[#E25B26] hover:text-white cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
@@ -1288,7 +1288,7 @@ function BuilderWorkspace() {
 
       {/* Main SaaS Workspace Switcher via URL Param :tab */}
       {activeTab === 'admin' && isAdmin ? (
-        <div className="flex-1 min-w-0 min-h-0 overflow-y-auto overflow-x-hidden bg-slate-950">
+        <div className="flex-1 min-w-0 min-h-0 overflow-y-auto overflow-x-hidden bg-[#0D131E]">
           <AdminOwnerDashboard
             onImpersonateSuccess={() => {
               navigate('/dashboard/builder');
@@ -1299,7 +1299,7 @@ function BuilderWorkspace() {
           />
         </div>
       ) : activeTab === 'pricing' ? (
-        <div className="flex-1 min-w-0 min-h-0 overflow-y-auto overflow-x-hidden bg-slate-950">
+        <div className="flex-1 min-w-0 min-h-0 overflow-y-auto overflow-x-hidden bg-[#0D131E]">
           <PricingPage
             currentPlan={currentPlan}
             triggerReason={upgradeTriggerReason}
@@ -1320,7 +1320,7 @@ function BuilderWorkspace() {
         <div className="flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden relative">
           {/* Compact Single-Row Product URL Scraper Bar (h-10) */}
           {!isPreviewMode && (
-            <div className="h-10 bg-slate-900 border-b border-slate-800 px-2.5 shrink-0 flex items-center justify-between gap-2 overflow-x-hidden flex-nowrap">
+            <div className="h-10 bg-[#131B2A] border-b border-[#1E293B] px-2.5 shrink-0 flex items-center justify-between gap-2 overflow-x-hidden flex-nowrap">
               <div className="flex items-center gap-1.5 shrink-0">
                 <button
                   type="button"
@@ -1328,8 +1328,8 @@ function BuilderWorkspace() {
                   title={isLeftSidebarOpen ? 'إخفاء قائمة الأقسام' : 'إظهار قائمة الأقسام'}
                   className={`h-7 px-2 rounded-md border text-xs font-bold flex items-center gap-1 transition cursor-pointer ${
                     isLeftSidebarOpen
-                      ? 'bg-slate-800 text-emerald-400 border-slate-700'
-                      : 'bg-slate-950 text-slate-400 border-slate-800 hover:text-white'
+                      ? 'bg-[#131B2A] text-[#E25B26] border-[#334155]'
+                      : 'bg-[#0D131E] text-[#CBD5E1] border-[#1E293B] hover:text-white'
                   }`}
                 >
                   {isLeftSidebarOpen ? (
@@ -1346,7 +1346,7 @@ function BuilderWorkspace() {
                 className="flex-1 min-w-0 flex items-center gap-1.5 max-w-2xl mx-auto"
               >
                 <div className="relative flex-1 min-w-0">
-                  <Link2 className="w-3.5 h-3.5 text-emerald-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <Link2 className="w-3.5 h-3.5 text-[#E25B26] absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                   <input
                     type="url"
                     dir="ltr"
@@ -1354,7 +1354,7 @@ function BuilderWorkspace() {
                     value={scrapeUrl}
                     onChange={(e) => setScrapeUrl(e.target.value)}
                     placeholder="https://... (Shopify, YouCan, AliExpress, Amazon, Jumia, Noon)"
-                    className="w-full h-7 pr-8 pl-2.5 py-1 rounded-md bg-slate-950 border border-slate-700/80 text-slate-100 placeholder-slate-500 text-xs focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition"
+                    className="w-full h-7 pr-8 pl-2.5 py-1 rounded-md bg-[#0D131E] border border-[#334155]/80 text-[#F8FAFC] placeholder-slate-500 text-xs focus:outline-none focus:border-[#E25B26] focus:ring-1 focus:ring-[#E25B26] transition"
                   />
                 </div>
                 <button
@@ -1379,7 +1379,7 @@ function BuilderWorkspace() {
               <div className="flex items-center gap-1.5 shrink-0">
                 {pageData.scrapedData && (
                   <>
-                    <span className="hidden lg:inline-flex text-[10px] font-bold text-emerald-400 bg-emerald-950/70 border border-emerald-700/50 px-2 py-0.5 rounded-md whitespace-nowrap">
+                    <span className="hidden lg:inline-flex text-[10px] font-bold text-[#E25B26] bg-emerald-950/70 border border-emerald-700/50 px-2 py-0.5 rounded-md whitespace-nowrap">
                       ✓ {pageData.scrapedData.platform}
                     </span>
                     <button
@@ -1387,7 +1387,7 @@ function BuilderWorkspace() {
                       onClick={() =>
                         setBuilderRenderMode((m) => (m === 'scraped' ? 'blocks' : 'scraped'))
                       }
-                      className="h-7 px-2 py-1 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-[11px] font-bold flex items-center gap-1 transition cursor-pointer whitespace-nowrap"
+                      className="h-7 px-2 py-1 rounded-md bg-[#131B2A] hover:bg-slate-700 text-[#F8FAFC] border border-[#334155] text-[11px] font-bold flex items-center gap-1 transition cursor-pointer whitespace-nowrap"
                     >
                       {builderRenderMode === 'scraped' ? (
                         <>
@@ -1396,7 +1396,7 @@ function BuilderWorkspace() {
                         </>
                       ) : (
                         <>
-                          <Eye className="w-3 h-3 text-emerald-400" />
+                          <Eye className="w-3 h-3 text-[#E25B26]" />
                           <span className="hidden sm:inline">صفحة المنتج</span>
                         </>
                       )}
@@ -1410,8 +1410,8 @@ function BuilderWorkspace() {
                   title={isRightSidebarOpen ? 'إخفاء خصائص التصميم' : 'إظهار خصائص التصميم'}
                   className={`h-7 px-2 rounded-md border text-xs font-bold flex items-center gap-1 transition cursor-pointer ${
                     isRightSidebarOpen
-                      ? 'bg-slate-800 text-emerald-400 border-slate-700'
-                      : 'bg-slate-950 text-slate-400 border-slate-800 hover:text-white'
+                      ? 'bg-[#131B2A] text-[#E25B26] border-[#334155]'
+                      : 'bg-[#0D131E] text-[#CBD5E1] border-[#1E293B] hover:text-white'
                   }`}
                 >
                   <span className="hidden xl:inline text-[11px]">الخصائص</span>
@@ -1488,17 +1488,17 @@ function BuilderWorkspace() {
           {/* Compact Floating Bottom-Center Canvas Dock */}
           <div
             dir="ltr"
-            className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30 flex items-center gap-1.5 bg-slate-900/95 backdrop-blur-md border border-slate-700/80 px-2.5 py-1.5 rounded-2xl shadow-2xl text-slate-200 select-none"
+            className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30 flex items-center gap-1.5 bg-[#131B2A]/95 backdrop-blur-md border border-[#334155]/80 px-2.5 py-1.5 rounded-2xl shadow-2xl text-[#F8FAFC] select-none"
           >
             {/* Viewport Switcher */}
-            <div className="flex items-center bg-slate-950/90 p-0.5 rounded-xl border border-slate-800">
+            <div className="flex items-center bg-[#0D131E]/90 p-0.5 rounded-xl border border-[#1E293B]">
               <button
                 type="button"
                 onClick={() => setViewport('desktop')}
                 className={`p-1.5 rounded-lg transition cursor-pointer ${
                   viewport === 'desktop'
-                    ? 'bg-emerald-500 text-slate-950 shadow-xs'
-                    : 'text-slate-400 hover:text-white'
+                    ? 'bg-[#E25B26] text-slate-950 shadow-xs'
+                    : 'text-[#CBD5E1] hover:text-white'
                 }`}
                 title="Desktop View"
               >
@@ -1509,8 +1509,8 @@ function BuilderWorkspace() {
                 onClick={() => setViewport('tablet')}
                 className={`p-1.5 rounded-lg transition cursor-pointer ${
                   viewport === 'tablet'
-                    ? 'bg-emerald-500 text-slate-950 shadow-xs'
-                    : 'text-slate-400 hover:text-white'
+                    ? 'bg-[#E25B26] text-slate-950 shadow-xs'
+                    : 'text-[#CBD5E1] hover:text-white'
                 }`}
                 title="Tablet View"
               >
@@ -1521,8 +1521,8 @@ function BuilderWorkspace() {
                 onClick={() => setViewport('mobile')}
                 className={`p-1.5 rounded-lg transition cursor-pointer ${
                   viewport === 'mobile'
-                    ? 'bg-emerald-500 text-slate-950 shadow-xs'
-                    : 'text-slate-400 hover:text-white'
+                    ? 'bg-[#E25B26] text-slate-950 shadow-xs'
+                    : 'text-[#CBD5E1] hover:text-white'
                 }`}
                 title="Mobile View"
               >
@@ -1538,7 +1538,7 @@ function BuilderWorkspace() {
                 type="button"
                 disabled={history.past.length === 0}
                 onClick={handleUndo}
-                className="p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 disabled:opacity-30 disabled:hover:bg-transparent transition cursor-pointer"
+                className="p-1.5 rounded-lg text-[#CBD5E1] hover:text-white hover:bg-[#131B2A] disabled:opacity-30 disabled:hover:bg-transparent transition cursor-pointer"
                 title={t.undo}
               >
                 <Undo2 className="w-3.5 h-3.5" />
@@ -1547,7 +1547,7 @@ function BuilderWorkspace() {
                 type="button"
                 disabled={history.future.length === 0}
                 onClick={handleRedo}
-                className="p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 disabled:opacity-30 disabled:hover:bg-transparent transition cursor-pointer"
+                className="p-1.5 rounded-lg text-[#CBD5E1] hover:text-white hover:bg-[#131B2A] disabled:opacity-30 disabled:hover:bg-transparent transition cursor-pointer"
                 title={t.redo}
               >
                 <Redo2 className="w-3.5 h-3.5" />
@@ -1563,7 +1563,7 @@ function BuilderWorkspace() {
               className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-bold transition cursor-pointer ${
                 isPreviewMode
                   ? 'bg-amber-500 text-slate-950 shadow-sm'
-                  : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700'
+                  : 'bg-[#131B2A] hover:bg-slate-700 text-[#F8FAFC] border border-[#334155]'
               }`}
               title={isPreviewMode ? t.edit : t.preview}
             >
@@ -1574,7 +1574,7 @@ function BuilderWorkspace() {
                 </>
               ) : (
                 <>
-                  <Eye className="w-3.5 h-3.5 text-emerald-400" />
+                  <Eye className="w-3.5 h-3.5 text-[#E25B26]" />
                   <span>{t.preview}</span>
                 </>
               )}
@@ -1602,7 +1602,7 @@ function BuilderWorkspace() {
           />
         </div>
       ) : (
-        <div className="flex-1 min-w-0 min-h-0 overflow-y-auto overflow-x-hidden bg-slate-950">
+        <div className="flex-1 min-w-0 min-h-0 overflow-y-auto overflow-x-hidden bg-[#0D131E]">
           <SettingsPage
             isOpen={true}
             asModal={false}
@@ -1726,19 +1726,19 @@ export function NotFoundPage() {
   return (
     <div
       dir="rtl"
-      className="min-h-screen w-screen bg-slate-950 text-white flex items-center justify-center p-4 font-sans"
+      className="min-h-screen w-screen bg-[#0D131E] text-white flex items-center justify-center p-4 font-sans"
     >
-      <div className="max-w-md w-full bg-slate-900 border border-slate-800 rounded-3xl p-8 text-center shadow-2xl">
+      <div className="max-w-md w-full bg-[#131B2A] border border-[#1E293B] rounded-3xl p-8 text-center shadow-2xl">
         <div className="w-16 h-16 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-2xl flex items-center justify-center mx-auto mb-5">
           <AlertCircle className="w-8 h-8" />
         </div>
         <h1 className="text-2xl font-black mb-2">الصفحة غير موجودة (404)</h1>
-        <p className="text-slate-400 text-sm mb-6 leading-relaxed">
+        <p className="text-[#CBD5E1] text-sm mb-6 leading-relaxed">
           عذراً، الرابط الذي تحاول الوصول إليه غير متوفر حالياً أو تم تغيير عنوانه.
         </p>
         <Link
           to="/"
-          className="inline-flex items-center justify-center gap-2 w-full py-3 px-6 bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold text-sm rounded-xl shadow-lg transition"
+          className="inline-flex items-center justify-center gap-2 w-full py-3 px-6 bg-[#E25B26] hover:bg-[#E25B26] text-slate-950 font-bold text-sm rounded-xl shadow-lg transition"
         >
           <span>العودة إلى الصفحة الرئيسية</span>
         </Link>
@@ -1842,9 +1842,9 @@ export function PublicFunnelPage() {
     return (
       <div
         dir="rtl"
-        className="min-h-screen w-screen bg-slate-950 flex flex-col items-center justify-center text-slate-300 gap-3 font-sans"
+        className="min-h-screen w-screen bg-[#0D131E] flex flex-col items-center justify-center text-[#CBD5E1] gap-3 font-sans"
       >
-        <Loader2 className="w-8 h-8 text-emerald-400 animate-spin" />
+        <Loader2 className="w-8 h-8 text-[#E25B26] animate-spin" />
         <p className="text-sm font-bold">جاري تحميل الصفحة...</p>
       </div>
     );
@@ -1894,11 +1894,11 @@ function RootRedirect() {
   const { isLoggedIn, user, isLoading } = useAuth();
   if (isLoading) {
     return (
-      <div className="min-h-screen w-screen bg-slate-950 flex flex-col items-center justify-center text-slate-400 gap-3">
-        <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-400 text-slate-950 flex items-center justify-center font-black text-xl shadow-lg shadow-emerald-500/20 animate-pulse">
+      <div className="min-h-screen w-screen bg-[#0D131E] flex flex-col items-center justify-center text-[#CBD5E1] gap-3">
+        <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-400 text-slate-950 flex items-center justify-center font-black text-xl shadow-lg shadow-[#E25B26]/20 animate-pulse">
           ⚡
         </div>
-        <div className="text-xs font-semibold text-slate-300">CodWorth</div>
+        <div className="text-xs font-semibold text-[#CBD5E1]">CodWorth</div>
       </div>
     );
   }
@@ -1914,11 +1914,11 @@ function LoginRoute() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen w-screen bg-slate-950 flex flex-col items-center justify-center text-slate-400 gap-3">
-        <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-400 text-slate-950 flex items-center justify-center font-black text-xl shadow-lg shadow-emerald-500/20 animate-pulse">
+      <div className="min-h-screen w-screen bg-[#0D131E] flex flex-col items-center justify-center text-[#CBD5E1] gap-3">
+        <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-400 text-slate-950 flex items-center justify-center font-black text-xl shadow-lg shadow-[#E25B26]/20 animate-pulse">
           ⚡
         </div>
-        <div className="text-xs font-semibold text-slate-300">CodWorth</div>
+        <div className="text-xs font-semibold text-[#CBD5E1]">CodWorth</div>
       </div>
     );
   }

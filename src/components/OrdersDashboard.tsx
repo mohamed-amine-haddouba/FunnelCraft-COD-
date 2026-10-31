@@ -153,7 +153,7 @@ export const OrdersDashboard: React.FC<Props> = ({
       case 'delivered':
         return {
           label: t.statusDelivered,
-          bg: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
+          bg: 'bg-[#E25B26]/10 text-[#E25B26] border-[#E25B26]/20',
           dot: 'bg-emerald-400',
         };
       case 'cancelled':
@@ -165,13 +165,13 @@ export const OrdersDashboard: React.FC<Props> = ({
       case 'returned':
         return {
           label: t.statusReturned,
-          bg: 'bg-slate-500/10 text-slate-400 border-slate-500/20',
+          bg: 'bg-slate-500/10 text-[#CBD5E1] border-slate-500/20',
           dot: 'bg-slate-400',
         };
       default:
         return {
           label: status,
-          bg: 'bg-slate-800 text-slate-300 border-slate-700',
+          bg: 'bg-[#131B2A] text-[#CBD5E1] border-[#334155]',
           dot: 'bg-slate-400',
         };
     }
@@ -345,28 +345,28 @@ export const OrdersDashboard: React.FC<Props> = ({
   const totalRevenue = orders.reduce((sum, o) => sum + (Number(o.price) || 0), 0);
 
   return (
-    <div className="min-h-full bg-slate-950 text-slate-100 p-4 md:p-6 space-y-4" dir={dir}>
+    <div className="min-h-full bg-[#0D131E] text-[#F8FAFC] p-4 md:p-6 space-y-4" dir={dir}>
       {/* Toast Notification */}
       {toastMessage && (
-        <div className="fixed bottom-5 end-5 z-50 bg-emerald-500 text-slate-950 font-bold px-3.5 py-2 rounded-lg text-xs shadow-xl flex items-center gap-2 animate-in fade-in slide-in-from-bottom-2">
+        <div className="fixed bottom-5 end-5 z-50 bg-[#E25B26] text-slate-950 font-bold px-3.5 py-2 rounded-lg text-xs shadow-xl flex items-center gap-2 animate-in fade-in slide-in-from-bottom-2">
           <CheckCircle2 className="w-4 h-4 shrink-0" />
           <span>{toastMessage}</span>
         </div>
       )}
 
       {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800/80 pb-3">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#1E293B]/80 pb-3">
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-base md:text-lg font-bold tracking-tight text-white flex items-center gap-2">
-              <Package className="w-5 h-5 text-emerald-400" />
+              <Package className="w-5 h-5 text-[#E25B26]" />
               <span>{t.ordersTitle}</span>
             </h1>
-            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-slate-900 border border-slate-800 text-slate-400">
+            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-[#131B2A] border border-[#1E293B] text-[#CBD5E1]">
               {totalOrders} {t.ordersCountUnit}
             </span>
           </div>
-          <p className="text-xs text-slate-400 mt-0.5">{t.ordersDesc}</p>
+          <p className="text-xs text-[#CBD5E1] mt-0.5">{t.ordersDesc}</p>
         </div>
 
         {/* Header Action Buttons */}
@@ -376,7 +376,7 @@ export const OrdersDashboard: React.FC<Props> = ({
             type="button"
             onClick={handleSimulateOrder}
             disabled={isSimulatingOrder}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold cursor-pointer transition shadow-xs disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-[#E25B26] hover:bg-[#E25B26] text-slate-950 font-bold cursor-pointer transition shadow-xs disabled:opacity-50"
           >
             <PlusCircle className={`w-3.5 h-3.5 ${isSimulatingOrder ? 'animate-spin' : ''}`} />
             <span>{isSimulatingOrder ? '...' : t.newTestOrder}</span>
@@ -389,13 +389,13 @@ export const OrdersDashboard: React.FC<Props> = ({
             data-testid="export-orders-csv-btn"
             className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border cursor-pointer transition ${
               canExport
-                ? 'bg-slate-900 hover:bg-slate-800 border-slate-800 text-slate-200'
+                ? 'bg-[#131B2A] hover:bg-[#131B2A] border-[#1E293B] text-[#F8FAFC]'
                 : 'bg-amber-500/10 hover:bg-amber-500/20 border-amber-500/30 text-amber-300'
             }`}
           >
             {canExport ? (
               <>
-                <Download className="w-3.5 h-3.5 text-emerald-400" />
+                <Download className="w-3.5 h-3.5 text-[#E25B26]" />
                 <span>{t.exportCsv}</span>
               </>
             ) : (
@@ -411,7 +411,7 @@ export const OrdersDashboard: React.FC<Props> = ({
           <button
             type="button"
             onClick={fetchOrders}
-            className="p-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 hover:text-white transition cursor-pointer"
+            className="p-1.5 rounded-lg bg-[#131B2A] border border-[#1E293B] text-[#CBD5E1] hover:text-white transition cursor-pointer"
             title={t.refresh}
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
@@ -422,8 +422,8 @@ export const OrdersDashboard: React.FC<Props> = ({
       {/* Compact 4-Card KPI Strip */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {/* Total Orders */}
-        <div className="bg-slate-900/70 border border-slate-800 rounded-xl p-3 hover:border-slate-700 transition">
-          <div className="flex items-center justify-between text-slate-400 text-xs mb-1">
+        <div className="bg-[#131B2A]/70 border border-[#1E293B] rounded-xl p-3 hover:border-[#334155] transition">
+          <div className="flex items-center justify-between text-[#CBD5E1] text-xs mb-1">
             <span>{t.totalOrders}</span>
             <div className="w-6 h-6 rounded-md bg-indigo-500/10 text-indigo-400 flex items-center justify-center">
               <Package className="w-3.5 h-3.5" />
@@ -433,8 +433,8 @@ export const OrdersDashboard: React.FC<Props> = ({
         </div>
 
         {/* Pending Orders */}
-        <div className="bg-slate-900/70 border border-slate-800 rounded-xl p-3 hover:border-slate-700 transition">
-          <div className="flex items-center justify-between text-slate-400 text-xs mb-1">
+        <div className="bg-[#131B2A]/70 border border-[#1E293B] rounded-xl p-3 hover:border-[#334155] transition">
+          <div className="flex items-center justify-between text-[#CBD5E1] text-xs mb-1">
             <span>{t.pendingOrders}</span>
             <div className="w-6 h-6 rounded-md bg-amber-500/10 text-amber-400 flex items-center justify-center">
               <Clock className="w-3.5 h-3.5" />
@@ -444,41 +444,41 @@ export const OrdersDashboard: React.FC<Props> = ({
         </div>
 
         {/* Confirmed Orders */}
-        <div className="bg-slate-900/70 border border-slate-800 rounded-xl p-3 hover:border-slate-700 transition">
-          <div className="flex items-center justify-between text-slate-400 text-xs mb-1">
+        <div className="bg-[#131B2A]/70 border border-[#1E293B] rounded-xl p-3 hover:border-[#334155] transition">
+          <div className="flex items-center justify-between text-[#CBD5E1] text-xs mb-1">
             <span>{t.confirmedOrders}</span>
-            <div className="w-6 h-6 rounded-md bg-emerald-500/10 text-emerald-400 flex items-center justify-center">
+            <div className="w-6 h-6 rounded-md bg-[#E25B26]/10 text-[#E25B26] flex items-center justify-center">
               <CheckCircle2 className="w-3.5 h-3.5" />
             </div>
           </div>
-          <div className="text-xl font-bold text-emerald-400 tracking-tight">{confirmedOrders}</div>
+          <div className="text-xl font-bold text-[#E25B26] tracking-tight">{confirmedOrders}</div>
         </div>
 
         {/* Total Revenue */}
-        <div className="bg-slate-900/70 border border-slate-800 rounded-xl p-3 hover:border-slate-700 transition">
-          <div className="flex items-center justify-between text-slate-400 text-xs mb-1">
+        <div className="bg-[#131B2A]/70 border border-[#1E293B] rounded-xl p-3 hover:border-[#334155] transition">
+          <div className="flex items-center justify-between text-[#CBD5E1] text-xs mb-1">
             <span>{t.totalRevenue}</span>
-            <div className="w-6 h-6 rounded-md bg-teal-500/10 text-teal-400 flex items-center justify-center">
+            <div className="w-6 h-6 rounded-md bg-teal-500/10 text-[#E25B26] flex items-center justify-center">
               <DollarSign className="w-3.5 h-3.5" />
             </div>
           </div>
           <div className="text-xl font-bold text-white tracking-tight">
-            {totalRevenue.toLocaleString()} <span className="text-xs font-normal text-slate-400">{t.madCurrency}</span>
+            {totalRevenue.toLocaleString()} <span className="text-xs font-normal text-[#CBD5E1]">{t.madCurrency}</span>
           </div>
         </div>
       </div>
 
       {/* High-Density Compact Filter Bar */}
-      <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-2.5 flex flex-wrap items-center gap-2">
+      <div className="bg-[#131B2A]/80 border border-[#1E293B] rounded-xl p-2.5 flex flex-wrap items-center gap-2">
         {/* Search */}
         <div className="relative flex-1 min-w-[200px]">
-          <Search className="w-3.5 h-3.5 text-slate-400 absolute top-1/2 -translate-y-1/2 start-2.5" />
+          <Search className="w-3.5 h-3.5 text-[#CBD5E1] absolute top-1/2 -translate-y-1/2 start-2.5" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder={t.searchPlaceholder}
-            className="w-full bg-slate-950 border border-slate-800 rounded-lg ps-8 pe-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 transition"
+            className="w-full bg-[#0D131E] border border-[#1E293B] rounded-lg ps-8 pe-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#E25B26] transition"
           />
         </div>
 
@@ -487,7 +487,7 @@ export const OrdersDashboard: React.FC<Props> = ({
           <select
             value={selectedStatus}
             onChange={(e) => setSelectedStatus(e.target.value)}
-            className="bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-300 focus:outline-none focus:border-emerald-500 cursor-pointer"
+            className="bg-[#0D131E] border border-[#1E293B] rounded-lg px-2.5 py-1.5 text-xs text-[#CBD5E1] focus:outline-none focus:border-[#E25B26] cursor-pointer"
           >
             <option value="all">{t.allStatuses}</option>
             <option value="pending">{t.statusPending}</option>
@@ -504,7 +504,7 @@ export const OrdersDashboard: React.FC<Props> = ({
           <select
             value={selectedCity}
             onChange={(e) => setSelectedCity(e.target.value)}
-            className="bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-300 focus:outline-none focus:border-emerald-500 cursor-pointer"
+            className="bg-[#0D131E] border border-[#1E293B] rounded-lg px-2.5 py-1.5 text-xs text-[#CBD5E1] focus:outline-none focus:border-[#E25B26] cursor-pointer"
           >
             <option value="all">{t.allCities}</option>
             {MOROCCAN_CITIES.map((c) => (
@@ -517,11 +517,11 @@ export const OrdersDashboard: React.FC<Props> = ({
       </div>
 
       {/* High-Density Orders Table */}
-      <div className="bg-slate-900/70 border border-slate-800 rounded-xl overflow-hidden">
+      <div className="bg-[#131B2A]/70 border border-[#1E293B] rounded-xl overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-start text-xs border-collapse">
             <thead>
-              <tr className="border-b border-slate-800 bg-slate-950/60 text-[11px] text-slate-400">
+              <tr className="border-b border-[#1E293B] bg-[#0D131E]/60 text-[11px] text-[#CBD5E1]">
                 <th className="py-2.5 px-3 text-start font-medium">{t.tableOrder}</th>
                 <th className="py-2.5 px-3 text-start font-medium">{t.tableCustomer}</th>
                 <th className="py-2.5 px-3 text-start font-medium">{t.tableCity}</th>
@@ -546,13 +546,13 @@ export const OrdersDashboard: React.FC<Props> = ({
                   return (
                     <tr
                       key={order.id}
-                      className={`hover:bg-slate-800/30 transition ${
+                      className={`hover:bg-[#131B2A]/30 transition ${
                         isPending ? 'bg-amber-500/[0.02]' : ''
                       }`}
                     >
                       {/* Order ID & Date */}
                       <td className="py-2.5 px-3">
-                        <div className="font-mono text-[11px] font-semibold text-slate-300">
+                        <div className="font-mono text-[11px] font-semibold text-[#CBD5E1]">
                           {order.id}
                         </div>
                         <div className="text-[10px] text-slate-500">
@@ -563,15 +563,15 @@ export const OrdersDashboard: React.FC<Props> = ({
                       {/* Customer Name & Phone */}
                       <td className="py-2.5 px-3">
                         <div className="font-semibold text-white">{order.customerName}</div>
-                        <div className="text-[11px] text-slate-400 font-mono" dir="ltr">
+                        <div className="text-[11px] text-[#CBD5E1] font-mono" dir="ltr">
                           {order.customerPhone}
                         </div>
                       </td>
 
                       {/* City & Address */}
                       <td className="py-2.5 px-3">
-                        <div className="inline-flex items-center gap-1 font-medium text-slate-300">
-                          <MapPin className="w-3 h-3 text-emerald-400 shrink-0" />
+                        <div className="inline-flex items-center gap-1 font-medium text-[#CBD5E1]">
+                          <MapPin className="w-3 h-3 text-[#E25B26] shrink-0" />
                           <span>{order.customerCity}</span>
                         </div>
                         {order.customerAddress && (
@@ -583,10 +583,10 @@ export const OrdersDashboard: React.FC<Props> = ({
 
                       {/* Product */}
                       <td className="py-2.5 px-3">
-                        <div className="font-medium text-slate-200 truncate max-w-[200px]">
+                        <div className="font-medium text-[#F8FAFC] truncate max-w-[200px]">
                           {order.productName}
                         </div>
-                        <div className="text-[10px] text-slate-400">
+                        <div className="text-[10px] text-[#CBD5E1]">
                           {language === 'ar' ? `الكمية: ${order.quantity}` : `Qté: ${order.quantity}`}
                         </div>
                       </td>
@@ -594,7 +594,7 @@ export const OrdersDashboard: React.FC<Props> = ({
                       {/* Total Amount */}
                       <td className="py-2.5 px-3 font-bold text-white">
                         {order.price}{' '}
-                        <span className="text-[10px] font-normal text-slate-400">{t.madCurrency}</span>
+                        <span className="text-[10px] font-normal text-[#CBD5E1]">{t.madCurrency}</span>
                       </td>
 
                       {/* Status Selector Dropdown */}
@@ -607,22 +607,22 @@ export const OrdersDashboard: React.FC<Props> = ({
                             }
                             className={`text-[11px] font-semibold px-2 py-1 rounded-md border appearance-none pe-5 cursor-pointer focus:outline-none ${badge.bg}`}
                           >
-                            <option value="pending" className="bg-slate-900 text-white">
+                            <option value="pending" className="bg-[#131B2A] text-white">
                               {t.statusPending}
                             </option>
-                            <option value="confirmed" className="bg-slate-900 text-white">
+                            <option value="confirmed" className="bg-[#131B2A] text-white">
                               {t.statusConfirmed}
                             </option>
-                            <option value="shipped" className="bg-slate-900 text-white">
+                            <option value="shipped" className="bg-[#131B2A] text-white">
                               {t.statusShipped}
                             </option>
-                            <option value="delivered" className="bg-slate-900 text-white">
+                            <option value="delivered" className="bg-[#131B2A] text-white">
                               {t.statusDelivered}
                             </option>
-                            <option value="cancelled" className="bg-slate-900 text-white">
+                            <option value="cancelled" className="bg-[#131B2A] text-white">
                               {t.statusCancelled}
                             </option>
-                            <option value="returned" className="bg-slate-900 text-white">
+                            <option value="returned" className="bg-[#131B2A] text-white">
                               {t.statusReturned}
                             </option>
                           </select>
@@ -636,10 +636,10 @@ export const OrdersDashboard: React.FC<Props> = ({
                           href={getWhatsAppLink(order)}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 transition"
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold bg-[#E25B26]/10 hover:bg-[#E25B26]/20 text-[#E25B26] border border-[#E25B26]/30 transition"
                           title="تأكيد الطلب مباشرة عبر واتساب"
                         >
-                          <MessageCircle className="w-3 h-3 text-emerald-400" />
+                          <MessageCircle className="w-3 h-3 text-[#E25B26]" />
                           <span>{t.confirmWhatsApp}</span>
                         </a>
                       </td>
@@ -655,19 +655,19 @@ export const OrdersDashboard: React.FC<Props> = ({
       {/* Order Export & Delivery Carrier API Integration Card */}
       {canExport ? (
         <div
-          className="bg-slate-900/70 border border-emerald-500/30 rounded-xl p-4 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4"
+          className="bg-[#131B2A]/70 border border-[#E25B26]/30 rounded-xl p-4 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4"
           data-testid="delivery-integration-unlocked"
         >
           <div className="space-y-1">
-            <div className="flex items-center gap-2 text-xs font-bold text-emerald-400">
-              <Truck className="w-4 h-4 text-emerald-400" />
+            <div className="flex items-center gap-2 text-xs font-bold text-[#E25B26]">
+              <Truck className="w-4 h-4 text-[#E25B26]" />
               <span>
                 {language === 'ar'
                   ? '✅ تصدير الطلبات والربط المباشر مع شركات التوصيل (مفعل لحسابك Pro)'
                   : '✅ Order Export & Delivery Carrier Sync (Active on your Pro Plan)'}
               </span>
             </div>
-            <p className="text-[11px] text-slate-400">
+            <p className="text-[11px] text-[#CBD5E1]">
               {language === 'ar'
                 ? 'يمكنك تصدير جميع الطلبات بصيغة CSV/Excel أو إرسالها تلقائياً إلى شركة التوصيل المعتمدة لديك.'
                 : 'Export orders to CSV/Excel or sync confirmed COD orders directly with your Moroccan delivery carrier.'}
@@ -678,7 +678,7 @@ export const OrdersDashboard: React.FC<Props> = ({
             <select
               value={selectedCarrier}
               onChange={(e) => setSelectedCarrier(e.target.value)}
-              className="bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-emerald-500"
+              className="bg-[#0D131E] border border-[#1E293B] rounded-lg px-2.5 py-1.5 text-xs text-[#F8FAFC] focus:outline-none focus:border-[#E25B26]"
             >
               <option value="Ozon Express">Ozon Express (أوزون إكسبريس)</option>
               <option value="Cathedis">Cathedis (كاتيديس)</option>
@@ -692,7 +692,7 @@ export const OrdersDashboard: React.FC<Props> = ({
               value={carrierWebhookUrl}
               onChange={(e) => setCarrierWebhookUrl(e.target.value)}
               placeholder="https://api.carrier.ma/webhook..."
-              className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 min-w-[200px]"
+              className="bg-[#0D131E] border border-[#1E293B] rounded-lg px-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#E25B26] min-w-[200px]"
             />
 
             <button
@@ -704,7 +704,7 @@ export const OrdersDashboard: React.FC<Props> = ({
                     : `Synced orders with ${selectedCarrier}!`
                 )
               }
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-slate-950 transition cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-[#E25B26] hover:bg-[#E25B26] text-slate-950 transition cursor-pointer"
             >
               <LinkIcon className="w-3.5 h-3.5" />
               <span>{language === 'ar' ? 'مزامنة مع شركة التوصيل' : 'Sync Carrier'}</span>
@@ -713,9 +713,9 @@ export const OrdersDashboard: React.FC<Props> = ({
             <button
               type="button"
               onClick={handleExportCsv}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white transition cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-[#131B2A] hover:bg-slate-700 border border-[#334155] text-white transition cursor-pointer"
             >
-              <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-400" />
+              <FileSpreadsheet className="w-3.5 h-3.5 text-[#E25B26]" />
               <span>{t.exportCsv}</span>
             </button>
           </div>
@@ -730,7 +730,7 @@ export const OrdersDashboard: React.FC<Props> = ({
               <Crown className="w-4 h-4 text-amber-400 shrink-0" />
               <span>🔒 تصدير الطلبات والربط مع شركات التوصيل ميزة حصرية لمشتركي Pro</span>
             </div>
-            <p className="text-[11px] text-slate-400">
+            <p className="text-[11px] text-[#CBD5E1]">
               {language === 'ar'
                 ? 'قم بترقية باقتك إلى Pro أو Enterprise لتفعيل تصدير ملفات Excel/CSV والربط التلقائي مع شركات التوصيل.'
                 : 'Upgrade to Pro or Enterprise to unlock CSV/Excel exports and automated delivery carrier webhooks.'}

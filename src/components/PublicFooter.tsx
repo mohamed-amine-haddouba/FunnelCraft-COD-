@@ -49,8 +49,8 @@ export const PublicFooter: React.FC<PublicFooterProps> = ({
             >
               <img
                 src="/assets/brand/logo.jpg"
-                className="h-9 w-auto object-contain rounded-lg"
-                alt="CodWorth Logo"
+                alt="CodWorth"
+                className="h-10 w-auto object-contain rounded-lg"
               />
             </a>
 

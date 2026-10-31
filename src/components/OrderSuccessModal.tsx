@@ -107,7 +107,7 @@ export const OrderSuccessModal: React.FC<Props> = ({ orderData, onClose, isRtl }
           <button
             type="button"
             onClick={onClose}
-            className="flex-1 py-3 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition shadow-lg"
+            className="flex-1 py-3 px-4 bg-[#E25B26] hover:bg-[#F16F3C] text-white rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition shadow-lg"
           >
             <span>{isRtl ? 'إتمام ومتابعة' : 'Done • Continue'}</span>
           </button>

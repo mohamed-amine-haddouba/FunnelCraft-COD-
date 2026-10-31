@@ -188,7 +188,7 @@ export const ExportModal: React.FC<Props> = ({
                     setImportError(null);
                   }}
                   placeholder="Paste previously exported Landing Page JSON here..."
-                  className="w-full p-3 rounded-xl border border-gray-300 font-mono text-xs focus:ring-2 focus:ring-emerald-500"
+                  className="w-full p-3 rounded-xl border border-gray-300 font-mono text-xs focus:ring-2 focus:ring-[#E25B26]"
                 />
                 {importError && (
                   <p className="text-red-500 text-[11px] font-bold mt-1">{importError}</p>
@@ -242,7 +242,7 @@ export const ExportModal: React.FC<Props> = ({
           <button
             type="button"
             onClick={handleDownload}
-            className="py-2.5 px-6 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-xl shadow-lg transition flex items-center gap-2"
+            className="py-2.5 px-6 bg-[#E25B26] hover:bg-[#F16F3C] text-white font-black text-xs rounded-xl shadow-lg transition flex items-center gap-2"
           >
             <Download className="w-4 h-4" />
             <span>Download {activeTab === 'html' ? 'index.html' : 'funnel.json'}</span>

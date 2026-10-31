@@ -106,7 +106,7 @@ export const AdminPaymentsModal: React.FC<Props> = ({ isOpen, onClose }) => {
         {/* Header */}
         <div className="p-5 border-b border-gray-200 flex items-center justify-between bg-gray-50/80">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-emerald-600 text-white flex items-center justify-center font-bold shadow-md shadow-emerald-600/20">
+            <div className="w-10 h-10 rounded-2xl bg-[#E25B26] text-white flex items-center justify-center font-bold shadow-md shadow-emerald-600/20">
               <ShieldCheck className="w-5 h-5" />
             </div>
             <div>
@@ -148,7 +148,7 @@ export const AdminPaymentsModal: React.FC<Props> = ({ isOpen, onClose }) => {
 
         {/* Toast Alert */}
         {toastMessage && (
-          <div className="bg-emerald-600 text-white text-xs font-bold py-2.5 px-4 text-center transition flex items-center justify-center gap-1.5 shadow-inner">
+          <div className="bg-[#E25B26] text-white text-xs font-bold py-2.5 px-4 text-center transition flex items-center justify-center gap-1.5 shadow-inner">
             <UserCheck className="w-4 h-4" />
             <span>{toastMessage}</span>
           </div>
@@ -330,7 +330,7 @@ export const AdminPaymentsModal: React.FC<Props> = ({ isOpen, onClose }) => {
                         type="button"
                         disabled={actionLoadingId === p.id}
                         onClick={() => handleApprove(p.id)}
-                        className="py-2 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs flex items-center gap-1.5 transition shadow-sm disabled:opacity-50"
+                        className="py-2 px-4 bg-[#E25B26] hover:bg-[#F16F3C] text-white rounded-xl font-bold text-xs flex items-center gap-1.5 transition shadow-sm disabled:opacity-50"
                       >
                         <Check className="w-3.5 h-3.5 stroke-[2.5]" />
                         <span>

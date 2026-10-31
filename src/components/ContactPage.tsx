@@ -109,10 +109,10 @@ export const ContactPage: React.FC<ContactPageProps> = ({
   return (
     <div
       dir="rtl"
-      className="min-h-full bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-emerald-500 selection:text-slate-950"
+      className="min-h-full bg-[#0D131E] text-[#F8FAFC] flex flex-col font-sans selection:bg-[#E25B26] selection:text-slate-950"
     >
       {/* Top Header Bar */}
-      <header className="border-b border-slate-800/80 bg-slate-950/80 backdrop-blur-md sticky top-0 z-40 px-4 sm:px-8 py-3.5 flex items-center justify-between">
+      <header className="border-b border-[#1E293B]/80 bg-[#0D131E]/80 backdrop-blur-md sticky top-0 z-40 px-4 sm:px-8 py-3.5 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <a
             href="/"
@@ -122,18 +122,18 @@ export const ContactPage: React.FC<ContactPageProps> = ({
                 onBackToHome();
               }
             }}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-xs font-bold text-slate-300 hover:text-white transition cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#131B2A] hover:bg-[#131B2A] border border-[#1E293B] text-xs font-bold text-[#CBD5E1] hover:text-white transition cursor-pointer"
           >
-            <ArrowRight className="w-3.5 h-3.5 text-emerald-400" />
+            <ArrowRight className="w-3.5 h-3.5 text-[#E25B26]" />
             <span>العودة للمنصة</span>
           </a>
 
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center shadow-sm shadow-emerald-500/20">
+            <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center shadow-sm shadow-[#E25B26]/20">
               <Sparkles className="w-3.5 h-3.5 text-slate-950" />
             </div>
             <span className="font-black text-sm tracking-tight text-white">CodWorth</span>
-            <span className="text-[10px] font-bold text-emerald-400">• الدعم الفني</span>
+            <span className="text-[10px] font-bold text-[#E25B26]">• الدعم الفني</span>
           </div>
         </div>
 
@@ -146,7 +146,7 @@ export const ContactPage: React.FC<ContactPageProps> = ({
                 onNavigateToTerms();
               }
             }}
-            className="text-slate-400 hover:text-slate-200 transition"
+            className="text-[#CBD5E1] hover:text-[#F8FAFC] transition"
           >
             شروط الاستخدام
           </a>
@@ -158,7 +158,7 @@ export const ContactPage: React.FC<ContactPageProps> = ({
                 onNavigateToPrivacy();
               }
             }}
-            className="text-slate-400 hover:text-slate-200 transition"
+            className="text-[#CBD5E1] hover:text-[#F8FAFC] transition"
           >
             سياسة الخصوصية
           </a>
@@ -169,8 +169,8 @@ export const ContactPage: React.FC<ContactPageProps> = ({
       <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16 space-y-14">
         {/* Hero Section */}
         <div className="text-center space-y-4 max-w-3xl mx-auto">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs font-extrabold shadow-sm">
-            <Clock className="w-3.5 h-3.5 text-emerald-400" />
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#E25B26]/10 border border-[#E25B26]/30 text-[#E25B26] text-xs font-extrabold shadow-sm">
+            <Clock className="w-3.5 h-3.5 text-[#E25B26]" />
             <span>نرد على كافة الاستفسارات خلال 24 ساعة كحد أقصى</span>
           </div>
 
@@ -178,7 +178,7 @@ export const ContactPage: React.FC<ContactPageProps> = ({
             تواصل معنا
           </h1>
 
-          <p className="text-sm sm:text-base text-slate-300 max-w-2xl mx-auto leading-relaxed">
+          <p className="text-sm sm:text-base text-[#CBD5E1] max-w-2xl mx-auto leading-relaxed">
             نحن هنا لمساعدتك في أي وقت. فريق دعم CodWorth يجيب على استفساراتك حول المنصة، باقات الاشتراك،
             والربط مع شركات التوصيل خلال 24 ساعة.
           </p>
@@ -187,18 +187,18 @@ export const ContactPage: React.FC<ContactPageProps> = ({
         {/* Contact Info Cards (3 cards in a grid) */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
           {/* 1. البريد الإلكتروني (Email) */}
-          <div className="bg-slate-900/70 border border-slate-800 rounded-2xl p-6 relative overflow-hidden group hover:border-emerald-500/40 transition shadow-xl">
-            <div className="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center mb-4 group-hover:scale-105 transition">
+          <div className="bg-[#131B2A]/70 border border-[#1E293B] rounded-2xl p-6 relative overflow-hidden group hover:border-[#E25B26]/40 transition shadow-xl">
+            <div className="w-12 h-12 rounded-xl bg-[#E25B26]/10 border border-[#E25B26]/20 text-[#E25B26] flex items-center justify-center mb-4 group-hover:scale-105 transition">
               <Mail className="w-6 h-6" />
             </div>
             <h3 className="font-bold text-base text-white mb-1">البريد الإلكتروني</h3>
-            <p className="text-xs text-slate-400 mb-4 leading-relaxed">
+            <p className="text-xs text-[#CBD5E1] mb-4 leading-relaxed">
               للاستفسارات العامة، الدعم الفني، وطلبات الحسابات والفوترة
             </p>
             <a
               href="mailto:codworth.me@gmail.com"
               dir="ltr"
-              className="inline-flex items-center gap-2 text-sm font-bold text-emerald-400 hover:text-emerald-300 transition group-hover:underline"
+              className="inline-flex items-center gap-2 text-sm font-bold text-[#E25B26] hover:text-[#E25B26] transition group-hover:underline"
             >
               <span>codworth.me@gmail.com</span>
               <ExternalLink className="w-3.5 h-3.5" />
@@ -206,12 +206,12 @@ export const ContactPage: React.FC<ContactPageProps> = ({
           </div>
 
           {/* 2. واتساب (WhatsApp) */}
-          <div className="bg-slate-900/70 border border-slate-800 rounded-2xl p-6 relative overflow-hidden group hover:border-emerald-500/40 transition shadow-xl">
-            <div className="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center mb-4 group-hover:scale-105 transition">
+          <div className="bg-[#131B2A]/70 border border-[#1E293B] rounded-2xl p-6 relative overflow-hidden group hover:border-[#E25B26]/40 transition shadow-xl">
+            <div className="w-12 h-12 rounded-xl bg-[#E25B26]/10 border border-[#E25B26]/20 text-[#E25B26] flex items-center justify-center mb-4 group-hover:scale-105 transition">
               <MessageCircle className="w-6 h-6" />
             </div>
             <h3 className="font-bold text-base text-white mb-1">واتساب (WhatsApp)</h3>
-            <p className="text-xs text-slate-400 mb-4 leading-relaxed">
+            <p className="text-xs text-[#CBD5E1] mb-4 leading-relaxed">
               دعم فوري للتجار المشتركين ومساعدتكم في إعداد الحملات والصفحات
             </p>
             <a
@@ -219,7 +219,7 @@ export const ContactPage: React.FC<ContactPageProps> = ({
               target="_blank"
               rel="noopener noreferrer"
               dir="ltr"
-              className="inline-flex items-center gap-2 text-sm font-bold text-emerald-400 hover:text-emerald-300 transition group-hover:underline"
+              className="inline-flex items-center gap-2 text-sm font-bold text-[#E25B26] hover:text-[#E25B26] transition group-hover:underline"
             >
               <span>+212 722-256897</span>
               <ExternalLink className="w-3.5 h-3.5" />
@@ -227,16 +227,16 @@ export const ContactPage: React.FC<ContactPageProps> = ({
           </div>
 
           {/* 3. المقر (Location) */}
-          <div className="bg-slate-900/70 border border-slate-800 rounded-2xl p-6 relative overflow-hidden group hover:border-emerald-500/40 transition shadow-xl">
-            <div className="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center mb-4 group-hover:scale-105 transition">
+          <div className="bg-[#131B2A]/70 border border-[#1E293B] rounded-2xl p-6 relative overflow-hidden group hover:border-[#E25B26]/40 transition shadow-xl">
+            <div className="w-12 h-12 rounded-xl bg-[#E25B26]/10 border border-[#E25B26]/20 text-[#E25B26] flex items-center justify-center mb-4 group-hover:scale-105 transition">
               <MapPin className="w-6 h-6" />
             </div>
             <h3 className="font-bold text-base text-white mb-1">المقر الرئيسي</h3>
-            <p className="text-xs text-slate-400 mb-4 leading-relaxed">
+            <p className="text-xs text-[#CBD5E1] mb-4 leading-relaxed">
               فريقنا يعمل من قلب العاصمة الاقتصادية للمملكة المغربية 🇲🇦
             </p>
-            <div className="text-sm font-bold text-slate-200 flex items-center gap-1.5">
-              <Building2 className="w-4 h-4 text-emerald-400" />
+            <div className="text-sm font-bold text-[#F8FAFC] flex items-center gap-1.5">
+              <Building2 className="w-4 h-4 text-[#E25B26]" />
               <span>الدار البيضاء، المغرب</span>
             </div>
           </div>
@@ -245,28 +245,28 @@ export const ContactPage: React.FC<ContactPageProps> = ({
         {/* Contact Form & Support Guarantees */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           {/* Form */}
-          <div className="lg:col-span-7 bg-slate-900/90 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl relative">
+          <div className="lg:col-span-7 bg-[#131B2A]/90 border border-[#1E293B] rounded-3xl p-6 sm:p-8 shadow-2xl relative">
             <div className="mb-6">
               <h2 className="text-xl font-extrabold text-white mb-1">أرسل لنا رسالة مباشرة</h2>
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-[#CBD5E1]">
                 املأ النموذج وسيقوم أحد ممثلي الدعم بالتواصل معك عبر البريد الإلكتروني.
               </p>
             </div>
 
             {isSubmitted ? (
-              <div className="p-6 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-center space-y-3 animate-in fade-in">
-                <div className="w-12 h-12 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center mx-auto">
+              <div className="p-6 rounded-2xl bg-[#E25B26]/10 border border-[#E25B26]/30 text-center space-y-3 animate-in fade-in">
+                <div className="w-12 h-12 rounded-full bg-[#E25B26]/20 text-[#E25B26] flex items-center justify-center mx-auto">
                   <CheckCircle2 className="w-6 h-6" />
                 </div>
                 <h3 className="font-bold text-base text-white">تم استلام رسالتك بنجاح!</h3>
-                <p className="text-xs text-emerald-300 leading-relaxed max-w-md mx-auto">
+                <p className="text-xs text-[#E25B26] leading-relaxed max-w-md mx-auto">
                   شكراً لتواصلك مع CodWorth. فريق الدعم يقوم حالياً بمراجعة استفسارك وسنرد عليك عبر البريد
                   خلال 24 ساعة كحد أقصى.
                 </p>
                 <button
                   type="button"
                   onClick={() => setIsSubmitted(false)}
-                  className="mt-3 px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-200 transition cursor-pointer"
+                  className="mt-3 px-4 py-2 rounded-xl bg-[#131B2A] hover:bg-slate-700 text-xs font-bold text-[#F8FAFC] transition cursor-pointer"
                 >
                   إرسال رسالة أخرى
                 </button>
@@ -282,7 +282,7 @@ export const ContactPage: React.FC<ContactPageProps> = ({
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-bold text-slate-300 mb-1.5">
+                    <label className="block text-xs font-bold text-[#CBD5E1] mb-1.5">
                       الاسم الكامل *
                     </label>
                     <input
@@ -291,12 +291,12 @@ export const ContactPage: React.FC<ContactPageProps> = ({
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
                       placeholder="مثال: يوسف العلمي"
-                      className="w-full h-10 px-3 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 transition"
+                      className="w-full h-10 px-3 rounded-xl bg-[#0D131E] border border-[#1E293B] text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#E25B26] transition"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold text-slate-300 mb-1.5">
+                    <label className="block text-xs font-bold text-[#CBD5E1] mb-1.5">
                       البريد الإلكتروني *
                     </label>
                     <input
@@ -306,19 +306,19 @@ export const ContactPage: React.FC<ContactPageProps> = ({
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder="merchant@example.com"
-                      className="w-full h-10 px-3 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 transition text-right"
+                      className="w-full h-10 px-3 rounded-xl bg-[#0D131E] border border-[#1E293B] text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#E25B26] transition text-right"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-300 mb-1.5">
+                  <label className="block text-xs font-bold text-[#CBD5E1] mb-1.5">
                     موضوع الاستفسار *
                   </label>
                   <select
                     value={subject}
                     onChange={(e) => setSubject(e.target.value)}
-                    className="w-full h-10 px-3 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-emerald-500 transition cursor-pointer"
+                    className="w-full h-10 px-3 rounded-xl bg-[#0D131E] border border-[#1E293B] text-xs text-white focus:outline-none focus:border-[#E25B26] transition cursor-pointer"
                   >
                     <option value="technical">الدعم الفني والتقني (Technical Support)</option>
                     <option value="billing">الفوترة وتفعيل الاشتراكات (Billing & Subscriptions)</option>
@@ -328,7 +328,7 @@ export const ContactPage: React.FC<ContactPageProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-300 mb-1.5">
+                  <label className="block text-xs font-bold text-[#CBD5E1] mb-1.5">
                     الرسالة / تفاصيل الاستفسار *
                   </label>
                   <textarea
@@ -337,7 +337,7 @@ export const ContactPage: React.FC<ContactPageProps> = ({
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
                     placeholder="اكتب استفسارك بالتفصيل وسنوافيك بالحل المناسب..."
-                    className="w-full p-3 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 transition resize-none"
+                    className="w-full p-3 rounded-xl bg-[#0D131E] border border-[#1E293B] text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#E25B26] transition resize-none"
                   />
                 </div>
 
@@ -355,15 +355,15 @@ export const ContactPage: React.FC<ContactPageProps> = ({
 
           {/* Guarantees & Help Sidebar */}
           <div className="lg:col-span-5 space-y-4">
-            <div className="bg-slate-900/60 border border-slate-800 rounded-3xl p-6 space-y-4">
+            <div className="bg-[#131B2A]/60 border border-[#1E293B] rounded-3xl p-6 space-y-4">
               <h3 className="font-extrabold text-sm text-white flex items-center gap-2">
-                <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                <ShieldCheck className="w-4 h-4 text-[#E25B26]" />
                 <span>التزامنا تجاه تجار المنصة</span>
               </h3>
 
-              <div className="space-y-3 text-xs text-slate-300">
+              <div className="space-y-3 text-xs text-[#CBD5E1]">
                 <div className="flex items-start gap-2.5">
-                  <div className="w-5 h-5 rounded-full bg-emerald-500/10 text-emerald-400 flex items-center justify-center shrink-0 mt-0.5">
+                  <div className="w-5 h-5 rounded-full bg-[#E25B26]/10 text-[#E25B26] flex items-center justify-center shrink-0 mt-0.5">
                     ✓
                   </div>
                   <p>
@@ -373,7 +373,7 @@ export const ContactPage: React.FC<ContactPageProps> = ({
                 </div>
 
                 <div className="flex items-start gap-2.5">
-                  <div className="w-5 h-5 rounded-full bg-emerald-500/10 text-emerald-400 flex items-center justify-center shrink-0 mt-0.5">
+                  <div className="w-5 h-5 rounded-full bg-[#E25B26]/10 text-[#E25B26] flex items-center justify-center shrink-0 mt-0.5">
                     ✓
                   </div>
                   <p>
@@ -383,7 +383,7 @@ export const ContactPage: React.FC<ContactPageProps> = ({
                 </div>
 
                 <div className="flex items-start gap-2.5">
-                  <div className="w-5 h-5 rounded-full bg-emerald-500/10 text-emerald-400 flex items-center justify-center shrink-0 mt-0.5">
+                  <div className="w-5 h-5 rounded-full bg-[#E25B26]/10 text-[#E25B26] flex items-center justify-center shrink-0 mt-0.5">
                     ✓
                   </div>
                   <p>
@@ -395,12 +395,12 @@ export const ContactPage: React.FC<ContactPageProps> = ({
             </div>
 
             {/* Quick Contact Box */}
-            <div className="p-5 rounded-2xl bg-gradient-to-br from-slate-900 to-emerald-950/40 border border-emerald-500/20 text-xs space-y-2">
+            <div className="p-5 rounded-2xl bg-gradient-to-br from-slate-900 to-emerald-950/40 border border-[#E25B26]/20 text-xs space-y-2">
               <div className="font-bold text-white flex items-center gap-1.5">
-                <Phone className="w-3.5 h-3.5 text-emerald-400" />
+                <Phone className="w-3.5 h-3.5 text-[#E25B26]" />
                 <span>هل تحتاج استشارة عاجلة بخصوص متجرك؟</span>
               </div>
-              <p className="text-slate-400 leading-relaxed">
+              <p className="text-[#CBD5E1] leading-relaxed">
                 تواصل مع فريقنا مباشرة عبر واتساب للحصول على توجيه مجاني حول تحسين معدل التحويل وصفحات الدفع
                 عند الاستلام.
               </p>
@@ -408,7 +408,7 @@ export const ContactPage: React.FC<ContactPageProps> = ({
                 href="https://wa.me/212722256897"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 text-emerald-400 hover:text-emerald-300 font-bold pt-1"
+                className="inline-flex items-center gap-1.5 text-[#E25B26] hover:text-[#E25B26] font-bold pt-1"
               >
                 <span>محادثة واتساب مباشرة</span>
                 <ExternalLink className="w-3 h-3" />
@@ -418,9 +418,9 @@ export const ContactPage: React.FC<ContactPageProps> = ({
         </div>
 
         {/* FAQ Quick Section */}
-        <section className="space-y-6 pt-6 border-t border-slate-800">
+        <section className="space-y-6 pt-6 border-t border-[#1E293B]">
           <div className="text-center space-y-2 max-w-2xl mx-auto">
-            <div className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-400">
+            <div className="inline-flex items-center gap-1.5 text-xs font-bold text-[#E25B26]">
               <HelpCircle className="w-4 h-4" />
               <span>الأسئلة الشائعة</span>
             </div>
@@ -433,22 +433,22 @@ export const ContactPage: React.FC<ContactPageProps> = ({
               return (
                 <div
                   key={faq.question}
-                  className="rounded-2xl border border-slate-800 bg-slate-900/60 overflow-hidden transition"
+                  className="rounded-2xl border border-[#1E293B] bg-[#131B2A]/60 overflow-hidden transition"
                 >
                   <button
                     type="button"
                     onClick={() => setOpenFaqIndex(isOpen ? null : idx)}
-                    className="w-full flex items-center justify-between p-4 sm:p-5 text-right hover:bg-slate-800/50 transition cursor-pointer"
+                    className="w-full flex items-center justify-between p-4 sm:p-5 text-right hover:bg-[#131B2A]/50 transition cursor-pointer"
                   >
                     <span className="font-bold text-white text-xs sm:text-sm">{faq.question}</span>
                     {isOpen ? (
-                      <ChevronUp className="w-4 h-4 text-emerald-400 shrink-0" />
+                      <ChevronUp className="w-4 h-4 text-[#E25B26] shrink-0" />
                     ) : (
-                      <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" />
+                      <ChevronDown className="w-4 h-4 text-[#CBD5E1] shrink-0" />
                     )}
                   </button>
                   {isOpen && (
-                    <div className="p-4 sm:p-5 pt-0 text-slate-300 text-xs sm:text-sm leading-relaxed border-t border-slate-800/40">
+                    <div className="p-4 sm:p-5 pt-0 text-[#CBD5E1] text-xs sm:text-sm leading-relaxed border-t border-[#1E293B]/40">
                       {faq.answer}
                     </div>
                   )}

@@ -435,7 +435,7 @@ export const AiGeneratorModal: React.FC<Props> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+    <div className="fixed inset-0 z-50 bg-[#0D131E]/75 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
       <div
         dir="rtl"
         className="bg-white rounded-3xl max-w-2xl w-full shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-200 my-6"
@@ -450,22 +450,22 @@ export const AiGeneratorModal: React.FC<Props> = ({
           </button>
 
           <div className="flex items-center gap-3 mb-2">
-            <div className="w-11 h-11 rounded-2xl bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center">
-              <Sparkles className="w-6 h-6 text-emerald-300" />
+            <div className="w-11 h-11 rounded-2xl bg-[#E25B26]/20 border border-[#E25B26]/30 flex items-center justify-center">
+              <Sparkles className="w-6 h-6 text-[#E25B26]" />
             </div>
             <div>
-              <span className="text-xs font-bold uppercase tracking-wider text-emerald-300 block">
+              <span className="text-xs font-bold uppercase tracking-wider text-[#E25B26] block">
                 3-Layer Deep Product Scraper & COD Funnel Architect
               </span>
               <h2 className="text-xl font-black">استيراد ذكي للمنتج وبناء صفحة الهبوط</h2>
             </div>
           </div>
-          <p className="text-slate-300 text-xs sm:text-sm leading-relaxed">
+          <p className="text-[#CBD5E1] text-xs sm:text-sm leading-relaxed">
             استخرج جميع صور المعرض عالية الدقة (JSON-LD + DOM Gallery + Gemini AI) والوصف الكامل والمواصفات بضغطة زر.
           </p>
 
           {/* Mode Switcher Tabs */}
-          <div className="grid grid-cols-2 gap-2 mt-5 bg-slate-950/40 p-1.5 rounded-2xl border border-white/10">
+          <div className="grid grid-cols-2 gap-2 mt-5 bg-[#0D131E]/40 p-1.5 rounded-2xl border border-white/10">
             <button
               type="button"
               onClick={() => {
@@ -474,8 +474,8 @@ export const AiGeneratorModal: React.FC<Props> = ({
               }}
               className={`py-2.5 px-3 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
                 activeTab === 'url'
-                  ? 'bg-emerald-500 text-slate-950 shadow-md'
-                  : 'text-slate-300 hover:text-white hover:bg-white/5'
+                  ? 'bg-[#E25B26] text-slate-950 shadow-md'
+                  : 'text-[#CBD5E1] hover:text-white hover:bg-white/5'
               }`}
             >
               <Link2 className="w-4 h-4" />
@@ -489,8 +489,8 @@ export const AiGeneratorModal: React.FC<Props> = ({
               }}
               className={`py-2.5 px-3 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
                 activeTab === 'prompt'
-                  ? 'bg-emerald-500 text-slate-950 shadow-md'
-                  : 'text-slate-300 hover:text-white hover:bg-white/5'
+                  ? 'bg-[#E25B26] text-slate-950 shadow-md'
+                  : 'text-[#CBD5E1] hover:text-white hover:bg-white/5'
               }`}
             >
               <Wand2 className="w-4 h-4" />
@@ -551,11 +551,11 @@ export const AiGeneratorModal: React.FC<Props> = ({
                     value={productUrl}
                     onChange={(e) => setProductUrl(e.target.value)}
                     placeholder="https://www.aliexpress.com/item/... or https://store.myshopify.com/products/..."
-                    className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none text-sm font-mono text-left bg-slate-50/50"
+                    className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:border-[#E25B26] focus:ring-2 focus:ring-emerald-200 outline-none text-sm font-mono text-left bg-slate-50/50"
                   />
                   {/* Quick Demo Preset Links */}
                   <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                    <span className="text-[11px] text-slate-400 font-semibold">روابط تجريبية سريعة:</span>
+                    <span className="text-[11px] text-[#CBD5E1] font-semibold">روابط تجريبية سريعة:</span>
                     {[
                       {
                         label: 'ساعة ذكية (AliExpress)',
@@ -591,7 +591,7 @@ export const AiGeneratorModal: React.FC<Props> = ({
                   value={rawProductData}
                   onChange={(e) => setRawProductData(e.target.value)}
                   placeholder="الصق هنا عنوان المنتج، السعر، المميزات، والمواصفات التقنية أو كود HTML..."
-                  className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none text-sm"
+                  className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:border-[#E25B26] focus:ring-2 focus:ring-emerald-200 outline-none text-sm"
                 />
               )}
             </div>
@@ -635,7 +635,7 @@ export const AiGeneratorModal: React.FC<Props> = ({
                 value={urlOfferAngle}
                 onChange={(e) => setUrlOfferAngle(e.target.value)}
                 placeholder="مثال: تخفيض 50% + توصيل مجاني والدفع عند الاستلام"
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none text-sm"
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:border-[#E25B26] focus:ring-2 focus:ring-emerald-200 outline-none text-sm"
               />
             </div>
 
@@ -734,7 +734,7 @@ export const AiGeneratorModal: React.FC<Props> = ({
                 value={productName}
                 onChange={(e) => setProductName(e.target.value)}
                 placeholder="مثال: خلاط محمول قابل للشحن، سيروم فيتامين سي..."
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none text-sm"
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:border-[#E25B26] focus:ring-2 focus:ring-emerald-200 outline-none text-sm"
               />
             </div>
 
@@ -747,7 +747,7 @@ export const AiGeneratorModal: React.FC<Props> = ({
                 <select
                   value={niche}
                   onChange={(e) => setNiche(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:border-emerald-500 outline-none text-sm bg-white"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:border-[#E25B26] outline-none text-sm bg-white"
                 >
                   <option value="الصحة والعناية الشخصية">الصحة والعناية الشخصية</option>
                   <option value="إلكترونيات وأدوات ذكية">إلكترونيات وأدوات ذكية</option>
@@ -796,7 +796,7 @@ export const AiGeneratorModal: React.FC<Props> = ({
                 value={targetAudience}
                 onChange={(e) => setTargetAudience(e.target.value)}
                 placeholder="مثال: النساء المهتمات بالعناية بالبشرة في المغرب والخليج"
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none text-sm"
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:border-[#E25B26] focus:ring-2 focus:ring-emerald-200 outline-none text-sm"
               />
             </div>
 
@@ -809,7 +809,7 @@ export const AiGeneratorModal: React.FC<Props> = ({
                 value={offerAngle}
                 onChange={(e) => setOfferAngle(e.target.value)}
                 placeholder="مثال: اشتري 1 واحصل على الثاني بنصف السعر + شحن مجاني"
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none text-sm"
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:border-[#E25B26] focus:ring-2 focus:ring-emerald-200 outline-none text-sm"
               />
             </div>
 

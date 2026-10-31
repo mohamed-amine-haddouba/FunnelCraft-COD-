@@ -436,9 +436,9 @@ export const UpgradeModal: React.FC<Props> = ({
       dir="rtl"
       className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/85 backdrop-blur-md animate-in fade-in duration-200 font-sans"
     >
-      <div className="bg-slate-950 text-white rounded-3xl max-w-2xl w-full p-5 sm:p-7 shadow-2xl relative border border-slate-800 overflow-hidden max-h-[94vh] flex flex-col">
+      <div className="bg-[#0D131E] text-white rounded-3xl max-w-2xl w-full p-5 sm:p-7 shadow-2xl relative border border-[#1E293B] overflow-hidden max-h-[94vh] flex flex-col">
         {/* Ambient Top Glow */}
-        <div className="absolute -top-24 -start-24 w-72 h-72 bg-emerald-500/15 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -top-24 -start-24 w-72 h-72 bg-[#E25B26]/15 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute -bottom-24 -end-24 w-72 h-72 bg-teal-500/15 rounded-full blur-3xl pointer-events-none" />
 
         {/* Close Button */}
@@ -446,7 +446,7 @@ export const UpgradeModal: React.FC<Props> = ({
           type="button"
           onClick={onClose}
           disabled={isProcessing}
-          className="absolute top-5 end-5 w-8 h-8 rounded-full bg-slate-800/80 hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-white transition z-10 cursor-pointer disabled:opacity-40"
+          className="absolute top-5 end-5 w-8 h-8 rounded-full bg-[#131B2A]/80 hover:bg-slate-700 flex items-center justify-center text-[#CBD5E1] hover:text-white transition z-10 cursor-pointer disabled:opacity-40"
           title="إغلاق"
         >
           <X className="w-4 h-4" />
@@ -454,11 +454,11 @@ export const UpgradeModal: React.FC<Props> = ({
 
         {successMessage ? (
           <div className="text-center py-12 space-y-4">
-            <div className="w-20 h-20 bg-emerald-500/20 border-2 border-emerald-500 text-emerald-400 rounded-full flex items-center justify-center mx-auto text-4xl shadow-xl animate-in zoom-in-75">
+            <div className="w-20 h-20 bg-[#E25B26]/20 border-2 border-[#E25B26] text-[#E25B26] rounded-full flex items-center justify-center mx-auto text-4xl shadow-xl animate-in zoom-in-75">
               <CheckCircle2 className="w-10 h-10" />
             </div>
             <h3 className="text-2xl font-black text-white">تهانينا! تم تأكيد الاشتراك بنجاح</h3>
-            <p className="text-xs text-emerald-300 max-w-md mx-auto leading-relaxed">
+            <p className="text-xs text-[#E25B26] max-w-md mx-auto leading-relaxed">
               {successMessage}
             </p>
           </div>
@@ -498,14 +498,14 @@ export const UpgradeModal: React.FC<Props> = ({
                 <span>ترقية الحساب وإلغاء القيود فوراً</span>
                 <Crown className="w-5 h-5 text-amber-400" />
               </h2>
-              <p className="text-xs text-slate-400 leading-relaxed">
+              <p className="text-xs text-[#CBD5E1] leading-relaxed">
                 اختر خطة الاشتراك المناسبة وافتح الدومينات المخصصة وتوليد الذكاء الاصطناعي بلا حدود.
               </p>
             </div>
 
             {/* ---------------- 1. SUBSCRIPTION TIERS CARDS ---------------- */}
             <div>
-              <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2.5">
+              <label className="block text-[11px] font-bold text-[#CBD5E1] uppercase tracking-wider mb-2.5">
                 1. حدد باقة الاشتراك المطلوبة:
               </label>
 
@@ -518,8 +518,8 @@ export const UpgradeModal: React.FC<Props> = ({
                       onClick={() => setSelectedTier(tier.id)}
                       className={`relative p-3.5 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between ${
                         isSelected
-                          ? 'bg-slate-900 border-emerald-500 shadow-lg shadow-emerald-500/10 ring-2 ring-emerald-500/30'
-                          : 'bg-slate-900/60 border-slate-800 hover:border-slate-700 hover:bg-slate-900/90'
+                          ? 'bg-[#131B2A] border-[#E25B26] shadow-lg shadow-[#E25B26]/10 ring-2 ring-[#E25B26]/30'
+                          : 'bg-[#131B2A]/60 border-[#1E293B] hover:border-[#334155] hover:bg-[#131B2A]/90'
                       }`}
                     >
                       {/* Popular Badge */}
@@ -528,8 +528,8 @@ export const UpgradeModal: React.FC<Props> = ({
                           <span
                             className={`text-[9px] font-black px-2 py-0.5 rounded-full ${
                               tier.isPopular
-                                ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-sm'
-                                : 'bg-slate-800 text-amber-300 border border-slate-700'
+                                ? 'bg-gradient-to-r from-[#E25B26] to-[#F16F3C] text-white shadow-sm'
+                                : 'bg-[#131B2A] text-amber-300 border border-[#334155]'
                             }`}
                           >
                             {tier.badge}
@@ -543,8 +543,8 @@ export const UpgradeModal: React.FC<Props> = ({
                           <div
                             className={`w-4 h-4 rounded-full border flex items-center justify-center ${
                               isSelected
-                                ? 'border-emerald-500 bg-emerald-500 text-slate-950'
-                                : 'border-slate-700 bg-slate-800'
+                                ? 'border-[#E25B26] bg-[#E25B26] text-slate-950'
+                                : 'border-[#334155] bg-[#131B2A]'
                             }`}
                           >
                             {isSelected && <Check className="w-2.5 h-2.5 stroke-[3]" />}
@@ -555,26 +555,26 @@ export const UpgradeModal: React.FC<Props> = ({
                           <span className="text-xl font-black text-white tracking-tight">
                             {tier.priceMAD}
                           </span>
-                          <span className="text-xs text-slate-400 font-bold"> درهم</span>
+                          <span className="text-xs text-[#CBD5E1] font-bold"> درهم</span>
                           <span className="text-[10px] text-slate-500"> / شهر</span>
-                          <span className="block text-[10px] text-emerald-400 font-semibold">
+                          <span className="block text-[10px] text-[#E25B26] font-semibold">
                             (~${tier.priceUSD}/mo)
                           </span>
                         </div>
 
-                        <p className="text-[10px] text-slate-400 line-clamp-2 leading-relaxed mb-3">
+                        <p className="text-[10px] text-[#CBD5E1] line-clamp-2 leading-relaxed mb-3">
                           {tier.description}
                         </p>
                       </div>
 
                       {/* Tier Features */}
-                      <div className="pt-2 border-t border-slate-800/80 space-y-1">
+                      <div className="pt-2 border-t border-[#1E293B]/80 space-y-1">
                         {tier.features.slice(0, 2).map((feat, idx) => (
                           <div
                             key={idx}
-                            className="flex items-center gap-1.5 text-[10px] text-slate-300"
+                            className="flex items-center gap-1.5 text-[10px] text-[#CBD5E1]"
                           >
-                            <Check className="w-3 h-3 text-emerald-400 shrink-0" />
+                            <Check className="w-3 h-3 text-[#E25B26] shrink-0" />
                             <span className="truncate">{feat}</span>
                           </div>
                         ))}
@@ -588,24 +588,24 @@ export const UpgradeModal: React.FC<Props> = ({
             {/* ---------------- 2. PAYMENT METHODS ---------------- */}
             <div>
               <div className="flex items-center justify-between mb-2">
-                <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                <label className="block text-[11px] font-bold text-[#CBD5E1] uppercase tracking-wider">
                   2. طريقة الدفع الآمنة:
                 </label>
-                <div className="flex items-center gap-1 text-[10px] text-slate-400">
-                  <Lock className="w-3 h-3 text-emerald-400" />
+                <div className="flex items-center gap-1 text-[10px] text-[#CBD5E1]">
+                  <Lock className="w-3 h-3 text-[#E25B26]" />
                   <span>تشفير 256-bit آمن ومشفر 100%</span>
                 </div>
               </div>
 
               {/* Payment Tabs Switcher */}
-              <div className="grid grid-cols-2 p-1 bg-slate-900 border border-slate-800 rounded-2xl mb-4">
+              <div className="grid grid-cols-2 p-1 bg-[#131B2A] border border-[#1E293B] rounded-2xl mb-4">
                 <button
                   type="button"
                   onClick={() => setPaymentMethod('paypal')}
                   className={`py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer ${
                     paymentMethod === 'paypal'
-                      ? 'bg-slate-800 text-white shadow-sm border border-slate-700'
-                      : 'text-slate-400 hover:text-white'
+                      ? 'bg-[#131B2A] text-white shadow-sm border border-[#334155]'
+                      : 'text-[#CBD5E1] hover:text-white'
                   }`}
                 >
                   <span className="text-base font-black italic tracking-tighter text-[#0079C1]">
@@ -620,7 +620,7 @@ export const UpgradeModal: React.FC<Props> = ({
                   className={`py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer ${
                     paymentMethod === 'morocco'
                       ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-sm'
-                      : 'text-slate-400 hover:text-white'
+                      : 'text-[#CBD5E1] hover:text-white'
                   }`}
                 >
                   <span>🇲🇦</span>
@@ -630,25 +630,25 @@ export const UpgradeModal: React.FC<Props> = ({
 
               {/* ---------------- PAYPAL OFFICIAL INTEGRATION ---------------- */}
               {paymentMethod === 'paypal' && (
-                <div className="p-4 bg-slate-900/60 border border-slate-800 rounded-2xl space-y-4">
-                  <div className="flex items-center justify-between text-xs pb-3 border-b border-slate-800">
+                <div className="p-4 bg-[#131B2A]/60 border border-[#1E293B] rounded-2xl space-y-4">
+                  <div className="flex items-center justify-between text-xs pb-3 border-b border-[#1E293B]">
                     <div>
-                      <span className="text-slate-400">الخطة المختارة:</span>
+                      <span className="text-[#CBD5E1]">الخطة المختارة:</span>
                       <span className="font-bold text-white me-2"> {currentTier.name}</span>
                     </div>
                     <div>
-                      <span className="text-base font-black text-emerald-400">
+                      <span className="text-base font-black text-[#E25B26]">
                         ${currentTier.priceUSD}
                       </span>
-                      <span className="text-[10px] text-slate-400"> / USD</span>
+                      <span className="text-[10px] text-[#CBD5E1]"> / USD</span>
                     </div>
                   </div>
 
                   {/* Official PayPal SDK Buttons Container */}
                   <div className="space-y-3">
                     {isPaypalRendering && (
-                      <div className="flex items-center justify-center gap-2 py-3 text-xs text-slate-400 bg-slate-900/40 rounded-xl border border-slate-800">
-                        <RefreshCw className="w-4 h-4 animate-spin text-emerald-400" />
+                      <div className="flex items-center justify-center gap-2 py-3 text-xs text-[#CBD5E1] bg-[#131B2A]/40 rounded-xl border border-[#1E293B]">
+                        <RefreshCw className="w-4 h-4 animate-spin text-[#E25B26]" />
                         <span>جاري تحميل بوابة PayPal الآمنة...</span>
                       </div>
                     )}
@@ -680,16 +680,16 @@ export const UpgradeModal: React.FC<Props> = ({
                       type="button"
                       onClick={handleDirectPayPalCheckout}
                       disabled={isProcessing}
-                      className="w-full py-2.5 px-4 rounded-2xl bg-[#2C2E2F] hover:bg-[#222425] text-white text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer border border-slate-700 disabled:opacity-50"
+                      className="w-full py-2.5 px-4 rounded-2xl bg-[#2C2E2F] hover:bg-[#222425] text-white text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer border border-[#334155] disabled:opacity-50"
                     >
-                      <CreditCard className="w-3.5 h-3.5 text-slate-400" />
+                      <CreditCard className="w-3.5 h-3.5 text-[#CBD5E1]" />
                       <span>الدفع بالبطاقة البنكية الدولية عبر بايبال (Visa / MasterCard)</span>
                     </button>
                   </div>
 
                   <div className="flex items-center justify-center gap-3 text-[11px] text-slate-500 pt-1">
                     <span className="flex items-center gap-1">
-                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                      <ShieldCheck className="w-3.5 h-3.5 text-[#E25B26]" />
                       <span>حماية المشتريات من PayPal</span>
                     </span>
                     <span>•</span>
@@ -701,30 +701,30 @@ export const UpgradeModal: React.FC<Props> = ({
               {/* ---------------- MOROCCAN LOCAL BANK TRANSFERS ---------------- */}
               {paymentMethod === 'morocco' && (
                 moroccanBanks.length === 0 || !currentBank ? (
-                  <div className="p-6 bg-slate-900/60 border border-slate-800 rounded-2xl text-center space-y-2">
+                  <div className="p-6 bg-[#131B2A]/60 border border-[#1E293B] rounded-2xl text-center space-y-2">
                     <Landmark className="w-8 h-8 text-amber-400 mx-auto" />
-                    <p className="text-xs font-bold text-slate-200">
+                    <p className="text-xs font-bold text-[#F8FAFC]">
                       لا توجد حسابات بنكية متاحة حالياً. يرجى التواصل مع الدعم.
                     </p>
                   </div>
                 ) : (
                   <form
                     onSubmit={handleMoroccanTransferSubmit}
-                    className="p-4 bg-slate-900/60 border border-slate-800 rounded-2xl space-y-4"
+                    className="p-4 bg-[#131B2A]/60 border border-[#1E293B] rounded-2xl space-y-4"
                   >
-                    <div className="flex items-center justify-between text-xs pb-3 border-b border-slate-800">
+                    <div className="flex items-center justify-between text-xs pb-3 border-b border-[#1E293B]">
                       <div>
-                        <span className="text-slate-400">المبلغ المطلوب للتحويل:</span>
+                        <span className="text-[#CBD5E1]">المبلغ المطلوب للتحويل:</span>
                         <span className="font-bold text-white me-2"> {currentTier.priceMAD} درهم مغربي</span>
                       </div>
-                      <span className="text-[11px] text-emerald-400 font-bold bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                      <span className="text-[11px] text-[#E25B26] font-bold bg-[#E25B26]/10 px-2 py-0.5 rounded-full border border-[#E25B26]/20">
                         تأكيد سريع خلال دقائق
                       </span>
                     </div>
 
                     {/* Dynamic Moroccan Banks Selection Grid */}
                     <div>
-                      <label className="block text-[11px] font-bold text-slate-300 mb-2">
+                      <label className="block text-[11px] font-bold text-[#CBD5E1] mb-2">
                         اختر البنك أو وسيلة الدفع المحلية ({moroccanBanks.length} خيارات متاحة):
                       </label>
                       <div className="grid grid-cols-2 gap-2" data-testid="moroccan-banks-grid">
@@ -737,19 +737,19 @@ export const UpgradeModal: React.FC<Props> = ({
                               onClick={() => setSelectedMoroccanBank(b.id)}
                               className={`p-2.5 rounded-xl text-xs font-bold transition flex items-center justify-between border cursor-pointer ${
                                 isSelected
-                                  ? 'bg-slate-800 border-emerald-500 text-white shadow-sm ring-1 ring-emerald-500/20'
-                                  : 'bg-slate-800/40 border-slate-700/60 text-slate-400 hover:text-slate-200'
+                                  ? 'bg-[#131B2A] border-[#E25B26] text-white shadow-sm ring-1 ring-[#E25B26]/20'
+                                  : 'bg-[#131B2A]/40 border-[#334155]/60 text-[#CBD5E1] hover:text-[#F8FAFC]'
                               }`}
                             >
                               <div className="flex items-center gap-2">
                                 <Landmark
                                   className={`w-4 h-4 ${
-                                    isSelected ? 'text-emerald-400' : 'text-slate-500'
+                                    isSelected ? 'text-[#E25B26]' : 'text-slate-500'
                                   }`}
                                 />
                                 <div className="text-start">
                                   <span className="block">{b.name}</span>
-                                  <span className="block text-[9px] text-slate-400 font-normal">
+                                  <span className="block text-[9px] text-[#CBD5E1] font-normal">
                                     {b.badge}
                                   </span>
                                 </div>
@@ -757,8 +757,8 @@ export const UpgradeModal: React.FC<Props> = ({
                               <div
                                 className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center shrink-0 ${
                                   isSelected
-                                    ? 'border-emerald-500 bg-emerald-500 text-slate-950'
-                                    : 'border-slate-600'
+                                    ? 'border-[#E25B26] bg-[#E25B26] text-slate-950'
+                                    : 'border-[#334155]'
                                 }`}
                               >
                                 {isSelected && <Check className="w-2 h-2 stroke-[3]" />}
@@ -770,17 +770,17 @@ export const UpgradeModal: React.FC<Props> = ({
                     </div>
 
                     {/* Selected Bank Account Details Card with Copy Button */}
-                    <div className="p-3.5 bg-slate-900 rounded-2xl border border-slate-700/70 space-y-2.5 text-xs">
+                    <div className="p-3.5 bg-[#131B2A] rounded-2xl border border-[#334155]/70 space-y-2.5 text-xs">
                       <div className="flex items-center justify-between">
                         <span className="font-bold text-white flex items-center gap-1.5">
-                          <Landmark className="w-4 h-4 text-emerald-400" />
+                          <Landmark className="w-4 h-4 text-[#E25B26]" />
                           <span>بيانات التحويل ({currentBank.name})</span>
                         </span>
                         {currentBank.rib ? (
                           <button
                             type="button"
                             onClick={() => handleCopy(currentBank.rib!.replace(/\s/g, ''), 'rib')}
-                            className="text-emerald-400 hover:text-emerald-300 font-bold text-[11px] flex items-center gap-1 cursor-pointer bg-emerald-500/10 px-2 py-0.5 rounded-lg border border-emerald-500/20"
+                            className="text-[#E25B26] hover:text-[#E25B26] font-bold text-[11px] flex items-center gap-1 cursor-pointer bg-[#E25B26]/10 px-2 py-0.5 rounded-lg border border-[#E25B26]/20"
                           >
                             {copiedKey === 'rib' ? (
                               <>
@@ -803,7 +803,7 @@ export const UpgradeModal: React.FC<Props> = ({
                                 'cashplus'
                               )
                             }
-                            className="text-emerald-400 hover:text-emerald-300 font-bold text-[11px] flex items-center gap-1 cursor-pointer bg-emerald-500/10 px-2 py-0.5 rounded-lg border border-emerald-500/20"
+                            className="text-[#E25B26] hover:text-[#E25B26] font-bold text-[11px] flex items-center gap-1 cursor-pointer bg-[#E25B26]/10 px-2 py-0.5 rounded-lg border border-[#E25B26]/20"
                           >
                             {copiedKey === 'cashplus' ? (
                               <>
@@ -822,20 +822,20 @@ export const UpgradeModal: React.FC<Props> = ({
 
                       {currentBank.rib ? (
                         <div className="space-y-1">
-                          <span className="block text-[10px] text-slate-400">
+                          <span className="block text-[10px] text-[#CBD5E1]">
                             رقم الحساب البنكي (RIB - 24 رقماً):
                           </span>
-                          <div className="font-mono text-xs font-bold text-slate-100 bg-slate-950 p-2.5 rounded-xl border border-slate-800 select-all tracking-wider text-center">
+                          <div className="font-mono text-xs font-bold text-[#F8FAFC] bg-[#0D131E] p-2.5 rounded-xl border border-[#1E293B] select-all tracking-wider text-center">
                             {currentBank.rib}
                           </div>
-                          <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1">
+                          <div className="flex items-center justify-between text-[11px] text-[#CBD5E1] pt-1">
                             <span>اسم المستفيد: {currentBank.beneficiary}</span>
                             <span>{currentBank.bankName}</span>
                           </div>
                         </div>
                       ) : (
-                        <div className="space-y-1 text-slate-200 bg-slate-950 p-3 rounded-xl border border-slate-800">
-                          <p className="font-bold text-emerald-400">{currentBank.bankName || currentBank.name}:</p>
+                        <div className="space-y-1 text-[#F8FAFC] bg-[#0D131E] p-3 rounded-xl border border-[#1E293B]">
+                          <p className="font-bold text-[#E25B26]">{currentBank.bankName || currentBank.name}:</p>
                           <p>اسم المستفيد: <span className="font-bold text-white">{currentBank.beneficiary}</span></p>
                           {currentBank.cin && (
                             <p>رقم البطاقة الوطنية (CIN): <span className="font-mono font-bold text-white">{currentBank.cin}</span></p>
@@ -847,7 +847,7 @@ export const UpgradeModal: React.FC<Props> = ({
                       )}
 
                       {currentBank.instructions && (
-                        <p className="text-[10px] text-slate-400 leading-relaxed border-t border-slate-800 pt-2">
+                        <p className="text-[10px] text-[#CBD5E1] leading-relaxed border-t border-[#1E293B] pt-2">
                           💡 {currentBank.instructions}
                         </p>
                       )}
@@ -855,7 +855,7 @@ export const UpgradeModal: React.FC<Props> = ({
 
                     {/* Transaction Reference Input (Required) */}
                     <div>
-                      <label className="block text-xs font-bold text-slate-200 mb-1.5">
+                      <label className="block text-xs font-bold text-[#F8FAFC] mb-1.5">
                         رقم العملية / كود الحوالة (Transaction ID / Reference) *
                       </label>
                       <input
@@ -864,22 +864,22 @@ export const UpgradeModal: React.FC<Props> = ({
                         value={transactionRef}
                         onChange={(e) => setTransactionRef(e.target.value)}
                         placeholder="مثال: VIRT-9481230 أو رقم الحوالة من التطبيق البنكي"
-                        className="w-full px-3.5 py-2.5 rounded-xl bg-slate-800/90 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-xs transition"
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-[#131B2A]/90 border border-[#334155] text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-[#E25B26] text-xs transition"
                       />
                     </div>
 
                     {/* Optional File Upload for Receipt Screenshot */}
                     <div>
-                      <label className="block text-xs font-bold text-slate-200 mb-1.5">
+                      <label className="block text-xs font-bold text-[#F8FAFC] mb-1.5">
                         صورة وصل التحويل (اختياري لتسريع التأكيد)
                       </label>
                       <div className="flex items-center gap-3">
                         <button
                           type="button"
                           onClick={() => receiptFileRef.current?.click()}
-                          className="py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center gap-1.5 border border-slate-700 transition cursor-pointer"
+                          className="py-2 px-3 rounded-xl bg-[#131B2A] hover:bg-slate-700 text-[#F8FAFC] text-xs font-semibold flex items-center gap-1.5 border border-[#334155] transition cursor-pointer"
                         >
-                          <UploadCloud className="w-3.5 h-3.5 text-emerald-400" />
+                          <UploadCloud className="w-3.5 h-3.5 text-[#E25B26]" />
                           <span>{receiptImage ? 'تغيير صورة الوصل' : 'رفع لقطة شاشة للوصل'}</span>
                         </button>
                         <input
@@ -890,7 +890,7 @@ export const UpgradeModal: React.FC<Props> = ({
                           className="hidden"
                         />
                         {receiptImage && (
-                          <div className="flex items-center gap-1.5 text-emerald-400 text-xs font-bold">
+                          <div className="flex items-center gap-1.5 text-[#E25B26] text-xs font-bold">
                             <FileCheck2 className="w-4 h-4" />
                             <span>تم إرفاق الوصل بنجاح</span>
                           </div>
@@ -902,7 +902,7 @@ export const UpgradeModal: React.FC<Props> = ({
                     <button
                       type="submit"
                       disabled={isProcessing}
-                      className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 active:scale-98 text-white text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-emerald-500/20 disabled:opacity-50"
+                      className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 active:scale-98 text-white text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-[#E25B26]/20 disabled:opacity-50"
                     >
                       <CheckCircle2 className="w-4 h-4" />
                       <span>
