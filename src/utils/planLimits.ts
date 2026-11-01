@@ -47,40 +47,40 @@ export const PLAN_LIMITS_MAP: Record<PlanTier, PlanLimitDetails> = {
     nameFr: 'Essai Gratuit',
     priceUSD: 0,
     priceMAD: 0,
-    maxPages: 2,
+    maxPages: 1,
     maxOrdersMonthly: 50,
-    maxVisitsMonthly: 1000,
+    maxVisitsMonthly: 500,
   },
   starter: {
     id: 'starter',
     name: 'Starter',
     nameAr: 'المبتدئ',
     nameFr: 'Débutant',
-    priceUSD: 39,
-    priceMAD: 390,
-    maxPages: 50,
-    maxOrdersMonthly: 2000,
-    maxVisitsMonthly: 15000,
+    priceUSD: 10,
+    priceMAD: 99,
+    maxPages: 2,
+    maxOrdersMonthly: 100,
+    maxVisitsMonthly: 1000,
   },
   pro: {
     id: 'pro',
     name: 'Professional',
     nameAr: 'بريميوم',
     nameFr: 'Professionnel',
-    priceUSD: 59,
-    priceMAD: 590,
-    maxPages: 150,
-    maxOrdersMonthly: 5000,
-    maxVisitsMonthly: 50000,
+    priceUSD: 20,
+    priceMAD: 199,
+    maxPages: 5,
+    maxOrdersMonthly: 500,
+    maxVisitsMonthly: 5000,
     highlighted: true,
   },
   enterprise: {
     id: 'enterprise',
     name: 'Business',
     nameAr: 'الأعمال',
-    nameFr: 'Entreprise / Business',
-    priceUSD: 79,
-    priceMAD: 790,
+    nameFr: 'Affaires / Business',
+    priceUSD: 30,
+    priceMAD: 299,
     maxPages: Infinity,
     maxOrdersMonthly: Infinity,
     maxVisitsMonthly: Infinity,
@@ -193,12 +193,12 @@ export function getPlanCapabilities(
       return {
         effectivePlan: 'pro',
         isAdmin: false,
-        maxPages: 150,
-        maxOrdersMonthly: 5000,
-        maxVisitsMonthly: 50000,
+        maxPages: 5,
+        maxOrdersMonthly: 500,
+        maxVisitsMonthly: 5000,
         canUseCustomDomain: true,
         canUsePixels: true,
-        canUseApiIntegrations: true,
+        canUseApiIntegrations: false,
         canExportOrders: true,
         canRemoveWatermark: true,
         canUseProBlocks: true,
@@ -208,15 +208,15 @@ export function getPlanCapabilities(
       return {
         effectivePlan: 'starter',
         isAdmin: false,
-        maxPages: 50,
-        maxOrdersMonthly: 2000,
-        maxVisitsMonthly: 15000,
-        canUseCustomDomain: true,
-        canUsePixels: true,
+        maxPages: 2,
+        maxOrdersMonthly: 100,
+        maxVisitsMonthly: 1000,
+        canUseCustomDomain: false,
+        canUsePixels: false,
         canUseApiIntegrations: false,
         canExportOrders: false,
         canRemoveWatermark: true,
-        canUseProBlocks: true,
+        canUseProBlocks: false,
         prioritySupport: false,
       };
     case 'free':
@@ -224,9 +224,9 @@ export function getPlanCapabilities(
       return {
         effectivePlan: 'free',
         isAdmin: false,
-        maxPages: 2,
+        maxPages: 1,
         maxOrdersMonthly: 50,
-        maxVisitsMonthly: 1000,
+        maxVisitsMonthly: 500,
         canUseCustomDomain: false,
         canUsePixels: false,
         canUseApiIntegrations: false,
@@ -264,7 +264,12 @@ export function checkFeatureAccess(
 
   if (feature === 'create_page') {
     if (currentPagesCount >= caps.maxPages) {
-      const requiredPlan = caps.effectivePlan === 'free' ? 'starter' : 'pro';
+      const requiredPlan =
+        caps.effectivePlan === 'free'
+          ? 'starter'
+          : caps.effectivePlan === 'starter'
+          ? 'pro'
+          : 'enterprise';
       return {
         allowed: false,
         statusCode: 403,
@@ -276,12 +281,16 @@ export function checkFeatureAccess(
         currentPagesCount,
         message:
           caps.effectivePlan === 'free'
-            ? `Free plan is limited to ${caps.maxPages} pages. Upgrade to Starter (5 pages) or Pro (Unlimited pages) to create more.`
-            : `Starter plan is limited to ${caps.maxPages} pages. Upgrade to Pro for unlimited pages.`,
+            ? `Free plan is limited to ${caps.maxPages} page. Upgrade to Starter (2 pages), Professional (5 pages), or Business (Unlimited).`
+            : caps.effectivePlan === 'starter'
+            ? `Starter plan is limited to ${caps.maxPages} pages. Upgrade to Professional (5 pages) or Business (Unlimited).`
+            : `Professional plan is limited to ${caps.maxPages} pages. Upgrade to Business for unlimited pages.`,
         messageAr:
           caps.effectivePlan === 'free'
-            ? `الباقة المجانية تسمح بحد أقصى ${caps.maxPages} صفحات. قم بالترقية إلى باقة Starter (5 صفحات) أو Pro (غير محدود).`
-            : `باقة Starter تسمح بحد أقصى ${caps.maxPages} صفحات. قم بالترقية إلى باقة Pro للحصول على صفحات غير محدودة.`,
+            ? `الباقة المجانية تسمح بحد أقصى ${caps.maxPages} صفحة. قم بالترقية إلى باقة Starter (صفحتين) أو Professional (5 صفحات) أو Business (غير محدود).`
+            : caps.effectivePlan === 'starter'
+            ? `باقة Starter تسمح بحد أقصى ${caps.maxPages} صفحات. قم بالترقية إلى باقة Professional (5 صفحات) أو Business (غير محدود).`
+            : `باقة Professional تسمح بحد أقصى ${caps.maxPages} صفحات. قم بالترقية إلى باقة Business للحصول على صفحات غير محدودة.`,
       };
     }
     return {

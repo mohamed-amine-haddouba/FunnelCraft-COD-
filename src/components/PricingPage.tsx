@@ -69,22 +69,18 @@ const PRICING_TIERS: PricingTier[] = [
     id: 'starter',
     nameAr: 'المبتدئ (Starter)',
     nameEn: 'Starter Plan',
-    priceUSD: 39,
-    monthlyPriceMAD: 390,
-    limits: '50 صفحة / منتج • 2,000 طلب/شهر • 15,000 زيارة/شهر',
-    description: 'انطلاقة قوية ومثالية للتجار والمتاجر الناشئة بدون علامة مائية ومع أدوات الذكاء الاصطناعي.',
+    priceUSD: 10,
+    monthlyPriceMAD: 99,
+    limits: '2 صفحات • 100 طلب/شهر • 1,000 زيارة/شهر',
+    description: 'انطلاقة مثالية للتجار المبتدئين لاختبار المنتجات وإطلاق صفحات الهبوط.',
     ctaLabel: 'اشترك في باقة المبتدئ',
     icon: Rocket,
     features: [
-      '50 صفحة هبوط / منتج (50 Products & Pages)',
-      '2,000 طلب شهرياً (2,000 Orders / Month)',
-      '15,000 زيارة شهرياً (15,000 Visits / Month)',
-      'متاجر إلكترونية بالذكاء الاصطناعي (AI E-commerce Stores)',
-      'توليد صور المنتجات بالذكاء الاصطناعي (AI Images)',
-      'إزالة العلامة المائية بالكامل (No Watermark)',
-      'ربط الدومين المخصص (Custom Domain)',
-      'بيكسل الإعلانات (Meta, TikTok, Snapchat)',
-      'دعم فني سريع عبر واتساب',
+      'محرر الصفحات الاحترافي (Page Builder)',
+      'استيراد المنتجات بـ 3 طبقات (3-Layer Scraper)',
+      'استمارة الدفع عند الاستلام (COD Form)',
+      'تحليلات أساسية للمبيعات (Basic Analytics)',
+      'التحقق عبر البريد الإلكتروني (Email Verification)',
     ],
   },
   {
@@ -93,46 +89,36 @@ const PRICING_TIERS: PricingTier[] = [
     nameEn: 'Professional Plan',
     badge: 'الأكثر شعبية ⭐',
     highlighted: true,
-    priceUSD: 59,
-    monthlyPriceMAD: 590,
-    limits: '150 صفحة / منتج • 5,000 طلب/شهر • 50,000 زيارة/شهر',
-    description: 'الباقة الأكثر طلباً للتجار المحترفين لمضاعفة المبيعات مع فيديوهات UGC والربط المباشر مع شركات الشحن.',
+    priceUSD: 20,
+    monthlyPriceMAD: 199,
+    limits: '5 صفحات • 500 طلب/شهر • 5,000 زيارة/شهر',
+    description: 'الباقة الأكثر طلباً للتجار المحترفين مع الدومين المخصص، البيكسل، والذكاء الاصطناعي.',
     ctaLabel: 'اشترك في باقة بريميوم',
     icon: Crown,
     features: [
-      '150 صفحة هبوط / منتج (150 Products & Pages)',
-      '5,000 طلب شهرياً (5,000 Orders / Month)',
-      '50,000 زيارة شهرياً (50,000 Visits / Month)',
-      'فيديوهات إعلانية UGC بالذكاء الاصطناعي (AI UGC Videos)',
-      'متاجر التجارة الإلكترونية بالذكاء الاصطناعي (AI E-commerce Stores)',
-      'توليد صور منتجات احترافية غير محدودة (AI Images)',
-      'ربط مباشر مع شركات الشحن والتوصيل (Shipping API Integration)',
-      'تصدير الطلبات المتقدم CSV و Google Sheets',
-      'تحليلات مباشرة ونسبة تأكيد الشحن والتسليم',
-      'دعم فني مخصص ذو أولوية',
+      'كل مميزات باقة المبتدئ (Everything in Starter)',
+      'ربط الدومين المخصص (Custom Domain)',
+      'بيكسل فيسبوك وتيك توك (Facebook & TikTok Pixels)',
+      'تحليلات وإحصائيات متقدمة (Advanced Analytics)',
+      'توليد الصفحات بالذكاء الاصطناعي (AI Page Generation - Gemini)',
     ],
   },
   {
     id: 'enterprise',
     nameAr: 'الأعمال (Business)',
-    nameEn: 'Business Scale',
+    nameEn: 'Business Plan',
     badge: 'للشركات والوكالات 🚀',
-    priceUSD: 79,
-    monthlyPriceMAD: 790,
-    limits: 'غير محدود • Unlimited Everything',
-    description: 'حل متكامل وبلا حدود للشركات الكبرى والوكالات مع دعم VIP فوري ومدير حساب خاص.',
+    priceUSD: 30,
+    monthlyPriceMAD: 299,
+    limits: 'صفحات، طلبات، وزيارات غير محدودة',
+    description: 'حل متكامل بلا حدود للمتاجر الكبرى مع ربط شركات الشحن ودعم فني ذو أولوية.',
     ctaLabel: 'اشترك في باقة الأعمال',
     icon: Building2,
     features: [
-      'صفحات ومنتجات غير محدودة (Unlimited Products & Pages)',
-      'طلبات ومبيعات غير محدودة (Unlimited Orders)',
-      'زيارات غير محدودة (Unlimited Traffic)',
-      'كل مميزات باقتي المبتدئ وبريميوم',
-      'فيديوهات تسويقية UGC متقدمة غير محدودة (AI UGC Videos)',
-      'توليد وتعديل صور المنتجات بالذكاء الاصطناعي بلا حدود (AI Images)',
-      'ربط شامل مع كافة شركات الشحن والتوصيل (Shipping API Integration)',
-      'Webhooks وتكامل مباشر مع منصات الشحن والتخزين',
-      'دعم VIP فوري 24/7 مع مدير حساب خاص (VIP Dedicated Support)',
+      'كل مميزات باقة بريميوم (Everything in Professional)',
+      'الربط مع شركات الشحن والتوصيل (Shipping API Integrations)',
+      'صفحات وطلبات وزيارات غير محدودة (Unlimited Everything)',
+      'دعم فني ذو أولوية (Priority Support)',
     ],
   },
 ];
@@ -332,6 +318,57 @@ export const PricingPage: React.FC<PricingPageProps> = ({
     return billingCycle === 'yearly' ? monthly * 12 : monthly;
   };
 
+  const getLocalizedTierDetails = (tier: PricingTier) => {
+    if (tier.id === 'starter') {
+      return {
+        name: t.tierStarterName,
+        sub: t.tierStarterSub,
+        limits: t.tierStarterLimits,
+        desc: t.tierStarterDesc,
+        cta: t.tierStarterCta,
+        badge: undefined as string | undefined,
+        features: [
+          t.tierStarterFeat1,
+          t.tierStarterFeat2,
+          t.tierStarterFeat3,
+          t.tierStarterFeat4,
+          t.tierStarterFeat5,
+        ],
+      };
+    }
+    if (tier.id === 'pro') {
+      return {
+        name: t.tierProName,
+        sub: t.tierProSub,
+        limits: t.tierProLimits,
+        desc: t.tierProDesc,
+        cta: t.tierProCta,
+        badge: t.tierPopularBadge,
+        features: [
+          t.tierProFeat1,
+          t.tierProFeat2,
+          t.tierProFeat3,
+          t.tierProFeat4,
+          t.tierProFeat5,
+        ],
+      };
+    }
+    return {
+      name: t.tierBusinessName,
+      sub: t.tierBusinessSub,
+      limits: t.tierBusinessLimits,
+      desc: t.tierBusinessDesc,
+      cta: t.tierBusinessCta,
+      badge: t.tierBusinessBadge,
+      features: [
+        t.tierBusinessFeat1,
+        t.tierBusinessFeat2,
+        t.tierBusinessFeat3,
+        t.tierBusinessFeat4,
+      ],
+    };
+  };
+
   // Re-validate or clear applied coupon whenever selectedPaidTier or billingCycle changes
   useEffect(() => {
     setAppliedCoupon(null);
@@ -427,7 +464,7 @@ export const PricingPage: React.FC<PricingPageProps> = ({
   const selectedBank: MoroccanBankAccount | undefined =
     banks.find((b) => b.id === selectedBankId) || banks[0];
 
-  const baseChargeMAD = selectedPaidTier ? getTotalBilledMAD(selectedPaidTier) : 179;
+  const baseChargeMAD = selectedPaidTier ? getTotalBilledMAD(selectedPaidTier) : 199;
   const totalChargeMAD = appliedCoupon ? appliedCoupon.finalPrice : baseChargeMAD;
   const paypalSettlement = calculatePayPalUsdSettlement(totalChargeMAD, exchangeRates);
   const pendingPayment = userPayments?.find((p) => p.status === 'pending');
@@ -632,7 +669,7 @@ export const PricingPage: React.FC<PricingPageProps> = ({
 
       <main className="flex-1 py-10 px-4 sm:px-6 lg:px-8 relative">
         {/* Ambient Soft Brand Glow */}
-        <div className="pointer-events-none absolute top-0 left-1/2 -translate-x-1/2 w-[720px] h-[320px] bg-[#E25B26]/10 blur-[120px] rounded-full" />
+        <div className="pointer-events-none absolute top-0 left-1/2 -translate-x-1/2 w-[720px] h-[320px] bg-brand-accent/10 blur-[120px] rounded-full" />
 
         <div className="max-w-7xl mx-auto relative z-10 space-y-10">
           {/* Top Back Navigation & Trigger Banner */}
@@ -641,436 +678,445 @@ export const PricingPage: React.FC<PricingPageProps> = ({
               <button
                 type="button"
                 onClick={onBackToBuilder}
-                className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-[#131B2A] hover:bg-[#1E293B] border border-[#1E293B] text-xs font-bold text-[#CBD5E1] hover:text-[#F8FAFC] transition cursor-pointer"
+                className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-brand-surface hover:bg-brand-elevated border border-brand text-xs font-bold text-brand-secondary hover:text-brand-primary transition cursor-pointer"
               >
-                <ArrowRight className="w-4 h-4 text-[#E25B26]" />
-                <span>العودة</span>
+                <ArrowRight className="w-4 h-4 text-brand-accent" />
+                <span>{language === 'ar' ? 'العودة' : language === 'fr' ? 'Retour' : 'Back'}</span>
               </button>
             )}
 
             {isPro && (
-              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#E25B26]/10 border border-[#E25B26]/30 text-[#E25B26] text-xs font-extrabold">
-                <Crown className="w-4 h-4 text-[#E25B26]" />
-                <span>حسابك الحالي مفعل على الباقة الاحترافية ({effectivePlan.toUpperCase()})</span>
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-brand-accent/10 border border-brand-accent/30 text-brand-accent text-xs font-extrabold">
+                <Crown className="w-4 h-4 text-brand-accent" />
+                <span>
+                  {language === 'ar'
+                    ? `حسابك الحالي مفعل على الباقة الاحترافية (${effectivePlan.toUpperCase()})`
+                    : `Active Plan: ${effectivePlan.toUpperCase()}`}
+                </span>
               </div>
             )}
           </div>
 
-        {triggerReason && (
-          <div className="max-w-3xl mx-auto p-4 rounded-2xl bg-[#E25B26]/10 border border-[#E25B26]/30 flex items-center gap-3 text-[#F8FAFC] text-xs sm:text-sm font-bold shadow-lg">
-            <Lock className="w-5 h-5 text-[#E25B26] shrink-0" />
-            <span>{triggerReason}</span>
-          </div>
-        )}
+          {triggerReason && (
+            <div className="max-w-3xl mx-auto p-4 rounded-2xl bg-brand-accent/10 border border-brand-accent/30 flex items-center gap-3 text-brand-primary text-xs sm:text-sm font-bold shadow-lg">
+              <Lock className="w-5 h-5 text-brand-accent shrink-0" />
+              <span>{triggerReason}</span>
+            </div>
+          )}
 
-        {/* Header Section */}
-        <div className="text-center space-y-4 max-w-3xl mx-auto">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#E25B26]/10 border border-[#E25B26]/30 text-[#E25B26] text-xs font-extrabold">
-            <Sparkles className="w-3.5 h-3.5 text-[#E25B26]" />
-            <span>باقات مرنة مصممة لتجار الدفع عند الاستلام COD</span>
-          </div>
+          {/* Header Section */}
+          <div className="text-center space-y-4 max-w-3xl mx-auto">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-brand-accent/10 border border-brand-accent/30 text-brand-accent text-xs font-extrabold">
+              <Sparkles className="w-3.5 h-3.5 text-brand-accent" />
+              <span>{t.pricingBadge}</span>
+            </div>
 
-          <h1 className="text-2xl sm:text-4xl lg:text-5xl font-black tracking-tight text-[#F8FAFC] leading-tight">
-            اختر الباقة المناسبة لنمو متجرك
-          </h1>
+            <h1 className="text-2xl sm:text-4xl lg:text-5xl font-black tracking-tight text-brand-primary leading-tight">
+              {t.pricingTitle}
+            </h1>
 
-          <p className="text-sm sm:text-base text-[#CBD5E1] max-w-2xl mx-auto leading-relaxed">
-            افتح جميع الأقسام الاحترافية، تخلص من العلامة المائية، واربط دومينك الخاص لزيادة المبيعات ونسبة التأكيد.
-          </p>
+            <p className="text-sm sm:text-base text-brand-secondary max-w-2xl mx-auto leading-relaxed">
+              {t.pricingSubtitle}
+            </p>
 
-          {/* Monthly vs Yearly Billing Toggle */}
-          <div className="pt-3 flex items-center justify-center">
-            <div className="inline-flex items-center p-1 rounded-2xl bg-[#131B2A] border border-[#1E293B] shadow-inner">
-              <button
-                type="button"
-                onClick={() => setBillingCycle('monthly')}
-                className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-extrabold transition cursor-pointer ${
-                  billingCycle === 'monthly'
-                    ? 'bg-[#E25B26] text-[#F8FAFC] shadow-sm'
-                    : 'text-[#CBD5E1] hover:text-[#F8FAFC]'
-                }`}
-              >
-                دفع شهري (Monthly)
-              </button>
-              <button
-                type="button"
-                onClick={() => setBillingCycle('yearly')}
-                className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-extrabold flex items-center gap-2 transition cursor-pointer ${
-                  billingCycle === 'yearly'
-                    ? 'bg-[#E25B26] text-[#F8FAFC] shadow-sm'
-                    : 'text-[#CBD5E1] hover:text-[#F8FAFC]'
-                }`}
-              >
-                <span>دفع سنوي (Yearly)</span>
-                <span
-                  className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
-                    billingCycle === 'yearly'
-                      ? 'bg-[#0D131E] text-[#F8FAFC]'
-                      : 'bg-[#E25B26]/20 text-[#E25B26] border border-[#E25B26]/30'
+            {/* Monthly vs Yearly Billing Toggle */}
+            <div className="pt-3 flex items-center justify-center">
+              <div className="inline-flex items-center p-1 rounded-2xl bg-brand-surface border border-brand shadow-inner">
+                <button
+                  type="button"
+                  onClick={() => setBillingCycle('monthly')}
+                  className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-extrabold transition cursor-pointer ${
+                    billingCycle === 'monthly'
+                      ? 'bg-brand-accent text-white shadow-sm'
+                      : 'text-brand-secondary hover:text-brand-primary'
                   }`}
                 >
-                  وفر 20%
-                </span>
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* 3 Pricing Tiers Bento Grid (Competitor to SellCOD) */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8 items-stretch max-w-7xl mx-auto">
-          {pricingTiers.map((tier) => {
-            const Icon = tier.icon;
-            const effectiveMonthlyMAD = getEffectivePriceMAD(tier);
-            const effectiveMonthlyUSD =
-              billingCycle === 'yearly'
-                ? Math.round((tier.priceUSD || Math.round(tier.monthlyPriceMAD / 10)) * 0.8)
-                : tier.priceUSD || Math.round(tier.monthlyPriceMAD / 10);
-            const isCurrentTier = isPro && effectivePlan === tier.id;
-            const isSelectedForCheckout = selectedPaidTier?.id === tier.id;
-
-            return (
-              <div
-                key={tier.id}
-                className={`relative rounded-3xl p-6 sm:p-7 flex flex-col justify-between transition-all duration-300 ${
-                  tier.highlighted
-                    ? 'bg-brand-surface border-2 border-brand-accent shadow-[0_0_50px_-10px_rgba(226,91,38,0.45)] ring-2 ring-brand-accent/50 lg:-translate-y-2'
-                    : isSelectedForCheckout
-                    ? 'bg-brand-surface border-2 border-brand-accent shadow-xl'
-                    : 'bg-brand-surface border border-brand hover:border-brand-accent/50 shadow-md'
-                }`}
-              >
-                {/* Popular / Highlight Ribbon */}
-                {tier.badge && (
-                  <div
-                    className={`absolute -top-3.5 right-6 px-3.5 py-1 rounded-full text-[11px] font-black tracking-wide shadow-md ${
-                      tier.highlighted
-                        ? 'bg-brand-accent text-white ring-2 ring-brand-accent/30 animate-pulse'
-                        : 'bg-brand-elevated text-brand-accent border border-brand'
+                  {t.billedMonthly}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setBillingCycle('yearly')}
+                  className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-extrabold flex items-center gap-2 transition cursor-pointer ${
+                    billingCycle === 'yearly'
+                      ? 'bg-brand-accent text-white shadow-sm'
+                      : 'text-brand-secondary hover:text-brand-primary'
+                  }`}
+                >
+                  <span>{t.billedAnnually}</span>
+                  <span
+                    className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                      billingCycle === 'yearly'
+                        ? 'bg-brand-bg text-brand-primary'
+                        : 'bg-brand-accent/20 text-brand-accent border border-brand-accent/30'
                     }`}
                   >
-                    {tier.badge}
-                  </div>
-                )}
+                    {t.save20Percent}
+                  </span>
+                </button>
+              </div>
+            </div>
+          </div>
 
-                <div className="space-y-5">
-                  {/* Tier Header */}
-                  <div className="flex items-center justify-between gap-3 pt-1">
-                    <div>
-                      <h3 className="text-xl font-black text-brand-primary">{tier.nameAr}</h3>
-                      <span className="text-xs font-semibold text-brand-secondary">
-                        {tier.nameEn}
-                      </span>
-                    </div>
+          {/* 3 Pricing Tiers Bento Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8 items-stretch max-w-7xl mx-auto">
+            {pricingTiers.map((tier) => {
+              const Icon = tier.icon;
+              const effectiveMonthlyMAD = getEffectivePriceMAD(tier);
+              const isCurrentTier = isPro && effectivePlan === tier.id;
+              const isSelectedForCheckout = selectedPaidTier?.id === tier.id;
+              const localized = getLocalizedTierDetails(tier);
+
+              return (
+                <div
+                  key={tier.id}
+                  className={`relative rounded-3xl p-6 sm:p-7 flex flex-col justify-between transition-all duration-300 ${
+                    tier.highlighted
+                      ? 'bg-brand-surface border-2 border-brand-accent shadow-[0_0_50px_-10px_rgba(226,91,38,0.45)] ring-2 ring-brand-accent/50 lg:-translate-y-2'
+                      : isSelectedForCheckout
+                      ? 'bg-brand-surface border-2 border-brand-accent shadow-xl'
+                      : 'bg-brand-surface border border-brand hover:border-brand-accent/50 shadow-md'
+                  }`}
+                >
+                  {/* Popular / Highlight Ribbon */}
+                  {localized.badge && (
                     <div
-                      className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-sm ${
+                      className={`absolute -top-3.5 right-6 px-3.5 py-1 rounded-full text-[11px] font-black tracking-wide shadow-md ${
                         tier.highlighted
-                          ? 'bg-brand-accent/20 text-brand-accent border border-brand-accent/40'
-                          : 'bg-brand-elevated text-brand-secondary border border-brand'
+                          ? 'bg-brand-accent text-white ring-2 ring-brand-accent/30 animate-pulse'
+                          : 'bg-brand-elevated text-brand-accent border border-brand'
                       }`}
                     >
-                      <Icon className="w-6 h-6" />
-                    </div>
-                  </div>
-
-                  {/* Limits Badge (Bento Metric Pill) */}
-                  {tier.limits && (
-                    <div className="px-3 py-1.5 rounded-xl bg-brand-bg border border-brand text-[11px] font-extrabold text-brand-accent flex items-center justify-center text-center">
-                      <span>{tier.limits}</span>
+                      {localized.badge}
                     </div>
                   )}
 
-                  {/* Price Display */}
-                  <div className="pt-2 border-t border-brand">
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-4xl sm:text-5xl font-black text-brand-primary font-mono tracking-tight">
-                        ${effectiveMonthlyUSD}
-                      </span>
-                      <span className="text-sm font-bold text-brand-secondary">/ {language === 'ar' ? 'شهر' : 'mo'}</span>
-                      <span className="text-xs font-mono font-bold text-brand-accent ms-1">
-                        (~{effectiveMonthlyMAD} MAD)
-                      </span>
-                    </div>
-
-                    <div className="mt-1.5 text-xs text-brand-secondary font-medium">
-                      {billingCycle === 'yearly' ? (
-                        <span className="text-brand-accent font-bold">
-                          {language === 'ar'
-                            ? `تُدفع سنوياً (${getTotalBilledMAD(tier)} MAD/سنة) • توفير 20%`
-                            : `Billed annually (${getTotalBilledMAD(tier)} MAD/yr) • 20% OFF`}
+                  <div className="space-y-5">
+                    {/* Tier Header */}
+                    <div className="flex items-center justify-between gap-3 pt-1">
+                      <div>
+                        <h3 className="text-xl font-black text-brand-primary">{localized.name}</h3>
+                        <span className="text-xs font-semibold text-brand-secondary">
+                          {localized.sub}
                         </span>
-                      ) : (
-                        <span>
-                          {language === 'ar'
-                            ? 'أو وفّر 20% باختيار الدفع السنوي'
-                            : 'Or save 20% with annual billing'}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  <p className="text-xs text-brand-secondary leading-relaxed">{tier.description}</p>
-
-                  {/* Feature List with Checkmarks */}
-                  <div className="pt-2 border-t border-brand/60 space-y-2.5">
-                    <div className="text-[11px] font-bold uppercase tracking-wider text-brand-secondary">
-                      {language === 'ar' ? 'المميزات المضمنة:' : 'Included Features:'}
-                    </div>
-                    <ul className="space-y-2.5">
-                      {tier.features.map((feat, idx) => (
-                        <li key={idx} className="flex items-start gap-2.5 text-xs font-bold text-brand-primary">
-                          <div
-                            className={`w-4 h-4 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${
-                              tier.highlighted
-                                ? 'bg-brand-accent text-white shadow-xs'
-                                : 'bg-brand-elevated text-brand-accent'
-                            }`}
-                          >
-                            <Check className="w-3 h-3 stroke-[3]" />
-                          </div>
-                          <span className="leading-tight">{feat}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-
-                {/* Action CTA Button */}
-                <div className="pt-6 mt-6 border-t border-brand">
-                  <button
-                    type="button"
-                    onClick={() => handleChooseTier(tier)}
-                    className={`w-full py-3.5 px-4 rounded-2xl text-xs sm:text-sm font-black transition flex items-center justify-center gap-2 cursor-pointer shadow-lg ${
-                      tier.highlighted
-                        ? 'bg-brand-accent hover:opacity-90 text-white ring-2 ring-brand-accent/50'
-                        : 'bg-brand-elevated hover:bg-brand-accent hover:text-white text-brand-primary border border-brand'
-                    }`}
-                  >
-                    <Crown className="w-4 h-4 shrink-0" />
-                    <span>
-                      {isCurrentTier ? (language === 'ar' ? 'تجديد / ترقية الباقة' : 'Renew / Manage') : tier.ctaLabel}
-                    </span>
-                  </button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Checkout Section / Modal when a Paid Plan is Selected */}
-        {selectedPaidTier && (
-          <div
-            ref={checkoutSectionRef}
-            className="max-w-4xl mx-auto mt-10 rounded-3xl bg-[#131B2A] border-2 border-[#E25B26]/50 shadow-2xl overflow-hidden animate-in fade-in duration-200"
-          >
-            {/* Checkout Header */}
-            <div className="px-6 py-5 bg-[#0D131E] border-b border-[#1E293B] flex flex-wrap items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <div className="w-11 h-11 rounded-2xl bg-[#E25B26]/20 border border-[#E25B26]/40 flex items-center justify-center text-[#E25B26]">
-                  <ShieldCheck className="w-6 h-6" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h2 className="text-base sm:text-lg font-black text-[#F8FAFC]">
-                      إتمام الاشتراك — {selectedPaidTier.nameAr}
-                    </h2>
-                    <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black bg-[#E25B26]/20 text-[#E25B26] border border-[#E25B26]/30">
-                      {billingCycle === 'yearly' ? 'سنوي (خصم 20%)' : 'شهري'}
-                    </span>
-                  </div>
-                  <p className="text-xs text-[#CBD5E1] mt-0.5">
-                    المبلغ الإجمالي المطلوب:{' '}
-                    <strong className="text-[#E25B26] font-mono">
-                      {totalChargeMAD} MAD
-                    </strong>{' '}
-                    (يعادل تقريباً{' '}
-                    <strong className="text-[#F8FAFC] font-mono">
-                      ${paypalSettlement.formattedUSD} USD
-                    </strong>
-                    )
-                  </p>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setSelectedPaidTier(null)}
-                className="p-2 rounded-xl bg-[#1E293B] hover:bg-[#334155] text-[#CBD5E1] hover:text-[#F8FAFC] transition cursor-pointer"
-                title="إغلاق نافذة الدفع"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div className="p-6 space-y-6">
-              {/* Alerts */}
-              {checkoutSuccess && (
-                <div className="p-4 rounded-2xl bg-[#E25B26]/15 border border-[#E25B26]/50 text-[#F8FAFC] flex items-center gap-3 text-xs sm:text-sm font-bold">
-                  <CheckCircle2 className="w-5 h-5 text-[#E25B26] shrink-0" />
-                  <span className="flex-1">{checkoutSuccess}</span>
-                </div>
-              )}
-
-              {checkoutError && (
-                <div className="p-4 rounded-2xl bg-rose-950/90 border border-rose-500/50 text-rose-200 flex items-center gap-3 text-xs sm:text-sm font-bold">
-                  <AlertCircle className="w-5 h-5 text-rose-400 shrink-0" />
-                  <span className="flex-1">{checkoutError}</span>
-                </div>
-              )}
-
-              {pendingPayment && (
-                <div className="p-3.5 rounded-2xl bg-[#E25B26]/10 border border-[#E25B26]/30 text-[#F8FAFC] text-xs font-bold flex items-center justify-between gap-2">
-                  <span>
-                    ⏳ لديك طلب تحويل بنكي قيد المراجعة ({pendingPayment.amount} درهم -{' '}
-                    {pendingPayment.method}).
-                  </span>
-                  <span className="font-mono text-[11px] text-[#E25B26]">
-                    #{pendingPayment.transactionReference}
-                  </span>
-                </div>
-              )}
-
-              {/* Coupon Code Input Box */}
-              <div className="p-4 rounded-2xl bg-[#0D131E] border border-[#1E293B] space-y-3">
-                <label className="block text-xs font-black text-[#CBD5E1] flex items-center gap-2">
-                  <Tag className="w-4 h-4 text-[#E25B26]" />
-                  <span>هل لديك كود خصم؟ (Have a coupon code?)</span>
-                </label>
-
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
-                  <input
-                    type="text"
-                    dir="ltr"
-                    value={couponInput}
-                    onChange={(e) =>
-                      setCouponInput(e.target.value.toUpperCase().replace(/[^A-Z0-9_-]/g, ''))
-                    }
-                    placeholder="Enter coupon code (e.g. WELCOME20)"
-                    className="flex-1 h-10 px-3.5 rounded-xl bg-[#131B2A] border border-[#1E293B] text-xs font-mono text-[#F8FAFC] uppercase focus:border-[#E25B26] outline-none"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleApplyCoupon}
-                    disabled={isApplyingCoupon || !couponInput.trim()}
-                    className="h-10 px-5 rounded-xl bg-[#E25B26] hover:bg-[#F16F3C] disabled:opacity-50 text-[#F8FAFC] font-black text-xs transition flex items-center justify-center gap-2 cursor-pointer shrink-0"
-                  >
-                    {isApplyingCoupon ? (
-                      <>
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        <span>جاري التحقق...</span>
-                      </>
-                    ) : (
-                      <span>تطبيق (Apply)</span>
-                    )}
-                  </button>
-                  {appliedCoupon && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setAppliedCoupon(null);
-                        setCouponInput('');
-                        setCouponError(null);
-                      }}
-                      className="h-10 px-3 rounded-xl bg-[#1E293B] hover:bg-[#334155] text-[#CBD5E1] text-xs font-bold transition cursor-pointer shrink-0"
-                    >
-                      إزالة
-                    </button>
-                  )}
-                </div>
-
-                {appliedCoupon && (
-                  <div className="p-3 rounded-xl bg-[#E25B26]/15 border border-[#E25B26]/40 text-[#F8FAFC] text-xs font-bold flex flex-wrap items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <CheckCircle2 className="w-4 h-4 text-[#E25B26] shrink-0" />
-                      <span>
-                        تم تطبيق الكوبون <strong className="font-mono">{appliedCoupon.code}</strong> بنجاح! خصم{' '}
-                        <strong className="font-mono">{appliedCoupon.discountAmount} درهم</strong>
-                      </span>
-                    </div>
-                    <div className="font-mono text-xs">
-                      <span className="line-through text-[#CBD5E1] mr-2">
-                        {appliedCoupon.originalPrice} MAD
-                      </span>
-                      <span className="text-[#E25B26] font-black">
-                        {appliedCoupon.finalPrice} MAD (${paypalSettlement.formattedUSD} USD)
-                      </span>
-                    </div>
-                  </div>
-                )}
-
-                {couponError && (
-                  <div className="p-2.5 rounded-xl bg-rose-950/70 border border-rose-500/40 text-rose-300 text-xs font-bold flex items-center gap-2">
-                    <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
-                    <span>{couponError}</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Payment Method Tabs */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={() => setPaymentMethod('paypal')}
-                  className={`p-4 rounded-2xl border text-right transition flex items-center gap-3 cursor-pointer ${
-                    paymentMethod === 'paypal'
-                      ? 'bg-[#E25B26]/15 border-[#E25B26] ring-1 ring-[#E25B26] text-[#F8FAFC]'
-                      : 'bg-[#0D131E] border-[#1E293B] text-[#CBD5E1] hover:border-[#334155] hover:text-[#F8FAFC]'
-                  }`}
-                >
-                  <div className="w-10 h-10 rounded-xl bg-[#E25B26]/20 border border-[#E25B26]/30 text-[#E25B26] flex items-center justify-center shrink-0">
-                    <CreditCard className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <div className="text-xs sm:text-sm font-black text-[#F8FAFC]">
-                      الدفع الفوري عبر PayPal / البطاقة البنكية
-                    </div>
-                    <div className="text-[11px] text-[#CBD5E1]">
-                      تفعيل تلقائي فوري للباقة ({paypalSettlement.formattedUSD} USD)
-                    </div>
-                  </div>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setPaymentMethod('bank')}
-                  className={`p-4 rounded-2xl border text-right transition flex items-center gap-3 cursor-pointer ${
-                    paymentMethod === 'bank'
-                      ? 'bg-[#E25B26]/15 border-[#E25B26] ring-1 ring-[#E25B26] text-[#F8FAFC]'
-                      : 'bg-[#0D131E] border-[#1E293B] text-[#CBD5E1] hover:border-[#334155] hover:text-[#F8FAFC]'
-                  }`}
-                >
-                  <div className="w-10 h-10 rounded-xl bg-[#E25B26]/20 border border-[#E25B26]/30 text-[#E25B26] flex items-center justify-center shrink-0">
-                    <Landmark className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <div className="text-xs sm:text-sm font-black text-[#F8FAFC]">
-                      تحويل بنكي مغربي (CIH / التجاري / الشعبي)
-                    </div>
-                    <div className="text-[11px] text-[#CBD5E1]">
-                      ادفع بالدرهم المغربي ({totalChargeMAD} MAD) وارفع وصل التحويل
-                    </div>
-                  </div>
-                </button>
-              </div>
-
-              {/* Option 1: PayPal Automatic Upgrade */}
-              {paymentMethod === 'paypal' ? (
-                <div className="p-6 rounded-2xl bg-[#0D131E] border border-[#1E293B] space-y-5">
-                  <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#1E293B] pb-4">
-                    <div>
-                      <h3 className="text-sm font-black text-[#F8FAFC]">
-                        الدفع الآمن عبر PayPal (تفعيل فوري)
-                      </h3>
-                      <p className="text-xs text-[#CBD5E1] mt-0.5">
-                        يتم تحويل المبلغ تلقائياً إلى الدولار الأمريكي وفق سعر الصرف المعتمد لتسوية الدفع الدولي.
-                      </p>
-                    </div>
-                    <div className="px-3.5 py-2 rounded-xl bg-[#131B2A] border border-[#1E293B] text-left">
-                      <div className="text-[10px] text-[#CBD5E1] font-bold">المبلغ للدفع الآن</div>
-                      <div className="text-sm font-black text-[#E25B26] font-mono">
-                        {paypalSettlement.formattedUSD} USD
+                      </div>
+                      <div
+                        className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-sm ${
+                          tier.highlighted
+                            ? 'bg-brand-accent/20 text-brand-accent border border-brand-accent/40'
+                            : 'bg-brand-elevated text-brand-secondary border border-brand'
+                        }`}
+                      >
+                        <Icon className="w-6 h-6" />
                       </div>
                     </div>
+
+                    {/* Limits Badge (Bento Metric Pill) */}
+                    <div className="px-3 py-1.5 rounded-xl bg-brand-bg border border-brand text-[11px] font-extrabold text-brand-accent flex items-center justify-center text-center">
+                      <span>{localized.limits}</span>
+                    </div>
+
+                    {/* Price Display in MAD */}
+                    <div className="pt-2 border-t border-brand">
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-4xl sm:text-5xl font-black text-brand-primary font-mono tracking-tight">
+                          {effectiveMonthlyMAD}
+                        </span>
+                        <span className="text-lg font-extrabold text-brand-accent">MAD</span>
+                        <span className="text-sm font-bold text-brand-secondary">
+                          / {t.perMonth}
+                        </span>
+                      </div>
+
+                      <div className="mt-1.5 text-xs text-brand-secondary font-medium">
+                        {billingCycle === 'yearly' ? (
+                          <span className="text-brand-accent font-bold">
+                            {language === 'ar'
+                              ? `تُدفع سنوياً (${getTotalBilledMAD(tier)} MAD/سنة) • توفير 20%`
+                              : language === 'fr'
+                              ? `Facturé annuellement (${getTotalBilledMAD(tier)} MAD/an) • -20%`
+                              : `Billed annually (${getTotalBilledMAD(tier)} MAD/yr) • 20% OFF`}
+                          </span>
+                        ) : (
+                          <span>
+                            {language === 'ar'
+                              ? 'أو وفّر 20% باختيار الدفع السنوي'
+                              : language === 'fr'
+                              ? 'Ou économisez 20% avec la facturation annuelle'
+                              : 'Or save 20% with annual billing'}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <p className="text-xs text-brand-secondary leading-relaxed">{localized.desc}</p>
+
+                    {/* Feature List with Checkmarks */}
+                    <div className="pt-2 border-t border-brand/60 space-y-2.5">
+                      <div className="text-[11px] font-bold uppercase tracking-wider text-brand-secondary">
+                        {t.includedFeaturesLabel}
+                      </div>
+                      <ul className="space-y-2.5">
+                        {localized.features.map((feat, idx) => (
+                          <li key={idx} className="flex items-start gap-2.5 text-xs font-bold text-brand-primary">
+                            <div
+                              className={`w-4 h-4 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${
+                                tier.highlighted
+                                  ? 'bg-brand-accent text-white shadow-xs'
+                                  : 'bg-brand-elevated text-brand-accent'
+                              }`}
+                            >
+                              <Check className="w-3 h-3 stroke-[3]" />
+                            </div>
+                            <span className="leading-tight">{feat}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
                   </div>
+
+                  {/* Action CTA Button */}
+                  <div className="pt-6 mt-6 border-t border-brand">
+                    <button
+                      type="button"
+                      onClick={() => handleChooseTier(tier)}
+                      className={`w-full py-3.5 px-4 rounded-2xl text-xs sm:text-sm font-black transition flex items-center justify-center gap-2 cursor-pointer shadow-lg ${
+                        tier.highlighted
+                          ? 'bg-brand-accent hover:opacity-90 text-white ring-2 ring-brand-accent/50'
+                          : 'bg-brand-elevated hover:bg-brand-accent hover:text-white text-brand-primary border border-brand'
+                      }`}
+                    >
+                      <Crown className="w-4 h-4 shrink-0" />
+                      <span>
+                        {isCurrentTier
+                          ? language === 'ar'
+                            ? 'تجديد / ترقية الباقة'
+                            : language === 'fr'
+                            ? 'Renouveler / Gérer'
+                            : 'Renew / Manage'
+                          : localized.cta}
+                      </span>
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Checkout Section / Modal when a Paid Plan is Selected */}
+          {selectedPaidTier && (
+            <div
+              ref={checkoutSectionRef}
+              className="max-w-4xl mx-auto mt-10 rounded-3xl bg-brand-surface border-2 border-brand-accent/50 shadow-2xl overflow-hidden animate-in fade-in duration-200"
+            >
+              {/* Checkout Header */}
+              <div className="px-6 py-5 bg-brand-bg border-b border-brand flex flex-wrap items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-11 h-11 rounded-2xl bg-brand-accent/20 border border-brand-accent/40 flex items-center justify-center text-brand-accent">
+                    <ShieldCheck className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h2 className="text-base sm:text-lg font-black text-brand-primary">
+                        إتمام الاشتراك — {selectedPaidTier.nameAr}
+                      </h2>
+                      <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black bg-brand-accent/20 text-brand-accent border border-brand-accent/30">
+                        {billingCycle === 'yearly' ? 'سنوي (خصم 20%)' : 'شهري'}
+                      </span>
+                    </div>
+                    <p className="text-xs text-brand-secondary mt-0.5">
+                      المبلغ الإجمالي المطلوب:{' '}
+                      <strong className="text-brand-accent font-mono">
+                        {totalChargeMAD} MAD
+                      </strong>{' '}
+                      (يعادل تقريباً{' '}
+                      <strong className="text-brand-primary font-mono">
+                        ${paypalSettlement.formattedUSD} USD
+                      </strong>
+                      )
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setSelectedPaidTier(null)}
+                  className="p-2 rounded-xl bg-brand-elevated hover:opacity-80 text-brand-secondary hover:text-brand-primary transition cursor-pointer"
+                  title="إغلاق نافذة الدفع"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="p-6 space-y-6">
+                {/* Alerts */}
+                {checkoutSuccess && (
+                  <div className="p-4 rounded-2xl bg-brand-accent/15 border border-brand-accent/50 text-brand-primary flex items-center gap-3 text-xs sm:text-sm font-bold">
+                    <CheckCircle2 className="w-5 h-5 text-brand-accent shrink-0" />
+                    <span className="flex-1">{checkoutSuccess}</span>
+                  </div>
+                )}
+
+                {checkoutError && (
+                  <div className="p-4 rounded-2xl bg-rose-950/90 border border-rose-500/50 text-rose-200 flex items-center gap-3 text-xs sm:text-sm font-bold">
+                    <AlertCircle className="w-5 h-5 text-rose-400 shrink-0" />
+                    <span className="flex-1">{checkoutError}</span>
+                  </div>
+                )}
+
+                {pendingPayment && (
+                  <div className="p-3.5 rounded-2xl bg-brand-accent/10 border border-brand-accent/30 text-brand-primary text-xs font-bold flex items-center justify-between gap-2">
+                    <span>
+                      ⏳ لديك طلب تحويل بنكي قيد المراجعة ({pendingPayment.amount} درهم -{' '}
+                      {pendingPayment.method}).
+                    </span>
+                    <span className="font-mono text-[11px] text-brand-accent">
+                      #{pendingPayment.transactionReference}
+                    </span>
+                  </div>
+                )}
+
+                {/* Coupon Code Input Box */}
+                <div className="p-4 rounded-2xl bg-brand-bg border border-brand space-y-3">
+                  <label className="block text-xs font-black text-brand-secondary flex items-center gap-2">
+                    <Tag className="w-4 h-4 text-brand-accent" />
+                    <span>هل لديك كود خصم؟ (Have a coupon code?)</span>
+                  </label>
+
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
+                    <input
+                      type="text"
+                      dir="ltr"
+                      value={couponInput}
+                      onChange={(e) =>
+                        setCouponInput(e.target.value.toUpperCase().replace(/[^A-Z0-9_-]/g, ''))
+                      }
+                      placeholder="Enter coupon code (e.g. WELCOME20)"
+                      className="flex-1 h-10 px-3.5 rounded-xl bg-brand-surface border border-brand text-xs font-mono text-brand-primary uppercase focus:border-brand-accent outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleApplyCoupon}
+                      disabled={isApplyingCoupon || !couponInput.trim()}
+                      className="h-10 px-5 rounded-xl bg-brand-accent hover:opacity-90 disabled:opacity-50 text-white font-black text-xs transition flex items-center justify-center gap-2 cursor-pointer shrink-0"
+                    >
+                      {isApplyingCoupon ? (
+                        <>
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          <span>جاري التحقق...</span>
+                        </>
+                      ) : (
+                        <span>تطبيق (Apply)</span>
+                      )}
+                    </button>
+                    {appliedCoupon && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAppliedCoupon(null);
+                          setCouponInput('');
+                          setCouponError(null);
+                        }}
+                        className="h-10 px-3 rounded-xl bg-brand-elevated hover:opacity-80 text-brand-secondary text-xs font-bold transition cursor-pointer shrink-0"
+                      >
+                        إزالة
+                      </button>
+                    )}
+                  </div>
+
+                  {appliedCoupon && (
+                    <div className="p-3 rounded-xl bg-brand-accent/15 border border-brand-accent/40 text-brand-primary text-xs font-bold flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle2 className="w-4 h-4 text-brand-accent shrink-0" />
+                        <span>
+                          تم تطبيق الكوبون <strong className="font-mono">{appliedCoupon.code}</strong> بنجاح! خصم{' '}
+                          <strong className="font-mono">{appliedCoupon.discountAmount} درهم</strong>
+                        </span>
+                      </div>
+                      <div className="font-mono text-xs">
+                        <span className="line-through text-brand-secondary mr-2">
+                          {appliedCoupon.originalPrice} MAD
+                        </span>
+                        <span className="text-brand-accent font-black">
+                          {appliedCoupon.finalPrice} MAD (${paypalSettlement.formattedUSD} USD)
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  {couponError && (
+                    <div className="p-2.5 rounded-xl bg-rose-950/70 border border-rose-500/40 text-rose-300 text-xs font-bold flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+                      <span>{couponError}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Payment Method Tabs */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod('paypal')}
+                    className={`p-4 rounded-2xl border text-right transition flex items-center gap-3 cursor-pointer ${
+                      paymentMethod === 'paypal'
+                        ? 'bg-brand-accent/15 border-brand-accent ring-1 ring-brand-accent text-brand-primary'
+                        : 'bg-brand-bg border-brand text-brand-secondary hover:border-brand-accent/50 hover:text-brand-primary'
+                    }`}
+                  >
+                    <div className="w-10 h-10 rounded-xl bg-brand-accent/20 border border-brand-accent/30 text-brand-accent flex items-center justify-center shrink-0">
+                      <CreditCard className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="text-xs sm:text-sm font-black text-brand-primary">
+                        الدفع الفوري عبر PayPal / البطاقة البنكية
+                      </div>
+                      <div className="text-[11px] text-brand-secondary">
+                        تفعيل تلقائي فوري للباقة ({paypalSettlement.formattedUSD} USD)
+                      </div>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod('bank')}
+                    className={`p-4 rounded-2xl border text-right transition flex items-center gap-3 cursor-pointer ${
+                      paymentMethod === 'bank'
+                        ? 'bg-brand-accent/15 border-brand-accent ring-1 ring-brand-accent text-brand-primary'
+                        : 'bg-brand-bg border-brand text-brand-secondary hover:border-brand-accent/50 hover:text-brand-primary'
+                    }`}
+                  >
+                    <div className="w-10 h-10 rounded-xl bg-brand-accent/20 border border-brand-accent/30 text-brand-accent flex items-center justify-center shrink-0">
+                      <Landmark className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="text-xs sm:text-sm font-black text-brand-primary">
+                        تحويل بنكي مغربي (CIH / التجاري / الشعبي)
+                      </div>
+                      <div className="text-[11px] text-brand-secondary">
+                        ادفع بالدرهم المغربي ({totalChargeMAD} MAD) وارفع وصل التحويل
+                      </div>
+                    </div>
+                  </button>
+                </div>
+
+                {/* Option 1: PayPal Automatic Upgrade */}
+                {paymentMethod === 'paypal' ? (
+                  <div className="p-6 rounded-2xl bg-brand-bg border border-brand space-y-5">
+                    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-brand pb-4">
+                      <div>
+                        <h3 className="text-sm font-black text-brand-primary">
+                          الدفع الآمن عبر PayPal (تفعيل فوري)
+                        </h3>
+                        <p className="text-xs text-brand-secondary mt-0.5">
+                          يتم تحويل المبلغ تلقائياً إلى الدولار الأمريكي وفق سعر الصرف المعتمد لتسوية الدفع الدولي.
+                        </p>
+                      </div>
+                      <div className="px-3.5 py-2 rounded-xl bg-brand-surface border border-brand text-left">
+                        <div className="text-[10px] text-brand-secondary font-bold">المبلغ للدفع الآن</div>
+                        <div className="text-sm font-black text-brand-accent font-mono">
+                          {paypalSettlement.formattedUSD} USD
+                        </div>
+                      </div>
+                    </div>
 
                   {/* Official PayPal Script Provider & Buttons */}
                   <div className="max-w-md mx-auto space-y-4">
@@ -1269,7 +1315,7 @@ export const PricingPage: React.FC<PricingPageProps> = ({
                       type="button"
                       disabled={isProcessing}
                       onClick={handleDirectPayPalUpgrade}
-                      className="w-full py-3 px-4 rounded-xl bg-[#E25B26] hover:bg-[#F16F3C] disabled:opacity-50 text-[#F8FAFC] font-black text-xs flex items-center justify-center gap-2 shadow-lg transition cursor-pointer"
+                      className="w-full py-3 px-4 rounded-xl bg-brand-accent hover:opacity-90 disabled:opacity-50 text-white font-black text-xs flex items-center justify-center gap-2 shadow-lg transition cursor-pointer"
                     >
                       {isProcessing ? (
                         <>
@@ -1288,9 +1334,9 @@ export const PricingPage: React.FC<PricingPageProps> = ({
                   </div>
                 </div>
               ) : banks.length === 0 || !selectedBank ? (
-                <div className="p-6 rounded-2xl bg-[#0D131E] border border-[#1E293B] text-center space-y-2">
-                  <Landmark className="w-8 h-8 text-[#E25B26] mx-auto" />
-                  <p className="text-xs font-bold text-[#F8FAFC]">
+                <div className="p-6 rounded-2xl bg-brand-bg border border-brand text-center space-y-2">
+                  <Landmark className="w-8 h-8 text-brand-accent mx-auto" />
+                  <p className="text-xs font-bold text-brand-primary">
                     لا توجد حسابات بنكية متاحة حالياً. يرجى التواصل مع الدعم.
                   </p>
                 </div>
@@ -1298,10 +1344,10 @@ export const PricingPage: React.FC<PricingPageProps> = ({
                 /* Option 2: Moroccan Bank Transfer (Dynamic Banks from /api/settings/banks) */
                 <form
                   onSubmit={handleManualBankSubmit}
-                  className="p-6 rounded-2xl bg-[#0D131E] border border-[#1E293B] space-y-6"
+                  className="p-6 rounded-2xl bg-brand-bg border border-brand space-y-6"
                 >
                   <div>
-                    <label className="block text-xs font-black text-[#CBD5E1] mb-3">
+                    <label className="block text-xs font-black text-brand-secondary mb-3">
                       1. اختر البنك المغربي للتحويل:
                     </label>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -1314,21 +1360,21 @@ export const PricingPage: React.FC<PricingPageProps> = ({
                             onClick={() => setSelectedBankId(bank.id)}
                             className={`p-3.5 rounded-2xl border text-right transition flex flex-col justify-between gap-2 cursor-pointer ${
                               isSelected
-                                ? 'bg-[#E25B26]/10 border-[#E25B26] ring-1 ring-[#E25B26]'
-                                : 'bg-[#131B2A] border-[#1E293B] hover:border-[#334155]'
+                                ? 'bg-brand-accent/10 border-brand-accent ring-1 ring-brand-accent'
+                                : 'bg-brand-surface border-brand hover:border-brand-accent/50'
                             }`}
                           >
                             <div className="flex items-center justify-between gap-2">
-                              <span className="text-xs font-black text-[#F8FAFC]">
+                              <span className="text-xs font-black text-brand-primary">
                                 {bank.bankName || bank.name}
                               </span>
                               {bank.badge && (
-                                <span className="px-2 py-0.5 rounded-full bg-[#E25B26]/20 text-[#E25B26] text-[10px] font-bold">
+                                <span className="px-2 py-0.5 rounded-full bg-brand-accent/20 text-brand-accent text-[10px] font-bold">
                                   {bank.badge}
                                 </span>
                               )}
                             </div>
-                            <div className="text-[11px] text-[#CBD5E1] truncate">
+                            <div className="text-[11px] text-brand-secondary truncate">
                               المستفيد: {bank.beneficiary}
                             </div>
                           </button>
@@ -1339,14 +1385,14 @@ export const PricingPage: React.FC<PricingPageProps> = ({
 
                   {/* Selected Bank RIB & Details Card */}
                   {selectedBank && (
-                    <div className="p-4 rounded-2xl bg-[#131B2A] border border-[#1E293B] space-y-3">
+                    <div className="p-4 rounded-2xl bg-brand-surface border border-brand space-y-3">
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <div>
-                          <div className="text-xs font-black text-[#E25B26]">
+                          <div className="text-xs font-black text-brand-accent">
                             بيانات الحساب البنكي — {selectedBank.bankName || selectedBank.name}
                           </div>
-                          <div className="text-[11px] text-[#CBD5E1] mt-0.5">
-                            اسم المستفيد: <strong className="text-[#F8FAFC]">{selectedBank.beneficiary}</strong>
+                          <div className="text-[11px] text-brand-secondary mt-0.5">
+                            اسم المستفيد: <strong className="text-brand-primary">{selectedBank.beneficiary}</strong>
                           </div>
                         </div>
 
@@ -1354,7 +1400,7 @@ export const PricingPage: React.FC<PricingPageProps> = ({
                           <button
                             type="button"
                             onClick={() => handleCopyText(selectedBank.rib || '', selectedBank.id)}
-                            className="px-3 py-1.5 rounded-xl bg-[#E25B26] hover:bg-[#F16F3C] text-[#F8FAFC] font-black text-xs flex items-center gap-1.5 transition cursor-pointer"
+                            className="px-3 py-1.5 rounded-xl bg-brand-accent hover:opacity-90 text-white font-black text-xs flex items-center gap-1.5 transition cursor-pointer"
                           >
                             <Copy className="w-3.5 h-3.5" />
                             <span>
@@ -1367,14 +1413,14 @@ export const PricingPage: React.FC<PricingPageProps> = ({
                       {selectedBank.rib && (
                         <div
                           dir="ltr"
-                          className="p-3 rounded-xl bg-[#0D131E] border border-[#1E293B] font-mono text-xs sm:text-sm font-black text-[#E25B26] tracking-wider text-center select-all"
+                          className="p-3 rounded-xl bg-brand-bg border border-brand font-mono text-xs sm:text-sm font-black text-brand-accent tracking-wider text-center select-all"
                         >
                           {selectedBank.rib}
                         </div>
                       )}
 
                       {selectedBank.instructions && (
-                        <p className="text-[11px] text-[#CBD5E1] leading-relaxed">
+                        <p className="text-[11px] text-brand-secondary leading-relaxed">
                           💡 {selectedBank.instructions}
                         </p>
                       )}
@@ -1384,7 +1430,7 @@ export const PricingPage: React.FC<PricingPageProps> = ({
                   {/* Upload Receipt & Reference Inputs */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-bold text-[#CBD5E1] mb-1.5">
+                      <label className="block text-xs font-bold text-brand-secondary mb-1.5">
                         2. رقم عملية التحويل (أو اسم المرسل)
                       </label>
                       <input
@@ -1392,12 +1438,12 @@ export const PricingPage: React.FC<PricingPageProps> = ({
                         value={transactionRef}
                         onChange={(e) => setTransactionRef(e.target.value)}
                         placeholder="مثال: رقم الوصل أو اسم صاحب الحساب..."
-                        className="w-full h-10 px-3 rounded-xl bg-[#131B2A] border border-[#1E293B] text-xs text-[#F8FAFC] focus:border-[#E25B26] outline-none"
+                        className="w-full h-10 px-3 rounded-xl bg-brand-surface border border-brand text-xs text-brand-primary focus:border-brand-accent outline-none"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold text-[#CBD5E1] mb-1.5">
+                      <label className="block text-xs font-bold text-brand-secondary mb-1.5">
                         3. إرفاق صورة وصل التحويل (Receipt)
                       </label>
                       <input
@@ -1412,18 +1458,18 @@ export const PricingPage: React.FC<PricingPageProps> = ({
                         onClick={() => fileInputRef.current?.click()}
                         className={`w-full h-10 px-3 rounded-xl border border-dashed text-xs font-bold flex items-center justify-center gap-2 transition cursor-pointer ${
                           receiptDataUrl
-                            ? 'bg-[#E25B26]/15 border-[#E25B26] text-[#F8FAFC]'
-                            : 'bg-[#131B2A] border-[#334155] text-[#CBD5E1] hover:border-[#E25B26]'
+                            ? 'bg-brand-accent/15 border-brand-accent text-brand-primary'
+                            : 'bg-brand-surface border-brand text-brand-secondary hover:border-brand-accent'
                         }`}
                       >
                         {receiptDataUrl ? (
                           <>
-                            <FileCheck2 className="w-4 h-4 text-[#E25B26]" />
+                            <FileCheck2 className="w-4 h-4 text-brand-accent" />
                             <span className="truncate">{receiptFileName || 'تم إرفاق الوصل بنجاح'}</span>
                           </>
                         ) : (
                           <>
-                            <UploadCloud className="w-4 h-4 text-[#E25B26]" />
+                            <UploadCloud className="w-4 h-4 text-brand-accent" />
                             <span>اختر صورة وصل التحويل البنكي</span>
                           </>
                         )}
@@ -1434,7 +1480,7 @@ export const PricingPage: React.FC<PricingPageProps> = ({
                   <button
                     type="submit"
                     disabled={isProcessing}
-                    className="w-full py-3.5 px-6 rounded-2xl bg-[#E25B26] hover:bg-[#F16F3C] disabled:opacity-50 text-[#F8FAFC] font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg transition cursor-pointer"
+                    className="w-full py-3.5 px-6 rounded-2xl bg-brand-accent hover:opacity-90 disabled:opacity-50 text-white font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg transition cursor-pointer"
                   >
                     {isProcessing ? (
                       <>

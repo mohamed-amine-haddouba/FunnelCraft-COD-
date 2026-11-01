@@ -157,13 +157,46 @@ export interface Translations {
   invitedByFriendBanner: string;
   referralCodeApplied: string;
 
-  // New Pricing Tiers
-  tierStarterName: string;
-  tierProName: string;
-  tierBusinessName: string;
-  tierPopularBadge: string;
+  // Realistic Moroccan Pricing Tiers & Real Features
+  pricingBadge: string;
+  pricingTitle: string;
+  pricingSubtitle: string;
   billedMonthly: string;
   billedAnnually: string;
+  save20Percent: string;
+  perMonth: string;
+  includedFeaturesLabel: string;
+  tierPopularBadge: string;
+  tierBusinessBadge: string;
+  tierStarterName: string;
+  tierStarterSub: string;
+  tierStarterLimits: string;
+  tierStarterDesc: string;
+  tierStarterCta: string;
+  tierStarterFeat1: string;
+  tierStarterFeat2: string;
+  tierStarterFeat3: string;
+  tierStarterFeat4: string;
+  tierStarterFeat5: string;
+  tierProName: string;
+  tierProSub: string;
+  tierProLimits: string;
+  tierProDesc: string;
+  tierProCta: string;
+  tierProFeat1: string;
+  tierProFeat2: string;
+  tierProFeat3: string;
+  tierProFeat4: string;
+  tierProFeat5: string;
+  tierBusinessName: string;
+  tierBusinessSub: string;
+  tierBusinessLimits: string;
+  tierBusinessDesc: string;
+  tierBusinessCta: string;
+  tierBusinessFeat1: string;
+  tierBusinessFeat2: string;
+  tierBusinessFeat3: string;
+  tierBusinessFeat4: string;
 
   // Pro Gating & Paywall
   proFeatureTitle: string;
@@ -416,13 +449,46 @@ export const translations: Record<Language, Translations> = {
     invitedByFriendBanner: 'لقد تمت دعوتك بواسطة صديق! 🎁',
     referralCodeApplied: 'كود الإحالة مفعل',
 
-    // New Pricing Tiers (AR)
-    tierStarterName: 'المبتدئ (Starter)',
-    tierProName: 'بريميوم (Professional)',
-    tierBusinessName: 'الأعمال (Business)',
-    tierPopularBadge: 'الأكثر شعبية ⭐',
+    // Realistic Moroccan Pricing Tiers & Real Features (AR)
+    pricingBadge: 'باقات مرنة مصممة لتجار الدفع عند الاستلام COD بالمغرب',
+    pricingTitle: 'اختر الباقة المناسبة لنمو متجرك',
+    pricingSubtitle: 'أسعار مناسبة للسوق المغربي بالدرهم (99، 199، 299 درهم/شهر) مع خصم 20% عند الدفع السنوي.',
     billedMonthly: 'دفع شهري',
-    billedAnnually: 'دفع سنوي (وفر 20%)',
+    billedAnnually: 'دفع سنوي',
+    save20Percent: 'وفر 20%',
+    perMonth: 'شهر',
+    includedFeaturesLabel: 'المميزات المتوفرة في الباقة:',
+    tierPopularBadge: 'الأكثر شعبية ⭐',
+    tierBusinessBadge: 'للشركات والوكالات 🚀',
+    tierStarterName: 'المبتدئ (Starter)',
+    tierStarterSub: '99 درهم / شهر',
+    tierStarterLimits: '2 صفحات • 100 طلب/شهر • 1,000 زيارة/شهر',
+    tierStarterDesc: 'انطلاقة مثالية للتجار المبتدئين لاختبار المنتجات وإطلاق صفحات الهبوط.',
+    tierStarterCta: 'اشترك في باقة المبتدئ',
+    tierStarterFeat1: 'محرر الصفحات الاحترافي (Page Builder)',
+    tierStarterFeat2: 'استيراد المنتجات بـ 3 طبقات (3-Layer Scraper)',
+    tierStarterFeat3: 'استمارة الدفع عند الاستلام (COD Form)',
+    tierStarterFeat4: 'تحليلات أساسية للمبيعات (Basic Analytics)',
+    tierStarterFeat5: 'التحقق عبر البريد الإلكتروني (Email Verification)',
+    tierProName: 'بريميوم (Professional)',
+    tierProSub: '199 درهم / شهر',
+    tierProLimits: '5 صفحات • 500 طلب/شهر • 5,000 زيارة/شهر',
+    tierProDesc: 'الباقة الأكثر طلباً للتجار المحترفين مع الدومين المخصص، البيكسل، والذكاء الاصطناعي.',
+    tierProCta: 'اشترك في باقة بريميوم',
+    tierProFeat1: 'كل مميزات باقة المبتدئ (Everything in Starter)',
+    tierProFeat2: 'ربط الدومين المخصص (Custom Domain)',
+    tierProFeat3: 'بيكسل فيسبوك وتيك توك (Facebook & TikTok Pixels)',
+    tierProFeat4: 'تحليلات وإحصائيات متقدمة (Advanced Analytics)',
+    tierProFeat5: 'توليد الصفحات بالذكاء الاصطناعي (AI Page Generation - Gemini)',
+    tierBusinessName: 'الأعمال (Business)',
+    tierBusinessSub: '299 درهم / شهر',
+    tierBusinessLimits: 'صفحات، طلبات، وزيارات غير محدودة',
+    tierBusinessDesc: 'حل متكامل بلا حدود للمتاجر الكبرى مع ربط شركات الشحن ودعم فني ذو أولوية.',
+    tierBusinessCta: 'اشترك في باقة الأعمال',
+    tierBusinessFeat1: 'كل مميزات باقة بريميوم (Everything in Professional)',
+    tierBusinessFeat2: 'الربط مع شركات الشحن والتوصيل (Shipping API Integrations)',
+    tierBusinessFeat3: 'صفحات وطلبات وزيارات غير محدودة (Unlimited Everything)',
+    tierBusinessFeat4: 'دعم فني ذو أولوية (Priority Support)',
 
     // Pro Gating & Paywall
     proFeatureTitle: 'ميزة حصرية لمشتركي باقة Pro 👑',
@@ -674,13 +740,46 @@ export const translations: Record<Language, Translations> = {
     invitedByFriendBanner: 'Vous avez été invité par un ami ! 🎁',
     referralCodeApplied: 'Code de parrainage appliqué',
 
-    // New Pricing Tiers (FR)
-    tierStarterName: 'Débutant (Starter)',
-    tierProName: 'Professionnel (Pro)',
-    tierBusinessName: 'Affaires (Business)',
+    // Realistic Moroccan Pricing Tiers & Real Features (FR)
+    pricingBadge: 'Forfaits adaptés aux e-commerçants COD au Maroc',
+    pricingTitle: 'Choisissez le forfait adapté à votre croissance',
+    pricingSubtitle: 'Tarifs transparents en Dirhams (99, 199, 299 MAD/mois) avec -20% sur l’abonnement annuel.',
+    billedMonthly: 'Mensuel',
+    billedAnnually: 'Annuel',
+    save20Percent: '-20%',
+    perMonth: 'mois',
+    includedFeaturesLabel: 'Fonctionnalités incluses :',
     tierPopularBadge: 'Le Plus Populaire ⭐',
-    billedMonthly: 'Facturation mensuelle',
-    billedAnnually: 'Facturation annuelle (-20%)',
+    tierBusinessBadge: 'Pour Agences & Marques 🚀',
+    tierStarterName: 'Débutant (Starter)',
+    tierStarterSub: '99 MAD / mois',
+    tierStarterLimits: '2 pages • 100 commandes/mois • 1 000 visites/mois',
+    tierStarterDesc: 'Idéal pour lancer vos premières campagnes COD et tester vos produits au Maroc.',
+    tierStarterCta: 'Choisir le plan Starter',
+    tierStarterFeat1: 'Éditeur de pages glisser-déposer (Page Builder)',
+    tierStarterFeat2: 'Importateur produit à 3 niveaux (3-Layer Scraper)',
+    tierStarterFeat3: 'Formulaire de commande COD (COD Form)',
+    tierStarterFeat4: 'Statistiques de base (Basic Analytics)',
+    tierStarterFeat5: 'Vérification par e-mail (Email Verification)',
+    tierProName: 'Professionnel (بريميوم)',
+    tierProSub: '199 MAD / mois',
+    tierProLimits: '5 pages • 500 commandes/mois • 5 000 visites/mois',
+    tierProDesc: 'Le choix préféré des marchands pour évoluer avec domaine personnalisé, pixels et IA.',
+    tierProCta: 'Choisir le plan Professionnel',
+    tierProFeat1: 'Tout dans le plan Starter (Everything in Starter)',
+    tierProFeat2: 'Domaine personnalisé (Custom Domain)',
+    tierProFeat3: 'Pixels Facebook & TikTok (Pixels)',
+    tierProFeat4: 'Analytique avancée (Advanced Analytics)',
+    tierProFeat5: 'Génération de pages par IA (Gemini AI)',
+    tierBusinessName: 'Business (الأعمال)',
+    tierBusinessSub: '299 MAD / mois',
+    tierBusinessLimits: 'Pages, commandes et visites illimitées',
+    tierBusinessDesc: 'Solution complète sans limites avec intégrations sociétés de livraison et support prioritaire.',
+    tierBusinessCta: 'Choisir le plan Business',
+    tierBusinessFeat1: 'Tout dans le plan Professionnel (Everything in Professional)',
+    tierBusinessFeat2: 'Intégrations API sociétés de livraison (Shipping API)',
+    tierBusinessFeat3: 'Pages, commandes et visites illimitées (Unlimited Everything)',
+    tierBusinessFeat4: 'Support prioritaire dédié (Priority Support)',
 
     // Pro Gating & Paywall
     proFeatureTitle: 'Fonctionnalité Réservée aux Membres Pro 👑',
@@ -932,13 +1031,46 @@ export const translations: Record<Language, Translations> = {
     invitedByFriendBanner: 'You were invited by a friend! 🎁',
     referralCodeApplied: 'Referral code applied',
 
-    // New Pricing Tiers (EN)
-    tierStarterName: 'Starter Plan',
-    tierProName: 'Professional Plan',
-    tierBusinessName: 'Business Plan',
+    // Realistic Moroccan Pricing Tiers & Real Features (EN)
+    pricingBadge: 'Flexible plans built for Moroccan COD merchants',
+    pricingTitle: 'Choose the right plan to scale your store',
+    pricingSubtitle: 'Realistic Moroccan market pricing (99, 199, 299 MAD/month) with 20% off on annual billing.',
+    billedMonthly: 'Monthly',
+    billedAnnually: 'Annual',
+    save20Percent: 'Save 20%',
+    perMonth: 'mo',
+    includedFeaturesLabel: 'Included features:',
     tierPopularBadge: 'Most Popular ⭐',
-    billedMonthly: 'Billed monthly',
-    billedAnnually: 'Billed annually (Save 20%)',
+    tierBusinessBadge: 'For Scaling Brands 🚀',
+    tierStarterName: 'Starter (المبتدئ)',
+    tierStarterSub: '99 MAD / month',
+    tierStarterLimits: '2 pages • 100 orders/mo • 1,000 visits/mo',
+    tierStarterDesc: 'Perfect for new merchants testing products and launching fast COD landing pages.',
+    tierStarterCta: 'Choose Starter Plan',
+    tierStarterFeat1: 'Drag & Drop Page Builder',
+    tierStarterFeat2: '3-Layer Product Scraper',
+    tierStarterFeat3: 'High-Converting COD Form',
+    tierStarterFeat4: 'Basic Sales Analytics',
+    tierStarterFeat5: 'Email Verification',
+    tierProName: 'Professional (بريميوم)',
+    tierProSub: '199 MAD / month',
+    tierProLimits: '5 pages • 500 orders/mo • 5,000 visits/mo',
+    tierProDesc: 'Our most popular tier with custom domain, ad pixels, and Gemini AI page generation.',
+    tierProCta: 'Choose Professional Plan',
+    tierProFeat1: 'Everything in Starter',
+    tierProFeat2: 'Custom Domain Connection',
+    tierProFeat3: 'Pixels (Facebook & TikTok)',
+    tierProFeat4: 'Advanced Conversion Analytics',
+    tierProFeat5: 'AI Page Generation (Gemini)',
+    tierBusinessName: 'Business (الأعمال)',
+    tierBusinessSub: '299 MAD / month',
+    tierBusinessLimits: 'Unlimited pages, orders & visits',
+    tierBusinessDesc: 'Unrestricted scale with delivery carrier API integrations and priority support.',
+    tierBusinessCta: 'Choose Business Plan',
+    tierBusinessFeat1: 'Everything in Professional',
+    tierBusinessFeat2: 'Shipping API Integrations',
+    tierBusinessFeat3: 'Unlimited Everything (Pages, Orders, Visits)',
+    tierBusinessFeat4: 'Priority Support',
 
     // Pro Gating & Paywall
     proFeatureTitle: 'Pro Plan Exclusive Feature 👑',
