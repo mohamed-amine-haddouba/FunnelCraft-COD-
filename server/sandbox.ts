@@ -512,7 +512,7 @@ export function issueCsrfToken(req: Request, res: Response): string {
 
   res.append(
     'Set-Cookie',
-    `sandbox_csrf=${rawToken}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=1800`
+    `sandbox_csrf=${rawToken}; Path=/; Secure; SameSite=Strict; Max-Age=1800`
   );
   return rawToken;
 }
