@@ -2,25 +2,37 @@
 
 @theme {
   --color-brand-bg: var(--bg-primary);
+  --color-brand-primary: var(--bg-primary);
   --color-brand-surface: var(--bg-surface);
   --color-brand-elevated: var(--bg-elevated);
   --color-brand-border: var(--border-color);
-  --color-brand-border-strong: #334155;
+  --color-brand-border-strong: var(--border-strong);
   --color-brand-text: var(--text-primary);
   --color-brand-secondary: var(--text-secondary);
-  --color-brand-muted: #94A3B8;
+  --color-brand-muted: var(--text-muted);
   --color-brand-accent: var(--accent);
-  --color-brand-accent-hover: #F16F3C;
+  --color-brand-accent-hover: var(--accent-hover);
 }
 
 :root {
-  --bg-primary: #F9F6F0;      /* Light mode background */
-  --bg-surface: #FFFFFF;      /* Light mode surface */
-  --bg-elevated: #F1EDE4;    
-  --text-primary: #0F172A;
-  --text-secondary: #475569;
-  --border-color: #E2E8F0;
-  --accent: #C33C0E;
+  /* Soft, warm, enterprise-grade backgrounds */
+  --bg-primary: #F8FAFC;    /* Slate-50: App background (reduces eye strain) */
+  --bg-surface: #FFFFFF;    /* Pure White: Cards, Sidebars, Modals, Panels */
+  --bg-elevated: #F1F5F9;   /* Slate-100: Hover states, subtle inner panels, input backgrounds */
+  
+  /* High-contrast, readable text */
+  --text-primary: #0F172A;  /* Slate-900: Main headings, active text */
+  --text-secondary: #475569;/* Slate-600: Labels, descriptions */
+  --text-muted: #94A3B8;    /* Slate-400: Placeholders, disabled text */
+  
+  /* Borders & Dividers */
+  --border-color: #E2E8F0;  /* Slate-200: Default borders for cards, inputs, panels */
+  --border-strong: #CBD5E1; /* Slate-300: Active or focused elements */
+  
+  /* Brand Accent (Use Sparingly) */
+  --accent: #C33C0E;        /* Deep Terracotta */
+  --accent-hover: #A12D08;
+  --accent-subtle: #FFF7ED; /* Very light orange for highlight backgrounds */
 }
 
 .dark, html.dark {
@@ -29,20 +41,41 @@
   --bg-elevated: #1E293B;
   --text-primary: #F8FAFC;
   --text-secondary: #CBD5E1;
+  --text-muted: #94A3B8;
   --border-color: #1E293B;
+  --border-strong: #334155;
   --accent: #E25B26;
+  --accent-hover: #F16F3C;
+  --accent-subtle: rgba(226, 91, 38, 0.12);
 }
 
 @layer utilities {
   .bg-brand-bg { background-color: var(--bg-primary); }
+  .bg-brand-primary { background-color: var(--bg-primary); }
   .bg-brand-surface { background-color: var(--bg-surface); }
   .bg-brand-elevated { background-color: var(--bg-elevated); }
   .text-brand-primary { color: var(--text-primary); }
   .text-brand-secondary { color: var(--text-secondary); }
+  .text-brand-muted { color: var(--text-muted); }
   .border-brand { border-color: var(--border-color); }
+  .border-brand-strong { border-color: var(--border-strong); }
   .bg-brand-accent { background-color: var(--accent); }
+  .bg-brand-accent-subtle { background-color: var(--accent-subtle); }
   .text-brand-accent { color: var(--accent); }
   .border-brand-accent { border-color: var(--accent); }
+}
+
+.canvas-dot-grid {
+  background-color: var(--bg-primary);
+  background-image: radial-gradient(#CBD5E1 1.25px, transparent 1.25px);
+  background-size: 20px 20px;
+}
+
+.dark .canvas-dot-grid,
+html.dark .canvas-dot-grid {
+  background-color: var(--bg-primary);
+  background-image: radial-gradient(#1E293B 1.25px, transparent 1.25px);
+  background-size: 20px 20px;
 }
 
 @layer base {
@@ -82,8 +115,7 @@ html:not(.dark) [class*="bg-[#1E293B]"] {
   background-color: var(--bg-elevated) !important;
 }
 
-html:not(.dark) .bg-\[\#0F172A\],
-html:not(.dark) [class*="bg-[#0F172A]"] {
+html:not(.dark) .bg-\[\#0F172A\] {
   background-color: var(--bg-surface) !important;
 }
 
@@ -104,7 +136,7 @@ html:not(.dark) [class*="border-[#1E293B]"] {
 
 html:not(.dark) .border-\[\#334155\],
 html:not(.dark) [class*="border-[#334155]"] {
-  border-color: var(--border-color) !important;
+  border-color: var(--border-strong) !important;
 }
 
 /* Light mode hover states */
@@ -121,24 +153,23 @@ html:not(.dark) [class*="hover:text-[#F8FAFC]"]:hover {
 }
 
 html:not(.dark) [class*="hover:border-[#334155]"]:hover {
-  border-color: var(--border-color) !important;
+  border-color: var(--border-strong) !important;
 }
 
-/* Ensure white text inside accent buttons/badges remains white in light mode */
+/* Ensure solid accent backgrounds and white text inside accent buttons/badges remain crisp in light mode */
 html:not(.dark) .bg-brand-accent,
-html:not(.dark) .bg-\[\#E25B26\],
-html:not(.dark) [class*="bg-[#E25B26]"] {
+html:not(.dark) .bg-\[\#E25B26\] {
   background-color: var(--accent) !important;
 }
 
-html:not(.dark) [class*="bg-[#E25B26]"] [class*="text-[#F8FAFC]"],
-html:not(.dark) [class*="bg-brand-accent"] [class*="text-[#F8FAFC]"],
-html:not(.dark) [class*="bg-[#E25B26]"][class*="text-[#F8FAFC]"],
-html:not(.dark) [class*="bg-brand-accent"][class*="text-[#F8FAFC]"],
-html:not(.dark) button[class*="bg-[#E25B26]"],
-html:not(.dark) button[class*="bg-brand-accent"],
-html:not(.dark) a[class*="bg-[#E25B26]"],
-html:not(.dark) a[class*="bg-brand-accent"] {
+html:not(.dark) .bg-brand-accent .text-\[\#F8FAFC\],
+html:not(.dark) .bg-\[\#E25B26\] .text-\[\#F8FAFC\],
+html:not(.dark) .bg-brand-accent.text-\[\#F8FAFC\],
+html:not(.dark) .bg-\[\#E25B26\].text-\[\#F8FAFC\],
+html:not(.dark) button.bg-\[\#E25B26\],
+html:not(.dark) button.bg-brand-accent,
+html:not(.dark) a.bg-\[\#E25B26\],
+html:not(.dark) a.bg-brand-accent {
   color: #FFFFFF !important;
 }
 
@@ -164,8 +195,14 @@ html:not(.dark) select option,
 html:not(.dark) select,
 .light select {
   color: #0F172A !important;
-  background-color: #FFFFFF !important;
+  background-color: #F8FAFC !important;
   border-color: #E2E8F0 !important;
+}
+
+html:not(.dark) select:focus,
+.light select:focus {
+  background-color: #FFFFFF !important;
+  border-color: var(--border-strong) !important;
 }
 
 /* Dark mode inputs in sidebar & properties panels */
@@ -191,13 +228,23 @@ html:not(.dark) select,
   color: #94A3B8;
 }
 
-html:not(.dark) aside input,
+html:not(.dark) aside input:not([type="range"]):not([type="color"]),
 html:not(.dark) aside textarea,
-html:not(.dark) .sidebar input,
+html:not(.dark) .sidebar input:not([type="range"]):not([type="color"]),
 html:not(.dark) .sidebar textarea,
-html:not(.dark) [data-sidebar] input,
+html:not(.dark) [data-sidebar] input:not([type="range"]):not([type="color"]),
 html:not(.dark) [data-sidebar] textarea {
   color: #0F172A;
-  background-color: #FFFFFF;
+  background-color: #F8FAFC;
   border-color: #E2E8F0;
+}
+
+html:not(.dark) aside input:not([type="range"]):not([type="color"]):focus,
+html:not(.dark) aside textarea:focus,
+html:not(.dark) .sidebar input:not([type="range"]):not([type="color"]):focus,
+html:not(.dark) .sidebar textarea:focus,
+html:not(.dark) [data-sidebar] input:not([type="range"]):not([type="color"]):focus,
+html:not(.dark) [data-sidebar] textarea:focus {
+  background-color: #FFFFFF;
+  border-color: #CBD5E1;
 }

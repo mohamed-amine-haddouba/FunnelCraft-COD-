@@ -127,10 +127,10 @@ export const CanvasRenderer: React.FC<Props> = ({
 
   const containerWidthClass =
     previewMode === 'mobile'
-      ? 'max-w-[390px] my-6 rounded-[36px] border-[10px] border-slate-900 shadow-2xl overflow-hidden'
+      ? 'max-w-[390px] my-6 rounded-[36px] border-[10px] border-slate-900 shadow-xl overflow-hidden'
       : previewMode === 'tablet'
-      ? 'max-w-[768px] my-6 rounded-[24px] border-[8px] border-slate-800 shadow-2xl overflow-hidden'
-      : 'w-full max-w-[1220px] my-6 rounded-2xl border border-slate-200/90 shadow-xl';
+      ? 'max-w-[768px] my-6 rounded-[24px] border-[8px] border-slate-800 shadow-xl overflow-hidden'
+      : 'w-full max-w-[1220px] my-6 rounded-2xl border border-brand shadow-xl';
 
   const handleDragOver = (e: React.DragEvent, index: number) => {
     if (isLivePreview) return;
@@ -165,12 +165,7 @@ export const CanvasRenderer: React.FC<Props> = ({
 
   return (
     <div
-      className="flex-1 bg-[#0D131E] overflow-y-auto flex justify-center items-start min-h-[calc(100vh-3.5rem)] px-2 sm:px-6 transition-all relative select-none"
-      style={{
-        backgroundColor: '#0D131E',
-        backgroundImage: 'radial-gradient(#1E293B 1.25px, transparent 1.25px)',
-        backgroundSize: '20px 20px',
-      }}
+      className="flex-1 bg-brand-primary canvas-dot-grid overflow-y-auto flex justify-center items-start min-h-[calc(100vh-3.5rem)] px-2 sm:px-6 transition-all relative select-none"
       onClick={() => !isLivePreview && onSelectBlock(null)}
     >
       <div

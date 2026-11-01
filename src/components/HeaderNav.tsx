@@ -140,7 +140,7 @@ export const HeaderNav: React.FC<Props> = ({
   const pendingPaymentsCount = userPayments.filter((r) => r.status === 'pending').length;
 
   return (
-    <header className="bg-brand-bg text-brand-primary border-b border-brand shrink-0 select-none z-40 relative w-full shadow-md">
+    <header className="bg-brand-surface text-brand-primary border-b border-brand shrink-0 select-none z-40 relative w-full shadow-xs">
       <div className="flex h-14 flex-nowrap items-center justify-between px-3 sm:px-4 gap-2 overflow-x-hidden w-full">
         {/* 1. Brand + Back to Dashboard (Right in RTL) */}
         <div className="flex items-center gap-2 shrink-0">
@@ -179,8 +179,8 @@ export const HeaderNav: React.FC<Props> = ({
               title={t.navBuilder}
               className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer whitespace-nowrap shrink-0 ${
                 currentTab === 'builder'
-                  ? 'bg-brand-accent text-white shadow-xs'
-                  : 'text-brand-secondary hover:text-brand-primary hover:bg-brand-elevated'
+                  ? 'bg-brand-elevated text-brand-primary shadow-2xs'
+                  : 'text-brand-secondary hover:text-brand-primary hover:bg-brand-elevated/60'
               }`}
             >
               <Store className="w-3.5 h-3.5 shrink-0" />
@@ -193,8 +193,8 @@ export const HeaderNav: React.FC<Props> = ({
               title={t.navOrders}
               className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer whitespace-nowrap shrink-0 relative ${
                 currentTab === 'orders'
-                  ? 'bg-brand-accent text-white shadow-xs'
-                  : 'text-brand-secondary hover:text-brand-primary hover:bg-brand-elevated'
+                  ? 'bg-brand-elevated text-brand-primary shadow-2xs'
+                  : 'text-brand-secondary hover:text-brand-primary hover:bg-brand-elevated/60'
               }`}
             >
               <ShoppingBag className="w-3.5 h-3.5 shrink-0" />
@@ -203,7 +203,7 @@ export const HeaderNav: React.FC<Props> = ({
                 <span
                   className={`px-1.5 py-0.2 text-[10px] font-black rounded-full font-mono shrink-0 ${
                     currentTab === 'orders'
-                      ? 'bg-brand-bg text-brand-primary'
+                      ? 'bg-brand-accent text-white'
                       : 'bg-brand-accent text-white'
                   }`}
                 >
@@ -218,8 +218,8 @@ export const HeaderNav: React.FC<Props> = ({
               title={t.navAnalytics}
               className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer whitespace-nowrap shrink-0 ${
                 currentTab === 'analytics'
-                  ? 'bg-brand-accent text-white shadow-xs'
-                  : 'text-brand-secondary hover:text-brand-primary hover:bg-brand-elevated'
+                  ? 'bg-brand-elevated text-brand-primary shadow-2xs'
+                  : 'text-brand-secondary hover:text-brand-primary hover:bg-brand-elevated/60'
               }`}
             >
               <BarChart3 className="w-3.5 h-3.5 shrink-0" />
