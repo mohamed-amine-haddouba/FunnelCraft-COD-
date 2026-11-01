@@ -1073,7 +1073,7 @@ async function runSingleCheck(
 export async function defaultPreDeployChecksRunner(): Promise<PreDeploySuiteResult> {
   const checks: PreDeployCheckResult[] = [];
 
-  const tscCheck = await runSingleCheck('typecheck', 'npx', ['tsc', '--noEmit'], 'npx tsc --noEmit');
+  const tscCheck = await runSingleCheck('typecheck', 'npm', ['run', 'lint'], 'npm run lint');
   checks.push(tscCheck);
 
 
