@@ -6,8 +6,8 @@ echo "[FunnelCraft-COD] Deploy $(date -u +%FT%TZ)"
 echo ">>> [1/5] git pull"
 git pull origin main
 
-echo ">>> [2/5] npm ci --include=dev"
-npm ci --include=dev
+echo ">>> [2/5] npm install --include=dev"
+npm install --include=dev
 
 echo ">>> [3/5] npx tsc --noEmit"
 npx tsc --noEmit
