@@ -111,10 +111,9 @@ import { verifyGoogleCredential, isGoogleAuthConfigured } from './server/googleA
 import http from 'http';
 import { verifyCaptchaToken, verifyTurnstileToken, extractClientIp } from './server/captcha';
 import {
-  createSandboxRouter,
-  sandboxPageServerGuard,
-  setupSandboxTerminalWebSocket,
-} from './server/sandbox';
+  createSandboxCockpitRouter,
+  startSandboxServer,
+} from './server/sandboxNew';
 import {
   Client as PayPalClient,
   Environment as PayPalEnvironment,
@@ -503,10 +502,14 @@ export async function startServer() {
     res.json({ status: 'ok', serverTime: new Date().toISOString() });
   });
 
-  // Strict rate-limiter on /api/sandbox/auth/login (5 attempts per 15 mins per IP) + Owner-Only Sandbox API
-  app.use('/api/sandbox/auth/login', loginLimiter);
-  app.use('/api/sandbox', createSandboxRouter());
-  app.get('/sandbox', sandboxPageServerGuard);
+  // Decoupled Zero-Trust Owner Sandbox Cockpit (/api/sandbox and standalone /sandbox UI)
+  const sandboxUiDir = path.resolve(__dirname, 'server', 'sandbox-ui');
+  app.use('/api/sandbox/login', loginLimiter);
+  app.use('/api/sandbox', createSandboxCockpitRouter());
+  app.use('/sandbox', express.static(sandboxUiDir, { index: 'index.html' }));
+  app.get(['/sandbox', '/sandbox/*'], (_req: Request, res: Response) => {
+    res.sendFile(path.join(sandboxUiDir, 'index.html'));
+  });
 
   /* ---------------- AUTHENTICATION & LIVE 2FA OTP ENGINE ---------------- */
 
@@ -4793,7 +4796,7 @@ Return ONLY a valid JSON object matching this exact schema (no markdown outside 
   ensureDataFiles();
 
   const httpServer = http.createServer(app);
-  setupSandboxTerminalWebSocket(httpServer);
+  startSandboxServer();
 
   httpServer.listen(PORT, '0.0.0.0', () => {
     const ppStartup = getPayPalRuntimeConfig();

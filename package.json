@@ -10,7 +10,7 @@
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
-    "test": "npx tsx --test --test-concurrency=1 server/sandbox.test.ts server/captchaAndPlanBypass.test.ts server/emailVerification.test.ts server/emailVerificationGating.test.ts"
+    "test": "npx tsx --test --test-concurrency=1 server/sandboxNew.test.ts server/captchaAndPlanBypass.test.ts server/emailVerification.test.ts server/emailVerificationGating.test.ts"
   },
   "overrides": {
     "body-parser": ">=1.20.9",

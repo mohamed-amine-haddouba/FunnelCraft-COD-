@@ -42,9 +42,6 @@ import { TermsPage } from './components/TermsPage';
 import { PrivacyPolicyPage } from './components/PrivacyPolicyPage';
 import { FloatingWhatsApp } from './components/FloatingWhatsApp';
 import { CustomerLandingPage, ScrapedProduct } from './components/CustomerLandingPage';
-import { SandboxPage } from './components/SandboxPage';
-import { SandboxLoginPage } from './components/SandboxLoginPage';
-import { SandboxResetPage } from './components/SandboxResetPage';
 import { VerifyEmailPage } from './components/VerifyEmailPage';
 import { HomeLandingPage } from './components/HomeLandingPage';
 import { LanguageProvider, useLanguage } from './i18n/translations';
@@ -2077,12 +2074,6 @@ export default function App() {
               <Route path="/dashboard" element={<Navigate to="/dashboard/builder" replace />} />
               <Route path="/dashboard/ai-builder" element={<BuilderWorkspace />} />
               <Route path="/dashboard/:tab" element={<BuilderWorkspace />} />
-
-              {/* 2. Sandbox (Root level - no language prefix) */}
-              <Route path="/sandbox" element={<SandboxPage />} />
-              <Route path="/sandbox/login" element={<SandboxLoginPage />} />
-              <Route path="/sandbox/reset" element={<SandboxResetPage />} />
-              <Route path="/reset" element={<SandboxResetPage />} />
 
               {/* 3. Public merchant landing pages */}
               <Route path="/p/:slug" element={<PublicFunnelPage />} />
