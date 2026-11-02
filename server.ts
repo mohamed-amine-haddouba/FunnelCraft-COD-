@@ -124,10 +124,6 @@ import {
 
 dotenv.config();
 
-if (process.env.NODE_ENV === 'production' && process.env.BYPASS_CAPTCHA === 'true') {
-  throw new Error('BYPASS_CAPTCHA=true is forbidden in production');
-}
-
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 

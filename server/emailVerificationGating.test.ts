@@ -19,6 +19,7 @@ const ORDERS_PATH = path.join(DATA_DIR, 'orders.json');
 test('Email Verification Gating & Anti-Enumeration Integration Suite (5 Tests)', async (t) => {
   process.env.NODE_TEST_NO_LISTEN = '1';
   const prevBypass = process.env.BYPASS_CAPTCHA;
+  const prevNodeEnv = process.env.NODE_ENV;
   const prevOwnerEmail = process.env.OWNER_EMAIL;
 
   const originalUsers = fs.readFileSync(USERS_PATH, 'utf-8');
@@ -32,11 +33,12 @@ test('Email Verification Gating & Anti-Enumeration Integration Suite (5 Tests)',
     ? fs.readFileSync(ORDERS_PATH, 'utf-8')
     : '[]';
 
-  process.env.BYPASS_CAPTCHA = 'true';
+  process.env.NODE_ENV = 'test';
   process.env.OWNER_EMAIL = 'naadianajah2020@gmail.com';
 
   const { app, startServer } = await import('../server');
   await startServer();
+  process.env.BYPASS_CAPTCHA = 'true';
 
   const server = http.createServer(app);
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', () => resolve()));
@@ -251,6 +253,8 @@ test('Email Verification Gating & Anti-Enumeration Integration Suite (5 Tests)',
 
     if (prevBypass !== undefined) process.env.BYPASS_CAPTCHA = prevBypass;
     else delete process.env.BYPASS_CAPTCHA;
+    if (prevNodeEnv !== undefined) process.env.NODE_ENV = prevNodeEnv;
+    else delete process.env.NODE_ENV;
     if (prevOwnerEmail !== undefined) process.env.OWNER_EMAIL = prevOwnerEmail;
     else delete process.env.OWNER_EMAIL;
   }

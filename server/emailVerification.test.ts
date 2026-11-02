@@ -35,11 +35,12 @@ test('Email Verification & Invalid/Fake/Disposable Email Rejection Suite (11 Tes
     ? fs.readFileSync(SESSIONS_PATH, 'utf-8')
     : '{}';
 
-  process.env.BYPASS_CAPTCHA = 'true';
+  process.env.NODE_ENV = 'test';
   process.env.OWNER_EMAIL = 'naadianajah2020@gmail.com';
 
   const { app, startServer } = await import('../server');
   await startServer();
+  process.env.BYPASS_CAPTCHA = 'true';
 
   const server = http.createServer(app);
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', () => resolve()));
