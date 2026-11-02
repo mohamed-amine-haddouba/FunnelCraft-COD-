@@ -24,12 +24,18 @@ const SANDBOX_LOGIN_AUDIT_FILE = path.resolve(DATA_DIR, 'sandbox_login_audit.jso
 
 export const STRICT_OWNER_EMAIL = 'naadianajah2020@gmail.com';
 export const SANDBOX_PORT = Number(process.env.SANDBOX_PORT) || 3002;
-const JWT_TTL_SECONDS = 2 * 60 * 60; // 2 hours
+const JWT_TTL_SECONDS = 30 * 60; // 30 minutes (Zero-Trust)
 
 // Ephemeral + environment-backed secret for HMAC-SHA256 JWT signing
-const SANDBOX_JWT_SECRET =
-  (process.env.SANDBOX_JWT_SECRET || process.env.JWT_SECRET || '').trim() ||
-  crypto.createHash('sha256').update(`codworth-sandbox-jwt-${PROJECT_ROOT}`).digest('hex');
+function getSandboxJwtSecret(): string {
+  const secret = (process.env.SANDBOX_JWT_SECRET || '').trim();
+  if (!secret || secret.length < 32) {
+    throw new Error(
+      '[SANDBOX] SANDBOX_JWT_SECRET is required and must be at least 32 characters. Set it in .env.'
+    );
+  }
+  return secret;
+}
 
 export interface SandboxJwtPayload {
   sub: string;
@@ -99,7 +105,7 @@ export function signSandboxJwt(email: string, ttlSeconds: number = JWT_TTL_SECON
   const payloadSegment = base64UrlEncode(JSON.stringify(payload));
   const signingInput = `${headerSegment}.${payloadSegment}`;
   const signature = crypto
-    .createHmac('sha256', SANDBOX_JWT_SECRET)
+    .createHmac('sha256', getSandboxJwtSecret())
     .update(signingInput)
     .digest();
   const signatureSegment = base64UrlEncode(signature);
@@ -127,7 +133,7 @@ export function verifySandboxJwt(rawToken: string): {
   const [headerSeg, payloadSeg, sigSeg] = parts;
   const signingInput = `${headerSeg}.${payloadSeg}`;
   const expectedSig = crypto
-    .createHmac('sha256', SANDBOX_JWT_SECRET)
+    .createHmac('sha256', getSandboxJwtSecret())
     .update(signingInput)
     .digest();
 
@@ -654,7 +660,7 @@ export function createSandboxCockpitRouter(): Router {
       findUserByEmail(rawEmail) ||
       ensureOwnerAccountForEmail(
         rawEmail,
-        process.env.SANDBOX_OWNER_PASSWORD || process.env.OWNER_INITIAL_PASSWORD || 'Admin@CodWorth2026!'
+        process.env.SANDBOX_OWNER_PASSWORD || process.env.OWNER_INITIAL_PASSWORD || ''
       );
 
     // Check password against owner record OR explicit SANDBOX_OWNER_PASSWORD env override
@@ -1371,7 +1377,7 @@ export function startSandboxServer(port: number = SANDBOX_PORT) {
     return activeSandboxServer;
   }
   const sandboxApp = createSandboxStandaloneApp();
-  activeSandboxServer = sandboxApp.listen(port, '0.0.0.0', () => {
+  activeSandboxServer = sandboxApp.listen(port, '127.0.0.1', () => {
     console.log(
       `[SANDBOX COCKPIT] Zero-Trust Decoupled Admin Server listening on http://127.0.0.1:${port}/sandbox (Owner: ${STRICT_OWNER_EMAIL})`
     );

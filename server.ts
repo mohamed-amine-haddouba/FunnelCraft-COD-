@@ -471,7 +471,7 @@ export async function startServer() {
       crossOriginEmbedderPolicy: false,
       crossOriginOpenerPolicy: false,
       crossOriginResourcePolicy: false,
-      frameguard: false,
+      frameguard: { action: 'sameorigin' },
       noSniff: true,
       xssFilter: true,
       referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
@@ -490,6 +490,7 @@ export async function startServer() {
   // Explicit Security Headers Middleware
   app.use((_req: Request, res: Response, next: NextFunction) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'SAMEORIGIN');
     res.setHeader('X-XSS-Protection', '1; mode=block');
     res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
     next();
@@ -505,6 +506,7 @@ export async function startServer() {
   // Decoupled Zero-Trust Owner Sandbox Cockpit (/api/sandbox and standalone /sandbox UI)
   const sandboxUiDir = path.resolve(__dirname, 'server', 'sandbox-ui');
   app.use('/api/sandbox/login', loginLimiter);
+  app.use('/api/sandbox/2fa/send', loginLimiter);
   app.use('/api/sandbox', createSandboxCockpitRouter());
   app.use('/sandbox', express.static(sandboxUiDir, { index: 'index.html' }));
   app.get(['/sandbox', '/sandbox/*'], (_req: Request, res: Response) => {
@@ -4798,9 +4800,9 @@ Return ONLY a valid JSON object matching this exact schema (no markdown outside 
   const httpServer = http.createServer(app);
   startSandboxServer();
 
-  httpServer.listen(PORT, '0.0.0.0', () => {
+  httpServer.listen(PORT, '127.0.0.1', () => {
     const ppStartup = getPayPalRuntimeConfig();
-    console.log(`CodWorth Builder & Billing Server running on http://0.0.0.0:${PORT}`);
+    console.log(`CodWorth Builder & Billing Server running on http://127.0.0.1:${PORT}`);
     console.log(
       `[PAYPAL RUNTIME] PAYPAL_ENVIRONMENT="${ppStartup.rawEnv}" -> Resolved Mode: ${ppStartup.environmentLabel.toUpperCase()} (${ppStartup.apiBaseUrl}) | PAYPAL_CLIENT_ID(first 10): "${ppStartup.clientId ? ppStartup.clientId.slice(0, 10) : 'MISSING'}"`
     );
