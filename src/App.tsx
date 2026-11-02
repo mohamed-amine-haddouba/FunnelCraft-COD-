@@ -44,6 +44,7 @@ import { FloatingWhatsApp } from './components/FloatingWhatsApp';
 import { CustomerLandingPage, ScrapedProduct } from './components/CustomerLandingPage';
 import { VerifyEmailPage } from './components/VerifyEmailPage';
 import { HomeLandingPage } from './components/HomeLandingPage';
+import { IntroSplash } from './components/IntroSplash';
 import { LanguageProvider, useLanguage } from './i18n/translations';
 import { isReservedRootPath, isValidLanguage, DEFAULT_LANGUAGE } from './i18n/config';
 import { useLocalizedNavigate } from './hooks/useLocalizedNavigate';
@@ -2060,6 +2061,26 @@ function LegacyOrPrefixRedirect() {
 
 export default function App() {
   const location = useLocation();
+  const [showIntro, setShowIntro] = useState(() => {
+    try {
+      if (sessionStorage.getItem('intro_shown') === 'true') return false;
+      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return false;
+      // Do NOT show intro on dashboard/sandbox/admin routes
+      const path = window.location.pathname;
+      if (path.startsWith('/dashboard') || path.startsWith('/sandbox') || path.startsWith('/admin')) return false;
+      return true;
+    } catch {
+      return false;
+    }
+  });
+
+  const handleIntroComplete = useCallback(() => {
+    try {
+      sessionStorage.setItem('intro_shown', 'true');
+    } catch {}
+    setShowIntro(false);
+  }, []);
+
   const hideFloatingWhatsApp =
     isReservedRootPath(location.pathname) ||
     location.pathname.startsWith('/p/');
@@ -2069,6 +2090,7 @@ export default function App() {
       <ThemeProvider>
         <LanguageProvider>
           <AuthProvider>
+            {showIntro && <IntroSplash onComplete={handleIntroComplete} />}
             <Routes>
               {/* 1. Dashboard & Builder (Root level - no language prefix) */}
               <Route path="/dashboard" element={<Navigate to="/dashboard/builder" replace />} />
