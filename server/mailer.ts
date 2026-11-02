@@ -359,14 +359,19 @@ export async function sendAdminNotificationEmail(
 }
 
 /**
- * Sends a single-use, 20-minute Sandbox Owner Password Recovery email.
- * Uses await inside try/catch with explicit console logging for SMTP diagnostics.
+ * Sends a single-use, 15-minute Sandbox Owner Password Recovery email.
+ * Supports both (email, ip, resetUrl) and (email, resetUrl, ip) argument orderings.
  */
 export async function sendSandboxResetEmail(
   email: string,
-  resetUrl: string,
-  ip: string
+  ipOrResetUrl: string,
+  resetUrlOrIp: string
 ): Promise<boolean> {
+  const isSecondArgUrl =
+    /^https?:\/\//i.test(ipOrResetUrl) || ipOrResetUrl.includes('/sandbox');
+  const resetUrl = isSecondArgUrl ? ipOrResetUrl : resetUrlOrIp;
+  const ip = isSecondArgUrl ? resetUrlOrIp : ipOrResetUrl;
+
   console.log('[MAILER] Sending reset email to:', email);
 
   if (!hasValidMailerAuth()) {
@@ -391,7 +396,7 @@ export async function sendSandboxResetEmail(
     <h2 style="margin:0 0 12px 0;color:#10b981;font-size:18px;">FunnelCraft-COD Owner Sandbox Recovery</h2>
     <p style="font-size:14px;line-height:1.6;color:#cbd5e1;">
       A password reset was requested for the owner Sandbox account from IP <code>${ip}</code>.
-      This single-use link expires in <strong>20 minutes</strong>.
+      This single-use link expires in <strong>15 minutes</strong>.
     </p>
     <p style="margin:24px 0;">
       <a href="${resetUrl}" style="display:inline-block;background:#10b981;color:#020617;font-weight:700;text-decoration:none;padding:12px 20px;border-radius:8px;font-size:14px;">
@@ -410,8 +415,8 @@ export async function sendSandboxResetEmail(
     const info = await transporter.sendMail({
       from: config.from,
       to: email,
-      subject: '[Security] FunnelCraft-COD Owner Sandbox Password Reset (20m TTL)',
-      text: `A password reset was requested for the FunnelCraft-COD Owner Sandbox from IP ${ip}. Open this single-use link within 20 minutes: ${resetUrl}`,
+      subject: '[Security] FunnelCraft-COD Owner Sandbox Password Reset (15m TTL)',
+      text: `A password reset was requested for the FunnelCraft-COD Owner Sandbox from IP ${ip}. Open this single-use link within 15 minutes: ${resetUrl}`,
       html: htmlContent,
     });
     console.log('[MAILER] Email sent successfully:', info.messageId);

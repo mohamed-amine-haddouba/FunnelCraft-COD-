@@ -6,20 +6,22 @@
 
   // DOM References
   const loginView = document.getElementById('login-view');
+  const resetView = document.getElementById('reset-view');
   const cockpitView = document.getElementById('cockpit-view');
   const loginForm = document.getElementById('login-form');
   const loginEmailInput = document.getElementById('login-email');
   const loginPasswordInput = document.getElementById('login-password');
   const loginTotpInput = document.getElementById('login-totp');
   const loginAlert = document.getElementById('login-alert');
-  const resetView = document.getElementById('reset-view');
-  const resetForm = document.getElementById('reset-form');
-  const resetPasswordInput = document.getElementById('reset-password');
-  const resetAlert = document.getElementById('reset-alert');
-  const btnForgotPassword = document.getElementById('btn-forgot-password');
   const loginInfo = document.getElementById('login-info');
   const loginSubmitBtn = document.getElementById('login-submit-btn');
+  const forgotPasswordBtn = document.getElementById('forgot-password-btn');
   const requestEmailOtpBtn = document.getElementById('request-email-otp-btn');
+  const resetForm = document.getElementById('reset-form');
+  const resetPasswordInput = document.getElementById('reset-password');
+  const resetPasswordConfirmInput = document.getElementById('reset-password-confirm');
+  const resetAlert = document.getElementById('reset-alert');
+  const btnUpdatePassword = document.getElementById('btn-update-password');
   const logoutBtn = document.getElementById('logout-btn');
   const globalRefreshBtn = document.getElementById('global-refresh-btn');
   const sidebarOwnerEmail = document.getElementById('sidebar-owner-email');
@@ -165,7 +167,16 @@
     return response;
   }
 
+  function showResetError(msg) {
+    if (!resetAlert) return;
+    resetAlert.textContent = msg;
+    resetAlert.classList.remove('hidden');
+  }
+
   function switchView(authenticated) {
+    if (resetView) {
+      resetView.classList.add('hidden');
+    }
     if (authenticated) {
       loginView.classList.add('hidden');
       cockpitView.classList.remove('hidden');
@@ -411,6 +422,99 @@
     }
   });
 
+  // Forgot Password Trigger
+  if (forgotPasswordBtn) {
+    forgotPasswordBtn.addEventListener('click', async () => {
+      const email = loginEmailInput.value.trim();
+      if (!email) {
+        showLoginError('Enter your Owner email address first.');
+        return;
+      }
+
+      forgotPasswordBtn.disabled = true;
+      const originalLabel = forgotPasswordBtn.textContent;
+      forgotPasswordBtn.textContent = 'Sending...';
+      loginAlert.classList.add('hidden');
+      loginInfo.classList.add('hidden');
+
+      try {
+        const res = await fetch('/api/sandbox/auth/forgot-password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          showLoginError(data.error || 'Failed to send password reset email.');
+        } else {
+          showLoginInfo(data.message || 'Password reset link sent to your email.');
+        }
+      } catch (err) {
+        showLoginError(`Network error: ${err.message}`);
+      } finally {
+        forgotPasswordBtn.disabled = false;
+        forgotPasswordBtn.textContent = originalLabel;
+      }
+    });
+  }
+
+  // Reset Password Form Submission
+  if (resetForm) {
+    resetForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (resetAlert) {
+        resetAlert.classList.add('hidden');
+      }
+
+      const newPassword = resetPasswordInput.value;
+      const confirmPassword = resetPasswordConfirmInput.value;
+
+      if (newPassword !== confirmPassword) {
+        showResetError('Passwords do not match.');
+        return;
+      }
+
+      if (newPassword.length < 8) {
+        showResetError('Password must be at least 8 characters long.');
+        return;
+      }
+
+      const token = new URLSearchParams(window.location.search).get('reset_token') || '';
+      if (!token) {
+        showResetError('Missing password reset token.');
+        return;
+      }
+
+      btnUpdatePassword.disabled = true;
+      btnUpdatePassword.textContent = 'Updating...';
+
+      try {
+        const res = await fetch('/api/sandbox/auth/reset-password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token, newPassword }),
+        });
+        const data = await res.json().catch(() => ({}));
+
+        if (!res.ok) {
+          showResetError(data.error || 'Failed to update password.');
+          return;
+        }
+
+        window.history.replaceState({}, document.title, window.location.pathname);
+        resetView.classList.add('hidden');
+        loginView.classList.remove('hidden');
+        showLoginInfo('Password updated successfully! Please login.');
+        resetForm.reset();
+      } catch (err) {
+        showResetError(`Network error: ${err.message}`);
+      } finally {
+        btnUpdatePassword.disabled = false;
+        btnUpdatePassword.textContent = 'Update Password';
+      }
+    });
+  }
+
   // Logout
   logoutBtn.addEventListener('click', () => {
     if (activeDeployEventSource) {
@@ -605,80 +709,14 @@
   });
 
   // Initial Session Check on Boot
-    // ==========================================
-  // FORGOT / RESET PASSWORD LOGIC
-  // ==========================================
-  btnForgotPassword.addEventListener('click', async () => {
-    const email = loginEmailInput.value.trim();
-    if (!email) {
-      showLoginError('Enter your Owner email address first.');
-      return;
-    }
-    btnForgotPassword.disabled = true;
-    btnForgotPassword.textContent = 'Sending...';
-    
-    try {
-      const res = await fetch('/api/sandbox/auth/forgot-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email })
-      });
-      const data = await res.json();
-      if (res.ok) {
-        showLoginInfo('Reset link sent! Check your email.');
-      } else {
-        showLoginError(data.error || 'Failed to send reset link.');
-      }
-    } catch (err) {
-      showLoginError('Network error.');
-    } finally {
-      btnForgotPassword.disabled = false;
-      btnForgotPassword.textContent = 'Forgot Password?';
-    }
-  });
-
-  resetForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    resetAlert.classList.add('hidden');
-    const urlParams = new URLSearchParams(window.location.search);
-    const token = urlParams.get('reset_token');
-    const newPassword = resetPasswordInput.value;
-
-    if (!token) {
-      resetAlert.textContent = 'Missing reset token.';
-      resetAlert.classList.remove('hidden');
+  (async function init() {
+    if (new URLSearchParams(window.location.search).has('reset_token')) {
+      loginView.classList.add('hidden');
+      if (cockpitView) cockpitView.classList.add('hidden');
+      if (resetView) resetView.classList.remove('hidden');
       return;
     }
 
-    try {
-      const res = await fetch('/api/sandbox/auth/reset-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token, newPassword })
-      });
-      const data = await res.json();
-      
-      if (res.ok) {
-        alert('Password updated successfully! Redirecting to login...');
-        window.location.href = '/sandbox'; // Clear query params
-      } else {
-        resetAlert.textContent = data.error || 'Failed to reset password.';
-        resetAlert.classList.remove('hidden');
-      }
-    } catch (err) {
-      resetAlert.textContent = 'Network error.';
-      resetAlert.classList.remove('hidden');
-    }
-  });
-
-  // Check if URL has reset_token, show reset view instead of login
-  const initialParams = new URLSearchParams(window.location.search);
-  if (initialParams.has('reset_token')) {
-    loginView.classList.add('hidden');
-    resetView.classList.remove('hidden');
-  }
-
-(async function init() {
     const existingToken = getJwt();
     if (!existingToken) {
       switchView(false);

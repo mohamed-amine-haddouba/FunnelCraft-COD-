@@ -70,6 +70,15 @@ interface PendingOwnerOtp {
 const pendingOwnerOtps = new Map<string, PendingOwnerOtp>();
 const sandboxResetTokens = new Map<string, { expiresAt: number }>();
 
+// Temporary in-memory store for Sandbox Owner Password Reset tokens (15-minute expiry)
+export interface SandboxResetTokenEntry {
+  email: string;
+  expiresAt: number;
+  used: boolean;
+}
+export const SANDBOX_RESET_TOKEN_TTL_MS = 15 * 60 * 1000; // 15 minutes
+export const sandboxResetTokens = new Map<string, SandboxResetTokenEntry>();
+
 function base64UrlEncode(input: Buffer | string): string {
   const buf = Buffer.isBuffer(input) ? input : Buffer.from(input, 'utf-8');
   return buf
@@ -857,6 +866,100 @@ export function createSandboxCockpitRouter(): Router {
       message: sent
         ? `6-digit security code sent to ${rawEmail}.`
         : 'SMTP is not configured in this environment; you may sign in directly with your Owner password.',
+    });
+  });
+
+  // 1c. POST /api/sandbox/auth/forgot-password — Generate 15-min reset token & email Owner
+  router.post('/auth/forgot-password', async (req: Request, res: Response) => {
+    const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : '';
+    const ip = getClientIp(req);
+    const location = resolveClientGeoLocation(req, ip);
+    const userAgent = String(req.headers['user-agent'] || 'Unknown User-Agent');
+
+    if (email !== STRICT_OWNER_EMAIL) {
+      recordSandboxLoginAttempt({
+        email: email || '(empty)',
+        ip,
+        location,
+        userAgent,
+        status: 'FORBIDDEN',
+        reason: 'non_owner_forgot_password_rejected',
+      });
+      return res.status(403).json({
+        ok: false,
+        code: 'FORBIDDEN_OWNER_ONLY',
+        error: 'Access Denied (403): Only naadianajah2020@gmail.com is authorized.',
+      });
+    }
+
+    // Purge any expired tokens before issuing a fresh one
+    const now = Date.now();
+    for (const [k, v] of sandboxResetTokens.entries()) {
+      if (v.used || now > v.expiresAt) {
+        sandboxResetTokens.delete(k);
+      }
+    }
+
+    const token = crypto.randomBytes(32).toString('hex');
+    sandboxResetTokens.set(token, {
+      email,
+      expiresAt: now + SANDBOX_RESET_TOKEN_TTL_MS,
+      used: false,
+    });
+
+    const forwardedProto = String(req.headers['x-forwarded-proto'] || '').split(',')[0].trim();
+    const protocol = forwardedProto || req.protocol || 'https';
+    const host = req.get('host') || 'codworth.me';
+    const resetUrl = `${protocol}://${host}/sandbox?reset_token=${token}`;
+
+    const sent = await sendSandboxResetEmail(email, ip, resetUrl).catch(() => false);
+
+    return res.status(200).json({
+      ok: true,
+      sent,
+      message: 'Password reset link sent to naadianajah2020@gmail.com (valid for 15 minutes).',
+    });
+  });
+
+  // 1d. POST /api/sandbox/auth/reset-password — Verify 15-min token & update Owner password in data/users.json
+  router.post('/auth/reset-password', (req: Request, res: Response) => {
+    const token = typeof req.body?.token === 'string' ? req.body.token.trim() : '';
+    const newPassword = typeof req.body?.newPassword === 'string' ? req.body.newPassword : '';
+
+    if (!token) {
+      return res.status(400).json({
+        ok: false,
+        code: 'INVALID_RESET_TOKEN',
+        error: 'Invalid or missing password reset token.',
+      });
+    }
+
+    const entry = sandboxResetTokens.get(token);
+    if (!entry || entry.used || Date.now() > entry.expiresAt) {
+      if (entry) {
+        sandboxResetTokens.delete(token);
+      }
+      return res.status(400).json({
+        ok: false,
+        code: 'INVALID_OR_EXPIRED_TOKEN',
+        error: 'Invalid or expired password reset token. Please request a new reset link.',
+      });
+    }
+
+    if (newPassword.length < 8) {
+      return res.status(400).json({
+        ok: false,
+        code: 'PASSWORD_TOO_SHORT',
+        error: 'New password must be at least 8 characters long.',
+      });
+    }
+
+    ensureOwnerAccountForEmail(STRICT_OWNER_EMAIL, newPassword);
+    sandboxResetTokens.delete(token);
+
+    return res.status(200).json({
+      ok: true,
+      message: 'Password updated successfully! Please login.',
     });
   });
 

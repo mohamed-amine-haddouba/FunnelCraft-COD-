@@ -48,7 +48,7 @@
         <div class="form-group">
           <div class="label-row">
             <label for="login-password">Owner Master Password</label>
-            <button type="button" id="btn-forgot-password" class="link-btn">Forgot Password?</button>
+            <button type="button" id="forgot-password-btn" class="link-btn">Forgot Password?</button>
           </div>
           <input
             type="password"
@@ -94,22 +94,62 @@
     </div>
   </div>
 
-
   <!-- ======================== RESET PASSWORD VIEW ======================== -->
   <div id="reset-view" class="login-backdrop hidden">
     <div class="login-card">
       <div class="login-header">
-        <h1 class="login-title">Set New Owner Password</h1>
-        <p class="login-subtitle">Enter a new strong password for the Sandbox Cockpit.</p>
+        <div class="brand-badge">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            <path d="m9 12 2 2 4-4"/>
+          </svg>
+          <span>ZERO-TRUST PASSWORD RECOVERY</span>
+        </div>
+        <h1 class="login-title">Reset Owner Password</h1>
+        <p class="login-subtitle">
+          Set a new master password for <code>naadianajah2020@gmail.com</code>. Minimum 8 characters required.
+        </p>
       </div>
-      <div id="reset-alert" class="alert alert-error hidden"></div>
+
+      <div id="reset-alert" class="alert alert-error hidden" role="alert"></div>
+
       <form id="reset-form" class="login-form" autocomplete="off">
         <div class="form-group">
-          <label for="reset-password">New Password (min 8 chars)</label>
-          <input type="password" id="reset-password" required autocomplete="new-password" />
+          <label for="reset-password">New Password</label>
+          <input
+            type="password"
+            id="reset-password"
+            name="newPassword"
+            placeholder="Enter new password (min. 8 characters)"
+            required
+            minlength="8"
+            autocomplete="new-password"
+          />
         </div>
-        <button type="submit" class="btn btn-primary btn-block">Update Password</button>
+
+        <div class="form-group">
+          <label for="reset-password-confirm">Confirm New Password</label>
+          <input
+            type="password"
+            id="reset-password-confirm"
+            name="confirmPassword"
+            placeholder="Re-enter new password"
+            required
+            minlength="8"
+            autocomplete="new-password"
+          />
+        </div>
+
+        <button type="submit" id="btn-update-password" class="btn btn-primary btn-block">
+          Update Password
+        </button>
       </form>
+
+      <div class="login-footer">
+        <span>Single-Use Token</span>
+        <span>•</span>
+        <span>15-Minute Expiry</span>
+      </div>
     </div>
   </div>
 

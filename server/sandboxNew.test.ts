@@ -9,6 +9,8 @@ import {
   JWT_TTL_SECONDS,
   validateAndParseSafeCommand,
   STRICT_OWNER_EMAIL,
+  sandboxResetTokens,
+  SANDBOX_RESET_TOKEN_TTL_MS,
 } from './sandboxNew';
 import { ensureOwnerAccountForEmail } from './db';
 
@@ -97,6 +99,7 @@ describe('Zero-Trust Sandbox Cockpit (server/sandboxNew.ts)', () => {
     const html = await res.text();
     assert.ok(html.includes('CodWorth Admin Sandbox'));
     assert.ok(html.includes('/sandbox/app.js'));
+    assert.ok(html.includes('id="reset-view"'));
   });
 
   it('returns 403 Forbidden for any non-owner email on POST /api/sandbox/login', async () => {
@@ -180,4 +183,72 @@ describe('Zero-Trust Sandbox Cockpit (server/sandboxNew.ts)', () => {
     const buf = await backupRes.arrayBuffer();
     assert.ok(buf.byteLength > 20);
   });
+
+  it('enforces owner-only forgot-password, 15m token TTL, password length >= 8, single-use token deletion, and updates owner password', async () => {
+    assert.equal(SANDBOX_RESET_TOKEN_TTL_MS, 15 * 60 * 1000);
+    sandboxResetTokens.clear();
+
+    // Non-owner must get 403
+    const nonOwnerForgot = await fetch(`${baseUrl}/api/sandbox/auth/forgot-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: 'intruder@example.com' }),
+    });
+    assert.equal(nonOwnerForgot.status, 403);
+    assert.equal(sandboxResetTokens.size, 0);
+
+    // Owner request generates 32-byte (64 hex chars) token with 15m expiry
+    const ownerForgot = await fetch(`${baseUrl}/api/sandbox/auth/forgot-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: STRICT_OWNER_EMAIL }),
+    });
+    assert.equal(ownerForgot.status, 200);
+    assert.equal(sandboxResetTokens.size, 1);
+
+    const [issuedToken, tokenEntry] = Array.from(sandboxResetTokens.entries())[0];
+    assert.equal(issuedToken.length, 64);
+    assert.equal(tokenEntry.email, STRICT_OWNER_EMAIL);
+    assert.equal(tokenEntry.used, false);
+    assert.ok(tokenEntry.expiresAt > Date.now() + 14 * 60 * 1000);
+
+    // Reject password shorter than 8 characters without consuming the token
+    const shortPassRes = await fetch(`${baseUrl}/api/sandbox/auth/reset-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: issuedToken, newPassword: 'short' }),
+    });
+    assert.equal(shortPassRes.status, 400);
+    assert.equal(sandboxResetTokens.has(issuedToken), true);
+
+    // Valid password reset updates owner password and deletes token
+    const newOwnerPassword = 'UpdatedOwnerPass#2026!';
+    const validResetRes = await fetch(`${baseUrl}/api/sandbox/auth/reset-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: issuedToken, newPassword: newOwnerPassword }),
+    });
+    assert.equal(validResetRes.status, 200);
+    assert.equal(sandboxResetTokens.has(issuedToken), false);
+
+    // Reusing the same token must fail
+    const reuseRes = await fetch(`${baseUrl}/api/sandbox/auth/reset-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: issuedToken, newPassword: 'AnotherPassword#2026' }),
+    });
+    assert.equal(reuseRes.status, 400);
+
+    // Verify login works with the new password
+    const loginNewRes = await fetch(`${baseUrl}/api/sandbox/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: STRICT_OWNER_EMAIL, password: newOwnerPassword }),
+    });
+    assert.equal(loginNewRes.status, 200);
+
+    // Restore original test owner password
+    ensureOwnerAccountForEmail(STRICT_OWNER_EMAIL, TEST_OWNER_PASS);
+  });
 });
+
