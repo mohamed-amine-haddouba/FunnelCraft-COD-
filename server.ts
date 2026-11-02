@@ -465,13 +465,14 @@ export async function startServer() {
   // Task 1: Trust Nginx Reverse Proxy so req.ip reflects the real client IP
   app.set('trust proxy', 1);
 
-  // Task 5: Helmet security headers to block clickjacking, MIME sniffing, and XSS
+  // Task 5: Helmet security headers to block MIME sniffing and XSS while allowing AI Studio iframe preview
   app.use(
     helmet({
       contentSecurityPolicy: false,
       crossOriginEmbedderPolicy: false,
       crossOriginOpenerPolicy: false,
-      frameguard: { action: 'sameorigin' },
+      crossOriginResourcePolicy: false,
+      frameguard: false,
       noSniff: true,
       xssFilter: true,
       referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
@@ -490,7 +491,6 @@ export async function startServer() {
   // Explicit Security Headers Middleware
   app.use((_req: Request, res: Response, next: NextFunction) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');
-    res.setHeader('X-Frame-Options', 'SAMEORIGIN');
     res.setHeader('X-XSS-Protection', '1; mode=block');
     res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
     next();
@@ -4795,9 +4795,9 @@ Return ONLY a valid JSON object matching this exact schema (no markdown outside 
   const httpServer = http.createServer(app);
   setupSandboxTerminalWebSocket(httpServer);
 
-  httpServer.listen(PORT, '127.0.0.1', () => {
+  httpServer.listen(PORT, '0.0.0.0', () => {
     const ppStartup = getPayPalRuntimeConfig();
-    console.log(`CodWorth Builder & Billing Server running on http://127.0.0.1:${PORT}`);
+    console.log(`CodWorth Builder & Billing Server running on http://0.0.0.0:${PORT}`);
     console.log(
       `[PAYPAL RUNTIME] PAYPAL_ENVIRONMENT="${ppStartup.rawEnv}" -> Resolved Mode: ${ppStartup.environmentLabel.toUpperCase()} (${ppStartup.apiBaseUrl}) | PAYPAL_CLIENT_ID(first 10): "${ppStartup.clientId ? ppStartup.clientId.slice(0, 10) : 'MISSING'}"`
     );
