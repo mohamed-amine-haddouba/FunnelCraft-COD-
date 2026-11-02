@@ -62,7 +62,7 @@ export function IntroSplash({ onComplete }: IntroSplashProps) {
       <button
         type="button"
         onClick={finish}
-        className="absolute top-6 right-6 z-10 rounded-full bg-black/60 px-5 py-2 text-sm font-semibold text-white backdrop-blur hover:bg-black/80 rtl:right-auto rtl:left-6"
+        className="absolute top-6 right-6 z-10 rounded-full bg-black/60 px-5 py-2 text-sm font-semibold text-white backdrop-blur hover:bg-black/80"
       >
         تخطي
       </button>
@@ -72,7 +72,7 @@ export function IntroSplash({ onComplete }: IntroSplashProps) {
         <button
           type="button"
           onClick={handleUnmute}
-          className="absolute bottom-6 right-6 z-10 rounded-full bg-black/60 px-5 py-2 text-sm font-semibold text-white backdrop-blur hover:bg-black/80 rtl:right-auto rtl:left-6"
+          className="absolute bottom-6 right-6 z-10 rounded-full bg-black/60 px-5 py-2 text-sm font-semibold text-white backdrop-blur hover:bg-black/80"
         >
           🔊 تشغيل الصوت
         </button>
