@@ -5,8 +5,11 @@ import {
   createSandboxStandaloneApp,
   signSandboxJwt,
   verifySandboxJwt,
+  signSandboxLoginTicket,
+  verifySandboxLoginTicket,
   getSandboxJwtSecret,
   JWT_TTL_SECONDS,
+  LOGIN_TICKET_TTL_SECONDS,
   validateAndParseSafeCommand,
   STRICT_OWNER_EMAIL,
   sandboxResetTokens,
@@ -74,6 +77,15 @@ describe('Zero-Trust Sandbox Cockpit (server/sandboxNew.ts)', () => {
     const tampered = `${token.slice(0, -4)}aaaa`;
     const tamperedCheck = verifySandboxJwt(tampered);
     assert.equal(tamperedCheck.valid, false);
+
+    // 5-minute loginTicket must have sub='2fa_pending' and MUST NOT pass verifySandboxJwt
+    assert.equal(LOGIN_TICKET_TTL_SECONDS, 5 * 60);
+    const { loginTicket, payload: ticketPayload } = signSandboxLoginTicket(STRICT_OWNER_EMAIL);
+    assert.equal(ticketPayload.sub, '2fa_pending');
+    const verifiedTicket = verifySandboxLoginTicket(loginTicket);
+    assert.equal(verifiedTicket.valid, true);
+    assert.equal(verifiedTicket.payload?.email, STRICT_OWNER_EMAIL);
+    assert.equal(verifySandboxJwt(loginTicket).valid, false);
   });
 
   it('enforces Safe Terminal command whitelist and blocks destructive / shell-injection inputs', () => {
@@ -99,6 +111,8 @@ describe('Zero-Trust Sandbox Cockpit (server/sandboxNew.ts)', () => {
     const html = await res.text();
     assert.ok(html.includes('CodWorth Admin Sandbox'));
     assert.ok(html.includes('/sandbox/app.js'));
+    assert.ok(html.includes('id="login-step-1"'));
+    assert.ok(html.includes('id="login-step-2"'));
     assert.ok(html.includes('id="reset-view"'));
   });
 
@@ -249,6 +263,89 @@ describe('Zero-Trust Sandbox Cockpit (server/sandboxNew.ts)', () => {
 
     // Restore original test owner password
     ensureOwnerAccountForEmail(STRICT_OWNER_EMAIL, TEST_OWNER_PASS);
+  });
+
+  it('enforces 2-step login wizard (Step 1 loginTicket -> Step 2 /api/sandbox/login/2fa -> full JWT) when SANDBOX_REQUIRE_2FA=true', async () => {
+    const prevRequire2FA = process.env.SANDBOX_REQUIRE_2FA;
+    const prev2faPin = process.env.SANDBOX_2FA_PIN;
+    process.env.SANDBOX_REQUIRE_2FA = 'true';
+    process.env.SANDBOX_2FA_PIN = '654321';
+
+    try {
+      // Step 1: POST /api/sandbox/login returns requires2FA: true + loginTicket (no full token)
+      const step1Res = await fetch(`${baseUrl}/api/sandbox/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: STRICT_OWNER_EMAIL,
+          password: TEST_OWNER_PASS,
+        }),
+      });
+      assert.equal(step1Res.status, 200);
+      const step1Data = (await step1Res.json()) as {
+        ok: boolean;
+        requires2FA?: boolean;
+        loginTicket?: string;
+        token?: string;
+      };
+      assert.equal(step1Data.ok, true);
+      assert.equal(step1Data.requires2FA, true);
+      assert.ok(step1Data.loginTicket);
+      assert.equal(step1Data.token, undefined);
+
+      // loginTicket cannot be used directly as a Bearer token on /api/sandbox/status
+      const bypassAttempt = await fetch(`${baseUrl}/api/sandbox/status`, {
+        headers: { Authorization: `Bearer ${step1Data.loginTicket}` },
+      });
+      assert.equal(bypassAttempt.status, 401);
+
+      // Step 2 with wrong 2FA code returns 401
+      const wrongCodeRes = await fetch(`${baseUrl}/api/sandbox/login/2fa`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          loginTicket: step1Data.loginTicket,
+          totpCode: '000000',
+        }),
+      });
+      assert.equal(wrongCodeRes.status, 401);
+
+      // Step 2 with valid 2FA code returns 200 and full Sandbox JWT
+      const step2Res = await fetch(`${baseUrl}/api/sandbox/login/2fa`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          loginTicket: step1Data.loginTicket,
+          totpCode: '654321',
+        }),
+      });
+      assert.equal(step2Res.status, 200);
+      const step2Data = (await step2Res.json()) as {
+        ok: boolean;
+        token: string;
+        owner: { email: string; role: string };
+      };
+      assert.equal(step2Data.ok, true);
+      assert.ok(step2Data.token);
+      assert.equal(step2Data.owner.email, STRICT_OWNER_EMAIL);
+
+      // Full JWT works on protected routes
+      const statusRes = await fetch(`${baseUrl}/api/sandbox/status`, {
+        headers: { Authorization: `Bearer ${step2Data.token}` },
+      });
+      assert.equal(statusRes.status, 200);
+    } finally {
+      if (prevRequire2FA !== undefined) {
+        process.env.SANDBOX_REQUIRE_2FA = prevRequire2FA;
+      } else {
+        delete process.env.SANDBOX_REQUIRE_2FA;
+      }
+      if (prev2faPin !== undefined) {
+        process.env.SANDBOX_2FA_PIN = prev2faPin;
+      } else {
+        delete process.env.SANDBOX_2FA_PIN;
+      }
+    }
   });
 });
 

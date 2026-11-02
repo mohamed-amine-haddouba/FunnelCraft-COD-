@@ -60,15 +60,24 @@ export interface SandboxAuthenticatedRequest extends Request {
   sandboxOwner?: SandboxJwtPayload;
 }
 
+export const LOGIN_TICKET_TTL_SECONDS = 5 * 60; // 5 minutes
+
+export interface SandboxLoginTicketPayload {
+  sub: '2fa_pending';
+  email: string;
+  iat: number;
+  exp: number;
+  jti: string;
+}
+
 // In-memory 2FA OTP store for optional Email 2FA step
-interface PendingOwnerOtp {
+export interface PendingOwnerOtp {
   codeHash: string;
   salt: string;
   expiresAt: number;
   attempts: number;
 }
-const pendingOwnerOtps = new Map<string, PendingOwnerOtp>();
-const sandboxResetTokens = new Map<string, { expiresAt: number }>();
+export const pendingOwnerOtps = new Map<string, PendingOwnerOtp>();
 
 // Temporary in-memory store for Sandbox Owner Password Reset tokens (15-minute expiry)
 export interface SandboxResetTokenEntry {
@@ -169,6 +178,99 @@ export function verifySandboxJwt(rawToken: string): {
 
   const nowSec = Math.floor(Date.now() / 1000);
   if (!parsed || typeof parsed.exp !== 'number' || parsed.exp <= nowSec) {
+    return { valid: false, reason: 'EXPIRED' };
+  }
+
+  if (parsed.sub !== 'owner-cockpit') {
+    return { valid: false, reason: 'MALFORMED' };
+  }
+
+  if (!isAllowedOwnerEmail(parsed.email)) {
+    return { valid: false, reason: 'NOT_OWNER', payload: parsed };
+  }
+
+  return { valid: true, payload: parsed };
+}
+
+export function signSandboxLoginTicket(
+  email: string,
+  ttlSeconds: number = LOGIN_TICKET_TTL_SECONDS
+): {
+  loginTicket: string;
+  payload: SandboxLoginTicketPayload;
+} {
+  const nowSec = Math.floor(Date.now() / 1000);
+  const payload: SandboxLoginTicketPayload = {
+    sub: '2fa_pending',
+    email: email.trim().toLowerCase(),
+    iat: nowSec,
+    exp: nowSec + ttlSeconds,
+    jti: crypto.randomUUID(),
+  };
+
+  const headerSegment = base64UrlEncode(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
+  const payloadSegment = base64UrlEncode(JSON.stringify(payload));
+  const signingInput = `${headerSegment}.${payloadSegment}`;
+  const signature = crypto
+    .createHmac('sha256', getSandboxJwtSecret())
+    .update(signingInput)
+    .digest();
+  const signatureSegment = base64UrlEncode(signature);
+
+  return {
+    loginTicket: `${signingInput}.${signatureSegment}`,
+    payload,
+  };
+}
+
+export function verifySandboxLoginTicket(rawTicket: string): {
+  valid: boolean;
+  reason?: 'MALFORMED' | 'BAD_SIGNATURE' | 'EXPIRED' | 'NOT_OWNER';
+  payload?: SandboxLoginTicketPayload;
+} {
+  if (!rawTicket || typeof rawTicket !== 'string') {
+    return { valid: false, reason: 'MALFORMED' };
+  }
+
+  const parts = rawTicket.trim().split('.');
+  if (parts.length !== 3) {
+    return { valid: false, reason: 'MALFORMED' };
+  }
+
+  const [headerSeg, payloadSeg, sigSeg] = parts;
+  const signingInput = `${headerSeg}.${payloadSeg}`;
+  const expectedSig = crypto
+    .createHmac('sha256', getSandboxJwtSecret())
+    .update(signingInput)
+    .digest();
+
+  let providedSig: Buffer;
+  try {
+    providedSig = base64UrlDecode(sigSeg);
+  } catch {
+    return { valid: false, reason: 'MALFORMED' };
+  }
+
+  if (
+    expectedSig.length !== providedSig.length ||
+    !crypto.timingSafeEqual(expectedSig, providedSig)
+  ) {
+    return { valid: false, reason: 'BAD_SIGNATURE' };
+  }
+
+  let parsed: SandboxLoginTicketPayload;
+  try {
+    parsed = JSON.parse(base64UrlDecode(payloadSeg).toString('utf-8')) as SandboxLoginTicketPayload;
+  } catch {
+    return { valid: false, reason: 'MALFORMED' };
+  }
+
+  if (!parsed || parsed.sub !== '2fa_pending') {
+    return { valid: false, reason: 'MALFORMED' };
+  }
+
+  const nowSec = Math.floor(Date.now() / 1000);
+  if (typeof parsed.exp !== 'number' || parsed.exp <= nowSec) {
     return { valid: false, reason: 'EXPIRED' };
   }
 
@@ -630,11 +732,10 @@ export function createSandboxCockpitRouter(): Router {
   const router = Router();
   router.use(express.json({ limit: '1mb' }));
 
-  // 1. POST /api/sandbox/login — Owner-only authentication issuing JWT
+  // 1a. POST /api/sandbox/login (Step 1) — Verify Owner email + password; issue loginTicket if 2FA required or full JWT otherwise
   router.post('/login', async (req: Request, res: Response) => {
     const rawEmail = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : '';
     const rawPassword = typeof req.body?.password === 'string' ? req.body.password : '';
-    const rawTotpCode = typeof req.body?.totpCode === 'string' ? req.body.totpCode.trim() : '';
 
     const ip = getClientIp(req);
     const location = resolveClientGeoLocation(req, ip);
@@ -705,38 +806,14 @@ export function createSandboxCockpitRouter(): Router {
       process.env.SANDBOX_REQUIRE_2FA === 'true' || Boolean(ownerUser?.two_factor_enabled);
 
     if (require2FA) {
-      if (!rawTotpCode) {
-        return res.status(200).json({
-          ok: false,
-          requires2FA: true,
-          code: 'TWO_FACTOR_REQUIRED',
-          message: 'Please enter your 6-digit 2FA verification code.',
-        });
-      }
-      if (!verifyTotpOrEmailOtp(rawEmail, rawTotpCode)) {
-        recordSandboxLoginAttempt({
-          email: rawEmail,
-          ip,
-          location,
-          userAgent,
-          status: 'FAILED',
-          reason: 'invalid_2fa_code',
-        });
-        return res.status(401).json({
-          ok: false,
-          code: 'INVALID_2FA_CODE',
-          error: 'Invalid or expired 6-digit 2FA code.',
-        });
-      }
-    } else if (rawTotpCode) {
-      // If a code was supplied when an OTP was pending, validate it
-      if (pendingOwnerOtps.has(rawEmail) && !verifyTotpOrEmailOtp(rawEmail, rawTotpCode)) {
-        return res.status(401).json({
-          ok: false,
-          code: 'INVALID_2FA_CODE',
-          error: 'Invalid or expired 6-digit 2FA code.',
-        });
-      }
+      const { loginTicket } = signSandboxLoginTicket(rawEmail);
+      return res.status(200).json({
+        ok: true,
+        requires2FA: true,
+        loginTicket,
+        code: 'TWO_FACTOR_REQUIRED',
+        message: 'Credentials verified. Enter your 6-digit 2FA verification code to continue.',
+      });
     }
 
     const { token, payload } = signSandboxJwt(rawEmail);
@@ -761,66 +838,95 @@ export function createSandboxCockpitRouter(): Router {
     });
   });
 
-  // 1c. POST /api/sandbox/auth/forgot-password — Send secure reset link
-  router.post('/auth/forgot-password', async (req: Request, res: Response) => {
-    const rawEmail = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : '';
+  // 1b. POST /api/sandbox/login/2fa (Step 2) — Verify loginTicket + 6-digit totpCode and issue full Sandbox JWT
+  router.post('/login/2fa', (req: Request, res: Response) => {
+    const rawLoginTicket =
+      typeof req.body?.loginTicket === 'string' ? req.body.loginTicket.trim() : '';
+    const rawTotpCode = typeof req.body?.totpCode === 'string' ? req.body.totpCode.trim() : '';
+
     const ip = getClientIp(req);
     const location = resolveClientGeoLocation(req, ip);
+    const userAgent = String(req.headers['user-agent'] || 'Unknown User-Agent');
 
-    if (!isAllowedOwnerEmail(rawEmail)) {
-      return res.status(403).json({ ok: false, error: 'Access Denied: Owner email required.' });
-    }
-
-    const token = crypto.randomBytes(32).toString('hex');
-    sandboxResetTokens.set(token, { expiresAt: Date.now() + 15 * 60 * 1000 });
-
-    const protocol = req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
-    const host = req.headers.host || 'codworth.me';
-    const resetUrl = `${protocol}://${host}/sandbox?reset_token=${token}`;
-
-    try {
-      await sendSandboxResetEmail(rawEmail, ip, resetUrl);
+    const ticketVerification = verifySandboxLoginTicket(rawLoginTicket);
+    if (!ticketVerification.valid || !ticketVerification.payload) {
       recordSandboxLoginAttempt({
-        email: rawEmail, ip, location, userAgent: String(req.headers['user-agent'] || 'Unknown'),
-        status: 'SUCCESS', reason: 'password_reset_requested'
+        email: ticketVerification.payload?.email || STRICT_OWNER_EMAIL,
+        ip,
+        location,
+        userAgent,
+        status: 'FAILED',
+        reason: `invalid_login_ticket_${ticketVerification.reason || 'UNKNOWN'}`,
       });
-      return res.status(200).json({ ok: true, message: 'Password reset link sent to owner email.' });
-    } catch (err: any) {
-      console.error('[SANDBOX RESET ERROR]', err);
-      return res.status(500).json({ ok: false, error: 'Failed to send reset email.' });
+      return res.status(401).json({
+        ok: false,
+        code: 'INVALID_LOGIN_TICKET',
+        error: 'Invalid or expired 2FA login ticket. Please sign in again.',
+      });
     }
+
+    const ownerEmail = ticketVerification.payload.email;
+    if (!rawTotpCode || !verifyTotpOrEmailOtp(ownerEmail, rawTotpCode)) {
+      recordSandboxLoginAttempt({
+        email: ownerEmail,
+        ip,
+        location,
+        userAgent,
+        status: 'FAILED',
+        reason: 'invalid_2fa_code',
+      });
+      return res.status(401).json({
+        ok: false,
+        code: 'INVALID_2FA_CODE',
+        error: 'Invalid or expired 6-digit 2FA code.',
+      });
+    }
+
+    const ownerUser = findUserByEmail(ownerEmail);
+    const { token, payload } = signSandboxJwt(ownerEmail);
+
+    recordSandboxLoginAttempt({
+      email: ownerEmail,
+      ip,
+      location,
+      userAgent,
+      status: 'SUCCESS',
+      reason: '2fa_verified',
+    });
+
+    return res.status(200).json({
+      ok: true,
+      token,
+      expiresAt: payload.exp * 1000,
+      owner: {
+        email: ownerEmail,
+        name: ownerUser?.full_name || 'Platform Owner',
+        role: 'owner',
+      },
+    });
   });
 
-  // 1d. POST /api/sandbox/auth/reset-password — Set new password
-  router.post('/auth/reset-password', async (req: Request, res: Response) => {
-    const { token, newPassword } = req.body || {};
-
-    if (!token || !newPassword || newPassword.length < 8) {
-      return res.status(400).json({ ok: false, error: 'Invalid token or password too short (min 8 chars).' });
-    }
-
-    const pending = sandboxResetTokens.get(token);
-    if (!pending || Date.now() > pending.expiresAt) {
-      return res.status(400).json({ ok: false, error: 'Reset link expired or invalid.' });
-    }
-
-    const owner = findUserByEmail(STRICT_OWNER_EMAIL);
-    if (owner) {
-      ensureOwnerAccountForEmail(STRICT_OWNER_EMAIL, newPassword);
-      sandboxResetTokens.delete(token);
-      return res.status(200).json({ ok: true, message: 'Password updated successfully. You can now login.' });
-    }
-
-    return res.status(404).json({ ok: false, error: 'Owner account not found.' });
-  });
-
-  // 1b. POST /api/sandbox/2fa/send — Send 6-digit Email 2FA code to Owner
+  // 1c. POST /api/sandbox/2fa/send — Send 6-digit Email 2FA code to Owner (accepts Step 2 loginTicket or email)
   router.post('/2fa/send', async (req: Request, res: Response) => {
-    const rawEmail = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : '';
+    const rawLoginTicket =
+      typeof req.body?.loginTicket === 'string' ? req.body.loginTicket.trim() : '';
+    let rawEmail = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : '';
     const rawPassword = typeof req.body?.password === 'string' ? req.body.password : '';
     const ip = getClientIp(req);
     const location = resolveClientGeoLocation(req, ip);
     const userAgent = String(req.headers['user-agent'] || 'Unknown User-Agent');
+
+    if (rawLoginTicket) {
+      const ticketCheck = verifySandboxLoginTicket(rawLoginTicket);
+      if (!ticketCheck.valid || !ticketCheck.payload) {
+        return res.status(401).json({
+          ok: false,
+          code: 'INVALID_LOGIN_TICKET',
+          error: 'Invalid or expired 2FA session ticket. Please return to Step 1.',
+        });
+      }
+      rawEmail = ticketCheck.payload.email;
+    }
 
     if (!isAllowedOwnerEmail(rawEmail)) {
       return res.status(403).json({
@@ -831,7 +937,7 @@ export function createSandboxCockpitRouter(): Router {
     }
 
     const ownerUser = findUserByEmail(rawEmail);
-    if (rawPassword && ownerUser && !timingSafeVerifyPassword(ownerUser, rawPassword)) {
+    if (!rawLoginTicket && rawPassword && ownerUser && !timingSafeVerifyPassword(ownerUser, rawPassword)) {
       return res.status(401).json({
         ok: false,
         code: 'INVALID_CREDENTIALS',
@@ -865,7 +971,7 @@ export function createSandboxCockpitRouter(): Router {
       sent,
       message: sent
         ? `6-digit security code sent to ${rawEmail}.`
-        : 'SMTP is not configured in this environment; you may sign in directly with your Owner password.',
+        : 'SMTP is not configured in this environment; use your configured 6-digit TOTP PIN.',
     });
   });
 
@@ -913,6 +1019,14 @@ export function createSandboxCockpitRouter(): Router {
     const resetUrl = `${protocol}://${host}/sandbox?reset_token=${token}`;
 
     const sent = await sendSandboxResetEmail(email, ip, resetUrl).catch(() => false);
+    recordSandboxLoginAttempt({
+      email,
+      ip,
+      location,
+      userAgent,
+      status: 'SUCCESS',
+      reason: 'password_reset_requested',
+    });
 
     return res.status(200).json({
       ok: true,

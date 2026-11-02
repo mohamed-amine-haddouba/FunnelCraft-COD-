@@ -3,18 +3,22 @@
 
   const STORAGE_TOKEN_KEY = 'codworth_sandbox_jwt';
   const STORAGE_OWNER_KEY = 'codworth_sandbox_owner';
+  const STORAGE_RESET_NOTICE_KEY = 'codworth_sandbox_reset_notice';
 
   // DOM References
   const loginView = document.getElementById('login-view');
   const resetView = document.getElementById('reset-view');
   const cockpitView = document.getElementById('cockpit-view');
-  const loginForm = document.getElementById('login-form');
+  const loginStep1 = document.getElementById('login-step-1');
+  const loginStep2 = document.getElementById('login-step-2');
   const loginEmailInput = document.getElementById('login-email');
   const loginPasswordInput = document.getElementById('login-password');
   const loginTotpInput = document.getElementById('login-totp');
   const loginAlert = document.getElementById('login-alert');
   const loginInfo = document.getElementById('login-info');
-  const loginSubmitBtn = document.getElementById('login-submit-btn');
+  const loginStep1Btn = document.getElementById('login-step-1-btn');
+  const loginStep2Btn = document.getElementById('login-step-2-btn');
+  const loginBackStep1Btn = document.getElementById('login-back-step-1-btn');
   const forgotPasswordBtn = document.getElementById('forgot-password-btn');
   const requestEmailOtpBtn = document.getElementById('request-email-otp-btn');
   const resetForm = document.getElementById('reset-form');
@@ -76,6 +80,7 @@
   const backupFilesTbody = document.getElementById('backup-files-tbody');
 
   let activeDeployEventSource = null;
+  let pendingLoginTicket = null;
 
   function getJwt() {
     try {
@@ -156,7 +161,12 @@
     const response = await fetch(`/api/sandbox${endpoint}`, Object.assign({}, options, { headers }));
     if (response.status === 401 || response.status === 403) {
       const errData = await response.json().catch(() => ({}));
-      if (endpoint !== '/login' && endpoint !== '/2fa/send' && endpoint !== '/terminal') {
+      if (
+        endpoint !== '/login' &&
+        endpoint !== '/login/2fa' &&
+        endpoint !== '/2fa/send' &&
+        endpoint !== '/terminal'
+      ) {
         clearJwt();
         switchView(false);
         showLoginError(errData.error || 'Session expired or unauthorized. Please sign in again.');
@@ -173,6 +183,14 @@
     resetAlert.classList.remove('hidden');
   }
 
+  function resetWizardToStep1() {
+    pendingLoginTicket = null;
+    if (loginPasswordInput) loginPasswordInput.value = '';
+    if (loginTotpInput) loginTotpInput.value = '';
+    if (loginStep2) loginStep2.classList.add('hidden');
+    if (loginStep1) loginStep1.classList.remove('hidden');
+  }
+
   function switchView(authenticated) {
     if (resetView) {
       resetView.classList.add('hidden');
@@ -185,6 +203,7 @@
     } else {
       cockpitView.classList.add('hidden');
       loginView.classList.remove('hidden');
+      resetWizardToStep1();
     }
   }
 
@@ -344,83 +363,156 @@
     }
   }
 
-  // Login Form Submission
-  loginForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    loginAlert.classList.add('hidden');
-    loginInfo.classList.add('hidden');
-    loginSubmitBtn.disabled = true;
+  // Step 1 Submit: Verify Email + Password -> Either transition to Step 2 (loginTicket) or enter Cockpit
+  if (loginStep1) {
+    loginStep1.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      loginAlert.classList.add('hidden');
+      loginInfo.classList.add('hidden');
+      if (loginStep1Btn) loginStep1Btn.disabled = true;
 
-    const email = loginEmailInput.value.trim();
-    const password = loginPasswordInput.value;
-    const totpCode = loginTotpInput.value.trim();
+      const email = loginEmailInput.value.trim();
+      const password = loginPasswordInput.value;
 
-    try {
-      const response = await fetch('/api/sandbox/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, totpCode }),
-      });
+      try {
+        const response = await fetch('/api/sandbox/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password }),
+        });
 
-      const data = await response.json().catch(() => ({}));
+        const data = await response.json().catch(() => ({}));
 
-      if (response.status === 403) {
-        showLoginError(data.error || 'Access Denied (403): Only naadianajah2020@gmail.com is allowed.');
-        return;
-      }
+        if (response.status === 403) {
+          showLoginError(data.error || 'Access Denied (403): Only naadianajah2020@gmail.com is allowed.');
+          return;
+        }
 
-      if (!response.ok) {
-        showLoginError(data.error || 'Authentication failed. Check your credentials.');
-        return;
-      }
+        if (!response.ok) {
+          showLoginError(data.error || 'Authentication failed. Check your credentials.');
+          return;
+        }
 
-      if (data.requires2FA) {
-        showLoginInfo(data.message || 'Please enter your 6-digit 2FA verification code.');
-        loginTotpInput.focus();
-        return;
-      }
-
-      if (data.ok && data.token) {
-        setJwt(data.token, data.owner && data.owner.email);
+        // Immediately wipe password input from DOM so plaintext password is never retained in memory
         loginPasswordInput.value = '';
-        loginTotpInput.value = '';
-        switchView(true);
-        await Promise.all([loadSystemStatus(), loadSecurityAndBackups()]);
-      }
-    } catch (err) {
-      showLoginError(`Network error: ${err.message}`);
-    } finally {
-      loginSubmitBtn.disabled = false;
-    }
-  });
 
-  // Request Email 2FA OTP
-  requestEmailOtpBtn.addEventListener('click', async () => {
-    const email = loginEmailInput.value.trim();
-    const password = loginPasswordInput.value;
-    if (!email) {
-      showLoginError('Enter your Owner email address first.');
-      return;
-    }
-    requestEmailOtpBtn.disabled = true;
-    try {
-      const res = await fetch('/api/sandbox/2fa/send', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        showLoginError(data.error || 'Failed to request 2FA code.');
-      } else {
-        showLoginInfo(data.message || '2FA code sent.');
+        if (data.requires2FA && data.loginTicket) {
+          pendingLoginTicket = data.loginTicket;
+          loginStep1.classList.add('hidden');
+          loginStep2.classList.remove('hidden');
+          loginTotpInput.value = '';
+          showLoginInfo(
+            data.message || 'Step 1 verified. Enter your 6-digit 2FA verification code.'
+          );
+          loginTotpInput.focus();
+          return;
+        }
+
+        if (data.ok && data.token) {
+          pendingLoginTicket = null;
+          setJwt(data.token, data.owner && data.owner.email);
+          switchView(true);
+          await Promise.all([loadSystemStatus(), loadSecurityAndBackups()]);
+        }
+      } catch (err) {
+        showLoginError(`Network error: ${err.message}`);
+      } finally {
+        if (loginStep1Btn) loginStep1Btn.disabled = false;
       }
-    } catch (err) {
-      showLoginError(err.message);
-    } finally {
-      requestEmailOtpBtn.disabled = false;
-    }
-  });
+    });
+  }
+
+  // Step 2 Submit: Verify loginTicket + 6-digit totpCode -> Enter Cockpit
+  if (loginStep2) {
+    loginStep2.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      loginAlert.classList.add('hidden');
+      loginInfo.classList.add('hidden');
+
+      const totpCode = loginTotpInput.value.trim();
+      if (!pendingLoginTicket) {
+        resetWizardToStep1();
+        showLoginError('Your 2FA session ticket expired. Please enter your credentials again.');
+        return;
+      }
+
+      if (loginStep2Btn) loginStep2Btn.disabled = true;
+
+      try {
+        const response = await fetch('/api/sandbox/login/2fa', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ loginTicket: pendingLoginTicket, totpCode }),
+        });
+
+        const data = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+          if (data.code === 'INVALID_LOGIN_TICKET') {
+            resetWizardToStep1();
+          }
+          showLoginError(data.error || 'Invalid or expired 6-digit 2FA code.');
+          return;
+        }
+
+        if (data.ok && data.token) {
+          pendingLoginTicket = null;
+          loginTotpInput.value = '';
+          setJwt(data.token, data.owner && data.owner.email);
+          switchView(true);
+          await Promise.all([loadSystemStatus(), loadSecurityAndBackups()]);
+        }
+      } catch (err) {
+        showLoginError(`Network error: ${err.message}`);
+      } finally {
+        if (loginStep2Btn) loginStep2Btn.disabled = false;
+      }
+    });
+  }
+
+  // Step 2 Back to Step 1 Button
+  if (loginBackStep1Btn) {
+    loginBackStep1Btn.addEventListener('click', () => {
+      loginAlert.classList.add('hidden');
+      loginInfo.classList.add('hidden');
+      resetWizardToStep1();
+    });
+  }
+
+  // Request Email 2FA OTP (Step 2)
+  if (requestEmailOtpBtn) {
+    requestEmailOtpBtn.addEventListener('click', async () => {
+      const email = loginEmailInput.value.trim();
+      if (!pendingLoginTicket && !email) {
+        showLoginError('Your 2FA session ticket is missing. Please return to Step 1.');
+        return;
+      }
+      requestEmailOtpBtn.disabled = true;
+      try {
+        const res = await fetch('/api/sandbox/2fa/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            loginTicket: pendingLoginTicket || undefined,
+            email: email || undefined,
+          }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          if (data.code === 'INVALID_LOGIN_TICKET') {
+            resetWizardToStep1();
+          }
+          showLoginError(data.error || 'Failed to request 2FA code.');
+        } else {
+          showLoginInfo(data.message || '6-digit 2FA code sent to owner email.');
+        }
+      } catch (err) {
+        showLoginError(err.message);
+      } finally {
+        requestEmailOtpBtn.disabled = false;
+      }
+    });
+  }
 
   // Forgot Password Trigger
   if (forgotPasswordBtn) {
@@ -458,7 +550,7 @@
     });
   }
 
-  // Reset Password Form Submission
+  // Reset Password Form Submission (Standalone Isolated Reset View)
   if (resetForm) {
     resetForm.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -501,11 +593,17 @@
           return;
         }
 
-        window.history.replaceState({}, document.title, window.location.pathname);
-        resetView.classList.add('hidden');
-        loginView.classList.remove('hidden');
-        showLoginInfo('Password updated successfully! Please login.');
         resetForm.reset();
+        try {
+          sessionStorage.setItem(
+            STORAGE_RESET_NOTICE_KEY,
+            data.message || 'Password updated successfully! Please login.'
+          );
+        } catch {
+          // ignore storage errors
+        }
+        window.history.replaceState({}, document.title, '/sandbox/');
+        window.location.href = '/sandbox/';
       } catch (err) {
         showResetError(`Network error: ${err.message}`);
       } finally {
@@ -710,11 +808,25 @@
 
   // Initial Session Check on Boot
   (async function init() {
-    if (new URLSearchParams(window.location.search).has('reset_token')) {
-      loginView.classList.add('hidden');
+    const params = new URLSearchParams(window.location.search);
+    const resetToken = params.get('reset_token');
+    if (resetToken && resetToken.trim() !== '') {
+      if (loginView) loginView.classList.add('hidden');
       if (cockpitView) cockpitView.classList.add('hidden');
       if (resetView) resetView.classList.remove('hidden');
       return;
+    }
+
+    if (resetView) resetView.classList.add('hidden');
+
+    try {
+      const resetNotice = sessionStorage.getItem(STORAGE_RESET_NOTICE_KEY);
+      if (resetNotice) {
+        sessionStorage.removeItem(STORAGE_RESET_NOTICE_KEY);
+        showLoginInfo(resetNotice);
+      }
+    } catch {
+      // ignore storage errors
     }
 
     const existingToken = getJwt();
