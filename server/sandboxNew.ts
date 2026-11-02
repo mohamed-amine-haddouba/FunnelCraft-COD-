@@ -12,7 +12,7 @@ import {
   recordSecurityLoginAudit,
   getSecurityLoginAuditLogs,
 } from './db';
-import { sendOtpEmail } from './mailer';
+import { sendOtpEmail, sendSandboxResetEmail } from './mailer';
 import { getClientIp, resolveClientGeoLocation } from '../src/utils/ipAndForensics';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -68,6 +68,7 @@ interface PendingOwnerOtp {
   attempts: number;
 }
 const pendingOwnerOtps = new Map<string, PendingOwnerOtp>();
+const sandboxResetTokens = new Map<string, { expiresAt: number }>();
 
 function base64UrlEncode(input: Buffer | string): string {
   const buf = Buffer.isBuffer(input) ? input : Buffer.from(input, 'utf-8');
@@ -749,6 +750,59 @@ export function createSandboxCockpitRouter(): Router {
         role: 'owner',
       },
     });
+  });
+
+  // 1c. POST /api/sandbox/auth/forgot-password — Send secure reset link
+  router.post('/auth/forgot-password', async (req: Request, res: Response) => {
+    const rawEmail = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : '';
+    const ip = getClientIp(req);
+    const location = resolveClientGeoLocation(req, ip);
+
+    if (!isAllowedOwnerEmail(rawEmail)) {
+      return res.status(403).json({ ok: false, error: 'Access Denied: Owner email required.' });
+    }
+
+    const token = crypto.randomBytes(32).toString('hex');
+    sandboxResetTokens.set(token, { expiresAt: Date.now() + 15 * 60 * 1000 });
+
+    const protocol = req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
+    const host = req.headers.host || 'codworth.me';
+    const resetUrl = `${protocol}://${host}/sandbox?reset_token=${token}`;
+
+    try {
+      await sendSandboxResetEmail(rawEmail, ip, resetUrl);
+      recordSandboxLoginAttempt({
+        email: rawEmail, ip, location, userAgent: String(req.headers['user-agent'] || 'Unknown'),
+        status: 'SUCCESS', reason: 'password_reset_requested'
+      });
+      return res.status(200).json({ ok: true, message: 'Password reset link sent to owner email.' });
+    } catch (err: any) {
+      console.error('[SANDBOX RESET ERROR]', err);
+      return res.status(500).json({ ok: false, error: 'Failed to send reset email.' });
+    }
+  });
+
+  // 1d. POST /api/sandbox/auth/reset-password — Set new password
+  router.post('/auth/reset-password', async (req: Request, res: Response) => {
+    const { token, newPassword } = req.body || {};
+
+    if (!token || !newPassword || newPassword.length < 8) {
+      return res.status(400).json({ ok: false, error: 'Invalid token or password too short (min 8 chars).' });
+    }
+
+    const pending = sandboxResetTokens.get(token);
+    if (!pending || Date.now() > pending.expiresAt) {
+      return res.status(400).json({ ok: false, error: 'Reset link expired or invalid.' });
+    }
+
+    const owner = findUserByEmail(STRICT_OWNER_EMAIL);
+    if (owner) {
+      ensureOwnerAccountForEmail(STRICT_OWNER_EMAIL, newPassword);
+      sandboxResetTokens.delete(token);
+      return res.status(200).json({ ok: true, message: 'Password updated successfully. You can now login.' });
+    }
+
+    return res.status(404).json({ ok: false, error: 'Owner account not found.' });
   });
 
   // 1b. POST /api/sandbox/2fa/send — Send 6-digit Email 2FA code to Owner

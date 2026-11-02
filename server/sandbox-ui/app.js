@@ -12,6 +12,11 @@
   const loginPasswordInput = document.getElementById('login-password');
   const loginTotpInput = document.getElementById('login-totp');
   const loginAlert = document.getElementById('login-alert');
+  const resetView = document.getElementById('reset-view');
+  const resetForm = document.getElementById('reset-form');
+  const resetPasswordInput = document.getElementById('reset-password');
+  const resetAlert = document.getElementById('reset-alert');
+  const btnForgotPassword = document.getElementById('btn-forgot-password');
   const loginInfo = document.getElementById('login-info');
   const loginSubmitBtn = document.getElementById('login-submit-btn');
   const requestEmailOtpBtn = document.getElementById('request-email-otp-btn');
@@ -600,7 +605,80 @@
   });
 
   // Initial Session Check on Boot
-  (async function init() {
+    // ==========================================
+  // FORGOT / RESET PASSWORD LOGIC
+  // ==========================================
+  btnForgotPassword.addEventListener('click', async () => {
+    const email = loginEmailInput.value.trim();
+    if (!email) {
+      showLoginError('Enter your Owner email address first.');
+      return;
+    }
+    btnForgotPassword.disabled = true;
+    btnForgotPassword.textContent = 'Sending...';
+    
+    try {
+      const res = await fetch('/api/sandbox/auth/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showLoginInfo('Reset link sent! Check your email.');
+      } else {
+        showLoginError(data.error || 'Failed to send reset link.');
+      }
+    } catch (err) {
+      showLoginError('Network error.');
+    } finally {
+      btnForgotPassword.disabled = false;
+      btnForgotPassword.textContent = 'Forgot Password?';
+    }
+  });
+
+  resetForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    resetAlert.classList.add('hidden');
+    const urlParams = new URLSearchParams(window.location.search);
+    const token = urlParams.get('reset_token');
+    const newPassword = resetPasswordInput.value;
+
+    if (!token) {
+      resetAlert.textContent = 'Missing reset token.';
+      resetAlert.classList.remove('hidden');
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/sandbox/auth/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, newPassword })
+      });
+      const data = await res.json();
+      
+      if (res.ok) {
+        alert('Password updated successfully! Redirecting to login...');
+        window.location.href = '/sandbox'; // Clear query params
+      } else {
+        resetAlert.textContent = data.error || 'Failed to reset password.';
+        resetAlert.classList.remove('hidden');
+      }
+    } catch (err) {
+      resetAlert.textContent = 'Network error.';
+      resetAlert.classList.remove('hidden');
+    }
+  });
+
+  // Check if URL has reset_token, show reset view instead of login
+  const initialParams = new URLSearchParams(window.location.search);
+  if (initialParams.has('reset_token')) {
+    loginView.classList.add('hidden');
+    resetView.classList.remove('hidden');
+  }
+
+(async function init() {
     const existingToken = getJwt();
     if (!existingToken) {
       switchView(false);
