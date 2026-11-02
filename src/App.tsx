@@ -2063,11 +2063,10 @@ export default function App() {
   const location = useLocation();
   const [showIntro, setShowIntro] = useState(() => {
     try {
-      if (sessionStorage.getItem('intro_shown') === 'true') return false;
       if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return false;
       // Do NOT show intro on dashboard/sandbox/admin routes
       const path = window.location.pathname;
-      if (path.startsWith('/dashboard') || path.startsWith('/sandbox') || path.startsWith('/admin')) return false;
+      if (path.startsWith('/dashboard') || path.startsWith('/sandbox') || path.startsWith('/admin') || path.startsWith('/p/')) return false;
       return true;
     } catch {
       return false;
@@ -2075,9 +2074,6 @@ export default function App() {
   });
 
   const handleIntroComplete = useCallback(() => {
-    try {
-      sessionStorage.setItem('intro_shown', 'true');
-    } catch {}
     setShowIntro(false);
   }, []);
 
