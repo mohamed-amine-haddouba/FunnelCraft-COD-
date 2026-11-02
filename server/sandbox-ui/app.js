@@ -187,6 +187,7 @@
     pendingLoginTicket = null;
     if (loginPasswordInput) loginPasswordInput.value = '';
     if (loginTotpInput) loginTotpInput.value = '';
+    if (requestEmailOtpBtn) requestEmailOtpBtn.disabled = true;
     if (loginStep2) loginStep2.classList.add('hidden');
     if (loginStep1) loginStep1.classList.remove('hidden');
   }
@@ -363,7 +364,12 @@
     }
   }
 
-  // Step 1 Submit: Verify Email + Password -> Either transition to Step 2 (loginTicket) or enter Cockpit
+  // Initial state: Ensure "Send Email 2FA Code" button is strictly disabled on load
+  if (requestEmailOtpBtn) {
+    requestEmailOtpBtn.disabled = true;
+  }
+
+  // Step 1 Submit: Verify Email + Password -> Transition to Step 2 (loginTicket)
   if (loginStep1) {
     loginStep1.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -393,17 +399,18 @@
           return;
         }
 
-        // Immediately wipe password input from DOM so plaintext password is never retained in memory
+        // Immediately clear plaintext password after Step 1 verification succeeds
         loginPasswordInput.value = '';
 
         if (data.requires2FA && data.loginTicket) {
           pendingLoginTicket = data.loginTicket;
           loginStep1.classList.add('hidden');
           loginStep2.classList.remove('hidden');
+          if (requestEmailOtpBtn) {
+            requestEmailOtpBtn.disabled = false;
+          }
           loginTotpInput.value = '';
-          showLoginInfo(
-            data.message || 'Step 1 verified. Enter your 6-digit 2FA verification code.'
-          );
+          showLoginInfo('Password verified. Please request a 2FA code and enter it below.');
           loginTotpInput.focus();
           return;
         }
@@ -432,7 +439,7 @@
       const totpCode = loginTotpInput.value.trim();
       if (!pendingLoginTicket) {
         resetWizardToStep1();
-        showLoginError('Your 2FA session ticket expired. Please enter your credentials again.');
+        showLoginError('Your 2FA session ticket expired or is missing. Please enter your credentials again.');
         return;
       }
 
@@ -479,23 +486,21 @@
     });
   }
 
-  // Request Email 2FA OTP (Step 2)
+  // Request Email 2FA OTP (Step 2) - Strictly gated behind pendingLoginTicket from Step 1
   if (requestEmailOtpBtn) {
     requestEmailOtpBtn.addEventListener('click', async () => {
-      const email = loginEmailInput.value.trim();
-      if (!pendingLoginTicket && !email) {
-        showLoginError('Your 2FA session ticket is missing. Please return to Step 1.');
+      if (!pendingLoginTicket) {
+        resetWizardToStep1();
+        showLoginError('Please verify your email and password in Step 1 first.');
         return;
       }
+
       requestEmailOtpBtn.disabled = true;
       try {
         const res = await fetch('/api/sandbox/2fa/send', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            loginTicket: pendingLoginTicket || undefined,
-            email: email || undefined,
-          }),
+          body: JSON.stringify({ loginTicket: pendingLoginTicket }),
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) {
@@ -504,12 +509,14 @@
           }
           showLoginError(data.error || 'Failed to request 2FA code.');
         } else {
-          showLoginInfo(data.message || '6-digit 2FA code sent to owner email.');
+          showLoginInfo('Code sent to your email. Please enter it below.');
         }
       } catch (err) {
         showLoginError(err.message);
       } finally {
-        requestEmailOtpBtn.disabled = false;
+        if (pendingLoginTicket) {
+          requestEmailOtpBtn.disabled = false;
+        }
       }
     });
   }
