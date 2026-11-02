@@ -81,6 +81,7 @@
 
   let activeDeployEventSource = null;
   let pendingLoginTicket = null;
+  let otpCooldownInterval = null;
 
   function getJwt() {
     try {
@@ -183,11 +184,42 @@
     resetAlert.classList.remove('hidden');
   }
 
+  function clearOtpCooldown() {
+    if (otpCooldownInterval) {
+      clearInterval(otpCooldownInterval);
+      otpCooldownInterval = null;
+    }
+  }
+
+  function startOtpCooldown() {
+    if (!requestEmailOtpBtn) return;
+    clearOtpCooldown();
+    let remaining = 60;
+    requestEmailOtpBtn.disabled = true;
+    requestEmailOtpBtn.textContent = `Resend code in ${remaining}s...`;
+    otpCooldownInterval = setInterval(() => {
+      remaining -= 1;
+      if (remaining <= 0) {
+        clearOtpCooldown();
+        if (pendingLoginTicket) {
+          requestEmailOtpBtn.disabled = false;
+        }
+        requestEmailOtpBtn.textContent = 'Resend Code';
+      } else {
+        requestEmailOtpBtn.textContent = `Resend code in ${remaining}s...`;
+      }
+    }, 1000);
+  }
+
   function resetWizardToStep1() {
     pendingLoginTicket = null;
+    clearOtpCooldown();
     if (loginPasswordInput) loginPasswordInput.value = '';
     if (loginTotpInput) loginTotpInput.value = '';
-    if (requestEmailOtpBtn) requestEmailOtpBtn.disabled = true;
+    if (requestEmailOtpBtn) {
+      requestEmailOtpBtn.disabled = true;
+      requestEmailOtpBtn.textContent = 'Resend Code';
+    }
     if (loginStep2) loginStep2.classList.add('hidden');
     if (loginStep1) loginStep1.classList.remove('hidden');
   }
@@ -406,12 +438,27 @@
           pendingLoginTicket = data.loginTicket;
           loginStep1.classList.add('hidden');
           loginStep2.classList.remove('hidden');
-          if (requestEmailOtpBtn) {
-            requestEmailOtpBtn.disabled = false;
-          }
           loginTotpInput.value = '';
-          showLoginInfo('Password verified. Please request a 2FA code and enter it below.');
+          startOtpCooldown();
+          showLoginInfo('Password verified. A 6-digit code has been automatically sent to your email.');
           loginTotpInput.focus();
+
+          try {
+            const otpRes = await fetch('/api/sandbox/2fa/send', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ loginTicket: pendingLoginTicket }),
+            });
+            const otpData = await otpRes.json().catch(() => ({}));
+            if (!otpRes.ok) {
+              if (otpData.code === 'INVALID_LOGIN_TICKET') {
+                resetWizardToStep1();
+              }
+              showLoginError(otpData.error || 'Failed to automatically send 2FA code.');
+            }
+          } catch (otpErr) {
+            showLoginError(`Network error sending 2FA code: ${otpErr.message}`);
+          }
           return;
         }
 
@@ -486,7 +533,7 @@
     });
   }
 
-  // Request Email 2FA OTP (Step 2) - Strictly gated behind pendingLoginTicket from Step 1
+  // Request Email 2FA OTP (Step 2 Resend Button) - Gated behind pendingLoginTicket & 60s cooldown
   if (requestEmailOtpBtn) {
     requestEmailOtpBtn.addEventListener('click', async () => {
       if (!pendingLoginTicket) {
@@ -495,7 +542,7 @@
         return;
       }
 
-      requestEmailOtpBtn.disabled = true;
+      startOtpCooldown();
       try {
         const res = await fetch('/api/sandbox/2fa/send', {
           method: 'POST',
@@ -509,14 +556,10 @@
           }
           showLoginError(data.error || 'Failed to request 2FA code.');
         } else {
-          showLoginInfo('Code sent to your email. Please enter it below.');
+          showLoginInfo('A new 6-digit code has been sent to your email.');
         }
       } catch (err) {
         showLoginError(err.message);
-      } finally {
-        if (pendingLoginTicket) {
-          requestEmailOtpBtn.disabled = false;
-        }
       }
     });
   }
