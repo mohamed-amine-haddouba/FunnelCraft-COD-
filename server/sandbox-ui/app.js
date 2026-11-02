@@ -35,6 +35,13 @@
   const cockpitMobileMenuBtn = document.getElementById('cockpit-mobile-menu-btn');
   const cockpitSidebarCloseBtn = document.getElementById('cockpit-sidebar-close-btn');
 
+  // Step-Up Idle Lock References
+  const stepUpLock = document.getElementById('step-up-lock');
+  const stepUpForm = document.getElementById('step-up-form');
+  const stepUpPasswordInput = document.getElementById('step-up-password');
+  const btnStepUpUnlock = document.getElementById('btn-step-up-unlock');
+  const stepUpAlert = document.getElementById('step-up-alert');
+
   // Topbar & Deploy References
   const topGitBranch = document.getElementById('top-git-branch');
   const topGitCommit = document.getElementById('top-git-commit');
@@ -110,6 +117,9 @@
   let xtermInstance = null;
   let xtermFitAddon = null;
   let terminalSocket = null;
+  let idleTimer = null;
+  let isSessionLocked = false;
+  const IDLE_LOCK_TIMEOUT_MS = 300000; // 5 minutes (300,000 ms)
 
   function getJwt() {
     try {
@@ -195,6 +205,7 @@
         endpoint !== '/login' &&
         endpoint !== '/login/2fa' &&
         endpoint !== '/2fa/send' &&
+        endpoint !== '/auth/step-up' &&
         endpoint !== '/terminal'
       ) {
         clearJwt();
@@ -253,6 +264,151 @@
     if (loginStep1) loginStep1.classList.remove('hidden');
   }
 
+  function isUserAuthenticatedInCockpit() {
+    return (
+      Boolean(getJwt()) &&
+      Boolean(cockpitView) &&
+      !cockpitView.classList.contains('hidden')
+    );
+  }
+
+  function showStepUpError(msg) {
+    if (!stepUpAlert) return;
+    stepUpAlert.textContent = msg;
+    stepUpAlert.classList.remove('hidden');
+  }
+
+  function hideStepUpError() {
+    if (!stepUpAlert) return;
+    stepUpAlert.textContent = '';
+    stepUpAlert.classList.add('hidden');
+  }
+
+  function lockSession() {
+    if (!isUserAuthenticatedInCockpit()) return;
+    if (idleTimer) {
+      clearTimeout(idleTimer);
+      idleTimer = null;
+    }
+    isSessionLocked = true;
+
+    // Blur xterm.js and any active terminal element so keystrokes never go into the shell
+    if (xtermInstance && typeof xtermInstance.blur === 'function') {
+      try {
+        xtermInstance.blur();
+      } catch {
+        // ignore blur errors
+      }
+    }
+    if (
+      document.activeElement &&
+      typeof document.activeElement.blur === 'function' &&
+      document.activeElement !== stepUpPasswordInput
+    ) {
+      try {
+        document.activeElement.blur();
+      } catch {
+        // ignore
+      }
+    }
+
+    hideStepUpError();
+    if (stepUpPasswordInput) {
+      stepUpPasswordInput.value = '';
+    }
+    if (stepUpLock) {
+      stepUpLock.style.display = 'flex';
+    }
+    if (stepUpPasswordInput) {
+      setTimeout(() => {
+        if (isSessionLocked && stepUpPasswordInput) {
+          stepUpPasswordInput.focus();
+        }
+      }, 20);
+    }
+  }
+
+  function resetIdleTimer() {
+    if (idleTimer) {
+      clearTimeout(idleTimer);
+      idleTimer = null;
+    }
+    if (!isUserAuthenticatedInCockpit() || isSessionLocked) {
+      return;
+    }
+    const timeoutMs =
+      typeof window.__SANDBOX_IDLE_TIMEOUT_MS === 'number' && window.__SANDBOX_IDLE_TIMEOUT_MS > 0
+        ? window.__SANDBOX_IDLE_TIMEOUT_MS
+        : IDLE_LOCK_TIMEOUT_MS;
+    idleTimer = setTimeout(() => {
+      lockSession();
+    }, timeoutMs);
+  }
+
+  ['mousemove', 'keydown', 'click', 'scroll'].forEach((eventName) => {
+    document.addEventListener(
+      eventName,
+      () => {
+        if (
+          isUserAuthenticatedInCockpit() &&
+          !isSessionLocked &&
+          (!stepUpLock || stepUpLock.style.display !== 'flex')
+        ) {
+          resetIdleTimer();
+        }
+      },
+      { passive: true }
+    );
+  });
+
+  if (stepUpForm) {
+    stepUpForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      hideStepUpError();
+
+      const password = stepUpPasswordInput ? stepUpPasswordInput.value : '';
+      if (!password) {
+        showStepUpError('Please enter your Master Password.');
+        return;
+      }
+
+      if (btnStepUpUnlock) {
+        btnStepUpUnlock.disabled = true;
+      }
+
+      try {
+        const res = await fetch('/api/sandbox/auth/step-up', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password }),
+        });
+        const data = await res.json().catch(() => ({}));
+
+        if (!res.ok || !data.ok || !data.token) {
+          showStepUpError(data.error || 'Invalid Master Password.');
+          return;
+        }
+
+        setJwt(data.token, (data.owner && data.owner.email) || undefined);
+        isSessionLocked = false;
+        if (stepUpLock) {
+          stepUpLock.style.display = 'none';
+        }
+        if (stepUpPasswordInput) {
+          stepUpPasswordInput.value = '';
+        }
+        hideStepUpError();
+        resetIdleTimer();
+      } catch (err) {
+        showStepUpError(`Network error: ${err.message}`);
+      } finally {
+        if (btnStepUpUnlock) {
+          btnStepUpUnlock.disabled = false;
+        }
+      }
+    });
+  }
+
   function switchView(authenticated) {
     if (resetView) {
       resetView.classList.add('hidden');
@@ -262,7 +418,24 @@
       cockpitView.classList.remove('hidden');
       const savedOwner = sessionStorage.getItem(STORAGE_OWNER_KEY) || 'naadianajah2020@gmail.com';
       sidebarOwnerEmail.textContent = savedOwner;
+      isSessionLocked = false;
+      if (stepUpLock) {
+        stepUpLock.style.display = 'none';
+      }
+      resetIdleTimer();
     } else {
+      if (idleTimer) {
+        clearTimeout(idleTimer);
+        idleTimer = null;
+      }
+      isSessionLocked = false;
+      if (stepUpLock) {
+        stepUpLock.style.display = 'none';
+      }
+      if (stepUpPasswordInput) {
+        stepUpPasswordInput.value = '';
+      }
+      hideStepUpError();
       cockpitView.classList.add('hidden');
       loginView.classList.remove('hidden');
       resetWizardToStep1();
@@ -1143,6 +1316,7 @@
       }
 
       xtermInstance.onData((data) => {
+        if (isSessionLocked) return;
         if (terminalSocket && terminalSocket.readyState === WebSocket.OPEN) {
           terminalSocket.send(JSON.stringify({ type: 'input', data }));
         }
@@ -1173,6 +1347,7 @@
   }
 
   function sendTerminalCommandLine(cmdString) {
+    if (isSessionLocked) return;
     const clean = String(cmdString || '').trim();
     if (!clean) return;
     ensureInteractiveTerminal();
@@ -1180,6 +1355,7 @@
       terminalSocket.send(JSON.stringify({ type: 'input', data: `${clean}\n` }));
     } else {
       setTimeout(() => {
+        if (isSessionLocked) return;
         if (terminalSocket && terminalSocket.readyState === WebSocket.OPEN) {
           terminalSocket.send(JSON.stringify({ type: 'input', data: `${clean}\n` }));
         }

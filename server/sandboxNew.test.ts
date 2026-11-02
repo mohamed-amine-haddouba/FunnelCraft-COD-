@@ -452,5 +452,67 @@ describe('Zero-Trust Sandbox Cockpit (server/sandboxNew.ts)', () => {
 
     assert.ok(outputReceived.includes('CODWORTH_WS_PTY_READY'));
   });
+
+  it('verifies Master Password on POST /api/sandbox/auth/step-up to issue fresh 30m JWT and rejects invalid passwords with 401', async () => {
+    // 1. Missing password -> 401
+    const emptyRes = await fetch(`${baseUrl}/api/sandbox/auth/step-up`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-test-bypass-rate-limit': '1',
+      },
+      body: JSON.stringify({ password: '' }),
+    });
+    assert.equal(emptyRes.status, 401);
+
+    // 2. Wrong password -> 401
+    const wrongRes = await fetch(`${baseUrl}/api/sandbox/auth/step-up`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-test-bypass-rate-limit': '1',
+      },
+      body: JSON.stringify({ password: 'WrongMasterPassword!' }),
+    });
+    assert.equal(wrongRes.status, 401);
+    const wrongData = (await wrongRes.json()) as { ok: boolean; code: string };
+    assert.equal(wrongData.ok, false);
+    assert.equal(wrongData.code, 'INVALID_CREDENTIALS');
+
+    // 3. Valid Master Password -> 200 + fresh 30m JWT + owner payload
+    const validRes = await fetch(`${baseUrl}/api/sandbox/auth/step-up`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-test-bypass-rate-limit': '1',
+      },
+      body: JSON.stringify({ password: TEST_OWNER_PASS }),
+    });
+    assert.equal(validRes.status, 200);
+    const validData = (await validRes.json()) as {
+      ok: boolean;
+      token: string;
+      owner: { email: string; role: string };
+    };
+    assert.equal(validData.ok, true);
+    assert.ok(validData.token);
+    assert.equal(validData.owner.email, STRICT_OWNER_EMAIL);
+    assert.equal(validData.owner.role, 'owner');
+
+    const verified = verifySandboxJwt(validData.token);
+    assert.equal(verified.valid, true);
+    assert.equal(verified.payload?.email, STRICT_OWNER_EMAIL);
+
+    // 4. UI markup includes #step-up-lock, #step-up-password, #btn-step-up-unlock, and #step-up-alert
+    const uiRes = await fetch(`${baseUrl}/sandbox/deploy`);
+    assert.equal(uiRes.status, 200);
+    const html = await uiRes.text();
+    assert.ok(html.includes('id="step-up-lock"'));
+    assert.ok(html.includes('Session Locked'));
+    assert.ok(html.includes('id="step-up-password"'));
+    assert.ok(html.includes('id="btn-step-up-unlock"'));
+    assert.ok(html.includes('id="step-up-alert"'));
+  });
 });
+
 

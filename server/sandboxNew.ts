@@ -7,6 +7,7 @@ import crypto from 'crypto';
 import { execFile, spawn } from 'child_process';
 import { fileURLToPath } from 'url';
 import { createRequire } from 'module';
+import rateLimit from 'express-rate-limit';
 import { WebSocketServer, WebSocket } from 'ws';
 import {
   findUserByEmail,
@@ -798,6 +799,23 @@ export function createSandboxCockpitRouter(): Router {
     );
   };
 
+  const loginLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 5, // Max 5 attempts per 15 minutes per IP
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: (req) => getClientIp(req),
+    skip: (req) =>
+      process.env.NODE_ENV !== 'production' && req.headers['x-test-bypass-rate-limit'] === '1',
+    validate: false,
+    statusCode: 429,
+    message: {
+      ok: false,
+      code: 'RATE_LIMITED',
+      error: 'Too many authentication attempts (max 5 per 15 minutes). Please try again later.',
+    },
+  });
+
   // 1a. POST /api/sandbox/login (Step 1) — Verify Owner email + password; issue loginTicket if 2FA required or full JWT otherwise
   router.post('/login', async (req: Request, res: Response) => {
     const rawEmail = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : '';
@@ -1151,6 +1169,78 @@ export function createSandboxCockpitRouter(): Router {
     return res.status(200).json({
       ok: true,
       message: 'Password updated successfully! Please login.',
+    });
+  });
+
+  // 1e. POST /api/sandbox/auth/step-up — Verify Owner Master Password to unlock idle session & issue fresh 30m JWT
+  router.post('/auth/step-up', loginLimiter, (req: Request, res: Response) => {
+    const rawPassword = typeof req.body?.password === 'string' ? req.body.password : '';
+    const ip = getClientIp(req);
+    const location = resolveClientGeoLocation(req, ip);
+    const userAgent = String(req.headers['user-agent'] || 'Unknown User-Agent');
+
+    if (!rawPassword) {
+      return res.status(401).json({
+        ok: false,
+        code: 'INVALID_CREDENTIALS',
+        error: 'Master Password is required to unlock the session.',
+      });
+    }
+
+    const ownerUser =
+      findUserByEmail(STRICT_OWNER_EMAIL) ||
+      ensureOwnerAccountForEmail(
+        STRICT_OWNER_EMAIL,
+        process.env.SANDBOX_OWNER_PASSWORD || process.env.OWNER_INITIAL_PASSWORD || ''
+      );
+
+    const envSandboxPass = (process.env.SANDBOX_OWNER_PASSWORD || '').trim();
+    let passwordMatches = timingSafeVerifyPassword(ownerUser, rawPassword);
+    if (!passwordMatches && envSandboxPass) {
+      const a = Buffer.from(envSandboxPass, 'utf-8');
+      const b = Buffer.from(rawPassword, 'utf-8');
+      if (a.length === b.length && crypto.timingSafeEqual(a, b)) {
+        passwordMatches = true;
+      }
+    }
+
+    if (!passwordMatches) {
+      recordSandboxLoginAttempt({
+        email: STRICT_OWNER_EMAIL,
+        ip,
+        location,
+        userAgent,
+        status: 'FAILED',
+        reason: 'step_up_unlock_failed',
+      });
+      return res.status(401).json({
+        ok: false,
+        code: 'INVALID_CREDENTIALS',
+        error: 'Invalid Master Password.',
+      });
+    }
+
+    const { token, payload } = signSandboxJwt(STRICT_OWNER_EMAIL);
+    setSandboxSidCookie(res, token);
+
+    recordSandboxLoginAttempt({
+      email: STRICT_OWNER_EMAIL,
+      ip,
+      location,
+      userAgent,
+      status: 'SUCCESS',
+      reason: 'step_up_unlocked',
+    });
+
+    return res.status(200).json({
+      ok: true,
+      token,
+      expiresAt: payload.exp * 1000,
+      owner: {
+        email: STRICT_OWNER_EMAIL,
+        name: ownerUser?.full_name || 'Platform Owner',
+        role: 'owner',
+      },
     });
   });
 

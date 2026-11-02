@@ -50,7 +50,20 @@ code, pre, .tabular-nums, .mono-input {
   flex-shrink: 0;
 }
 
-/* ======================== LOGIN SCREEN ======================== */
+/* ======================== LOGIN SCREEN & STEP-UP IDLE LOCK ======================== */
+#step-up-lock {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  background: rgba(13, 19, 30, 0.85);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
 .login-backdrop {
   min-height: 100vh;
   display: flex;
