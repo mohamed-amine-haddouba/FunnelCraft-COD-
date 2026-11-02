@@ -2078,6 +2078,7 @@ export default function App() {
   }, []);
 
   const hideFloatingWhatsApp =
+    showIntro ||
     isReservedRootPath(location.pathname) ||
     location.pathname.startsWith('/p/');
 
