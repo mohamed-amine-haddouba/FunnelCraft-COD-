@@ -7,6 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/api/sandbox/vendor/xterm/css/xterm.css" />
   <link rel="stylesheet" href="/sandbox/style.css" />
 </head>
 <body>
@@ -194,7 +195,7 @@
       </div>
 
       <nav class="sidebar-nav" aria-label="Sandbox Sections">
-        <button type="button" class="nav-item active" data-tab="deploy">
+        <a href="/sandbox/deploy" class="nav-item active" data-tab="deploy" data-route="/sandbox/deploy">
           <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/>
             <path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/>
@@ -202,9 +203,27 @@
             <path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/>
           </svg>
           <span>Deploy</span>
-        </button>
+        </a>
 
-        <button type="button" class="nav-item" data-tab="logs">
+        <a href="/sandbox/terminal" class="nav-item" data-tab="terminal" data-route="/sandbox/terminal">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="4 17 10 11 4 5"/>
+            <line x1="12" y1="19" x2="20" y2="19"/>
+          </svg>
+          <span>Web Terminal</span>
+        </a>
+
+        <a href="/sandbox/system" class="nav-item" data-tab="system" data-route="/sandbox/system">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="2" y="2" width="20" height="8" rx="2" ry="2"/>
+            <rect x="2" y="14" width="20" height="8" rx="2" ry="2"/>
+            <line x1="6" y1="6" x2="6.01" y2="6"/>
+            <line x1="6" y1="18" x2="6.01" y2="18"/>
+          </svg>
+          <span>System Health</span>
+        </a>
+
+        <a href="/sandbox/logs" class="nav-item" data-tab="logs" data-route="/sandbox/logs">
           <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
             <polyline points="14 2 14 8 20 8"/>
@@ -213,41 +232,23 @@
             <polyline points="10 9 9 9 8 9"/>
           </svg>
           <span>Logs</span>
-        </button>
+        </a>
 
-        <button type="button" class="nav-item" data-tab="system">
-          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <rect x="2" y="2" width="20" height="8" rx="2" ry="2"/>
-            <rect x="2" y="14" width="20" height="8" rx="2" ry="2"/>
-            <line x1="6" y1="6" x2="6.01" y2="6"/>
-            <line x1="6" y1="18" x2="6.01" y2="18"/>
-          </svg>
-          <span>System</span>
-        </button>
-
-        <button type="button" class="nav-item" data-tab="terminal">
-          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polyline points="4 17 10 11 4 5"/>
-            <line x1="12" y1="19" x2="20" y2="19"/>
-          </svg>
-          <span>Safe Terminal</span>
-        </button>
-
-        <button type="button" class="nav-item" data-tab="security">
+        <a href="/sandbox/security" class="nav-item" data-tab="security" data-route="/sandbox/security">
           <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
           </svg>
           <span>Security</span>
-        </button>
+        </a>
 
-        <button type="button" class="nav-item" data-tab="backups">
+        <a href="/sandbox/backups" class="nav-item" data-tab="backups" data-route="/sandbox/backups">
           <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
             <polyline points="7 10 12 15 17 10"/>
             <line x1="12" y1="15" x2="12" y2="3"/>
           </svg>
           <span>Backups</span>
-        </button>
+        </a>
       </nav>
 
       <div class="sidebar-footer">
@@ -343,9 +344,9 @@
           <div class="panel-card">
             <div class="panel-header">
               <div>
-                <h2 class="panel-title">Zero-Downtime Build &amp; Deployment Pipeline</h2>
+                <h2 class="panel-title">Zero-Downtime 5-Step Build &amp; Deployment Pipeline</h2>
                 <p class="panel-desc">
-                  Pull the latest commits from <code>origin/main</code>, run strict TypeScript verification (<code>npx tsc --noEmit</code>) and Vite production bundling (<code>npm run build</code>), then reload <code>funnelcraft-api</code>.
+                  Executes <code>git pull origin main</code>, <code>npm install --legacy-peer-deps</code>, <code>npx tsc --noEmit</code>, <code>npm run build</code>, and <code>pm2 restart funnelcraft-api</code> with real-time streaming output.
                 </p>
               </div>
               <div class="action-group">
@@ -360,11 +361,60 @@
                 </button>
 
                 <button type="button" id="btn-run-deploy" class="btn btn-primary">
-                  <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <span id="deploy-btn-spinner" class="btn-spinner hidden" aria-hidden="true"></span>
+                  <svg id="deploy-btn-icon" class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <polygon points="5 3 19 12 5 21 5 3"/>
                   </svg>
-                  <span>Run Checks &amp; Deploy</span>
+                  <span id="deploy-btn-label">Run Checks &amp; Deploy</span>
                 </button>
+              </div>
+            </div>
+
+            <!-- 5-Step Pipeline Progress Tracker -->
+            <div id="deploy-steps-grid" class="deploy-steps-grid" aria-label="Deployment Pipeline Steps">
+              <div class="deploy-step-card" data-step="1">
+                <div class="deploy-step-head">
+                  <span class="deploy-step-num">STEP 1</span>
+                  <span class="deploy-step-badge" id="deploy-step-icon-1">Pending</span>
+                </div>
+                <div class="deploy-step-title">Pull Latest Code</div>
+                <code class="deploy-step-cmd">git pull origin main</code>
+              </div>
+
+              <div class="deploy-step-card" data-step="2">
+                <div class="deploy-step-head">
+                  <span class="deploy-step-num">STEP 2</span>
+                  <span class="deploy-step-badge" id="deploy-step-icon-2">Pending</span>
+                </div>
+                <div class="deploy-step-title">Install Dependencies</div>
+                <code class="deploy-step-cmd">npm install --legacy-peer-deps</code>
+              </div>
+
+              <div class="deploy-step-card" data-step="3">
+                <div class="deploy-step-head">
+                  <span class="deploy-step-num">STEP 3</span>
+                  <span class="deploy-step-badge" id="deploy-step-icon-3">Pending</span>
+                </div>
+                <div class="deploy-step-title">TypeScript Check</div>
+                <code class="deploy-step-cmd">npx tsc --noEmit</code>
+              </div>
+
+              <div class="deploy-step-card" data-step="4">
+                <div class="deploy-step-head">
+                  <span class="deploy-step-num">STEP 4</span>
+                  <span class="deploy-step-badge" id="deploy-step-icon-4">Pending</span>
+                </div>
+                <div class="deploy-step-title">Production Build</div>
+                <code class="deploy-step-cmd">npm run build</code>
+              </div>
+
+              <div class="deploy-step-card" data-step="5">
+                <div class="deploy-step-head">
+                  <span class="deploy-step-num">STEP 5</span>
+                  <span class="deploy-step-badge" id="deploy-step-icon-5">Pending</span>
+                </div>
+                <div class="deploy-step-title">Reload PM2 Service</div>
+                <code class="deploy-step-cmd">pm2 restart funnelcraft-api</code>
               </div>
             </div>
 
@@ -379,7 +429,7 @@
                 <button type="button" id="btn-clear-deploy-log" class="btn-terminal-clear">Clear Output</button>
               </div>
               <pre id="deploy-terminal-output" class="terminal-pre">[CodWorth Admin Cockpit] Ready.
-Click "Pull Latest Code" to run `git pull origin main` or "Run Checks &amp; Deploy" to stream `npx tsc --noEmit`, `npm run build`, and `pm2 restart funnelcraft-api` in real time.</pre>
+Click "Run Checks &amp; Deploy" to execute the 5-step pipeline (`git pull origin main` → `npm install --legacy-peer-deps` → `npx tsc --noEmit` → `npm run build` → `pm2 restart funnelcraft-api`) with live stdout/stderr streaming.</pre>
             </div>
           </div>
         </section>
@@ -425,16 +475,75 @@ Click "Pull Latest Code" to run `git pull origin main` or "Run Checks &amp; Depl
           </div>
         </section>
 
-        <!-- 3. SYSTEM HEALTH -->
+        <!-- 3. SYSTEM HEALTH & ANALYTICS -->
         <section id="tab-system" class="tab-panel hidden">
+          <!-- Application Business Metrics -->
+          <div class="section-heading-row">
+            <h2 class="section-heading">Platform Business &amp; COD Analytics</h2>
+            <span class="section-sub">Real-time metrics from <code>data/users.json</code>, <code>data/pages.json</code>, and <code>data/orders.json</code></span>
+          </div>
+
+          <div class="metrics-grid metrics-grid-4">
+            <div class="metric-card">
+              <div class="metric-header">
+                <span class="metric-label">REGISTERED MERCHANTS</span>
+              </div>
+              <div id="sys-app-merchants" class="metric-value tabular-nums">—</div>
+              <div id="sys-app-merchants-sub" class="metric-sub">Active accounts: —</div>
+            </div>
+
+            <div class="metric-card">
+              <div class="metric-header">
+                <span class="metric-label">ACTIVE LANDING PAGES</span>
+              </div>
+              <div id="sys-app-pages" class="metric-value tabular-nums">—</div>
+              <div id="sys-app-pages-sub" class="metric-sub">Total funnels: —</div>
+            </div>
+
+            <div class="metric-card">
+              <div class="metric-header">
+                <span class="metric-label">COD ORDERS TODAY</span>
+              </div>
+              <div id="sys-app-orders-today" class="metric-value tabular-nums">—</div>
+              <div id="sys-app-orders-total" class="metric-sub">All-time COD orders: —</div>
+            </div>
+
+            <div class="metric-card">
+              <div class="metric-header">
+                <span class="metric-label">TOTAL REVENUE (MAD)</span>
+              </div>
+              <div id="sys-app-revenue" class="metric-value tabular-nums status-text-online">— MAD</div>
+              <div id="sys-app-mrr-sub" class="metric-sub">Subscription MRR: — MAD</div>
+            </div>
+          </div>
+
+          <!-- Server Infrastructure Telemetry -->
+          <div class="section-heading-row">
+            <h2 class="section-heading">Server Hardware &amp; Runtime Telemetry</h2>
+            <span class="section-sub">Live CPU load, RAM allocation, Disk space, OS uptime, and Node.js memory</span>
+          </div>
+
           <div class="metrics-grid">
             <div class="metric-card">
               <div class="metric-header">
-                <span class="metric-label">NGINX REVERSE PROXY</span>
-                <span id="sys-nginx-dot" class="status-dot status-online"></span>
+                <span class="metric-label">CPU LOAD (1m / 5m / 15m)</span>
               </div>
-              <div id="sys-nginx-status" class="metric-value status-text-online">Active</div>
-              <div id="sys-nginx-sub" class="metric-sub">Proxying /sandbox → 127.0.0.1:3002</div>
+              <div id="sys-cpu-load" class="metric-value tabular-nums">— / — / —</div>
+              <div class="progress-bar">
+                <div id="sys-cpu-bar" class="progress-fill" style="width: 0%"></div>
+              </div>
+              <div id="sys-cpu-sub" class="metric-sub">Cores: — • Load: —%</div>
+            </div>
+
+            <div class="metric-card">
+              <div class="metric-header">
+                <span class="metric-label">MEMORY UTILIZATION (free -m)</span>
+              </div>
+              <div id="sys-mem-pct" class="metric-value tabular-nums">—%</div>
+              <div class="progress-bar">
+                <div id="sys-mem-bar" class="progress-fill" style="width: 0%"></div>
+              </div>
+              <div id="sys-mem-summary" class="metric-sub">—</div>
             </div>
 
             <div class="metric-card">
@@ -450,13 +559,57 @@ Click "Pull Latest Code" to run `git pull origin main` or "Run Checks &amp; Depl
 
             <div class="metric-card">
               <div class="metric-header">
-                <span class="metric-label">MEMORY UTILIZATION (free -m)</span>
+                <span class="metric-label">OS &amp; SERVICE UPTIME</span>
               </div>
-              <div id="sys-mem-pct" class="metric-value tabular-nums">—%</div>
-              <div class="progress-bar">
-                <div id="sys-mem-bar" class="progress-fill" style="width: 0%"></div>
+              <div id="sys-os-uptime" class="metric-value tabular-nums">—</div>
+              <div id="sys-os-platform" class="metric-sub">Service Uptime: —</div>
+            </div>
+
+            <div class="metric-card">
+              <div class="metric-header">
+                <span class="metric-label">NODE.JS PROCESS MEMORY</span>
               </div>
-              <div id="sys-mem-summary" class="metric-sub">—</div>
+              <div id="sys-node-rss" class="metric-value tabular-nums">— MB RSS</div>
+              <div id="sys-node-heap" class="metric-sub">Heap: — MB / — MB</div>
+            </div>
+
+            <div class="metric-card">
+              <div class="metric-header">
+                <span class="metric-label">NGINX REVERSE PROXY</span>
+                <span id="sys-nginx-dot" class="status-dot status-online"></span>
+              </div>
+              <div id="sys-nginx-status" class="metric-value status-text-online">Active</div>
+              <div id="sys-nginx-sub" class="metric-sub">Proxying /sandbox → 127.0.0.1:3002</div>
+            </div>
+          </div>
+
+          <!-- PM2 Process Table -->
+          <div class="panel-card">
+            <div class="panel-header">
+              <div>
+                <h3 class="panel-title">PM2 Process Statuses</h3>
+                <p class="panel-desc">Active Node.js processes managed by PM2 / runtime supervisor.</p>
+              </div>
+            </div>
+            <div class="table-container">
+              <table class="audit-table">
+                <thead>
+                  <tr>
+                    <th>Process Name</th>
+                    <th>PID</th>
+                    <th>Status</th>
+                    <th>CPU</th>
+                    <th>Memory</th>
+                    <th>Uptime</th>
+                    <th>Restarts</th>
+                  </tr>
+                </thead>
+                <tbody id="sys-pm2-tbody">
+                  <tr>
+                    <td colspan="7" class="empty-cell">Loading PM2 process table...</td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
           </div>
 
@@ -481,28 +634,36 @@ Click "Pull Latest Code" to run `git pull origin main` or "Run Checks &amp; Depl
           </div>
         </section>
 
-        <!-- 4. SAFE TERMINAL -->
+        <!-- 4. REAL INTERACTIVE WEB TERMINAL (XTERM.JS + NODE-PTY) -->
         <section id="tab-terminal" class="tab-panel hidden">
           <div class="panel-card">
             <div class="panel-header">
               <div>
-                <h2 class="panel-title">Restricted Zero-Trust Safe Terminal</h2>
+                <h2 class="panel-title">Interactive Web Terminal (<code>xterm.js</code> + <code>node-pty</code>)</h2>
                 <p class="panel-desc">
-                  Strictly allows read-only diagnostic commands (<code>ls</code>, <code>pm2 list</code>, <code>cat</code>, <code>tail</code>, <code>df -h</code>, <code>free -m</code>, <code>uptime</code>, <code>git status</code>, <code>git log -n 5</code>). Destructive commands (<code>rm</code>, <code>mv</code>, <code>bash</code>, pipes) are blocked.
+                  Full interactive pseudo-terminal connected over Zero-Trust WebSocket (<code>/api/sandbox/terminal</code>). Supports live keystrokes, ANSI colors, shell history, and automatic window resizing.
                 </p>
+              </div>
+              <div class="action-group">
+                <span id="ws-terminal-badge" class="badge-status badge-warn">CONNECTING</span>
+                <button type="button" id="btn-reconnect-terminal" class="btn btn-secondary btn-sm">
+                  Reconnect Shell
+                </button>
+                <button type="button" id="btn-clear-safe-terminal" class="btn btn-secondary btn-sm">
+                  Clear Screen
+                </button>
               </div>
             </div>
 
             <div class="quick-cmd-bar">
-              <span class="quick-label">Quick Commands:</span>
+              <span class="quick-label">Quick Inject:</span>
               <button type="button" class="chip-btn" data-cmd="ls -la">ls -la</button>
-              <button type="button" class="chip-btn" data-cmd="pm2 list">pm2 list</button>
+              <button type="button" class="chip-btn" data-cmd="pm2 status">pm2 status</button>
               <button type="button" class="chip-btn" data-cmd="df -h">df -h</button>
               <button type="button" class="chip-btn" data-cmd="free -m">free -m</button>
               <button type="button" class="chip-btn" data-cmd="git status">git status</button>
-              <button type="button" class="chip-btn" data-cmd="git log -n 5">git log -n 5</button>
-              <button type="button" class="chip-btn" data-cmd="cat deploy.sh">cat deploy.sh</button>
-              <button type="button" class="chip-btn" data-cmd="tail -n 20 data/plans.json">tail -n 20 data/plans.json</button>
+              <button type="button" class="chip-btn" data-cmd="git log -n 5 --oneline">git log -n 5</button>
+              <button type="button" class="chip-btn" data-cmd="uptime">uptime</button>
             </div>
 
             <div class="terminal-window">
@@ -512,23 +673,17 @@ Click "Pull Latest Code" to run `git pull origin main` or "Run Checks &amp; Depl
                   <span class="dot dot-amber"></span>
                   <span class="dot dot-green"></span>
                 </div>
-                <div class="terminal-title">owner@codworth-cockpit:~/workspace (WHITELISTED EXECFILE)</div>
-                <button type="button" id="btn-clear-safe-terminal" class="btn-terminal-clear">Clear</button>
+                <div id="xterm-session-title" class="terminal-title">owner@codworth-cockpit:~/workspace (/bin/bash — PTY)</div>
               </div>
-              <pre id="safe-terminal-output" class="terminal-pre">CodWorth Zero-Trust Safe Terminal [Version 2.0]
-Whitelisted commands: ls, pm2 list, cat &lt;file&gt;, tail [-n N] &lt;file&gt;, df -h, free -m, uptime, git status, git log -n 5
-Blocked commands: rm, mv, cp, bash, sh, sudo, curl, wget, pipes (|), chaining (; &amp;&amp;)
-
-owner@codworth:~$ </pre>
+              <div id="xterm-container" class="xterm-viewport-host" data-testid="xterm-container"></div>
               <form id="safe-terminal-form" class="terminal-input-bar" autocomplete="off">
                 <span class="terminal-prompt">owner@codworth:~$</span>
                 <input
                   type="text"
                   id="safe-terminal-input"
-                  placeholder="Type a safe command (e.g. ls -la, df -h, pm2 list, cat deploy.sh)..."
-                  required
+                  placeholder="Send command to interactive shell (or type directly inside the terminal above)..."
                 />
-                <button type="submit" class="btn btn-primary btn-sm">Execute</button>
+                <button type="submit" class="btn btn-primary btn-sm">Send</button>
               </form>
             </div>
           </div>
@@ -612,6 +767,8 @@ owner@codworth:~$ </pre>
     </div>
   </div>
 
+  <script src="/api/sandbox/vendor/xterm/lib/xterm.js"></script>
+  <script src="/api/sandbox/vendor/xterm-addon-fit/lib/xterm-addon-fit.js"></script>
   <script src="/sandbox/app.js"></script>
 </body>
 </html>

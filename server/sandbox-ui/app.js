@@ -48,6 +48,9 @@
   const deployHostSub = document.getElementById('deploy-host-sub');
   const btnGitPull = document.getElementById('btn-git-pull');
   const btnRunDeploy = document.getElementById('btn-run-deploy');
+  const deployBtnSpinner = document.getElementById('deploy-btn-spinner');
+  const deployBtnIcon = document.getElementById('deploy-btn-icon');
+  const deployBtnLabel = document.getElementById('deploy-btn-label');
   const btnClearDeployLog = document.getElementById('btn-clear-deploy-log');
   const deployStreamStatus = document.getElementById('deploy-stream-status');
   const deployTerminalOutput = document.getElementById('deploy-terminal-output');
@@ -58,7 +61,22 @@
   const logsMetaTitle = document.getElementById('logs-meta-title');
   const pm2LogsOutput = document.getElementById('pm2-logs-output');
 
-  // System References
+  // System & App Analytics References
+  const sysAppMerchants = document.getElementById('sys-app-merchants');
+  const sysAppMerchantsSub = document.getElementById('sys-app-merchants-sub');
+  const sysAppPages = document.getElementById('sys-app-pages');
+  const sysAppPagesSub = document.getElementById('sys-app-pages-sub');
+  const sysAppOrdersToday = document.getElementById('sys-app-orders-today');
+  const sysAppOrdersTotal = document.getElementById('sys-app-orders-total');
+  const sysAppRevenue = document.getElementById('sys-app-revenue');
+  const sysAppMrrSub = document.getElementById('sys-app-mrr-sub');
+  const sysCpuLoad = document.getElementById('sys-cpu-load');
+  const sysCpuBar = document.getElementById('sys-cpu-bar');
+  const sysCpuSub = document.getElementById('sys-cpu-sub');
+  const sysOsUptime = document.getElementById('sys-os-uptime');
+  const sysOsPlatform = document.getElementById('sys-os-platform');
+  const sysNodeRss = document.getElementById('sys-node-rss');
+  const sysNodeHeap = document.getElementById('sys-node-heap');
   const sysNginxDot = document.getElementById('sys-nginx-dot');
   const sysNginxStatus = document.getElementById('sys-nginx-status');
   const sysNginxSub = document.getElementById('sys-nginx-sub');
@@ -68,11 +86,14 @@
   const sysMemPct = document.getElementById('sys-mem-pct');
   const sysMemBar = document.getElementById('sys-mem-bar');
   const sysMemSummary = document.getElementById('sys-mem-summary');
+  const sysPm2Tbody = document.getElementById('sys-pm2-tbody');
   const sysDfRaw = document.getElementById('sys-df-raw');
   const sysFreeRaw = document.getElementById('sys-free-raw');
 
-  // Safe Terminal References
-  const safeTerminalOutput = document.getElementById('safe-terminal-output');
+  // Interactive Web Terminal References (xterm.js + node-pty)
+  const xtermContainer = document.getElementById('xterm-container');
+  const wsTerminalBadge = document.getElementById('ws-terminal-badge');
+  const btnReconnectTerminal = document.getElementById('btn-reconnect-terminal');
   const safeTerminalForm = document.getElementById('safe-terminal-form');
   const safeTerminalInput = document.getElementById('safe-terminal-input');
   const btnClearSafeTerminal = document.getElementById('btn-clear-safe-terminal');
@@ -86,6 +107,9 @@
   let activeDeployEventSource = null;
   let pendingLoginTicket = null;
   let otpCooldownInterval = null;
+  let xtermInstance = null;
+  let xtermFitAddon = null;
+  let terminalSocket = null;
 
   function getJwt() {
     try {
@@ -146,7 +170,8 @@
   }
 
   function escapeHtml(str) {
-    return String(str || '')
+    const raw = str === null || str === undefined ? '' : String(str);
+    return raw
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
@@ -244,15 +269,25 @@
     }
   }
 
-  // Tab Navigation
+  // Independent Multi-Page URL Routing (/sandbox/deploy, /sandbox/terminal, /sandbox/system, /sandbox/logs, /sandbox/security, /sandbox/backups)
+  const VALID_TABS = ['deploy', 'terminal', 'system', 'logs', 'security', 'backups'];
   const TAB_TITLES = {
-    deploy: 'Deployment Dashboard',
-    logs: 'PM2 Logs Viewer',
-    system: 'System Health & Resources',
-    terminal: 'Safe Terminal (Whitelisted)',
-    security: 'Security Audit Trail',
-    backups: 'Data Backups (data/*.tar.gz)',
+    deploy: 'Deployment Dashboard (/sandbox/deploy)',
+    terminal: 'Interactive Web Terminal (/sandbox/terminal)',
+    system: 'System Health & Analytics (/sandbox/system)',
+    logs: 'PM2 Logs Viewer (/sandbox/logs)',
+    security: 'Security Audit Trail (/sandbox/security)',
+    backups: 'Data Backups (/sandbox/backups)',
   };
+
+  function resolveTabFromPathname(pathname) {
+    const clean = String(pathname || '').replace(/\/+$/, '');
+    const match = clean.match(/^\/sandbox\/([a-z0-9_-]+)$/i);
+    if (match && VALID_TABS.includes(match[1].toLowerCase())) {
+      return match[1].toLowerCase();
+    }
+    return 'deploy';
+  }
 
   function closeMobileSidebar() {
     if (cockpitSidebar) {
@@ -296,36 +331,80 @@
     cockpitSidebarBackdrop.addEventListener('click', closeMobileSidebar);
   }
 
-  document.querySelectorAll('.nav-item').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const targetTab = btn.getAttribute('data-tab');
-      document.querySelectorAll('.nav-item').forEach((b) => b.classList.remove('active'));
-      btn.classList.add('active');
-      closeMobileSidebar();
+  function activateRouteTab(targetTab, options) {
+    const tab = VALID_TABS.includes(targetTab) ? targetTab : 'deploy';
+    const opts = options || {};
+    const targetPath = `/sandbox/${tab}`;
 
-      document.querySelectorAll('.tab-panel').forEach((panel) => {
-        if (panel.id === `tab-${targetTab}`) {
-          panel.classList.remove('hidden');
-          panel.classList.add('active');
-        } else {
-          panel.classList.add('hidden');
-          panel.classList.remove('active');
-        }
-      });
+    if (opts.push && window.location.pathname !== targetPath) {
+      window.history.pushState({ tab }, '', targetPath);
+    } else if (opts.replace && window.location.pathname !== targetPath) {
+      window.history.replaceState({ tab }, '', targetPath);
+    }
 
-      currentTabTitle.textContent = TAB_TITLES[targetTab] || 'Sandbox Cockpit';
-
-      if (targetTab === 'logs') {
-        loadPm2Logs();
-      } else if (targetTab === 'security' || targetTab === 'backups') {
-        loadSecurityAndBackups();
-      } else if (targetTab === 'system' || targetTab === 'deploy') {
-        loadSystemStatus();
+    document.querySelectorAll('.nav-item').forEach((item) => {
+      if (item.getAttribute('data-tab') === tab) {
+        item.classList.add('active');
+      } else {
+        item.classList.remove('active');
       }
+    });
+
+    closeMobileSidebar();
+
+    document.querySelectorAll('.tab-panel').forEach((panel) => {
+      if (panel.id === `tab-${tab}`) {
+        panel.classList.remove('hidden');
+        panel.classList.add('active');
+      } else {
+        panel.classList.add('hidden');
+        panel.classList.remove('active');
+      }
+    });
+
+    if (currentTabTitle) {
+      currentTabTitle.textContent = TAB_TITLES[tab] || 'Sandbox Cockpit';
+    }
+
+    if (tab === 'terminal') {
+      ensureInteractiveTerminal();
+      setTimeout(() => {
+        if (xtermFitAddon) {
+          try {
+            xtermFitAddon.fit();
+          } catch {
+            // ignore fit error when hidden
+          }
+        }
+        if (xtermInstance) {
+          xtermInstance.focus();
+        }
+      }, 60);
+    } else if (tab === 'logs') {
+      loadPm2Logs();
+    } else if (tab === 'security' || tab === 'backups') {
+      loadSecurityAndBackups();
+    } else if (tab === 'system' || tab === 'deploy') {
+      loadSystemStatus();
+    }
+  }
+
+  document.querySelectorAll('.nav-item').forEach((link) => {
+    link.addEventListener('click', (e) => {
+      e.preventDefault();
+      const targetTab = link.getAttribute('data-tab') || 'deploy';
+      activateRouteTab(targetTab, { push: true });
     });
   });
 
-  // Load System Status & Telemetry
+  window.addEventListener('popstate', () => {
+    if (!cockpitView.classList.contains('hidden')) {
+      const tab = resolveTabFromPathname(window.location.pathname);
+      activateRouteTab(tab, { push: false });
+    }
+  });
+
+  // Load System Status & Comprehensive Server + App Telemetry
   async function loadSystemStatus() {
     try {
       const res = await apiFetch('/status', { method: 'GET' });
@@ -336,14 +415,14 @@
       topGitBranch.textContent = (data.git && data.git.branch) || 'main';
       topGitCommit.textContent = (data.git && data.git.commit) || 'HEAD';
 
-      // Service status card
+      // Service status card (Deploy tab)
       const isOnline = data.service && data.service.status === 'Online';
       deployServiceStatus.textContent = isOnline ? 'Online' : 'Offline';
       deployServiceStatus.className = `metric-value ${isOnline ? 'status-text-online' : 'status-text-offline'}`;
       deployServiceDot.className = `status-dot ${isOnline ? 'status-online' : 'status-offline'}`;
       deployServiceMeta.textContent = `PID: ${data.service.pid || '—'} • Restarts: ${data.service.restarts || 0}`;
 
-      // RAM usage card
+      // RAM usage card (Deploy tab)
       const usedMb = data.memory.usedMb || 0;
       const totalMb = data.memory.totalMb || 0;
       const memPct = data.memory.usagePercent || 0;
@@ -351,11 +430,72 @@
       deployRamBar.style.width = `${Math.min(100, memPct)}%`;
       deployRamSub.textContent = `Node Process RSS: ${data.service.processMemoryMb || 0} MB`;
 
-      // Uptime card
+      // Uptime card (Deploy tab)
       deployUptimeValue.textContent = formatDuration(data.service.uptimeSeconds);
       deployHostSub.textContent = `${data.system.hostname} • Node ${data.system.nodeVersion}`;
 
-      // System Health tab
+      // App Business Metrics (System Health tab)
+      const app = data.appMetrics || {};
+      if (sysAppMerchants) {
+        sysAppMerchants.textContent = String(app.totalMerchants ?? 0);
+      }
+      if (sysAppMerchantsSub) {
+        sysAppMerchantsSub.textContent = `Active merchants: ${app.activeMerchants ?? 0} • Total users: ${app.totalUsers ?? 0}`;
+      }
+      if (sysAppPages) {
+        sysAppPages.textContent = String(app.totalActivePages ?? 0);
+      }
+      if (sysAppPagesSub) {
+        sysAppPagesSub.textContent = `Total funnels in DB: ${app.totalPages ?? 0}`;
+      }
+      if (sysAppOrdersToday) {
+        sysAppOrdersToday.textContent = String(app.codOrdersToday ?? 0);
+      }
+      if (sysAppOrdersTotal) {
+        sysAppOrdersTotal.textContent = `All-time COD orders: ${app.totalOrders ?? 0}`;
+      }
+      if (sysAppRevenue) {
+        const rev = Number(app.totalRevenueMad || 0).toLocaleString('en-US');
+        sysAppRevenue.textContent = `${rev} MAD`;
+      }
+      if (sysAppMrrSub) {
+        const mrr = Number(app.mrrMad || 0).toLocaleString('en-US');
+        sysAppMrrSub.textContent = `Subscription MRR: ${mrr} MAD/mo`;
+      }
+
+      // Server Hardware & Runtime Metrics (System Health tab)
+      const cpu = data.cpu || {};
+      const loadArr = (data.system && data.system.loadAvg) || [0, 0, 0];
+      const l1 = cpu.load1m !== undefined ? cpu.load1m : loadArr[0] || 0;
+      const l5 = cpu.load5m !== undefined ? cpu.load5m : loadArr[1] || 0;
+      const l15 = cpu.load15m !== undefined ? cpu.load15m : loadArr[2] || 0;
+      const cpuPct = cpu.usagePercent !== undefined ? cpu.usagePercent : 0;
+      const cores = cpu.cores || (data.system && data.system.cpuCount) || 1;
+
+      if (sysCpuLoad) {
+        sysCpuLoad.textContent = `${l1} / ${l5} / ${l15}`;
+      }
+      if (sysCpuBar) {
+        sysCpuBar.style.width = `${Math.min(100, cpuPct)}%`;
+      }
+      if (sysCpuSub) {
+        sysCpuSub.textContent = `${cores} vCPU Cores • Load: ${cpuPct}%`;
+      }
+
+      if (sysOsUptime && data.system) {
+        sysOsUptime.textContent = formatDuration(data.system.systemUptimeSeconds);
+      }
+      if (sysOsPlatform && data.system) {
+        sysOsPlatform.textContent = `API Uptime: ${formatDuration(data.service.uptimeSeconds)} • ${data.system.platform}`;
+      }
+
+      if (sysNodeRss && data.service) {
+        sysNodeRss.textContent = `${data.service.processMemoryMb || 0} MB RSS`;
+      }
+      if (sysNodeHeap && data.service) {
+        sysNodeHeap.textContent = `Heap Used: ${data.service.heapUsedMb || 0} MB / ${data.service.heapTotalMb || 0} MB`;
+      }
+
       const nginxActive = data.nginx && data.nginx.active;
       sysNginxStatus.textContent = nginxActive ? 'Active' : 'Inactive';
       sysNginxStatus.className = `metric-value ${nginxActive ? 'status-text-online' : 'status-text-offline'}`;
@@ -372,6 +512,30 @@
       sysMemBar.style.width = `${Math.min(100, memPct)}%`;
       sysMemSummary.textContent = `${usedMb} MB used of ${totalMb} MB (${data.memory.freeMb} MB free)`;
       sysFreeRaw.textContent = (data.memory && data.memory.rawFreeM) || '';
+
+      // PM2 Process Statuses Table
+      if (sysPm2Tbody) {
+        const procs = Array.isArray(data.pm2Processes) ? data.pm2Processes : [];
+        if (procs.length === 0) {
+          sysPm2Tbody.innerHTML = '<tr><td colspan="7" class="empty-cell">No PM2 processes reported.</td></tr>';
+        } else {
+          sysPm2Tbody.innerHTML = procs
+            .map((p) => {
+              const online = String(p.status).toLowerCase() === 'online';
+              const badge = online ? 'badge-success' : 'badge-danger';
+              return `<tr>
+                <td><code>${escapeHtml(p.name)}</code></td>
+                <td class="tabular-nums">${escapeHtml(p.pid)}</td>
+                <td><span class="badge-status ${badge}">${escapeHtml(String(p.status).toUpperCase())}</span></td>
+                <td class="tabular-nums">${escapeHtml(p.cpuPercent !== undefined ? p.cpuPercent : 0)}%</td>
+                <td class="tabular-nums">${escapeHtml(p.memoryMb)} MB</td>
+                <td class="tabular-nums">${escapeHtml(formatDuration(p.uptimeSec))}</td>
+                <td class="tabular-nums">${escapeHtml(p.restarts)}</td>
+              </tr>`;
+            })
+            .join('');
+        }
+      }
     } catch (err) {
       console.warn('[Cockpit] Failed to load status:', err);
     }
@@ -513,6 +677,8 @@
           pendingLoginTicket = null;
           setJwt(data.token, data.owner && data.owner.email);
           switchView(true);
+          const initialTab = resolveTabFromPathname(window.location.pathname);
+          activateRouteTab(initialTab, { replace: true });
           await Promise.all([loadSystemStatus(), loadSecurityAndBackups()]);
         }
       } catch (err) {
@@ -561,6 +727,8 @@
           loginTotpInput.value = '';
           setJwt(data.token, data.owner && data.owner.email);
           switchView(true);
+          const initialTab = resolveTabFromPathname(window.location.pathname);
+          activateRouteTab(initialTab, { replace: true });
           await Promise.all([loadSystemStatus(), loadSecurityAndBackups()]);
         }
       } catch (err) {
@@ -716,6 +884,15 @@
       activeDeployEventSource.close();
       activeDeployEventSource = null;
     }
+    if (terminalSocket) {
+      try {
+        terminalSocket.close();
+      } catch {
+        // ignore
+      }
+      terminalSocket = null;
+    }
+    fetch('/api/sandbox/logout', { method: 'POST' }).catch(() => {});
     clearJwt();
     switchView(false);
   });
@@ -751,7 +928,53 @@
     }
   });
 
-  // Run Checks & Deploy (Real-Time SSE Stream)
+  function resetDeployStepsUI() {
+    for (let i = 1; i <= 5; i += 1) {
+      const card = document.querySelector(`.deploy-step-card[data-step="${i}"]`);
+      const badge = document.getElementById(`deploy-step-icon-${i}`);
+      if (card) {
+        card.classList.remove('step-running', 'step-success', 'step-error');
+      }
+      if (badge) {
+        badge.textContent = 'Pending';
+      }
+    }
+  }
+
+  function updateDeployStepUI(stepNum, status) {
+    const card = document.querySelector(`.deploy-step-card[data-step="${stepNum}"]`);
+    const badge = document.getElementById(`deploy-step-icon-${stepNum}`);
+    if (!card || !badge) return;
+    card.classList.remove('step-running', 'step-success', 'step-error');
+    if (status === 'running') {
+      card.classList.add('step-running');
+      badge.innerHTML = '<span class="btn-spinner"></span> Running';
+    } else if (status === 'success') {
+      card.classList.add('step-success');
+      badge.textContent = '✓ Passed';
+    } else if (status === 'error') {
+      card.classList.add('step-error');
+      badge.textContent = '✕ Failed';
+    } else {
+      badge.textContent = 'Pending';
+    }
+  }
+
+  function setDeployButtonRunning(running) {
+    if (!btnRunDeploy) return;
+    btnRunDeploy.disabled = running;
+    if (deployBtnSpinner) {
+      deployBtnSpinner.classList.toggle('hidden', !running);
+    }
+    if (deployBtnIcon) {
+      deployBtnIcon.classList.toggle('hidden', running);
+    }
+    if (deployBtnLabel) {
+      deployBtnLabel.textContent = running ? 'Deploying Pipeline...' : 'Run Checks & Deploy';
+    }
+  }
+
+  // Run Checks & Deploy (Real-Time 5-Step SSE Stream)
   btnRunDeploy.addEventListener('click', () => {
     const token = getJwt();
     if (!token) {
@@ -764,9 +987,11 @@
       activeDeployEventSource = null;
     }
 
-    btnRunDeploy.disabled = true;
+    resetDeployStepsUI();
+    setDeployButtonRunning(true);
     deployTerminalOutput.textContent = '';
-    deployStreamStatus.textContent = 'STREAMING LIVE PIPELINE (npx tsc --noEmit → npm run build → pm2 restart)...';
+    deployStreamStatus.textContent =
+      'STREAMING 5-STEP PIPELINE (git pull → npm install → tsc → build → pm2 restart)...';
 
     const streamUrl = `/api/sandbox/deploy/stream?token=${encodeURIComponent(token)}`;
     const es = new EventSource(streamUrl);
@@ -775,19 +1000,25 @@
     es.onmessage = (event) => {
       try {
         const payload = JSON.parse(event.data);
+        if (payload.type === 'step' && payload.step) {
+          updateDeployStepUI(payload.step, payload.status || 'running');
+        }
         if (payload.message) {
           deployTerminalOutput.textContent += payload.message;
           deployTerminalOutput.scrollTop = deployTerminalOutput.scrollHeight;
         }
         if (payload.type === 'done') {
           deployStreamStatus.textContent = 'DEPLOYMENT PIPELINE SUCCEEDED ✓';
-          btnRunDeploy.disabled = false;
+          setDeployButtonRunning(false);
           es.close();
           activeDeployEventSource = null;
           loadSystemStatus();
         } else if (payload.type === 'error') {
+          if (payload.step) {
+            updateDeployStepUI(payload.step, 'error');
+          }
           deployStreamStatus.textContent = 'DEPLOYMENT PIPELINE FAILED ✕';
-          btnRunDeploy.disabled = false;
+          setDeployButtonRunning(false);
           es.close();
           activeDeployEventSource = null;
         }
@@ -797,7 +1028,7 @@
     };
 
     es.onerror = () => {
-      btnRunDeploy.disabled = false;
+      setDeployButtonRunning(false);
       es.close();
       activeDeployEventSource = null;
     };
@@ -805,61 +1036,187 @@
 
   btnClearDeployLog.addEventListener('click', () => {
     deployTerminalOutput.textContent = '[Output cleared]\n';
+    resetDeployStepsUI();
   });
 
   // PM2 Logs Controls
   logsAppSelect.addEventListener('change', loadPm2Logs);
   btnRefreshLogs.addEventListener('click', loadPm2Logs);
 
-  // Safe Terminal Execution
-  async function executeSafeCommand(cmdString) {
-    const clean = String(cmdString || '').trim();
-    if (!clean) return;
-
-    safeTerminalOutput.textContent += `${clean}\n`;
-    safeTerminalInput.value = '';
-
-    try {
-      const token = getJwt();
-      const response = await fetch('/api/sandbox/terminal', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ command: clean }),
-      });
-
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok || data.blocked) {
-        safeTerminalOutput.textContent += `[SECURITY BLOCK] ${data.error || 'Command rejected by whitelist.'}\n`;
-      } else {
-        if (data.stdout) safeTerminalOutput.textContent += data.stdout.endsWith('\n') ? data.stdout : `${data.stdout}\n`;
-        if (data.stderr) safeTerminalOutput.textContent += data.stderr.endsWith('\n') ? data.stderr : `${data.stderr}\n`;
-      }
-    } catch (err) {
-      safeTerminalOutput.textContent += `[Error] ${err.message}\n`;
+  // Real Interactive Web Terminal (xterm.js + FitAddon + WebSocket PTY)
+  function setTerminalBadge(state, label) {
+    if (!wsTerminalBadge) return;
+    wsTerminalBadge.classList.remove('badge-success', 'badge-warn', 'badge-danger');
+    if (state === 'connected') {
+      wsTerminalBadge.classList.add('badge-success');
+    } else if (state === 'error') {
+      wsTerminalBadge.classList.add('badge-danger');
+    } else {
+      wsTerminalBadge.classList.add('badge-warn');
     }
-
-    safeTerminalOutput.textContent += `\nowner@codworth:~$ `;
-    safeTerminalOutput.scrollTop = safeTerminalOutput.scrollHeight;
+    wsTerminalBadge.textContent = label;
   }
 
-  safeTerminalForm.addEventListener('submit', (e) => {
-    e.preventDefault();
-    executeSafeCommand(safeTerminalInput.value);
-  });
+  function connectTerminalWebSocket() {
+    const token = getJwt();
+    if (!token || !xtermInstance) return;
+
+    if (terminalSocket) {
+      try {
+        terminalSocket.close();
+      } catch {
+        // ignore
+      }
+      terminalSocket = null;
+    }
+
+    setTerminalBadge('connecting', 'CONNECTING...');
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${wsProtocol}//${window.location.host}/api/sandbox/terminal?token=${encodeURIComponent(token)}`;
+    const ws = new WebSocket(wsUrl);
+    terminalSocket = ws;
+
+    ws.onopen = () => {
+      setTerminalBadge('connected', 'CONNECTED (PTY)');
+      if (xtermFitAddon) {
+        try {
+          xtermFitAddon.fit();
+          ws.send(
+            JSON.stringify({
+              type: 'resize',
+              cols: xtermInstance.cols || 100,
+              rows: xtermInstance.rows || 28,
+            })
+          );
+        } catch {
+          // ignore fit error
+        }
+      }
+    };
+
+    ws.onmessage = (event) => {
+      if (xtermInstance && typeof event.data === 'string') {
+        xtermInstance.write(event.data);
+      }
+    };
+
+    ws.onclose = () => {
+      setTerminalBadge('error', 'DISCONNECTED');
+    };
+
+    ws.onerror = () => {
+      setTerminalBadge('error', 'WS ERROR');
+    };
+  }
+
+  function ensureInteractiveTerminal() {
+    if (!xtermContainer) return;
+
+    if (!xtermInstance && window.Terminal) {
+      xtermInstance = new window.Terminal({
+        cursorBlink: true,
+        convertEol: true,
+        fontFamily: "'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+        fontSize: 13,
+        lineHeight: 1.35,
+        scrollback: 3000,
+        theme: {
+          background: '#080C14',
+          foreground: '#E2E8F0',
+          cursor: '#10B981',
+          selectionBackground: 'rgba(226, 91, 38, 0.35)',
+        },
+      });
+
+      if (window.FitAddon && window.FitAddon.FitAddon) {
+        xtermFitAddon = new window.FitAddon.FitAddon();
+        xtermInstance.loadAddon(xtermFitAddon);
+      }
+
+      xtermInstance.open(xtermContainer);
+      if (xtermFitAddon) {
+        try {
+          xtermFitAddon.fit();
+        } catch {
+          // ignore
+        }
+      }
+
+      xtermInstance.onData((data) => {
+        if (terminalSocket && terminalSocket.readyState === WebSocket.OPEN) {
+          terminalSocket.send(JSON.stringify({ type: 'input', data }));
+        }
+      });
+
+      window.addEventListener('resize', () => {
+        if (!xtermFitAddon || !xtermInstance) return;
+        try {
+          xtermFitAddon.fit();
+          if (terminalSocket && terminalSocket.readyState === WebSocket.OPEN) {
+            terminalSocket.send(
+              JSON.stringify({
+                type: 'resize',
+                cols: xtermInstance.cols,
+                rows: xtermInstance.rows,
+              })
+            );
+          }
+        } catch {
+          // ignore
+        }
+      });
+    }
+
+    if (!terminalSocket || terminalSocket.readyState > WebSocket.OPEN) {
+      connectTerminalWebSocket();
+    }
+  }
+
+  function sendTerminalCommandLine(cmdString) {
+    const clean = String(cmdString || '').trim();
+    if (!clean) return;
+    ensureInteractiveTerminal();
+    if (terminalSocket && terminalSocket.readyState === WebSocket.OPEN) {
+      terminalSocket.send(JSON.stringify({ type: 'input', data: `${clean}\n` }));
+    } else {
+      setTimeout(() => {
+        if (terminalSocket && terminalSocket.readyState === WebSocket.OPEN) {
+          terminalSocket.send(JSON.stringify({ type: 'input', data: `${clean}\n` }));
+        }
+      }, 350);
+    }
+  }
+
+  if (safeTerminalForm) {
+    safeTerminalForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      if (!safeTerminalInput) return;
+      sendTerminalCommandLine(safeTerminalInput.value);
+      safeTerminalInput.value = '';
+    });
+  }
 
   document.querySelectorAll('.chip-btn').forEach((chip) => {
     chip.addEventListener('click', () => {
       const cmd = chip.getAttribute('data-cmd');
-      executeSafeCommand(cmd);
+      sendTerminalCommandLine(cmd);
     });
   });
 
-  btnClearSafeTerminal.addEventListener('click', () => {
-    safeTerminalOutput.textContent = 'owner@codworth:~$ ';
-  });
+  if (btnReconnectTerminal) {
+    btnReconnectTerminal.addEventListener('click', () => {
+      ensureInteractiveTerminal();
+      connectTerminalWebSocket();
+    });
+  }
+
+  if (btnClearSafeTerminal) {
+    btnClearSafeTerminal.addEventListener('click', () => {
+      if (xtermInstance) {
+        xtermInstance.clear();
+      }
+    });
+  }
 
   // Security Refresh
   btnRefreshSecurity.addEventListener('click', loadSecurityAndBackups);
@@ -938,6 +1295,8 @@
       });
       if (res.ok) {
         switchView(true);
+        const initialTab = resolveTabFromPathname(window.location.pathname);
+        activateRouteTab(initialTab, { replace: true });
         await Promise.all([loadSystemStatus(), loadSecurityAndBackups()]);
       } else {
         clearJwt();

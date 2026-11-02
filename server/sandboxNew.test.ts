@@ -1,8 +1,10 @@
 import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
+import { WebSocket } from 'ws';
 import {
   createSandboxStandaloneApp,
+  attachSandboxWebSocketServer,
   signSandboxJwt,
   verifySandboxJwt,
   signSandboxLoginTicket,
@@ -28,6 +30,7 @@ describe('Zero-Trust Sandbox Cockpit (server/sandboxNew.ts)', () => {
     ensureOwnerAccountForEmail(STRICT_OWNER_EMAIL, TEST_OWNER_PASS);
     const app = createSandboxStandaloneApp();
     server = http.createServer(app);
+    attachSandboxWebSocketServer(server);
     await new Promise<void>((resolve) => {
       server.listen(0, '127.0.0.1', () => resolve());
     });
@@ -346,6 +349,108 @@ describe('Zero-Trust Sandbox Cockpit (server/sandboxNew.ts)', () => {
         delete process.env.SANDBOX_2FA_PIN;
       }
     }
+  });
+
+  it('serves Sandbox UI for independent URL routes (/sandbox/deploy, /sandbox/terminal, /sandbox/system, /sandbox/logs, /sandbox/security, /sandbox/backups)', async () => {
+    const routes = [
+      '/sandbox/deploy',
+      '/sandbox/terminal',
+      '/sandbox/system',
+      '/sandbox/logs',
+      '/sandbox/security',
+      '/sandbox/backups',
+    ];
+    for (const route of routes) {
+      const res = await fetch(`${baseUrl}${route}`);
+      assert.equal(res.status, 200, `Expected 200 for ${route}`);
+      const html = await res.text();
+      assert.ok(html.includes('id="xterm-container"'), `Expected xterm container in ${route}`);
+      assert.ok(html.includes('id="deploy-steps-grid"'), `Expected 5-step deploy grid in ${route}`);
+    }
+  });
+
+  it('returns comprehensive Server & App metrics on GET /api/sandbox/system and rejects unauthenticated requests', async () => {
+    const unauth = await fetch(`${baseUrl}/api/sandbox/system`);
+    assert.equal(unauth.status, 401);
+
+    const { token } = signSandboxJwt(STRICT_OWNER_EMAIL);
+    const res = await fetch(`${baseUrl}/api/sandbox/system`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    assert.equal(res.status, 200);
+    const data = (await res.json()) as any;
+    assert.equal(data.ok, true);
+    assert.ok(data.cpu && typeof data.cpu.load1m === 'number');
+    assert.ok(data.memory && typeof data.memory.totalMb === 'number');
+    assert.ok(data.disk && typeof data.disk.usagePercent === 'number');
+    assert.ok(Array.isArray(data.pm2Processes) && data.pm2Processes.length >= 1);
+    assert.ok(data.appMetrics && typeof data.appMetrics.totalMerchants === 'number');
+    assert.ok(typeof data.appMetrics.totalActivePages === 'number');
+    assert.ok(typeof data.appMetrics.codOrdersToday === 'number');
+    assert.ok(typeof data.appMetrics.totalRevenueMad === 'number');
+  });
+
+  it('enforces Zero-Trust JWT on WebSocket /api/sandbox/terminal and streams interactive shell output', async () => {
+    const wsBase = baseUrl.replace(/^http:/, 'ws:');
+
+    // 1. Unauthenticated WebSocket connection must fail
+    await new Promise<void>((resolve, reject) => {
+      const badWs = new WebSocket(`${wsBase}/api/sandbox/terminal`);
+      badWs.on('open', () => {
+        badWs.terminate();
+        reject(new Error('Unauthenticated WebSocket should not open'));
+      });
+      badWs.on('error', () => {
+        badWs.terminate();
+        resolve();
+      });
+      badWs.on('unexpected-response', (_req, res) => {
+        assert.equal(res.statusCode, 401);
+        res.resume();
+        badWs.terminate();
+        resolve();
+      });
+    });
+
+    // 2. Authenticated Owner WebSocket connection succeeds and executes commands
+    const { token } = signSandboxJwt(STRICT_OWNER_EMAIL);
+    const outputReceived = await new Promise<string>((resolve, reject) => {
+      const ws = new WebSocket(`${wsBase}/api/sandbox/terminal?token=${encodeURIComponent(token)}`);
+      let buffer = '';
+      let resolved = false;
+      const timer = setTimeout(() => {
+        ws.terminate();
+        if (!resolved) {
+          resolved = true;
+          reject(new Error(`Timed out waiting for PTY output. Received so far: ${buffer}`));
+        }
+      }, 6000);
+
+      ws.on('open', () => {
+        ws.send(JSON.stringify({ type: 'resize', cols: 100, rows: 30 }));
+        ws.send(JSON.stringify({ type: 'input', data: 'echo "CODWORTH_WS_PTY_READY"\n' }));
+      });
+
+      ws.on('message', (data) => {
+        buffer += data.toString();
+        if (!resolved && buffer.includes('CODWORTH_WS_PTY_READY')) {
+          resolved = true;
+          clearTimeout(timer);
+          ws.once('close', () => resolve(buffer));
+          ws.close();
+        }
+      });
+
+      ws.on('error', (err) => {
+        clearTimeout(timer);
+        if (!resolved) {
+          resolved = true;
+          reject(err);
+        }
+      });
+    });
+
+    assert.ok(outputReceived.includes('CODWORTH_WS_PTY_READY'));
   });
 });
 

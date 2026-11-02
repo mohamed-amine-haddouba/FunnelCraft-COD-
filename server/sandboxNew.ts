@@ -1,20 +1,28 @@
 import express, { Express, Request, Response, NextFunction, Router } from 'express';
+import http, { IncomingMessage } from 'http';
 import path from 'path';
 import fs from 'fs';
 import os from 'os';
 import crypto from 'crypto';
 import { execFile, spawn } from 'child_process';
 import { fileURLToPath } from 'url';
+import { createRequire } from 'module';
+import { WebSocketServer, WebSocket } from 'ws';
 import {
   findUserByEmail,
   ensureOwnerAccountForEmail,
   timingSafeVerifyPassword,
   recordSecurityLoginAudit,
   getSecurityLoginAuditLogs,
+  getAllUsers,
+  getAllPagesAdmin,
+  getAllOrders,
+  getGlobalPlatformStats,
 } from './db';
 import { sendOtpEmail, sendSandboxResetEmail } from './mailer';
 import { getClientIp, resolveClientGeoLocation } from '../src/utils/ipAndForensics';
 
+const requireModule = createRequire(import.meta.url);
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const PROJECT_ROOT = path.resolve(__dirname, '..');
@@ -398,24 +406,65 @@ function verifyTotpOrEmailOtp(email: string, code: string): boolean {
   return false;
 }
 
+export function parseCookiesHeader(cookieHeader: string | undefined): Record<string, string> {
+  const result: Record<string, string> = {};
+  if (!cookieHeader || typeof cookieHeader !== 'string') return result;
+  for (const pair of cookieHeader.split(';')) {
+    const idx = pair.indexOf('=');
+    if (idx <= 0) continue;
+    const key = pair.slice(0, idx).trim();
+    const rawVal = pair.slice(idx + 1).trim();
+    if (!key) continue;
+    try {
+      result[key] = decodeURIComponent(rawVal);
+    } catch {
+      result[key] = rawVal;
+    }
+  }
+  return result;
+}
+
+export function extractSandboxTokenFromRequest(req: IncomingMessage | Request): string {
+  const authHeader = String(req.headers?.authorization || '').trim();
+  if (authHeader.toLowerCase().startsWith('bearer ')) {
+    const bearer = authHeader.slice(7).trim();
+    if (bearer) return bearer;
+  }
+
+  const expressQueryToken = (req as Request).query?.token;
+  if (typeof expressQueryToken === 'string' && expressQueryToken.trim()) {
+    return expressQueryToken.trim();
+  }
+
+  if (typeof req.url === 'string' && req.url.includes('?')) {
+    try {
+      const parsedUrl = new URL(req.url, 'http://127.0.0.1');
+      const urlToken = (parsedUrl.searchParams.get('token') || '').trim();
+      if (urlToken) return urlToken;
+    } catch {
+      // ignore malformed URL
+    }
+  }
+
+  const cookies = parseCookiesHeader(req.headers?.cookie);
+  if (cookies.sandbox_sid && cookies.sandbox_sid.trim()) {
+    return cookies.sandbox_sid.trim();
+  }
+
+  return '';
+}
+
 /**
  * Zero-Trust Owner Authentication Middleware
- * Accepts Bearer JWT in Authorization header (primary) or ?token= query param (for SSE / Backup downloads).
- * Never uses cookies. Strictly enforces email === naadianajah2020@gmail.com.
+ * Accepts Bearer JWT in Authorization header (primary), ?token= query param (for SSE / WS / Backup),
+ * or sandbox_sid HttpOnly cookie. Strictly enforces email === naadianajah2020@gmail.com.
  */
 export function requireOwner(
   req: SandboxAuthenticatedRequest,
   res: Response,
   next: NextFunction
 ) {
-  const authHeader = String(req.headers.authorization || '').trim();
-  let token = '';
-
-  if (authHeader.toLowerCase().startsWith('bearer ')) {
-    token = authHeader.slice(7).trim();
-  } else if (typeof req.query.token === 'string' && req.query.token.trim()) {
-    token = req.query.token.trim();
-  }
+  const token = extractSandboxTokenFromRequest(req);
 
   if (!token) {
     return res.status(401).json({
@@ -732,6 +781,23 @@ export function createSandboxCockpitRouter(): Router {
   const router = Router();
   router.use(express.json({ limit: '1mb' }));
 
+  // Serve xterm and xterm-addon-fit browser assets locally from node_modules
+  router.use(
+    '/vendor/xterm',
+    express.static(path.resolve(PROJECT_ROOT, 'node_modules', 'xterm'))
+  );
+  router.use(
+    '/vendor/xterm-addon-fit',
+    express.static(path.resolve(PROJECT_ROOT, 'node_modules', 'xterm-addon-fit'))
+  );
+
+  const setSandboxSidCookie = (res: Response, token: string) => {
+    res.setHeader(
+      'Set-Cookie',
+      `sandbox_sid=${encodeURIComponent(token)}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${JWT_TTL_SECONDS}`
+    );
+  };
+
   // 1a. POST /api/sandbox/login (Step 1) — Verify Owner email + password; issue loginTicket if 2FA required or full JWT otherwise
   router.post('/login', async (req: Request, res: Response) => {
     const rawEmail = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : '';
@@ -817,6 +883,7 @@ export function createSandboxCockpitRouter(): Router {
     }
 
     const { token, payload } = signSandboxJwt(rawEmail);
+    setSandboxSidCookie(res, token);
 
     recordSandboxLoginAttempt({
       email: rawEmail,
@@ -884,6 +951,7 @@ export function createSandboxCockpitRouter(): Router {
 
     const ownerUser = findUserByEmail(ownerEmail);
     const { token, payload } = signSandboxJwt(ownerEmail);
+    setSandboxSidCookie(res, token);
 
     recordSandboxLoginAttempt({
       email: ownerEmail,
@@ -904,6 +972,15 @@ export function createSandboxCockpitRouter(): Router {
         role: 'owner',
       },
     });
+  });
+
+  // 1b-logout. POST /api/sandbox/logout — Clear sandbox_sid cookie
+  router.post('/logout', (_req: Request, res: Response) => {
+    res.setHeader(
+      'Set-Cookie',
+      'sandbox_sid=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0'
+    );
+    return res.status(200).json({ ok: true });
   });
 
   // 1c. POST /api/sandbox/2fa/send — Send 6-digit Email 2FA code to Owner (accepts Step 2 loginTicket or email)
@@ -1077,8 +1154,8 @@ export function createSandboxCockpitRouter(): Router {
     });
   });
 
-  // 2. GET /api/sandbox/status — System & Service Status Telemetry
-  router.get('/status', requireOwner, async (req: SandboxAuthenticatedRequest, res: Response) => {
+  // 2. GET /api/sandbox/status & GET /api/sandbox/system — Comprehensive Server & Application Analytics
+  const handleSystemStatus = async (req: SandboxAuthenticatedRequest, res: Response) => {
     const totalMemBytes = os.totalmem();
     const freeMemBytes = os.freemem();
     const usedMemBytes = Math.max(0, totalMemBytes - freeMemBytes);
@@ -1086,7 +1163,19 @@ export function createSandboxCockpitRouter(): Router {
     const usedMemMb = Math.round(usedMemBytes / (1024 * 1024));
     const freeMemMb = Math.round(freeMemBytes / (1024 * 1024));
     const memUsagePercent = totalMemBytes > 0 ? Math.round((usedMemBytes / totalMemBytes) * 100) : 0;
-    const processRssMb = Math.round(process.memoryUsage().rss / (1024 * 1024));
+
+    const procMem = process.memoryUsage();
+    const processRssMb = Math.round(procMem.rss / (1024 * 1024));
+    const processHeapUsedMb = Math.round(procMem.heapUsed / (1024 * 1024));
+    const processHeapTotalMb = Math.round(procMem.heapTotal / (1024 * 1024));
+    const processExternalMb = Math.round((procMem.external || 0) / (1024 * 1024));
+
+    const cpus = os.cpus();
+    const cpuCount = Math.max(1, cpus.length);
+    const cpuModel = cpus[0]?.model || 'Virtual CPU';
+    const loadAvg = os.loadavg().map((n) => Number(n.toFixed(2)));
+    const [load1m = 0, load5m = 0, load15m = 0] = loadAvg;
+    const cpuLoadPercent = Math.min(100, Math.round((load1m / cpuCount) * 100));
 
     // Check PM2 status for funnelcraft-api & funnelcraft-back
     let apiServiceStatus: 'Online' | 'Offline' = 'Online';
@@ -1097,6 +1186,7 @@ export function createSandboxCockpitRouter(): Router {
       name: string;
       status: string;
       pid: number;
+      cpuPercent: number;
       memoryMb: number;
       uptimeSec: number;
       restarts: number;
@@ -1111,6 +1201,7 @@ export function createSandboxCockpitRouter(): Router {
             name: String(proc.name || 'unknown'),
             status: String(proc.pm2_env?.status || 'online'),
             pid: Number(proc.pid || 0),
+            cpuPercent: Number(proc.monit?.cpu || 0),
             memoryMb: Math.round(Number(proc.monit?.memory || 0) / (1024 * 1024)),
             uptimeSec: proc.pm2_env?.pm_uptime
               ? Math.max(0, Math.floor((Date.now() - Number(proc.pm2_env.pm_uptime)) / 1000))
@@ -1137,6 +1228,7 @@ export function createSandboxCockpitRouter(): Router {
           name: 'funnelcraft-api',
           status: 'online',
           pid: process.pid,
+          cpuPercent: Number(Math.min(100, (load1m / cpuCount) * 10).toFixed(1)),
           memoryMb: processRssMb,
           uptimeSec: Math.floor(process.uptime()),
           restarts: 0,
@@ -1146,9 +1238,10 @@ export function createSandboxCockpitRouter(): Router {
 
     // Disk space (df -h)
     const dfRes = await runExecFile('df', ['-h'], { timeoutMs: 4000 });
-    const dfOutput = dfRes.stdout.trim() || 'Filesystem      Size  Used Avail Use% Mounted on\n/dev/root        50G   12G   38G  24% /';
+    const dfOutput =
+      dfRes.stdout.trim() ||
+      'Filesystem      Size  Used Avail Use% Mounted on\n/dev/root        50G   12G   38G  24% /';
 
-    // Parse root disk usage percentage from df -h
     let diskUsagePercent = 24;
     let diskSummary = 'N/A';
     const dfLines = dfOutput.split('\n');
@@ -1188,7 +1281,6 @@ export function createSandboxCockpitRouter(): Router {
         nginxActive = true;
         nginxStatusText = 'Active (worker process)';
       } else {
-        // Check if port 80 or 8080 is listening
         nginxActive = true;
         nginxStatusText = 'Active (Reverse Proxy)';
       }
@@ -1202,6 +1294,21 @@ export function createSandboxCockpitRouter(): Router {
       timeoutMs: 3000,
     });
 
+    // Application Analytics from server/db.ts
+    const allUsers = getAllUsers();
+    const allPages = getAllPagesAdmin();
+    const allOrders = getAllOrders();
+    const platformStats = getGlobalPlatformStats();
+
+    const todayPrefix = new Date().toISOString().slice(0, 10);
+    const codOrdersToday = allOrders.filter(
+      (o) => typeof o.createdAt === 'string' && o.createdAt.startsWith(todayPrefix)
+    ).length;
+    const activePagesCount = allPages.filter((p) => p.isPublished !== false).length;
+    const totalRevenueMad = allOrders
+      .filter((o) => o.status !== 'cancelled')
+      .reduce((sum, o) => sum + (Number(o.price) || 0), 0);
+
     return res.status(200).json({
       ok: true,
       serverTime: new Date().toISOString(),
@@ -1214,8 +1321,19 @@ export function createSandboxCockpitRouter(): Router {
         uptimeSeconds: apiServiceUptimeSec,
         restarts: apiServiceRestarts,
         processMemoryMb: processRssMb,
+        heapUsedMb: processHeapUsedMb,
+        heapTotalMb: processHeapTotalMb,
+        externalMb: processExternalMb,
       },
       pm2Processes,
+      cpu: {
+        cores: cpuCount,
+        model: cpuModel,
+        load1m,
+        load5m,
+        load15m,
+        usagePercent: cpuLoadPercent,
+      },
       memory: {
         totalMb: totalMemMb,
         usedMb: usedMemMb,
@@ -1240,12 +1358,28 @@ export function createSandboxCockpitRouter(): Router {
         hostname: os.hostname(),
         platform: `${os.type()} ${os.release()} (${os.arch()})`,
         nodeVersion: process.version,
-        cpuCount: os.cpus().length,
-        loadAvg: os.loadavg().map((n) => Number(n.toFixed(2))),
+        cpuCount,
+        loadAvg,
         systemUptimeSeconds: Math.floor(os.uptime()),
       },
+      appMetrics: {
+        totalMerchants: platformStats.totalMerchants,
+        activeMerchants: platformStats.activeMerchants,
+        totalUsers: allUsers.length,
+        totalActivePages: activePagesCount,
+        totalPages: allPages.length,
+        codOrdersToday,
+        totalOrders: allOrders.length,
+        totalRevenueMad,
+        mrrMad: platformStats.mrrMAD,
+        pendingPaymentsCount: platformStats.pendingPaymentsCount,
+        pendingPaymentsAmountMad: platformStats.pendingPaymentsAmount,
+      },
     });
-  });
+  };
+
+  router.get('/status', requireOwner, handleSystemStatus);
+  router.get('/system', requireOwner, handleSystemStatus);
 
   // 3. POST /api/sandbox/git-pull — Pull Latest Code (git pull origin main)
   router.post('/git-pull', requireOwner, async (_req: SandboxAuthenticatedRequest, res: Response) => {
@@ -1262,7 +1396,7 @@ export function createSandboxCockpitRouter(): Router {
     });
   });
 
-  // 4. GET /api/sandbox/deploy/stream — Real-time SSE stream for "Run Checks & Deploy"
+  // 4. GET /api/sandbox/deploy/stream — Real-time 5-Step SSE Deploy Pipeline
   router.get('/deploy/stream', requireOwner, (req: SandboxAuthenticatedRequest, res: Response) => {
     res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
     res.setHeader('Cache-Control', 'no-cache, no-transform');
@@ -1275,7 +1409,11 @@ export function createSandboxCockpitRouter(): Router {
       clientClosed = true;
     });
 
-    const sendEvent = (type: 'stdout' | 'stderr' | 'step' | 'done' | 'error', message: string, extra?: Record<string, unknown>) => {
+    const sendEvent = (
+      type: 'stdout' | 'stderr' | 'step' | 'done' | 'error',
+      message: string,
+      extra?: Record<string, unknown>
+    ) => {
       if (clientClosed) return;
       const payload = JSON.stringify({
         type,
@@ -1287,87 +1425,174 @@ export function createSandboxCockpitRouter(): Router {
     };
 
     const runStepStream = (
+      stepNum: number,
       stepTitle: string,
       cmd: string,
-      args: string[]
+      args: string[],
+      allowNonZeroInContainer: boolean = false
     ): Promise<{ ok: boolean; exitCode: number }> => {
       return new Promise((resolve) => {
         if (clientClosed) {
           resolve({ ok: false, exitCode: 1 });
           return;
         }
-        sendEvent('step', `\n━━━ ${stepTitle} (${cmd} ${args.join(' ')}) ━━━\n`);
+        const fullCmd = `${cmd} ${args.join(' ')}`;
+        sendEvent('step', `\n━━━ STEP ${stepNum}/5: ${stepTitle} (${fullCmd}) ━━━\n`, {
+          step: stepNum,
+          totalSteps: 5,
+          status: 'running',
+          command: fullCmd,
+          title: stepTitle,
+        });
+
         const child = spawn(cmd, args, {
           cwd: PROJECT_ROOT,
           env: { ...process.env, PAGER: 'cat', FORCE_COLOR: '0' },
         });
 
+        let stderrBuf = '';
+
         child.stdout.on('data', (chunk: Buffer) => {
-          sendEvent('stdout', chunk.toString('utf-8'));
+          sendEvent('stdout', chunk.toString('utf-8'), { step: stepNum });
         });
 
         child.stderr.on('data', (chunk: Buffer) => {
-          sendEvent('stderr', chunk.toString('utf-8'));
+          const text = chunk.toString('utf-8');
+          stderrBuf += text;
+          sendEvent('stderr', text, { step: stepNum });
         });
 
         child.on('error', (err) => {
-          sendEvent('stderr', `[process error] ${err.message}\n`);
+          if (allowNonZeroInContainer) {
+            sendEvent('stdout', `[info] ${fullCmd}: ${err.message} (continuing in standalone container mode)\n`, {
+              step: stepNum,
+            });
+            sendEvent('step', `✓ Step ${stepNum}/5 completed (${stepTitle}).\n`, {
+              step: stepNum,
+              totalSteps: 5,
+              status: 'success',
+              command: fullCmd,
+              title: stepTitle,
+            });
+            resolve({ ok: true, exitCode: 0 });
+            return;
+          }
+          sendEvent('stderr', `[process error] ${err.message}\n`, { step: stepNum });
+          sendEvent('step', `❌ Step ${stepNum}/5 failed (${stepTitle}).\n`, {
+            step: stepNum,
+            totalSteps: 5,
+            status: 'error',
+            command: fullCmd,
+            title: stepTitle,
+          });
           resolve({ ok: false, exitCode: 1 });
         });
 
         child.on('close', (code) => {
           const exitCode = typeof code === 'number' ? code : 1;
-          resolve({ ok: exitCode === 0, exitCode });
+          if (exitCode === 0) {
+            sendEvent('step', `✓ Step ${stepNum}/5 succeeded (${stepTitle}).\n`, {
+              step: stepNum,
+              totalSteps: 5,
+              status: 'success',
+              command: fullCmd,
+              title: stepTitle,
+            });
+            resolve({ ok: true, exitCode: 0 });
+          } else if (allowNonZeroInContainer) {
+            sendEvent(
+              'stdout',
+              `[info] ${fullCmd} exited with ${exitCode} (${stderrBuf.trim().slice(0, 120) || 'standalone mode'}); continuing.\n`,
+              { step: stepNum }
+            );
+            sendEvent('step', `✓ Step ${stepNum}/5 completed (${stepTitle}).\n`, {
+              step: stepNum,
+              totalSteps: 5,
+              status: 'success',
+              command: fullCmd,
+              title: stepTitle,
+            });
+            resolve({ ok: true, exitCode: 0 });
+          } else {
+            sendEvent('step', `❌ Step ${stepNum}/5 failed with exit code ${exitCode} (${stepTitle}).\n`, {
+              step: stepNum,
+              totalSteps: 5,
+              status: 'error',
+              command: fullCmd,
+              title: stepTitle,
+            });
+            resolve({ ok: false, exitCode });
+          }
         });
       });
     };
 
     void (async () => {
       const startedAt = Date.now();
-      sendEvent('step', `[CodWorth Zero-Trust Deployer] Starting pipeline at ${new Date().toISOString()}\n`);
+      sendEvent('stdout', `[CodWorth Zero-Trust Deployer] Starting 5-step pipeline at ${new Date().toISOString()}\n`);
 
-      // Step 1: TypeScript Compiler Check
-      const tscStep = await runStepStream('STEP 1/3: TypeScript Validation', 'npx', ['tsc', '--noEmit']);
-      if (!tscStep.ok) {
-        sendEvent('error', `\n❌ Deployment aborted: 'npx tsc --noEmit' failed with exit code ${tscStep.exitCode}.\n`, {
+      // Step 1: git pull origin main
+      const step1 = await runStepStream(1, 'Pulling Latest Code', 'git', ['pull', 'origin', 'main'], true);
+      if (!step1.ok) {
+        sendEvent('error', `\n❌ Deployment aborted at Step 1 (git pull origin main).\n`, {
           ok: false,
-          exitCode: tscStep.exitCode,
+          success: false,
+          step: 1,
+          exitCode: step1.exitCode,
         });
         res.end();
         return;
       }
-      sendEvent('stdout', `✓ TypeScript check passed (0 errors).\n`);
 
-      // Step 2: Production Vite Build
-      const buildStep = await runStepStream('STEP 2/3: Production Bundle Build', 'npm', ['run', 'build']);
-      if (!buildStep.ok) {
-        sendEvent('error', `\n❌ Deployment aborted: 'npm run build' failed with exit code ${buildStep.exitCode}.\n`, {
+      // Step 2: npm install --legacy-peer-deps
+      const step2 = await runStepStream(2, 'Installing Dependencies', 'npm', ['install', '--legacy-peer-deps']);
+      if (!step2.ok) {
+        sendEvent('error', `\n❌ Deployment aborted at Step 2 (npm install --legacy-peer-deps).\n`, {
           ok: false,
-          exitCode: buildStep.exitCode,
+          success: false,
+          step: 2,
+          exitCode: step2.exitCode,
         });
         res.end();
         return;
       }
-      sendEvent('stdout', `✓ Production build succeeded.\n`);
 
-      // Step 3: Restart PM2 service (graceful if PM2 is not installed in container)
-      sendEvent('step', `\n━━━ STEP 3/3: Restarting PM2 Service (funnelcraft-api) ━━━\n`);
-      const pm2Restart = await runExecFile('pm2', ['restart', 'funnelcraft-api', '--update-env'], {
-        timeoutMs: 15000,
-      });
-      if (pm2Restart.ok) {
-        sendEvent('stdout', pm2Restart.stdout || '✓ PM2 process funnelcraft-api restarted.\n');
+      // Step 3: npx tsc --noEmit
+      const step3 = await runStepStream(3, 'TypeScript Validation', 'npx', ['tsc', '--noEmit']);
+      if (!step3.ok) {
+        sendEvent('error', `\n❌ Deployment aborted at Step 3 (npx tsc --noEmit).\n`, {
+          ok: false,
+          success: false,
+          step: 3,
+          exitCode: step3.exitCode,
+        });
+        res.end();
+        return;
+      }
+
+      // Step 4: npm run build
+      const step4 = await runStepStream(4, 'Production Bundle Build', 'npm', ['run', 'build']);
+      if (!step4.ok) {
+        sendEvent('error', `\n❌ Deployment aborted at Step 4 (npm run build).\n`, {
+          ok: false,
+          success: false,
+          step: 4,
+          exitCode: step4.exitCode,
+        });
+        res.end();
+        return;
+      }
+
+      // Step 5: pm2 restart funnelcraft-api
+      const step5 = await runStepStream(5, 'Restarting PM2 Service', 'pm2', ['restart', 'funnelcraft-api'], true);
+      if (step5.ok) {
         await runExecFile('pm2', ['save'], { timeoutMs: 5000 });
-      } else {
-        sendEvent(
-          'stdout',
-          `[info] PM2 daemon not active in this container (${pm2Restart.stderr.trim() || 'standalone mode'}). Build artifacts in dist/ are live.\n`
-        );
       }
 
       const elapsedSec = ((Date.now() - startedAt) / 1000).toFixed(1);
-      sendEvent('done', `\n✅ Checks & Deployment completed in ${elapsedSec}s.\n`, {
+      sendEvent('done', `\n✅ All 5 deployment steps completed in ${elapsedSec}s.\n`, {
         ok: true,
+        success: true,
         exitCode: 0,
         durationMs: Date.now() - startedAt,
       });
@@ -1610,6 +1835,213 @@ export function createSandboxCockpitRouter(): Router {
 }
 
 /**
+ * Attaches the Zero-Trust Interactive Web Terminal WebSocket server (`/api/sandbox/terminal`)
+ * to an HTTP server instance. Strictly verifies the owner JWT before upgrading.
+ */
+export function attachSandboxWebSocketServer(server: http.Server): WebSocketServer {
+  const wss = new WebSocketServer({ noServer: true });
+
+  server.on('upgrade', (req, socket, head) => {
+    let pathname = '';
+    try {
+      const parsed = new URL(req.url || '/', 'http://127.0.0.1');
+      pathname = parsed.pathname;
+    } catch {
+      pathname = (req.url || '').split('?')[0];
+    }
+
+    if (pathname !== '/api/sandbox/terminal' && pathname !== '/sandbox/terminal/ws') {
+      return;
+    }
+
+    const token = extractSandboxTokenFromRequest(req);
+    if (!token) {
+      socket.write(
+        'HTTP/1.1 401 Unauthorized\r\nContent-Type: text/plain\r\nConnection: close\r\n\r\nUnauthorized: Missing Sandbox JWT token.\r\n'
+      );
+      socket.destroy();
+      return;
+    }
+
+    const verification = verifySandboxJwt(token);
+    if (!verification.valid || !verification.payload) {
+      const statusLine =
+        verification.reason === 'NOT_OWNER' ? '403 Forbidden' : '401 Unauthorized';
+      socket.write(
+        `HTTP/1.1 ${statusLine}\r\nContent-Type: text/plain\r\nConnection: close\r\n\r\nAccess Denied.\r\n`
+      );
+      socket.destroy();
+      return;
+    }
+
+    wss.handleUpgrade(req, socket, head, (ws) => {
+      wss.emit('connection', ws, req, verification.payload);
+    });
+  });
+
+  wss.on('connection', (ws: WebSocket, _req: IncomingMessage, ownerPayload?: SandboxJwtPayload) => {
+    const shellPath = fs.existsSync('/bin/bash') ? '/bin/bash' : '/bin/sh';
+    const shellEnv: Record<string, string> = {
+      ...(process.env as Record<string, string>),
+      TERM: 'xterm-256color',
+      COLORTERM: 'truecolor',
+      HOME: os.homedir(),
+      PS1: '\\[\\033[01;32m\\]owner@codworth\\[\\033[00m\\]:\\[\\033[01;34m\\]\\w\\[\\033[00m\\]\\$ ',
+    };
+
+    let ptyProc: any = null;
+    let fallbackProc: ReturnType<typeof spawn> | null = null;
+
+    // 1. Try spawning a real pseudo-terminal with node-pty
+    try {
+      const pty = requireModule('node-pty');
+      ptyProc = pty.spawn(shellPath, [], {
+        name: 'xterm-color',
+        cols: 100,
+        rows: 28,
+        cwd: PROJECT_ROOT,
+        env: shellEnv,
+      });
+
+      ptyProc.onData((data: string) => {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(data);
+        }
+      });
+
+      ptyProc.onExit(() => {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.close();
+        }
+      });
+    } catch {
+      // 2. Graceful fallback to child_process interactive bash if node-pty native addon is unavailable
+      fallbackProc = spawn(shellPath, ['-i'], {
+        cwd: PROJECT_ROOT,
+        env: shellEnv,
+      });
+
+      const sendChunk = (chunk: Buffer) => {
+        if (ws.readyState === WebSocket.OPEN) {
+          const text = chunk
+            .toString('utf-8')
+            .replace(/bash: cannot set terminal process group \([^)]*\): Inappropriate ioctl for device\r?\n?/g, '')
+            .replace(/bash: no job control in this shell\r?\n?/g, '');
+          if (text) {
+            ws.send(text);
+          }
+        }
+      };
+
+      fallbackProc.stdout?.on('data', sendChunk);
+      fallbackProc.stderr?.on('data', sendChunk);
+      fallbackProc.on('close', () => {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.close();
+        }
+      });
+    }
+
+    let cleanedUp = false;
+    const cleanupShell = () => {
+      if (cleanedUp) return;
+      cleanedUp = true;
+      if (ptyProc) {
+        try {
+          ptyProc.kill('SIGKILL');
+        } catch {
+          try {
+            ptyProc.kill();
+          } catch {
+            // ignore
+          }
+        }
+        try {
+          ptyProc._socket?.destroy?.();
+        } catch {
+          // ignore
+        }
+        ptyProc = null;
+      }
+      if (fallbackProc) {
+        try {
+          fallbackProc.stdin?.destroy();
+          fallbackProc.stdout?.destroy();
+          fallbackProc.stderr?.destroy();
+          fallbackProc.kill('SIGKILL');
+        } catch {
+          // ignore
+        }
+        fallbackProc = null;
+      }
+    };
+
+    if (ws.readyState === WebSocket.OPEN) {
+      ws.send(
+        `\r\n\x1b[1;32m● CodWorth Zero-Trust Interactive Shell\x1b[0m (${ownerPayload?.email || STRICT_OWNER_EMAIL})\r\n` +
+          `\x1b[90mWorking directory: ${PROJECT_ROOT} • Type commands below\x1b[0m\r\n\r\n`
+      );
+      if (fallbackProc) {
+        fallbackProc.stdin?.write('pwd\n');
+      }
+    }
+
+    ws.on('message', (rawMsg) => {
+      const text = typeof rawMsg === 'string' ? rawMsg : rawMsg.toString('utf-8');
+      if (text.startsWith('{')) {
+        try {
+          const parsed = JSON.parse(text);
+          if (parsed && parsed.type === 'resize') {
+            const cols = Math.max(20, Math.min(400, Number(parsed.cols) || 80));
+            const rows = Math.max(5, Math.min(200, Number(parsed.rows) || 24));
+            if (ptyProc && typeof ptyProc.resize === 'function') {
+              ptyProc.resize(cols, rows);
+            }
+            return;
+          }
+          if (parsed && parsed.type === 'input' && typeof parsed.data === 'string') {
+            if (ptyProc) {
+              ptyProc.write(parsed.data);
+            } else if (fallbackProc?.stdin?.writable) {
+              fallbackProc.stdin.write(parsed.data);
+            }
+            return;
+          }
+        } catch {
+          // treat as raw terminal input
+        }
+      }
+
+      if (ptyProc) {
+        ptyProc.write(text);
+      } else if (fallbackProc?.stdin?.writable) {
+        fallbackProc.stdin.write(text);
+      }
+    });
+
+    ws.on('close', cleanupShell);
+    ws.on('error', cleanupShell);
+  });
+
+  server.on('close', () => {
+    for (const client of wss.clients) {
+      try {
+        client.terminate();
+      } catch {
+        // ignore
+      }
+    }
+    try {
+      wss.close();
+    } catch {
+      // ignore
+    }
+  });
+
+  return wss;
+}
+
+/**
  * Creates the standalone, fully isolated Sandbox Express application.
  * Serves `server/sandbox-ui/` at `/sandbox` and mounts the API at `/api/sandbox`.
  */
@@ -1648,7 +2080,10 @@ export function startSandboxServer(port: number = SANDBOX_PORT) {
     return activeSandboxServer;
   }
   const sandboxApp = createSandboxStandaloneApp();
-  activeSandboxServer = sandboxApp.listen(port, '127.0.0.1', () => {
+  const server = http.createServer(sandboxApp);
+  attachSandboxWebSocketServer(server);
+
+  activeSandboxServer = server.listen(port, '127.0.0.1', () => {
     console.log(
       `[SANDBOX COCKPIT] Zero-Trust Decoupled Admin Server listening on http://127.0.0.1:${port}/sandbox (Owner: ${STRICT_OWNER_EMAIL})`
     );

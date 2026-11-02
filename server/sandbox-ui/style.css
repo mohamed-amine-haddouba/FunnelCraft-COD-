@@ -354,6 +354,7 @@ code, pre, .tabular-nums, .mono-input {
   font-weight: 600;
   cursor: pointer;
   text-align: left;
+  text-decoration: none;
   transition: all 0.15s ease;
 }
 
@@ -870,8 +871,160 @@ code, pre, .tabular-nums, .mono-input {
   padding: 24px !important;
 }
 
+/* ======================== 5-STEP DEPLOY PIPELINE & XTERM ======================== */
+.section-heading-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.section-heading {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+}
+
+.section-sub {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.section-sub code {
+  color: var(--brand-accent);
+  background: rgba(226, 91, 38, 0.1);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
+.metrics-grid-4 {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.deploy-steps-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.deploy-step-card {
+  background-color: var(--bg-canvas);
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.deploy-step-card.step-running {
+  border-color: var(--brand-accent);
+  background-color: rgba(226, 91, 38, 0.08);
+}
+
+.deploy-step-card.step-success {
+  border-color: rgba(16, 185, 129, 0.45);
+  background-color: rgba(16, 185, 129, 0.07);
+}
+
+.deploy-step-card.step-error {
+  border-color: rgba(239, 68, 68, 0.5);
+  background-color: rgba(239, 68, 68, 0.08);
+}
+
+.deploy-step-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.deploy-step-num {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-muted);
+  letter-spacing: 0.05em;
+}
+
+.deploy-step-badge {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.deploy-step-card.step-running .deploy-step-badge {
+  color: var(--brand-accent);
+}
+
+.deploy-step-card.step-success .deploy-step-badge {
+  color: var(--status-online);
+}
+
+.deploy-step-card.step-error .deploy-step-badge {
+  color: var(--status-danger);
+}
+
+.deploy-step-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.deploy-step-cmd {
+  font-size: 11px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.btn-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #FFFFFF;
+  border-radius: 50%;
+  display: inline-block;
+  animation: cockpit-spin 0.75s linear infinite;
+}
+
+@keyframes cockpit-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.xterm-viewport-host {
+  width: 100%;
+  height: 420px;
+  padding: 10px 12px;
+  background-color: #080C14;
+  overflow: hidden;
+}
+
+.xterm-viewport-host .xterm {
+  height: 100%;
+}
+
+@media (max-width: 1180px) {
+  .deploy-steps-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .metrics-grid-4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 @media (max-width: 960px) {
-  .metrics-grid, .split-grid {
+  .metrics-grid, .metrics-grid-4, .split-grid, .deploy-steps-grid {
     grid-template-columns: 1fr;
   }
 }
@@ -955,5 +1108,9 @@ code, pre, .tabular-nums, .mono-input {
 
   .terminal-pre {
     overflow-x: auto;
+  }
+
+  .xterm-viewport-host {
+    height: 320px;
   }
 }

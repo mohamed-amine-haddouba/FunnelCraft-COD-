@@ -113,6 +113,7 @@ import { verifyCaptchaToken, verifyTurnstileToken, extractClientIp } from './ser
 import {
   createSandboxCockpitRouter,
   startSandboxServer,
+  attachSandboxWebSocketServer,
 } from './server/sandboxNew';
 import {
   Client as PayPalClient,
@@ -4796,6 +4797,7 @@ Return ONLY a valid JSON object matching this exact schema (no markdown outside 
   ensureDataFiles();
 
   const httpServer = http.createServer(app);
+  attachSandboxWebSocketServer(httpServer);
   startSandboxServer();
 
   httpServer.listen(PORT, '127.0.0.1', () => {
