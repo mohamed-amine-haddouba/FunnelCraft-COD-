@@ -24,6 +24,7 @@ import { BlocksToolbar } from './components/BlocksToolbar';
 import { CanvasRenderer } from './components/CanvasRenderer';
 import { PropertiesSidebar } from './components/PropertiesSidebar';
 import { AiGeneratorModal } from './components/AiGeneratorModal';
+import { AiPageBuilderPage } from './components/AiPageBuilderPage';
 import { ExportModal } from './components/ExportModal';
 import { AuthModal } from './components/AuthModal';
 import { UpgradeModal } from './components/UpgradeModal';
@@ -362,15 +363,19 @@ function BuilderWorkspace() {
   );
 
   const navigate = useNavigate();
+  const location = useLocation();
   const { tab } = useParams<{ tab?: string }>();
+  const resolvedTab =
+    tab || (location.pathname.startsWith('/dashboard/ai-builder') ? 'ai-builder' : undefined);
   const activeTab: WorkspaceTab =
-    tab === 'orders' ||
-    tab === 'analytics' ||
-    tab === 'settings' ||
-    tab === 'admin' ||
-    tab === 'pricing' ||
-    tab === 'builder'
-      ? tab
+    resolvedTab === 'orders' ||
+    resolvedTab === 'analytics' ||
+    resolvedTab === 'settings' ||
+    resolvedTab === 'admin' ||
+    resolvedTab === 'pricing' ||
+    resolvedTab === 'ai-builder' ||
+    resolvedTab === 'builder'
+      ? resolvedTab
       : 'builder';
 
   const [isCustomerLiveView, setIsCustomerLiveView] = useState<boolean>(false);
@@ -1319,6 +1324,18 @@ function BuilderWorkspace() {
             }}
           />
         </div>
+      ) : activeTab === 'ai-builder' ? (
+        <AiPageBuilderPage
+          onApplyGeneratedPage={async (generatedPage) => {
+            await recordPageAction();
+            updatePageDataWithHistory(() => generatedPage);
+            setBuilderRenderMode(generatedPage.scrapedData ? 'scraped' : 'blocks');
+            setSelectedBlockId(null);
+          }}
+          onUpgradeClick={(reason) => {
+            handleNavigateToPricing(reason || '');
+          }}
+        />
       ) : activeTab === 'builder' ? (
         <div className="flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden relative">
           {/* Compact Single-Row Product URL Scraper Bar (h-10) */}
@@ -2058,6 +2075,7 @@ export default function App() {
             <Routes>
               {/* 1. Dashboard & Builder (Root level - no language prefix) */}
               <Route path="/dashboard" element={<Navigate to="/dashboard/builder" replace />} />
+              <Route path="/dashboard/ai-builder" element={<BuilderWorkspace />} />
               <Route path="/dashboard/:tab" element={<BuilderWorkspace />} />
 
               {/* 2. Sandbox (Root level - no language prefix) */}

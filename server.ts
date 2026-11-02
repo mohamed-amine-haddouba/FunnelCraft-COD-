@@ -4328,64 +4328,152 @@ export async function startServer() {
     return next();
   });
 
-  /* ---------------- AI LANDING PAGE GENERATION ---------------- */
+  /* ---------------- AI LANDING PAGE GENERATION & CONTENT MODERATION ---------------- */
 
-  app.post('/api/generate-page', optionalAuthMiddleware, async (req: AuthRequest, res: Response) => {
-    // If authenticated, verify page creation limit for user's plan
+  const ILLEGAL_CONTENT_PATTERNS: RegExp[] = [
+    /\b(cocaine|heroin|methamphetamine|fentanyl|mdma|ecstasy|lsd|weed|cannabis|marijuana|hashish|narcotics|opioids|steroids)\b/i,
+    /(كوكايين|هيروين|مخدرات|حشيش|قنب|أقراص مهلوسة|القرقوبي|حبوب الهلوسة|مواد مخدرة)/i,
+    /\b(firearm|handgun|pistol|rifle|ak-47|ar-15|ammunition|ammo|explosives|bomb|grenade|silencer|taser|switchblade|illegal weapon)\b/i,
+    /(سلاح ناري|مسدس|بندقية|كلاشينكوف|ذخيرة|رصاص حي|متفجرات|قنبلة|أسلحة ممنوعة)/i,
+    /\b(fake passport|forged id|counterfeit money|fake banknotes|stolen credit card|carding|cvv dump|phishing kit|malware|ransomware|hack account)\b/i,
+    /(جواز سفر مزور|بطاقة هوية مزورة|عملات مزورة|نقود مزورة|بطاقات بنكية مسروقة|اختراق حسابات|تهكير|نصب واحتيال)/i,
+    /\b(human organs|child abuse|adult escort|prostitution|illegal casino|unlicensed gambling)\b/i,
+    /(تجارة الأعضاء|قمار غير قانوني|محتوى إباحي)/i,
+  ];
+
+  function getLocalizedModerationError(lang = 'ar'): string {
+    if (lang === 'fr') {
+      return 'Désolé, nous ne pouvons pas générer de pages pour des produits illégaux, dangereux ou interdits (armes, drogues, contrefaçons, arnaques ou services hors e-commerce légal). Veuillez saisir un produit commercial légal.';
+    }
+    if (lang === 'en') {
+      return 'Sorry, we cannot generate landing pages for illegal, dangerous, or prohibited products (weapons, drugs, counterfeit goods, scams, or non-legal e-commerce items). Please describe a legal commercial product.';
+    }
+    return 'عذراً، لا يمكن توليد صفحات لمنتجات غير قانونية أو محظورة (مثل الأسلحة، المواد المخدرة، الوثائق المزورة، أو الأنشطة الاحتيالية خارج نطاق التجارة الإلكترونية القانونية). يرجى إدخال منتج تجاري قانوني.';
+  }
+
+  function containsIllegalProductRequest(rawText: string): boolean {
+    const normalized = (rawText || '').trim();
+    if (!normalized) return false;
+    return ILLEGAL_CONTENT_PATTERNS.some((pattern) => pattern.test(normalized));
+  }
+
+  const handleAiGeneratePage = async (req: AuthRequest, res: Response) => {
+    const rawLanguage = String(req.body?.language || 'ar').trim().toLowerCase();
+    const language = rawLanguage.startsWith('ar') ? 'ar' : rawLanguage === 'fr' ? 'fr' : 'en';
+
+    // 1. Enforce Plan Limits: Starter/Free users do not have access to AI Page Builder; Pro/Business & Admin do
     if (req.user) {
-      const access = checkFeatureAccess(
-        'create_page',
+      const currentPagesCount = getUserPages(req.user.id).length;
+      const aiAccess = checkFeatureAccess(
+        'ai_builder',
         req.user,
-        getUserPages(req.user.id).length,
+        currentPagesCount,
         process.env.OWNER_EMAIL
       );
-      if (!access.allowed) {
+      if (!aiAccess.allowed) {
         return res.status(403).json({
           success: false,
-          code: access.code,
+          code: aiAccess.code,
           isLimitReached: true,
-          requiredPlan: access.requiredPlan,
-          error: 'LIMIT_REACHED',
-          message: access.message,
+          requiredPlan: aiAccess.requiredPlan,
+          error: language === 'ar' ? aiAccess.messageAr : aiAccess.message,
+          message: language === 'ar' ? aiAccess.messageAr : aiAccess.message,
+        });
+      }
+
+      const pageLimitAccess = checkFeatureAccess(
+        'create_page',
+        req.user,
+        currentPagesCount,
+        process.env.OWNER_EMAIL
+      );
+      if (!pageLimitAccess.allowed) {
+        return res.status(403).json({
+          success: false,
+          code: pageLimitAccess.code,
+          isLimitReached: true,
+          requiredPlan: pageLimitAccess.requiredPlan,
+          error: language === 'ar' ? pageLimitAccess.messageAr : pageLimitAccess.message,
+          message: language === 'ar' ? pageLimitAccess.messageAr : pageLimitAccess.message,
         });
       }
     }
 
     const {
-      productName = 'Smart Gadget',
-      niche = 'Electronics',
-      language = 'en',
-      targetAudience = 'General consumers',
+      prompt: rawPrompt = '',
+      productName: rawProductName = '',
+      niche = 'E-Commerce & COD',
+      targetAudience = 'Online shoppers',
       offerAngle = '50% Off Flash Sale + Free Cash on Delivery',
-    } = req.body;
+      pageType = 'product-page',
+      attachedContext = '',
+    } = req.body || {};
 
+    const combinedInput = `${rawPrompt} ${rawProductName} ${niche} ${targetAudience} ${offerAngle} ${attachedContext}`.trim();
+
+    // 2. Content Moderation & Legal Compliance Pre-Check
+    if (containsIllegalProductRequest(combinedInput)) {
+      const refusalMsg = getLocalizedModerationError(language);
+      return res.status(400).json({
+        success: false,
+        code: 'ILLEGAL_CONTENT_REFUSED',
+        error: refusalMsg,
+        message: refusalMsg,
+      });
+    }
+
+    const productName =
+      (rawProductName || rawPrompt || 'Smart Gadget').toString().trim().slice(0, 120) || 'Smart Gadget';
+    const fullDescription = [rawPrompt, attachedContext].filter(Boolean).join('\n').trim();
     const isRtl = language === 'ar';
     const isFrench = language === 'fr';
 
     try {
       if (ai && (process.env.GEMINI_API_KEY || process.env.AI_API_KEY)) {
-        const prompt = `You are a world-class conversion rate optimization (CRO) copywriter and landing page architect specializing in high-converting e-commerce and Cash on Delivery (COD) sales funnels (similar to top stores on Lightfunnels, Framer, and Shopify).
+        const systemInstruction = `You are a world-class Conversion Rate Optimization (CRO) copywriter and landing page architect specializing in legal e-commerce and Cash on Delivery (COD) sales funnels.
+STRICT LEGAL & CONTENT MODERATION DIRECTIVE:
+- You MUST REFUSE to generate landing pages for any illegal products or services, including: drugs, narcotics, weapons, firearms, explosives, counterfeit goods/documents, financial scams, hacking tools, adult/explicit content, gambling, or anything outside legal commercial e-commerce/COD.
+- If the user's input requests an illegal product, scam, or prohibited item, return ONLY this JSON object:
+{"refused": true, "error": "${getLocalizedModerationError(language)}"}
+- Otherwise, generate a complete, high-converting LandingPageData JSON object for the legal e-commerce product.`;
 
-Create a complete landing page JSON schema for this product:
-Product Name: "${productName}"
+        const prompt = `Create a complete landing page JSON schema for this e-commerce product:
+Product Name / Prompt: "${productName}"
+Detailed Product Context: "${fullDescription || productName}"
+Page Format Type: "${pageType}"
 Niche/Category: "${niche}"
 Target Language: "${language}" (${isRtl ? 'Moroccan Darija / Arabic RTL' : isFrench ? 'French' : 'English'})
 Target Audience: "${targetAudience}"
 Offer Angle: "${offerAngle}"
 
-Return ONLY a valid JSON object with: id, title, language, direction, theme, blocks (promo-bar, hero, problem-solution, features, social-proof, cod-form, faq, floating-cta).`;
+If this request involves illegal products (drugs, weapons, scams, adult content, counterfeit items) or non-legal commerce, return {"refused": true, "error": "${getLocalizedModerationError(language)}"}.
+Otherwise, return ONLY a valid JSON object with: id, title, language, direction, theme, blocks (promo-bar, hero, problem-solution, features, social-proof, cod-form, faq, floating-cta).`;
 
         const response = await ai.models.generateContent({
-          model: 'gemini-3.8-flash',
+          model: 'gemini-3-flash-preview',
           contents: prompt,
           config: {
+            systemInstruction,
             responseMimeType: 'application/json',
           },
         });
 
         const textOutput = response.text?.trim() || '';
-        const parsed = JSON.parse(textOutput) as LandingPageData;
-        return res.json({ success: true, data: parsed });
+        const parsed = JSON.parse(textOutput) as LandingPageData & { refused?: boolean; error?: string };
+
+        if (parsed && parsed.refused) {
+          const msg = parsed.error || getLocalizedModerationError(language);
+          return res.status(400).json({
+            success: false,
+            code: 'ILLEGAL_CONTENT_REFUSED',
+            error: msg,
+            message: msg,
+          });
+        }
+
+        if (parsed && Array.isArray(parsed.blocks) && parsed.blocks.length > 0) {
+          return res.json({ success: true, data: parsed });
+        }
       }
     } catch (err) {
       console.warn('Gemini API call warning, falling back to smart dynamic generator:', err);
@@ -4394,7 +4482,10 @@ Return ONLY a valid JSON object with: id, title, language, direction, theme, blo
     // High quality intelligent template generator fallback
     const fallbackData = createDynamicFallback(productName, niche, language, targetAudience);
     return res.json({ success: true, data: fallbackData });
-  });
+  };
+
+  app.post('/api/generate-page', optionalAuthMiddleware, handleAiGeneratePage);
+  app.post('/api/ai/generate', optionalAuthMiddleware, handleAiGeneratePage);
 
   /* ---------------- MULTI-LAYER DEEP PRODUCT SCRAPER ENDPOINT ---------------- */
 

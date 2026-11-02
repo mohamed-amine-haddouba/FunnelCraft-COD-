@@ -307,6 +307,36 @@ export interface Translations {
   'home.hero.nav.pricing': string;
   'home.hero.nav.templates': string;
   'home.hero.brandName': string;
+
+  // Standalone AI Page Builder Workspace
+  navAiBuilder: string;
+  aiBuilderTitle: string;
+  aiBuilderSubtitle: string;
+  aiBuilderPlaceholder: string;
+  aiBuilderAttachFile: string;
+  aiBuilderProductPage: string;
+  aiBuilderModeProductPage: string;
+  aiBuilderModeCodFunnel: string;
+  aiBuilderModeUrlImport: string;
+  aiBuilderGenerate: string;
+  aiBuilderGenerating: string;
+  aiBuilderScrapingUrl: string;
+  aiBuilderNewChat: string;
+  aiBuilderChatHistory: string;
+  aiBuilderHistoryEmpty: string;
+  aiBuilderHistoryClear: string;
+  aiBuilderHistoryUsePrompt: string;
+  aiBuilderPlanLockedBadge: string;
+  aiBuilderPlanLockedTitle: string;
+  aiBuilderPlanLockedDesc: string;
+  aiBuilderUpgradeCta: string;
+  aiBuilderIllegalContentError: string;
+  aiBuilderAttachedFileLabel: string;
+  aiBuilderRemoveFile: string;
+  aiBuilderQuickSuggestionsLabel: string;
+  aiBuilderSuggestion1: string;
+  aiBuilderSuggestion2: string;
+  aiBuilderSuggestion3: string;
 }
 
 export const translations: Record<Language, Translations> = {
@@ -599,6 +629,36 @@ export const translations: Record<Language, Translations> = {
     'home.hero.nav.pricing': 'الأسعار',
     'home.hero.nav.templates': 'قوالب',
     'home.hero.brandName': 'CodWorth / كود ورث',
+
+    // Standalone AI Page Builder Workspace (Arabic)
+    navAiBuilder: 'منشئ الصفحات AI',
+    aiBuilderTitle: 'منشئ الصفحات AI',
+    aiBuilderSubtitle: 'صف منتجك بالتفصيل أو الصق رابط منتج من AliExpress أو Shopify أو YouCan لتوليد صفحة هبوط COD عالية التحويل في ثوانٍ.',
+    aiBuilderPlaceholder: 'صف منتجك أو الصق رابطاً ...',
+    aiBuilderAttachFile: 'إرفاق ملف',
+    aiBuilderProductPage: 'صفحة منتج',
+    aiBuilderModeProductPage: 'صفحة منتج متكاملة',
+    aiBuilderModeCodFunnel: 'صفحة عرض الدفع عند الاستلام (COD)',
+    aiBuilderModeUrlImport: 'استيراد ذكي من رابط منتج',
+    aiBuilderGenerate: 'توليد',
+    aiBuilderGenerating: 'جاري توليد الصفحة...',
+    aiBuilderScrapingUrl: 'جاري سحب بيانات المنتج وتوليد الصفحة...',
+    aiBuilderNewChat: 'دردشة جديدة +',
+    aiBuilderChatHistory: 'سجل المحادثات',
+    aiBuilderHistoryEmpty: 'لا توجد محادثات أو عمليات توليد سابقة حتى الآن.',
+    aiBuilderHistoryClear: 'مسح السجل',
+    aiBuilderHistoryUsePrompt: 'استخدام هذا الوصف',
+    aiBuilderPlanLockedBadge: 'ميزة حصرية لباقة بريميوم والأعمال 👑',
+    aiBuilderPlanLockedTitle: 'منشئ الصفحات بالذكاء الاصطناعي متاح في باقة بريميوم (Pro) والأعمال (Business)',
+    aiBuilderPlanLockedDesc: 'حسابك الحالي على باقة المبتدئ أو المجانية. قم بترقية اشتراكك لتوليد صفحات هبوط احترافية بالذكاء الاصطناعي واستيراد المنتجات بنقرة واحدة.',
+    aiBuilderUpgradeCta: 'ترقية الباقة الآن',
+    aiBuilderIllegalContentError: 'عذراً، لا يمكن توليد صفحات لمنتجات غير قانونية أو محظورة (مثل الأسلحة، المواد المخدرة، المنتجات المقلدة، أو الأنشطة الاحتيالية). يرجى إدخال منتج تجاري قانوني.',
+    aiBuilderAttachedFileLabel: 'ملف مرفق:',
+    aiBuilderRemoveFile: 'إزالة المرفق',
+    aiBuilderQuickSuggestionsLabel: 'أمثلة سريعة للتجربة:',
+    aiBuilderSuggestion1: 'ساعة ذكية رياضية مقاومة للماء مع قياس نبضات القلب وخصم 50% والدفع عند الاستلام في المغرب',
+    aiBuilderSuggestion2: 'خلاط محمول قابل للشحن USB لتحضير العصائر الطازجة مع عرض قطعتين بسعر خاص وتوصيل مجاني',
+    aiBuilderSuggestion3: 'سيروم الكولاجين الطبيعي للعناية بالبشرة وإزالة التجاعيد مع ضمان استرجاع الأموال',
   },
 
   fr: {
@@ -890,6 +950,36 @@ export const translations: Record<Language, Translations> = {
     'home.hero.nav.pricing': 'Tarifs',
     'home.hero.nav.templates': 'Modèles',
     'home.hero.brandName': 'CodWorth',
+
+    // Standalone AI Page Builder Workspace (French)
+    navAiBuilder: 'Créateur IA',
+    aiBuilderTitle: 'Créateur de Pages IA',
+    aiBuilderSubtitle: 'Décrivez votre produit ou collez un lien AliExpress, Shopify ou YouCan pour générer une page de vente COD haute conversion.',
+    aiBuilderPlaceholder: 'Décrivez votre produit ou collez un lien...',
+    aiBuilderAttachFile: 'Joindre un fichier',
+    aiBuilderProductPage: 'Page produit',
+    aiBuilderModeProductPage: 'Page produit complète',
+    aiBuilderModeCodFunnel: 'Tunnel COD Offre Flash',
+    aiBuilderModeUrlImport: 'Importation intelligente par URL',
+    aiBuilderGenerate: 'Générer',
+    aiBuilderGenerating: 'Génération en cours...',
+    aiBuilderScrapingUrl: 'Extraction du produit et génération...',
+    aiBuilderNewChat: 'Nouvelle discussion +',
+    aiBuilderChatHistory: 'Historique des discussions',
+    aiBuilderHistoryEmpty: 'Aucun historique de génération pour le moment.',
+    aiBuilderHistoryClear: 'Effacer l’historique',
+    aiBuilderHistoryUsePrompt: 'Réutiliser ce prompt',
+    aiBuilderPlanLockedBadge: 'Exclusif Pro & Business 👑',
+    aiBuilderPlanLockedTitle: 'Le Créateur de Pages IA est réservé aux plans Professionnel et Business',
+    aiBuilderPlanLockedDesc: 'Passez au forfait Professionnel (199 MAD) ou Business (299 MAD) pour débloquer la génération illimitée par IA.',
+    aiBuilderUpgradeCta: 'Mettre à niveau maintenant',
+    aiBuilderIllegalContentError: 'Désolé, nous ne pouvons pas générer de pages pour des produits illégaux, dangereux ou interdits (armes, drogues, contrefaçons, arnaques). Veuillez saisir un produit e-commerce légal.',
+    aiBuilderAttachedFileLabel: 'Fichier joint :',
+    aiBuilderRemoveFile: 'Retirer',
+    aiBuilderQuickSuggestionsLabel: 'Exemples rapides :',
+    aiBuilderSuggestion1: 'Montre connectée étanche avec suivi cardiaque, offre -50% et paiement à la livraison au Maroc',
+    aiBuilderSuggestion2: 'Mini mixeur portable rechargeable USB pour smoothies avec livraison gratuite',
+    aiBuilderSuggestion3: 'Sérum visage anti-âge au collagène naturel avec garantie satisfait ou remboursé',
   },
 
   en: {
@@ -1181,6 +1271,36 @@ export const translations: Record<Language, Translations> = {
     'home.hero.nav.pricing': 'Pricing',
     'home.hero.nav.templates': 'Templates',
     'home.hero.brandName': 'CodWorth',
+
+    // Standalone AI Page Builder Workspace (English)
+    navAiBuilder: 'AI Page Builder',
+    aiBuilderTitle: 'AI Page Builder',
+    aiBuilderSubtitle: 'Describe your product or paste an AliExpress, Shopify, or YouCan link to generate a high-converting COD landing page in seconds.',
+    aiBuilderPlaceholder: 'Describe your product or paste a link...',
+    aiBuilderAttachFile: 'Attach file',
+    aiBuilderProductPage: 'Product page',
+    aiBuilderModeProductPage: 'Full Product Page',
+    aiBuilderModeCodFunnel: 'COD Flash Offer Funnel',
+    aiBuilderModeUrlImport: 'Smart URL Product Import',
+    aiBuilderGenerate: 'Generate',
+    aiBuilderGenerating: 'Generating page...',
+    aiBuilderScrapingUrl: 'Extracting product & generating page...',
+    aiBuilderNewChat: 'New Chat +',
+    aiBuilderChatHistory: 'Chat History',
+    aiBuilderHistoryEmpty: 'No previous chat prompts yet.',
+    aiBuilderHistoryClear: 'Clear History',
+    aiBuilderHistoryUsePrompt: 'Use this prompt',
+    aiBuilderPlanLockedBadge: 'Pro & Business Exclusive 👑',
+    aiBuilderPlanLockedTitle: 'AI Page Builder requires the Professional or Business Plan',
+    aiBuilderPlanLockedDesc: 'Upgrade your subscription to Professional (199 MAD/mo) or Business (299 MAD/mo) to unlock AI landing page generation.',
+    aiBuilderUpgradeCta: 'Upgrade Plan Now',
+    aiBuilderIllegalContentError: 'Sorry, we cannot generate landing pages for illegal, restricted, or prohibited products (weapons, drugs, counterfeit goods, or scams). Please enter a legal e-commerce product.',
+    aiBuilderAttachedFileLabel: 'Attached file:',
+    aiBuilderRemoveFile: 'Remove file',
+    aiBuilderQuickSuggestionsLabel: 'Quick examples to try:',
+    aiBuilderSuggestion1: 'Smart waterproof fitness watch with heart-rate monitor, 50% off + free Cash on Delivery in Morocco',
+    aiBuilderSuggestion2: 'Portable rechargeable USB blender for fresh smoothies with buy 1 get 1 offer',
+    aiBuilderSuggestion3: 'Organic vitamin C & collagen facial serum with 30-day money-back guarantee',
   },
 };
 

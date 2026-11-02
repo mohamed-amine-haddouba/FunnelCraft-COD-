@@ -31,6 +31,7 @@ import {
   Undo2,
   Redo2,
   ArrowRight,
+  Sparkles,
 } from 'lucide-react';
 import { ALL_PRESET_TEMPLATES } from '../data/defaultTemplates';
 import { useAuth } from '../context/AuthContext';
@@ -41,6 +42,7 @@ import { SubscriptionPlanId } from '../types/orders';
 
 export type WorkspaceTab =
   | 'builder'
+  | 'ai-builder'
   | 'orders'
   | 'analytics'
   | 'settings'
@@ -185,6 +187,20 @@ export const HeaderNav: React.FC<Props> = ({
             >
               <Store className="w-3.5 h-3.5 shrink-0" />
               <span>{t.navBuilder}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleNavigateTab('ai-builder')}
+              title={t.navAiBuilder}
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer whitespace-nowrap shrink-0 ${
+                currentTab === 'ai-builder'
+                  ? 'bg-brand-elevated text-brand-primary shadow-2xs'
+                  : 'text-brand-secondary hover:text-brand-primary hover:bg-brand-elevated/60'
+              }`}
+            >
+              <Sparkles className="w-3.5 h-3.5 text-brand-accent shrink-0" />
+              <span>{t.navAiBuilder}</span>
             </button>
 
             <button

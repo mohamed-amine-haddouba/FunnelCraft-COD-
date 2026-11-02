@@ -9,7 +9,8 @@ export type PlanFeature =
   | 'pixels'
   | 'api_integrations'
   | 'remove_watermark'
-  | 'pro_blocks';
+  | 'pro_blocks'
+  | 'ai_builder';
 
 export interface PlanCapabilities {
   effectivePlan: PlanTier;
@@ -23,6 +24,7 @@ export interface PlanCapabilities {
   canExportOrders: boolean;
   canRemoveWatermark: boolean;
   canUseProBlocks: boolean;
+  canUseAiBuilder: boolean;
   prioritySupport: boolean;
 }
 
@@ -167,6 +169,7 @@ export function getPlanCapabilities(
       canExportOrders: true,
       canRemoveWatermark: true,
       canUseProBlocks: true,
+      canUseAiBuilder: true,
       prioritySupport: true,
     };
   }
@@ -187,6 +190,7 @@ export function getPlanCapabilities(
         canExportOrders: true,
         canRemoveWatermark: true,
         canUseProBlocks: true,
+        canUseAiBuilder: true,
         prioritySupport: true,
       };
     case 'pro':
@@ -202,6 +206,7 @@ export function getPlanCapabilities(
         canExportOrders: true,
         canRemoveWatermark: true,
         canUseProBlocks: true,
+        canUseAiBuilder: true,
         prioritySupport: false,
       };
     case 'starter':
@@ -217,6 +222,7 @@ export function getPlanCapabilities(
         canExportOrders: false,
         canRemoveWatermark: true,
         canUseProBlocks: false,
+        canUseAiBuilder: false,
         prioritySupport: false,
       };
     case 'free':
@@ -233,6 +239,7 @@ export function getPlanCapabilities(
         canExportOrders: false,
         canRemoveWatermark: false,
         canUseProBlocks: false,
+        canUseAiBuilder: false,
         prioritySupport: false,
       };
   }
@@ -388,6 +395,25 @@ export function checkFeatureAccess(
         currentPagesCount,
         message: 'Pro conversion blocks require the Pro or Enterprise plan.',
         messageAr: 'عناصر التحويل المتقدمة تتطلب باقة Pro أو Enterprise.',
+      };
+    }
+  }
+
+  if (feature === 'ai_builder') {
+    if (!caps.canUseAiBuilder) {
+      return {
+        allowed: false,
+        statusCode: 403,
+        code: 'AI_BUILDER_FORBIDDEN',
+        feature,
+        effectivePlan: caps.effectivePlan,
+        requiredPlan: 'pro',
+        maxPages: caps.maxPages,
+        currentPagesCount,
+        message:
+          'AI Page Builder requires the Professional (Pro) or Business plan. Please upgrade your subscription.',
+        messageAr:
+          'منشئ الصفحات بالذكاء الاصطناعي (AI) متاح حصرياً لمشتركي باقة بريميوم (Pro) أو الأعمال (Business). يرجى ترقية اشتراكك.',
       };
     }
   }
