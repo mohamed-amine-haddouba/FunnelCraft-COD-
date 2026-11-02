@@ -10,3 +10,4 @@ coverage/
 .playwright-cli/
 data/*
 !data/.gitkeep
+!data/disposable_email_domains.json

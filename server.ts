@@ -464,7 +464,7 @@ export async function startServer() {
   // Task 1: Trust Nginx Reverse Proxy so req.ip reflects the real client IP
   app.set('trust proxy', 1);
 
-  // Task 5: Helmet security headers to block MIME sniffing and XSS while allowing AI Studio iframe preview
+  // Task 5: Helmet security headers to block MIME sniffing, XSS, and cross-origin framing
   app.use(
     helmet({
       contentSecurityPolicy: false,
@@ -489,6 +489,7 @@ export async function startServer() {
 
   // Explicit Security Headers Middleware
   app.use((_req: Request, res: Response, next: NextFunction) => {
+    res.setHeader('X-Frame-Options', 'SAMEORIGIN');
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('X-Frame-Options', 'SAMEORIGIN');
     res.setHeader('X-XSS-Protection', '1; mode=block');
@@ -4455,7 +4456,7 @@ If this request involves illegal products (drugs, weapons, scams, adult content,
 Otherwise, return ONLY a valid JSON object with: id, title, language, direction, theme, blocks (promo-bar, hero, problem-solution, features, social-proof, cod-form, faq, floating-cta).`;
 
         const response = await ai.models.generateContent({
-          model: 'gemini-3-flash-preview',
+          model: (process.env.AI_MODEL || 'gemini-2.5-flash').trim() || 'gemini-2.5-flash',
           contents: prompt,
           config: {
             systemInstruction,
@@ -4671,19 +4672,20 @@ Return ONLY a valid JSON object matching this exact schema (no markdown outside 
 3. Generate a rich FAQ section containing at least 4 objections commonly raised by COD buyers (shipping time, payment on delivery assurance, quality guarantee, warranty/returns).
 4. Ensure the copy is persuasive, highly engaging, and tailored to the chosen language (${language}).`;
 
+          const primaryModel = (process.env.AI_MODEL || 'gemini-2.5-flash').trim() || 'gemini-2.5-flash';
           let response;
           try {
             response = await ai.models.generateContent({
-              model: 'gemini-3.1-pro-preview',
+              model: primaryModel,
               contents: prompt,
               config: {
                 responseMimeType: 'application/json',
               },
             });
           } catch (modelErr) {
-            console.warn('gemini-3.1-pro-preview unavailable, falling back to gemini-3.8-flash:', modelErr);
+            console.warn(`${primaryModel} unavailable, falling back to gemini-2.5-flash:`, modelErr);
             response = await ai.models.generateContent({
-              model: 'gemini-3.8-flash',
+              model: 'gemini-2.5-flash',
               contents: prompt,
               config: {
                 responseMimeType: 'application/json',

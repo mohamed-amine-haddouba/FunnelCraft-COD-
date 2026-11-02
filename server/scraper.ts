@@ -14,7 +14,8 @@ console.log(
   }`
 );
 
-const geminiClient = resolvedGeminiApiKey
+let cachedGeminiKey = resolvedGeminiApiKey || '';
+let geminiClient: GoogleGenAI | null = resolvedGeminiApiKey
   ? new GoogleGenAI({
       apiKey: resolvedGeminiApiKey,
       httpOptions: {
@@ -24,6 +25,52 @@ const geminiClient = resolvedGeminiApiKey
       },
     })
   : null;
+
+export interface GeminiContentGenerator {
+  models: {
+    generateContent: (params: {
+      model: string;
+      contents: string;
+      config?: {
+        systemInstruction?: string;
+        responseMimeType?: string;
+        temperature?: number;
+      };
+    }) => Promise<{ text?: string }>;
+  };
+}
+
+let customGeminiClientForTest: GeminiContentGenerator | null = null;
+
+export function setCustomGeminiClientForTest(client: GeminiContentGenerator | null): void {
+  customGeminiClientForTest = client;
+}
+
+export function getGeminiClient(): GeminiContentGenerator | null {
+  if (customGeminiClientForTest) {
+    return customGeminiClientForTest;
+  }
+  const currentKey = (process.env.GEMINI_API_KEY || process.env.AI_API_KEY || '').trim();
+  if (!currentKey) {
+    return null;
+  }
+  if (!geminiClient || cachedGeminiKey !== currentKey) {
+    cachedGeminiKey = currentKey;
+    geminiClient = new GoogleGenAI({
+      apiKey: currentKey,
+      httpOptions: {
+        headers: {
+          'User-Agent': 'aistudio-build',
+        },
+      },
+    });
+  }
+  return geminiClient;
+}
+
+export function resolveScraperAiModel(): string {
+  return (process.env.AI_MODEL || 'gemini-2.5-flash').trim() || 'gemini-2.5-flash';
+}
 
 export type SupportedPlatform =
   | 'Shopify'
@@ -117,21 +164,13 @@ interface ShopifyProductJsonRaw {
   options?: ShopifyOptionRaw[];
 }
 
-interface AiEnrichmentResult {
+export interface AiEnrichmentResult {
   title?: string;
   description?: string;
   features?: string[];
   specifications?: ScrapedSpecification[];
   reviews?: ScrapedReview[];
   faqs?: ScrapedFaq[];
-}
-
-interface OpenAiCompatResponse {
-  choices?: {
-    message?: {
-      content?: string | null;
-    };
-  }[];
 }
 
 const NICHE_IMAGE_FALLBACKS: Record<string, string[]> = {
@@ -1111,7 +1150,8 @@ export async function extractWithGeminiFallback(
   rawHtml: string,
   baseOrigin: string
 ): Promise<Partial<ScrapedProduct> | null> {
-  if (!geminiClient || !rawHtml || !rawHtml.trim()) {
+  const client = getGeminiClient();
+  if (!client || !rawHtml || !rawHtml.trim()) {
     return null;
   }
 
@@ -1136,16 +1176,20 @@ Each element in the JSON array should be an object with:
 Raw e-commerce HTML:
 ${compactHtml}`;
 
-    const response = await geminiClient.models.generateContent({
-      model: 'gemini-3.8-flash',
+    const response = await client.models.generateContent({
+      model: resolveScraperAiModel(),
       contents: prompt,
       config: {
         responseMimeType: 'application/json',
       },
     });
 
-    const text = response.text?.trim() || '';
-    if (!text) return null;
+    const rawText = response.text?.trim() || '';
+    if (!rawText) return null;
+    const text = rawText
+      .replace(/^```(?:json)?\s*/i, '')
+      .replace(/\s*```$/i, '')
+      .trim();
 
     const parsed: unknown = JSON.parse(text);
     const items: Record<string, unknown>[] = Array.isArray(parsed)
@@ -1226,10 +1270,10 @@ ${compactHtml}`;
 }
 
 /**
- * Provider-Agnostic AI Enrichment via OpenAI-Compatible Chat Completions Endpoint
- * Supports OpenAI, DeepSeek, OpenRouter, Groq, and Google Gemini Compatibility Layer
+ * Google Gemini AI Enrichment via @google/genai SDK (models.generateContent)
+ * Uses GEMINI_API_KEY or AI_API_KEY and AI_MODEL (defaults to gemini-2.5-flash).
  */
-async function enrichWithGeminiAi(
+export async function enrichWithGeminiAi(
   partial: {
     title: string;
     description: string;
@@ -1238,11 +1282,10 @@ async function enrichWithGeminiAi(
     rawUrl: string;
   }
 ): Promise<AiEnrichmentResult | null> {
-  const baseUrl = (process.env.AI_BASE_URL || 'https://api.openai.com/v1').replace(/\/+$/, '');
-  const apiKey = process.env.GEMINI_API_KEY || process.env.AI_API_KEY;
-  const model = process.env.AI_MODEL || 'gpt-4o-mini';
+  const client = getGeminiClient();
+  if (!client) return null;
 
-  if (!apiKey) return null;
+  const model = resolveScraperAiModel();
 
   try {
     const systemPrompt =
@@ -1254,51 +1297,47 @@ async function enrichWithGeminiAi(
 - التخصص: ${partial.niche}
 - الرابط: ${partial.rawUrl}
 
-المطلوب توليد كائن JSON احترافي باللغة العربية موجه للمشتري المغربي يحتوي على الحقول التالية:
+المطلوب توليد كائن JSON احترافي باللغة العربية موجه للمشتري المغربي يحتوي على الحقول التالية (مع توفير 4 مميزات على الأقل، 3 مواصفات على الأقل، 3 تقييمات على الأقل، و3 أسئلة شائعة على الأقل):
 {
   "title": "عنوان تسويقي جذاب واضح باللغة العربية",
   "description": "وصف تسويقي مقنع ومفصل يبرز الفوائد العملية والحلول التي يقدمها المنتج",
   "features": ["ميزة 1", "ميزة 2", "ميزة 3", "ميزة 4"],
   "specifications": [
-    { "label": "اسم المواصفة", "value": "قيمة المواصفة" },
+    { "label": "اسم المواصفة 1", "value": "قيمة المواصفة 1" },
+    { "label": "اسم المواصفة 2", "value": "قيمة المواصفة 2" },
     { "label": "ماذا يوجد في العلبة؟", "value": "محتويات العلبة الكاملة" }
   ],
   "reviews": [
-    { "author": "اسم زبون مغربي", "city": "الدار البيضاء / الرباط / مراكش / طنجة", "rating": 5, "comment": "تعليق واقعي حول الجودة والتوصيل والدفع عند الاستلام" }
+    { "author": "اسم زبون مغربي 1", "city": "الدار البيضاء", "rating": 5, "comment": "تعليق واقعي حول الجودة والتوصيل والدفع عند الاستلام" },
+    { "author": "اسم زبون مغربي 2", "city": "الرباط", "rating": 5, "comment": "تعليق واقعي حول سرعة التوصيل والمطابقة للمواصفات" },
+    { "author": "اسم زبون مغربي 3", "city": "مراكش", "rating": 5, "comment": "تعليق واقعي حول خدمة الزبناء والمعاينة قبل الدفع" }
   ],
   "faqs": [
-    { "question": "سؤال شائع للزبون المغربي", "answer": "جواب مطمئن وواضح" }
+    { "question": "سؤال شائع 1 للزبون المغربي", "answer": "جواب مطمئن وواضح 1" },
+    { "question": "سؤال شائع 2 حول التوصيل والدفع عند الاستلام", "answer": "جواب مطمئن وواضح 2" },
+    { "question": "سؤال شائع 3 حول الضمان والاستبدال", "answer": "جواب مطمئن وواضح 3" }
   ]
 }`;
 
-    const response = await fetch(`${baseUrl}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt },
-        ],
-        response_format: { type: 'json_object' },
+    const response = await client.models.generateContent({
+      model,
+      contents: userPrompt,
+      config: {
+        systemInstruction: systemPrompt,
+        responseMimeType: 'application/json',
         temperature: 0.7,
-      }),
-      signal: AbortSignal.timeout(12000),
+      },
     });
 
-    if (!response.ok) return null;
+    const content = response.text?.trim() || '';
+    if (!content) return null;
 
-    const rawData: unknown = await response.json();
-    if (!isRecord(rawData)) return null;
+    const cleanedContent = content
+      .replace(/^```(?:json)?\s*/i, '')
+      .replace(/\s*```$/i, '')
+      .trim();
 
-    const typedResponse = rawData as unknown as OpenAiCompatResponse;
-    const content = typedResponse.choices?.[0]?.message?.content;
-    if (!content || typeof content !== 'string') return null;
-
-    const parsedContent: unknown = JSON.parse(content);
+    const parsedContent: unknown = JSON.parse(cleanedContent);
     if (!isRecord(parsedContent)) return null;
 
     return parsedContent as unknown as AiEnrichmentResult;

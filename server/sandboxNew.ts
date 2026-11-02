@@ -24,14 +24,13 @@ const SANDBOX_LOGIN_AUDIT_FILE = path.resolve(DATA_DIR, 'sandbox_login_audit.jso
 
 export const STRICT_OWNER_EMAIL = 'naadianajah2020@gmail.com';
 export const SANDBOX_PORT = Number(process.env.SANDBOX_PORT) || 3002;
-const JWT_TTL_SECONDS = 30 * 60; // 30 minutes (Zero-Trust)
+export const JWT_TTL_SECONDS = 30 * 60; // 30 minutes
 
-// Ephemeral + environment-backed secret for HMAC-SHA256 JWT signing
-function getSandboxJwtSecret(): string {
+export function getSandboxJwtSecret(): string {
   const secret = (process.env.SANDBOX_JWT_SECRET || '').trim();
   if (!secret || secret.length < 32) {
     throw new Error(
-      '[SANDBOX] SANDBOX_JWT_SECRET is required and must be at least 32 characters. Set it in .env.'
+      'SANDBOX_JWT_SECRET must be set and at least 32 characters long'
     );
   }
   return secret;
@@ -384,6 +383,7 @@ const SAFE_ALLOWED_FILES = new Set([
   'data/settings.json',
   'data/security_login_audit.json',
   'data/sandbox_login_audit.json',
+  'data/disposable_email_domains.json',
 ]);
 
 const SAFE_ALLOWED_DIRS = new Set(['.', 'data', 'server', 'src', 'public']);
@@ -655,7 +655,7 @@ export function createSandboxCockpitRouter(): Router {
       });
     }
 
-    // Ensure owner account is present in DB
+    // Ensure owner account is present in DB (no hardcoded password fallback when env is missing)
     const ownerUser =
       findUserByEmail(rawEmail) ||
       ensureOwnerAccountForEmail(

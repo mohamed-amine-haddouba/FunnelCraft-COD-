@@ -5,6 +5,8 @@ import {
   createSandboxStandaloneApp,
   signSandboxJwt,
   verifySandboxJwt,
+  getSandboxJwtSecret,
+  JWT_TTL_SECONDS,
   validateAndParseSafeCommand,
   STRICT_OWNER_EMAIL,
 } from './sandboxNew';
@@ -14,8 +16,10 @@ describe('Zero-Trust Sandbox Cockpit (server/sandboxNew.ts)', () => {
   let server: http.Server;
   let baseUrl = '';
   const TEST_OWNER_PASS = 'OwnerCockpitTest#2026';
+  const prevJwtSecret = process.env.SANDBOX_JWT_SECRET;
 
   before(async () => {
+    process.env.SANDBOX_JWT_SECRET = 'test-sandbox-jwt-secret-key-at-least-32-chars-long-2026';
     ensureOwnerAccountForEmail(STRICT_OWNER_EMAIL, TEST_OWNER_PASS);
     const app = createSandboxStandaloneApp();
     server = http.createServer(app);
@@ -32,9 +36,27 @@ describe('Zero-Trust Sandbox Cockpit (server/sandboxNew.ts)', () => {
     if (server) {
       await new Promise<void>((resolve) => server.close(() => resolve()));
     }
+    if (prevJwtSecret !== undefined) {
+      process.env.SANDBOX_JWT_SECRET = prevJwtSecret;
+    } else {
+      delete process.env.SANDBOX_JWT_SECRET;
+    }
   });
 
-  it('signs and verifies owner JWTs and rejects non-owner or tampered tokens', () => {
+  it('signs and verifies owner JWTs, enforces 30m TTL, and throws if SANDBOX_JWT_SECRET is missing or < 32 chars', () => {
+    assert.equal(JWT_TTL_SECONDS, 30 * 60);
+
+    const saved = process.env.SANDBOX_JWT_SECRET;
+    try {
+      delete process.env.SANDBOX_JWT_SECRET;
+      assert.throws(() => getSandboxJwtSecret(), /SANDBOX_JWT_SECRET/);
+
+      process.env.SANDBOX_JWT_SECRET = 'too-short-secret';
+      assert.throws(() => getSandboxJwtSecret(), /SANDBOX_JWT_SECRET/);
+    } finally {
+      process.env.SANDBOX_JWT_SECRET = saved;
+    }
+
     const { token } = signSandboxJwt(STRICT_OWNER_EMAIL, 3600);
     const verified = verifySandboxJwt(token);
     assert.equal(verified.valid, true);
