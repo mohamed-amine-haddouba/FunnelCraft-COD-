@@ -21,6 +21,7 @@ import {
   Loader2,
   X,
   Tag,
+  Menu,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../i18n/translations';
@@ -145,6 +146,7 @@ export const PricingPage: React.FC<PricingPageProps> = ({
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
   const [selectedPaidTier, setSelectedPaidTier] = useState<PricingTier | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<'paypal' | 'bank'>('paypal');
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
 
   // Dynamic Moroccan Banks from /api/settings/banks
   const [banks, setBanks] = useState<MoroccanBankAccount[]>([]);
@@ -651,19 +653,94 @@ export const PricingPage: React.FC<PricingPageProps> = ({
 
               <LocalizedLink
                 to="/login"
-                className="px-3.5 py-2 rounded-xl border border-transparent hover:border-brand hover:bg-brand-surface text-brand-secondary hover:text-brand-primary text-xs sm:text-[13px] font-semibold transition"
+                className="hidden sm:inline-flex items-center justify-center px-3.5 py-2 rounded-xl border border-transparent hover:border-brand hover:bg-brand-surface text-brand-secondary hover:text-brand-primary text-xs sm:text-[13px] font-semibold transition"
               >
                 {t['home.hero.nav.login']}
               </LocalizedLink>
 
               <LocalizedLink
                 to="/login?mode=register"
-                className="px-4 py-2 rounded-xl bg-brand-accent hover:opacity-90 text-white text-xs sm:text-[13px] font-bold shadow-md transition"
+                className="px-3.5 sm:px-4 py-2 rounded-xl bg-brand-accent hover:opacity-90 text-white text-xs sm:text-[13px] font-bold shadow-md transition inline-flex items-center justify-center"
               >
                 {t['home.hero.nav.signup']}
               </LocalizedLink>
+
+              <button
+                type="button"
+                onClick={() => setIsMobileMenuOpen((prev) => !prev)}
+                aria-label="Toggle Menu"
+                aria-expanded={isMobileMenuOpen}
+                className="md:hidden inline-flex items-center justify-center w-11 h-11 rounded-xl bg-brand-surface border border-brand text-brand-primary hover:text-brand-accent transition cursor-pointer shrink-0"
+              >
+                {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+              </button>
             </div>
           </div>
+
+          {isMobileMenuOpen && (
+            <div className="md:hidden border-t border-brand bg-brand-bg/98 backdrop-blur-xl px-4 py-4 space-y-4 shadow-2xl">
+              <nav className="flex flex-col space-y-2 text-sm font-bold text-brand-secondary">
+                <LocalizedLink
+                  to="/home"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="px-3 py-2.5 rounded-xl hover:bg-brand-surface text-brand-secondary hover:text-brand-primary transition"
+                >
+                  {t['home.hero.nav.home']}
+                </LocalizedLink>
+                <LocalizedLink
+                  to="/home#features"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="px-3 py-2.5 rounded-xl hover:bg-brand-surface text-brand-secondary hover:text-brand-primary transition"
+                >
+                  {t['home.hero.nav.features']}
+                </LocalizedLink>
+                <LocalizedLink
+                  to="/pricing"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="px-3 py-2.5 rounded-xl bg-brand-surface/70 text-brand-primary transition"
+                >
+                  {t['home.hero.nav.pricing']}
+                </LocalizedLink>
+                <LocalizedLink
+                  to="/login"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="px-3 py-2.5 rounded-xl hover:bg-brand-surface text-brand-secondary hover:text-brand-primary transition"
+                >
+                  {t['home.hero.nav.templates']}
+                </LocalizedLink>
+              </nav>
+
+              <div className="pt-2 border-t border-brand flex flex-col gap-2.5">
+                <div
+                  dir="ltr"
+                  className="flex sm:hidden items-center justify-center gap-1 p-1 rounded-xl bg-brand-surface border border-brand"
+                >
+                  {SUPPORTED_LANGUAGES.map((lang) => (
+                    <button
+                      key={lang.code}
+                      type="button"
+                      onClick={() => setLanguage(lang.code)}
+                      className={`flex-1 py-2 rounded-lg text-xs font-bold transition cursor-pointer ${
+                        language === lang.code
+                          ? 'bg-brand-accent text-white'
+                          : 'text-brand-secondary hover:text-brand-primary'
+                      }`}
+                    >
+                      {lang.label}
+                    </button>
+                  ))}
+                </div>
+
+                <LocalizedLink
+                  to="/login"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="w-full py-3 rounded-xl border border-brand bg-brand-surface text-brand-primary text-center text-sm font-bold transition flex items-center justify-center"
+                >
+                  {t['home.hero.nav.login']}
+                </LocalizedLink>
+              </div>
+            </div>
+          )}
         </header>
       )}
 

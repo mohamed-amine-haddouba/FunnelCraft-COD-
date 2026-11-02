@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import {
   Sparkles,
@@ -8,6 +8,8 @@ import {
   BarChart3,
   Zap,
   ArrowUpRight,
+  Menu,
+  X,
 } from 'lucide-react';
 import { useLanguage } from '../i18n/translations';
 import { SUPPORTED_LANGUAGES } from '../i18n/config';
@@ -19,6 +21,7 @@ import { PublicFooter } from './PublicFooter';
 export const HomeLandingPage: React.FC = () => {
   const { t, language, setLanguage, dir } = useLanguage();
   const location = useLocation();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     if (location.hash === '#features') {
@@ -30,6 +33,7 @@ export const HomeLandingPage: React.FC = () => {
   }, [location.hash]);
 
   const handleFeaturesClick = () => {
+    setMobileMenuOpen(false);
     const el = document.getElementById('features');
     if (el) {
       el.scrollIntoView({ behavior: 'smooth' });
@@ -177,61 +181,61 @@ export const HomeLandingPage: React.FC = () => {
   return (
     <div
       dir={dir}
-      className="min-h-screen w-screen bg-brand-bg text-brand-primary flex flex-col justify-between overflow-x-hidden select-none"
+      className="min-h-screen w-full max-w-full bg-brand-bg text-brand-primary flex flex-col justify-between overflow-x-hidden select-none"
     >
       {/* Top Public Sticky Header */}
       <header className="w-full border-b border-brand bg-brand-bg/95 backdrop-blur-md sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto h-16 px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-4">
+        <div className="max-w-7xl mx-auto h-16 px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-2 sm:gap-4">
           {/* Brand Logo (Right in RTL / Left in LTR) */}
           <LocalizedLink to="/home" className="flex items-center shrink-0">
             <img
               src="/assets/brand/logo.jpg"
               alt="CodWorth"
-              className="h-10 w-auto object-contain rounded-lg"
+              className="h-9 sm:h-10 w-auto object-contain rounded-lg"
             />
           </LocalizedLink>
 
-          {/* Center Nav Links */}
-          <nav className="hidden md:flex items-center gap-7 text-sm font-semibold text-brand-secondary">
+          {/* Center Nav Links (Desktop & Tablet) */}
+          <nav className="hidden md:flex items-center gap-4 lg:gap-7 text-xs lg:text-sm font-semibold text-brand-secondary">
             <LocalizedLink
               to="/home"
-              className="text-brand-primary hover:text-brand-accent transition"
+              className="text-brand-primary hover:text-brand-accent transition whitespace-nowrap"
             >
               {t['home.hero.nav.home']}
             </LocalizedLink>
             <LocalizedLink
               to="/home#features"
               onClick={handleFeaturesClick}
-              className="text-brand-secondary hover:text-brand-primary transition"
+              className="text-brand-secondary hover:text-brand-primary transition whitespace-nowrap"
             >
               {t['home.hero.nav.features']}
             </LocalizedLink>
             <LocalizedLink
               to="/pricing"
-              className="text-brand-secondary hover:text-brand-primary transition"
+              className="text-brand-secondary hover:text-brand-primary transition whitespace-nowrap"
             >
               {t['home.hero.nav.pricing']}
             </LocalizedLink>
             <LocalizedLink
               to="/login"
-              className="text-brand-secondary hover:text-brand-primary transition"
+              className="text-brand-secondary hover:text-brand-primary transition whitespace-nowrap"
             >
               {t['home.hero.nav.templates']}
             </LocalizedLink>
           </nav>
 
-          {/* Far Side: Language Switcher + Theme Toggle + Ghost Login + Solid Accent Signup */}
-          <div className="flex items-center gap-2.5 shrink-0">
+          {/* Far Side: Language Switcher + Theme Toggle + Ghost Login + Solid Accent Signup + Mobile Hamburger */}
+          <div className="flex items-center gap-1.5 lg:gap-2 shrink-0">
             <div
               dir="ltr"
-              className="hidden sm:flex items-center gap-1 p-1 rounded-lg bg-brand-surface border border-brand"
+              className="hidden sm:flex items-center gap-0.5 lg:gap-1 p-1 rounded-lg bg-brand-surface border border-brand"
             >
               {SUPPORTED_LANGUAGES.map((lang) => (
                 <button
                   key={lang.code}
                   type="button"
                   onClick={() => setLanguage(lang.code)}
-                  className={`px-2 py-1 rounded text-[11px] font-bold transition cursor-pointer ${
+                  className={`px-1.5 lg:px-2 py-1 rounded text-[11px] font-bold transition cursor-pointer ${
                     language === lang.code
                       ? 'bg-brand-accent text-white'
                       : 'text-brand-secondary hover:text-brand-primary'
@@ -247,19 +251,109 @@ export const HomeLandingPage: React.FC = () => {
 
             <LocalizedLink
               to="/login"
-              className="px-3.5 py-2 rounded-xl border border-transparent hover:border-brand hover:bg-brand-surface text-brand-secondary hover:text-brand-primary text-xs sm:text-[13px] font-semibold transition"
+              className="hidden lg:inline-flex items-center justify-center px-3.5 py-2 rounded-xl border border-transparent hover:border-brand hover:bg-brand-surface text-brand-secondary hover:text-brand-primary text-xs sm:text-[13px] font-semibold transition whitespace-nowrap"
             >
               {t['home.hero.nav.login']}
             </LocalizedLink>
 
             <LocalizedLink
               to="/login?mode=register"
-              className="px-4 py-2 rounded-xl bg-brand-accent hover:opacity-90 text-white text-xs sm:text-[13px] font-bold shadow-md transition"
+              className="hidden sm:inline-flex items-center justify-center px-3 lg:px-4 py-2 rounded-xl bg-brand-accent hover:opacity-90 text-white text-xs lg:text-[13px] font-bold shadow-md transition whitespace-nowrap"
             >
               {t['home.hero.nav.signup']}
             </LocalizedLink>
+
+            {/* Mobile Hamburger Button (< 768px) */}
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen((prev) => !prev)}
+              aria-label="Toggle Mobile Navigation Menu"
+              aria-expanded={mobileMenuOpen}
+              data-testid="public-mobile-menu-btn"
+              className="md:hidden inline-flex items-center justify-center w-11 h-11 rounded-xl bg-brand-surface hover:bg-brand-elevated border border-brand text-brand-primary transition cursor-pointer"
+            >
+              {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            </button>
           </div>
         </div>
+
+        {/* Mobile Navigation Drawer (< 768px) */}
+        {mobileMenuOpen && (
+          <div
+            data-testid="public-mobile-menu"
+            className="md:hidden border-t border-brand bg-brand-surface px-4 py-4 space-y-4 shadow-2xl"
+          >
+            <nav className="flex flex-col space-y-1 text-sm font-bold">
+              <LocalizedLink
+                to="/home"
+                onClick={() => setMobileMenuOpen(false)}
+                className="px-3 py-3 rounded-xl text-brand-primary hover:bg-brand-elevated transition flex items-center justify-between min-h-[44px]"
+              >
+                <span>{t['home.hero.nav.home']}</span>
+              </LocalizedLink>
+              <LocalizedLink
+                to="/home#features"
+                onClick={handleFeaturesClick}
+                className="px-3 py-3 rounded-xl text-brand-secondary hover:text-brand-primary hover:bg-brand-elevated transition flex items-center justify-between min-h-[44px]"
+              >
+                <span>{t['home.hero.nav.features']}</span>
+              </LocalizedLink>
+              <LocalizedLink
+                to="/pricing"
+                onClick={() => setMobileMenuOpen(false)}
+                className="px-3 py-3 rounded-xl text-brand-secondary hover:text-brand-primary hover:bg-brand-elevated transition flex items-center justify-between min-h-[44px]"
+              >
+                <span>{t['home.hero.nav.pricing']}</span>
+              </LocalizedLink>
+              <LocalizedLink
+                to="/login"
+                onClick={() => setMobileMenuOpen(false)}
+                className="px-3 py-3 rounded-xl text-brand-secondary hover:text-brand-primary hover:bg-brand-elevated transition flex items-center justify-between min-h-[44px]"
+              >
+                <span>{t['home.hero.nav.templates']}</span>
+              </LocalizedLink>
+            </nav>
+
+            {/* Mobile Language Switcher */}
+            <div className="pt-2 border-t border-brand flex items-center justify-between gap-2">
+              <span className="text-xs font-bold text-brand-secondary">{t.language}</span>
+              <div dir="ltr" className="flex items-center gap-1.5">
+                {SUPPORTED_LANGUAGES.map((lang) => (
+                  <button
+                    key={lang.code}
+                    type="button"
+                    onClick={() => setLanguage(lang.code)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer min-h-[44px] ${
+                      language === lang.code
+                        ? 'bg-brand-accent text-white'
+                        : 'bg-brand-elevated text-brand-secondary hover:text-brand-primary'
+                    }`}
+                  >
+                    {lang.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Mobile Auth CTAs */}
+            <div className="pt-2 border-t border-brand flex flex-col gap-2.5">
+              <LocalizedLink
+                to="/login"
+                onClick={() => setMobileMenuOpen(false)}
+                className="w-full min-h-[44px] py-2.5 px-4 rounded-xl bg-brand-elevated hover:opacity-90 border border-brand text-brand-primary text-center text-sm font-bold flex items-center justify-center transition"
+              >
+                {t['home.hero.nav.login']}
+              </LocalizedLink>
+              <LocalizedLink
+                to="/login?mode=register"
+                onClick={() => setMobileMenuOpen(false)}
+                className="w-full min-h-[44px] py-2.5 px-4 rounded-xl bg-brand-accent hover:opacity-90 text-white text-center text-sm font-bold shadow-md flex items-center justify-center transition"
+              >
+                {t['home.hero.nav.signup']}
+              </LocalizedLink>
+            </div>
+          </div>
+        )}
       </header>
 
       {/* Main Content */}
@@ -269,21 +363,21 @@ export const HomeLandingPage: React.FC = () => {
         {/* Epic Interactive Features Section */}
         <section
           id="features"
-          className="relative w-full bg-brand-bg border-t border-brand py-20 sm:py-28 px-4 sm:px-6 lg:px-8 overflow-hidden"
+          className="relative w-full bg-brand-bg border-t border-brand py-14 sm:py-24 px-4 sm:px-6 lg:px-8 overflow-hidden"
         >
           {/* Subtle Ambient Glow */}
           <div
             aria-hidden="true"
-            className="pointer-events-none absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[680px] h-[360px] rounded-full bg-brand-accent/10 blur-[140px]"
+            className="pointer-events-none absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-[680px] h-[360px] rounded-full bg-brand-accent/10 blur-[140px]"
           />
 
-          <div className="relative z-10 max-w-7xl mx-auto space-y-16">
+          <div className="relative z-10 max-w-7xl mx-auto space-y-12 sm:space-y-16">
             {/* 1. Stats Banner (Top of Features) */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
               {statsBanner.map((stat, idx) => (
                 <div
                   key={idx}
-                  className="bg-brand-surface/80 backdrop-blur-sm border border-brand rounded-2xl p-6 text-center hover:border-brand-accent/50 transition-all duration-300"
+                  className="bg-brand-surface/80 backdrop-blur-sm border border-brand rounded-2xl p-5 sm:p-6 text-center hover:border-brand-accent/50 transition-all duration-300"
                 >
                   <div
                     dir="ltr"
@@ -311,7 +405,7 @@ export const HomeLandingPage: React.FC = () => {
                 </span>
               </div>
 
-              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-brand-primary tracking-tight leading-tight animate-pulse">
+              <h2 className="text-2xl sm:text-4xl lg:text-5xl font-black text-brand-primary tracking-tight leading-tight">
                 {language === 'ar'
                   ? 'كل ما تحتاجه لمضاعفة مبيعات الدفع عند الاستلام'
                   : language === 'fr'

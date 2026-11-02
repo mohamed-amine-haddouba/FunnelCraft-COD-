@@ -370,7 +370,7 @@ export const OrdersDashboard: React.FC<Props> = ({
         </div>
 
         {/* Header Action Buttons */}
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {/* Simulate Order Button */}
           <button
             type="button"
@@ -420,7 +420,7 @@ export const OrdersDashboard: React.FC<Props> = ({
       </div>
 
       {/* Compact 4-Card KPI Strip */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {/* Total Orders */}
         <div className="bg-[#131B2A]/70 border border-[#1E293B] rounded-xl p-3 hover:border-[#334155] transition">
           <div className="flex items-center justify-between text-[#CBD5E1] text-xs mb-1">

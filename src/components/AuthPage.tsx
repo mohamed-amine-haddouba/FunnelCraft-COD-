@@ -517,7 +517,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
   const currentLangObj = SUPPORTED_LANGUAGES.find((l) => l.code === language) || SUPPORTED_LANGUAGES[0];
 
   return (
-    <div className="min-h-screen w-screen bg-[#0D131E] text-[#F8FAFC] flex flex-col font-sans select-none overflow-x-hidden" dir={dir}>
+    <div className="min-h-screen w-full max-w-full bg-[#0D131E] text-[#F8FAFC] flex flex-col font-sans select-none overflow-x-hidden" dir={dir}>
       {/* Top Bar: Brand & Language Switcher */}
       <header className="h-16 px-4 sm:px-8 border-b border-[#1E293B] bg-[#0D131E]/95 backdrop-blur-md sticky top-0 z-40 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-2.5">
@@ -676,7 +676,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                   <label className="block text-xs font-medium text-[#CBD5E1] text-center">
                     {t.tfaOtpPlaceholder}
                   </label>
-                  <div className="flex items-center justify-center gap-2" dir="ltr">
+                  <div className="flex items-center justify-center gap-1.5 sm:gap-2" dir="ltr">
                     {otpDigits.map((digit, idx) => (
                       <input
                         key={idx}
@@ -690,7 +690,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                         onChange={(e) => handleOtpDigitChange(idx, e.target.value)}
                         onKeyDown={(e) => handleOtpKeyDown(idx, e)}
                         onPaste={idx === 0 ? handleOtpPaste : undefined}
-                        className={`w-11 h-12 text-center text-lg font-bold font-mono rounded-xl bg-[#0D131E] border transition focus:outline-none ${
+                        className={`w-10 sm:w-11 h-12 text-center text-lg font-bold font-mono rounded-xl bg-[#0D131E] border transition focus:outline-none ${
                           digit
                             ? 'border-[#E25B26] text-[#F8FAFC] shadow-xs'
                             : 'border-[#1E293B] text-[#CBD5E1] focus:border-[#334155]'
@@ -1283,7 +1283,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                 {/* Official Google Sign-In Button (@react-oauth/google) */}
                 <div className="space-y-2">
                   {GOOGLE_CLIENT_ID ? (
-                    <div className="flex justify-center w-full min-h-[42px]" dir="ltr">
+                    <div className="flex justify-center w-full max-w-full overflow-hidden min-h-[44px]" dir="ltr">
                       <GoogleLogin
                         onSuccess={handleGoogleSuccess}
                         onError={() => {
@@ -1292,7 +1292,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                         theme="filled_black"
                         size="large"
                         shape="pill"
-                        width="320"
+                        width="280"
                         text="continue_with"
                       />
                     </div>

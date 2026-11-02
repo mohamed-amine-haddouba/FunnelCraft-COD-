@@ -143,7 +143,7 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
         </div>
 
         {/* Filters & Actions */}
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
             onClick={() => void fetchAnalytics()}
@@ -238,7 +238,7 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
       ) : (
         <>
           {/* 4-Card Compact KPI Strip */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             {/* KPI 1: Conversion Rate */}
             <div className="bg-[#131B2A]/70 border border-[#1E293B] rounded-xl p-3.5 hover:border-[#334155] transition">
               <div className="flex items-center justify-between text-[#CBD5E1] text-xs mb-1">

@@ -32,6 +32,10 @@ import {
   Redo2,
   ArrowRight,
   Sparkles,
+  Menu,
+  X,
+  Layers,
+  Sliders,
 } from 'lucide-react';
 import { ALL_PRESET_TEMPLATES } from '../data/defaultTemplates';
 import { useAuth } from '../context/AuthContext';
@@ -110,15 +114,19 @@ export const HeaderNav: React.FC<Props> = ({
   onOpenUpgradeModal,
   onOpenAdminModal,
   onLoadTemplate,
+  onToggleLeftSidebar,
+  onToggleRightSidebar,
 }) => {
   const [showTemplates, setShowTemplates] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
 
   const navigate = useNavigate();
   const { tab } = useParams<{ tab?: string }>();
   const currentTab: WorkspaceTab = (tab as WorkspaceTab) || activeView || 'builder';
 
   const handleNavigateTab = (target: WorkspaceTab) => {
+    setShowMobileMenu(false);
     if (target === 'contact' || target === 'terms' || target === 'privacy') {
       navigate(`/${target}`);
     } else {
@@ -172,8 +180,8 @@ export const HeaderNav: React.FC<Props> = ({
           )}
         </div>
 
-        {/* 2. Primary Navigation + Builder Viewport & Undo/Redo Controls (Center) */}
-        <div className="flex items-center gap-2 min-w-0 shrink-0">
+        {/* 2. Primary Navigation + Builder Viewport & Undo/Redo Controls (Desktop Only: hidden md:flex) */}
+        <div className="hidden md:flex items-center gap-2 min-w-0 shrink-0">
           <nav className="flex items-center justify-center gap-1 bg-brand-surface p-1 rounded-xl border border-brand min-w-0 shrink-0">
             <button
               type="button"
@@ -307,22 +315,22 @@ export const HeaderNav: React.FC<Props> = ({
           )}
         </div>
 
-        {/* 3. Secondary Actions (Left in RTL): Builder Tools + Prominent Publish Button + User Avatar */}
+        {/* 3. Secondary Actions (Left in RTL): Builder Tools + Prominent Publish Button + User Avatar + Hamburger */}
         <div className="flex items-center gap-1.5 shrink-0">
           {currentTab === 'builder' && (
             <div className="flex items-center gap-1.5 shrink-0">
-              {/* My Pages */}
+              {/* My Pages (Hidden on extra small screens, available in mobile menu) */}
               <button
                 type="button"
                 onClick={onOpenMyPagesModal}
                 title={t.myPages}
                 aria-label={t.myPages}
-                className="w-8 h-8 rounded-lg bg-brand-surface hover:bg-brand-elevated border border-brand flex items-center justify-center text-brand-secondary hover:text-brand-accent transition cursor-pointer shrink-0"
+                className="hidden sm:flex w-8 h-8 rounded-lg bg-brand-surface hover:bg-brand-elevated border border-brand items-center justify-center text-brand-secondary hover:text-brand-accent transition cursor-pointer shrink-0"
               >
                 <FolderKanban className="w-4 h-4 shrink-0" />
               </button>
 
-              {/* Templates */}
+              {/* Templates (Hidden on extra small screens, available in mobile menu) */}
               <button
                 type="button"
                 onClick={() => {
@@ -331,7 +339,7 @@ export const HeaderNav: React.FC<Props> = ({
                 }}
                 title={t.templates}
                 aria-label={t.templates}
-                className="w-8 h-8 rounded-lg bg-brand-surface hover:bg-brand-elevated border border-brand flex items-center justify-center text-brand-secondary hover:text-brand-accent transition cursor-pointer shrink-0"
+                className="hidden sm:flex w-8 h-8 rounded-lg bg-brand-surface hover:bg-brand-elevated border border-brand items-center justify-center text-brand-secondary hover:text-brand-accent transition cursor-pointer shrink-0"
               >
                 <Globe className="w-4 h-4 shrink-0" />
               </button>
@@ -342,7 +350,7 @@ export const HeaderNav: React.FC<Props> = ({
                 onClick={onOpenAiModal}
                 title={t.aiGenerate}
                 aria-label={t.aiGenerate}
-                className="h-8 px-2.5 rounded-lg bg-brand-elevated hover:opacity-90 border border-brand text-brand-primary shadow-xs flex items-center gap-1.5 text-xs font-bold transition cursor-pointer shrink-0"
+                className="hidden sm:flex h-8 px-2.5 rounded-lg bg-brand-elevated hover:opacity-90 border border-brand text-brand-primary shadow-xs items-center gap-1.5 text-xs font-bold transition cursor-pointer shrink-0"
               >
                 <Wand2 className="w-3.5 h-3.5 text-brand-accent shrink-0" />
                 <span className="hidden md:inline">AI / استيراد</span>
@@ -360,7 +368,7 @@ export const HeaderNav: React.FC<Props> = ({
                     : t.save
                 }
                 aria-label={t.save}
-                className={`w-8 h-8 rounded-lg border flex items-center justify-center transition cursor-pointer shrink-0 ${
+                className={`w-9 h-9 sm:w-8 sm:h-8 rounded-lg border flex items-center justify-center transition cursor-pointer shrink-0 ${
                   saveStatus === 'saved'
                     ? 'bg-brand-accent/20 border-brand-accent/50 text-brand-accent'
                     : saveStatus === 'unsaved'
@@ -383,7 +391,7 @@ export const HeaderNav: React.FC<Props> = ({
                 onClick={onOpenPublishModal}
                 title={isCurrentPagePublished ? t.published : t.publish}
                 aria-label={isCurrentPagePublished ? t.published : t.publish}
-                className="h-8 px-3 rounded-lg bg-brand-accent hover:opacity-90 text-white font-black text-xs flex items-center gap-1.5 transition cursor-pointer shadow-md shrink-0"
+                className="h-9 sm:h-8 px-3 rounded-lg bg-brand-accent hover:opacity-90 text-white font-black text-xs flex items-center gap-1.5 transition cursor-pointer shadow-md shrink-0"
               >
                 <Rocket className="w-3.5 h-3.5 shrink-0" />
                 <span className="hidden sm:inline">
@@ -398,7 +406,7 @@ export const HeaderNav: React.FC<Props> = ({
                   onClick={onToggleCustomerLiveView}
                   title={t.customerLiveView}
                   aria-label={t.customerLiveView}
-                  className="w-8 h-8 rounded-lg bg-brand-surface hover:bg-brand-elevated text-brand-accent border border-brand flex items-center justify-center transition cursor-pointer shrink-0"
+                  className="hidden sm:flex w-8 h-8 rounded-lg bg-brand-surface hover:bg-brand-elevated text-brand-accent border border-brand items-center justify-center transition cursor-pointer shrink-0"
                 >
                   <ExternalLink className="w-4 h-4 shrink-0" />
                 </button>
@@ -434,9 +442,10 @@ export const HeaderNav: React.FC<Props> = ({
               onClick={() => {
                 setShowUserMenu(!showUserMenu);
                 setShowTemplates(false);
+                setShowMobileMenu(false);
               }}
               title="الحساب والإعدادات"
-              className="flex items-center gap-1.5 h-8 pl-2 pr-1.5 rounded-lg bg-brand-surface hover:bg-brand-elevated border border-brand text-xs font-bold text-brand-primary transition cursor-pointer shrink-0 relative"
+              className="flex items-center gap-1.5 h-9 sm:h-8 pl-2 pr-1.5 rounded-lg bg-brand-surface hover:bg-brand-elevated border border-brand text-xs font-bold text-brand-primary transition cursor-pointer shrink-0 relative"
             >
               <div className="w-6 h-6 rounded-full bg-brand-accent text-white flex items-center justify-center font-black text-[11px] shrink-0">
                 {(user.full_name || user.email || 'U').charAt(0).toUpperCase()}
@@ -451,14 +460,175 @@ export const HeaderNav: React.FC<Props> = ({
               type="button"
               onClick={() => onOpenAuthModal('login')}
               title={t.login}
-              className="flex items-center gap-1.5 h-8 px-3 rounded-lg bg-brand-accent hover:opacity-90 text-xs font-bold text-white transition cursor-pointer shrink-0"
+              className="flex items-center gap-1.5 h-9 sm:h-8 px-3 rounded-lg bg-brand-accent hover:opacity-90 text-xs font-bold text-white transition cursor-pointer shrink-0"
             >
               <UserIcon className="w-3.5 h-3.5 text-white shrink-0" />
               <span className="hidden sm:inline">{t.login}</span>
             </button>
           )}
+
+          {/* Mobile Hamburger Menu Button (< 768px) */}
+          <button
+            type="button"
+            onClick={() => {
+              setShowMobileMenu((prev) => !prev);
+              setShowUserMenu(false);
+              setShowTemplates(false);
+            }}
+            aria-label="Toggle Workspace Navigation Menu"
+            aria-expanded={showMobileMenu}
+            data-testid="workspace-mobile-menu-btn"
+            className="md:hidden w-9 h-9 rounded-lg bg-brand-surface hover:bg-brand-elevated border border-brand flex items-center justify-center text-brand-primary transition cursor-pointer shrink-0"
+          >
+            {showMobileMenu ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
+          </button>
         </div>
       </div>
+
+      {/* Mobile Navigation Drawer (< 768px) */}
+      {showMobileMenu && (
+        <>
+          <div
+            className="fixed inset-0 top-14 z-40 bg-black/40 md:hidden"
+            onClick={() => setShowMobileMenu(false)}
+          />
+          <div
+            data-testid="workspace-mobile-menu"
+            className="md:hidden absolute top-14 inset-x-0 z-50 bg-brand-surface border-b border-brand shadow-2xl p-4 space-y-3"
+          >
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => handleNavigateTab('builder')}
+                className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer min-h-[44px] ${
+                  currentTab === 'builder'
+                    ? 'bg-brand-accent text-white shadow-xs'
+                    : 'bg-brand-elevated text-brand-primary'
+                }`}
+              >
+                <Store className="w-4 h-4 shrink-0" />
+                <span>{t.navBuilder}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleNavigateTab('ai-builder')}
+                className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer min-h-[44px] ${
+                  currentTab === 'ai-builder'
+                    ? 'bg-brand-accent text-white shadow-xs'
+                    : 'bg-brand-elevated text-brand-primary'
+                }`}
+              >
+                <Sparkles className="w-4 h-4 shrink-0" />
+                <span>{t.navAiBuilder}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleNavigateTab('orders')}
+                className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer min-h-[44px] ${
+                  currentTab === 'orders'
+                    ? 'bg-brand-accent text-white shadow-xs'
+                    : 'bg-brand-elevated text-brand-primary'
+                }`}
+              >
+                <span className="flex items-center gap-2">
+                  <ShoppingBag className="w-4 h-4 shrink-0" />
+                  <span>{t.navOrders}</span>
+                </span>
+                {pendingOrdersCount > 0 && (
+                  <span className="px-1.5 py-0.5 text-[10px] font-black rounded-full bg-brand-accent text-white font-mono">
+                    {pendingOrdersCount}
+                  </span>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleNavigateTab('analytics')}
+                className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer min-h-[44px] ${
+                  currentTab === 'analytics'
+                    ? 'bg-brand-accent text-white shadow-xs'
+                    : 'bg-brand-elevated text-brand-primary'
+                }`}
+              >
+                <BarChart3 className="w-4 h-4 shrink-0" />
+                <span>{t.navAnalytics}</span>
+              </button>
+            </div>
+
+            {currentTab === 'builder' && (
+              <div className="pt-2 border-t border-brand grid grid-cols-2 gap-2">
+                {onToggleLeftSidebar && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowMobileMenu(false);
+                      onToggleLeftSidebar();
+                    }}
+                    className="flex items-center gap-2 px-3 py-2 rounded-xl bg-brand-elevated text-brand-primary text-xs font-bold cursor-pointer min-h-[44px]"
+                  >
+                    <Layers className="w-4 h-4 text-brand-accent shrink-0" />
+                    <span>الأقسام والقوالب</span>
+                  </button>
+                )}
+
+                {onToggleRightSidebar && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowMobileMenu(false);
+                      onToggleRightSidebar();
+                    }}
+                    className="flex items-center gap-2 px-3 py-2 rounded-xl bg-brand-elevated text-brand-primary text-xs font-bold cursor-pointer min-h-[44px]"
+                  >
+                    <Sliders className="w-4 h-4 text-brand-accent shrink-0" />
+                    <span>خصائص التصميم</span>
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowMobileMenu(false);
+                    onOpenMyPagesModal();
+                  }}
+                  className="flex items-center gap-2 px-3 py-2 rounded-xl bg-brand-elevated text-brand-primary text-xs font-bold cursor-pointer min-h-[44px]"
+                >
+                  <FolderKanban className="w-4 h-4 text-brand-accent shrink-0" />
+                  <span>{t.myPages}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowMobileMenu(false);
+                    onOpenAiModal();
+                  }}
+                  className="flex items-center gap-2 px-3 py-2 rounded-xl bg-brand-elevated text-brand-primary text-xs font-bold cursor-pointer min-h-[44px]"
+                >
+                  <Wand2 className="w-4 h-4 text-brand-accent shrink-0" />
+                  <span>AI / استيراد</span>
+                </button>
+
+                {onToggleCustomerLiveView && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowMobileMenu(false);
+                      onToggleCustomerLiveView();
+                    }}
+                    className="col-span-2 flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-brand-elevated text-brand-accent text-xs font-bold cursor-pointer min-h-[44px]"
+                  >
+                    <ExternalLink className="w-4 h-4 shrink-0" />
+                    <span>{t.customerLiveView}</span>
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        </>
+      )}
 
       {/* Templates Dropdown Menu */}
       {showTemplates && currentTab === 'builder' && (

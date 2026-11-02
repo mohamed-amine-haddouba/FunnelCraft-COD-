@@ -30,6 +30,10 @@
   const globalRefreshBtn = document.getElementById('global-refresh-btn');
   const sidebarOwnerEmail = document.getElementById('sidebar-owner-email');
   const currentTabTitle = document.getElementById('current-tab-title');
+  const cockpitSidebar = document.getElementById('cockpit-sidebar');
+  const cockpitSidebarBackdrop = document.getElementById('cockpit-sidebar-backdrop');
+  const cockpitMobileMenuBtn = document.getElementById('cockpit-mobile-menu-btn');
+  const cockpitSidebarCloseBtn = document.getElementById('cockpit-sidebar-close-btn');
 
   // Topbar & Deploy References
   const topGitBranch = document.getElementById('top-git-branch');
@@ -250,11 +254,54 @@
     backups: 'Data Backups (data/*.tar.gz)',
   };
 
+  function closeMobileSidebar() {
+    if (cockpitSidebar) {
+      cockpitSidebar.classList.remove('open');
+    }
+    if (cockpitSidebarBackdrop) {
+      cockpitSidebarBackdrop.classList.add('hidden');
+    }
+    if (cockpitMobileMenuBtn) {
+      cockpitMobileMenuBtn.setAttribute('aria-expanded', 'false');
+    }
+  }
+
+  function openMobileSidebar() {
+    if (cockpitSidebar) {
+      cockpitSidebar.classList.add('open');
+    }
+    if (cockpitSidebarBackdrop) {
+      cockpitSidebarBackdrop.classList.remove('hidden');
+    }
+    if (cockpitMobileMenuBtn) {
+      cockpitMobileMenuBtn.setAttribute('aria-expanded', 'true');
+    }
+  }
+
+  if (cockpitMobileMenuBtn) {
+    cockpitMobileMenuBtn.addEventListener('click', () => {
+      if (cockpitSidebar && cockpitSidebar.classList.contains('open')) {
+        closeMobileSidebar();
+      } else {
+        openMobileSidebar();
+      }
+    });
+  }
+
+  if (cockpitSidebarCloseBtn) {
+    cockpitSidebarCloseBtn.addEventListener('click', closeMobileSidebar);
+  }
+
+  if (cockpitSidebarBackdrop) {
+    cockpitSidebarBackdrop.addEventListener('click', closeMobileSidebar);
+  }
+
   document.querySelectorAll('.nav-item').forEach((btn) => {
     btn.addEventListener('click', () => {
       const targetTab = btn.getAttribute('data-tab');
       document.querySelectorAll('.nav-item').forEach((b) => b.classList.remove('active'));
       btn.classList.add('active');
+      closeMobileSidebar();
 
       document.querySelectorAll('.tab-panel').forEach((panel) => {
         if (panel.id === `tab-${targetTab}`) {

@@ -515,7 +515,7 @@ export const PropertiesSidebar: React.FC<Props> = ({
     return (
       <aside
         dir="rtl"
-        className="w-[320px] shrink-0 bg-brand-surface border-e border-l border-brand flex flex-col h-full min-h-0 select-none overflow-y-auto overflow-x-hidden sticky top-14"
+        className="fixed lg:static inset-y-14 end-0 z-40 w-[85vw] max-w-[320px] lg:w-[320px] shrink-0 bg-brand-surface border-e border-l border-brand flex flex-col h-[calc(100vh-3.5rem)] lg:h-full min-h-0 select-none overflow-y-auto overflow-x-hidden lg:sticky lg:top-14 shadow-2xl lg:shadow-none"
       >
         <div className="px-3.5 py-3 border-b border-brand flex items-center justify-between bg-brand-surface sticky top-0 z-20">
           <div className="flex items-center gap-2 min-w-0">
@@ -924,7 +924,7 @@ export const PropertiesSidebar: React.FC<Props> = ({
   return (
     <aside
       dir="rtl"
-      className="w-[320px] shrink-0 bg-brand-surface border-e border-l border-brand flex flex-col h-full min-h-0 select-none overflow-y-auto overflow-x-hidden sticky top-14"
+      className="fixed lg:static inset-y-14 end-0 z-40 w-[85vw] max-w-[320px] lg:w-[320px] shrink-0 bg-brand-surface border-e border-l border-brand flex flex-col h-[calc(100vh-3.5rem)] lg:h-full min-h-0 select-none overflow-y-auto overflow-x-hidden lg:sticky lg:top-14 shadow-2xl lg:shadow-none"
     >
       <div className="px-3.5 py-2.5 border-b border-brand flex items-center justify-between bg-brand-surface sticky top-0 z-20">
         <div className="flex items-center gap-1.5 min-w-0">

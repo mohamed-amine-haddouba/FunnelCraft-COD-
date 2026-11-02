@@ -191,6 +191,7 @@ export const BlocksToolbar: React.FC<Props> = ({
   onAddBlock,
   currentPageData,
   onSelectTemplate,
+  onCollapse,
 }) => {
   const [activeTab, setActiveTab] = useState<'blocks' | 'templates'>('blocks');
   const [selectedCategory, setSelectedCategory] = useState<BlockCategoryTab>('All');
@@ -215,34 +216,46 @@ export const BlocksToolbar: React.FC<Props> = ({
   return (
     <aside
       dir="rtl"
-      className="w-80 bg-brand-surface border-e border-l border-brand flex flex-col h-[calc(100vh-3.5rem)] sticky top-14 select-none shrink-0 shadow-xs"
+      className="fixed lg:static inset-y-14 start-0 z-40 w-[85vw] max-w-[320px] lg:w-80 bg-brand-surface border-e border-l border-brand flex flex-col h-[calc(100vh-3.5rem)] lg:sticky lg:top-14 select-none shrink-0 shadow-2xl lg:shadow-xs"
     >
       {/* Top Switcher Tabs (Blocks vs Ready Templates) */}
-      <div className="p-2.5 border-b border-brand bg-brand-elevated grid grid-cols-2 gap-1.5">
-        <button
-          type="button"
-          onClick={() => setActiveTab('blocks')}
-          className={`py-2 px-3 rounded-xl text-xs font-extrabold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-            activeTab === 'blocks'
-              ? 'bg-brand-surface text-brand-primary shadow-sm border border-brand'
-              : 'text-brand-secondary hover:text-brand-primary hover:bg-brand-surface/60'
-          }`}
-        >
-          <Layers className="w-3.5 h-3.5" />
-          <span>الأقسام (Blocks)</span>
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab('templates')}
-          className={`py-2 px-3 rounded-xl text-xs font-extrabold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-            activeTab === 'templates'
-              ? 'bg-brand-surface text-brand-primary shadow-sm border border-brand'
-              : 'text-brand-secondary hover:text-brand-primary hover:bg-brand-surface/60'
-          }`}
-        >
-          <Sparkles className="w-3.5 h-3.5" />
-          <span>قوالب جاهزة ({READY_TEMPLATES.length})</span>
-        </button>
+      <div className="p-2.5 border-b border-brand bg-brand-elevated flex items-center gap-1.5">
+        <div className="flex-1 grid grid-cols-2 gap-1.5">
+          <button
+            type="button"
+            onClick={() => setActiveTab('blocks')}
+            className={`py-2 px-3 rounded-xl text-xs font-extrabold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+              activeTab === 'blocks'
+                ? 'bg-brand-surface text-brand-primary shadow-sm border border-brand'
+                : 'text-brand-secondary hover:text-brand-primary hover:bg-brand-surface/60'
+            }`}
+          >
+            <Layers className="w-3.5 h-3.5" />
+            <span>الأقسام (Blocks)</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('templates')}
+            className={`py-2 px-3 rounded-xl text-xs font-extrabold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+              activeTab === 'templates'
+                ? 'bg-brand-surface text-brand-primary shadow-sm border border-brand'
+                : 'text-brand-secondary hover:text-brand-primary hover:bg-brand-surface/60'
+            }`}
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>قوالب جاهزة ({READY_TEMPLATES.length})</span>
+          </button>
+        </div>
+        {onCollapse && (
+          <button
+            type="button"
+            onClick={onCollapse}
+            className="lg:hidden p-2 rounded-xl bg-brand-surface border border-brand text-brand-secondary hover:text-brand-primary transition cursor-pointer shrink-0"
+            title="إغلاق القائمة"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        )}
       </div>
 
       {activeTab === 'blocks' ? (

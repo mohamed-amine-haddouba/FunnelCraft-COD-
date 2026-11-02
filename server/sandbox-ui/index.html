@@ -174,14 +174,23 @@
 
   <!-- ======================== COCKPIT SHELL VIEW ======================== -->
   <div id="cockpit-view" class="cockpit-shell hidden">
+    <!-- Mobile Drawer Backdrop (< 768px) -->
+    <div id="cockpit-sidebar-backdrop" class="cockpit-sidebar-backdrop hidden"></div>
+
     <!-- Left Navigation Sidebar -->
-    <aside class="cockpit-sidebar">
+    <aside id="cockpit-sidebar" class="cockpit-sidebar">
       <div class="sidebar-brand">
         <div class="brand-logo">⚡</div>
         <div class="brand-meta">
           <div class="brand-name">CodWorth Cockpit</div>
           <div class="brand-env">ISOLATED PORT 3002</div>
         </div>
+        <button type="button" id="cockpit-sidebar-close-btn" class="mobile-drawer-close" aria-label="Close Sidebar Menu">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"/>
+            <line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
       </div>
 
       <nav class="sidebar-nav" aria-label="Sandbox Sections">
@@ -264,10 +273,19 @@
     <div class="cockpit-main">
       <!-- Top Bar -->
       <header class="cockpit-topbar">
-        <div class="topbar-breadcrumbs">
-          <span class="crumb-root">Sandbox Cockpit</span>
-          <span class="crumb-sep">/</span>
-          <span id="current-tab-title" class="crumb-current">Deployment Dashboard</span>
+        <div class="topbar-left">
+          <button type="button" id="cockpit-mobile-menu-btn" class="mobile-menu-toggle" aria-label="Toggle Sidebar Menu" aria-expanded="false">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="3" y1="6" x2="21" y2="6"/>
+              <line x1="3" y1="12" x2="21" y2="12"/>
+              <line x1="3" y1="18" x2="21" y2="18"/>
+            </svg>
+          </button>
+          <div class="topbar-breadcrumbs">
+            <span class="crumb-root">Sandbox Cockpit</span>
+            <span class="crumb-sep">/</span>
+            <span id="current-tab-title" class="crumb-current">Deployment Dashboard</span>
+          </div>
         </div>
 
         <div class="topbar-actions">
@@ -284,7 +302,7 @@
               <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/>
               <path d="M16 16h5v5"/>
             </svg>
-            <span>Refresh Telemetry</span>
+            <span class="refresh-btn-label">Refresh Telemetry</span>
           </button>
         </div>
       </header>

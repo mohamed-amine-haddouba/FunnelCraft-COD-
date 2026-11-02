@@ -336,8 +336,12 @@ function BuilderWorkspace() {
   const [viewport, setViewport] = useState<ViewportMode>('desktop');
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
   const [isPreviewMode, setIsPreviewMode] = useState(false);
-  const [isLeftSidebarOpen, setIsLeftSidebarOpen] = useState(true);
-  const [isRightSidebarOpen, setIsRightSidebarOpen] = useState(true);
+  const [isLeftSidebarOpen, setIsLeftSidebarOpen] = useState<boolean>(() =>
+    typeof window !== 'undefined' ? window.innerWidth >= 1024 : true
+  );
+  const [isRightSidebarOpen, setIsRightSidebarOpen] = useState<boolean>(() =>
+    typeof window !== 'undefined' ? window.innerWidth >= 1024 : true
+  );
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
@@ -1036,7 +1040,7 @@ function BuilderWorkspace() {
   // Loading Screen
   if (isLoading) {
     return (
-      <div className="min-h-screen w-screen bg-[#0D131E] flex flex-col items-center justify-center text-[#CBD5E1] gap-3" dir={dir}>
+      <div className="min-h-screen w-full max-w-full bg-[#0D131E] flex flex-col items-center justify-center text-[#CBD5E1] gap-3" dir={dir}>
         <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[#E25B26] to-[#F16F3C] text-[#F8FAFC] flex items-center justify-center font-black text-xl shadow-lg shadow-[#E25B26]/20 animate-pulse">
           ⚡
         </div>
@@ -1064,7 +1068,7 @@ function BuilderWorkspace() {
     return (
       <div
         dir="rtl"
-        className="min-h-screen w-screen bg-[#0D131E] text-[#F8FAFC] font-sans flex items-center justify-center p-4"
+        className="min-h-screen w-full max-w-full bg-[#0D131E] text-[#F8FAFC] font-sans flex items-center justify-center p-4"
       >
         <div className="max-w-md w-full bg-[#131B2A] border border-rose-500/30 rounded-3xl p-8 text-center shadow-2xl space-y-6">
           <div className="w-16 h-16 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-400 flex items-center justify-center mx-auto shadow-inner">
@@ -1105,7 +1109,7 @@ function BuilderWorkspace() {
 
     if (pageData.scrapedData) {
       return (
-        <div className="min-h-screen w-screen bg-slate-50 overflow-y-auto font-sans relative">
+        <div className="min-h-screen w-full max-w-full bg-slate-50 overflow-y-auto font-sans relative">
           {/* Floating Customer Live View Exit Pill */}
           <div className="fixed top-14 left-4 z-50 flex items-center gap-2 bg-[#0D131E]/90 backdrop-blur-md text-white border border-[#334155] px-4 py-2 rounded-full shadow-2xl text-xs font-semibold">
             <span className="w-2.5 h-2.5 rounded-full bg-[#E25B26] animate-pulse" />
@@ -1132,7 +1136,7 @@ function BuilderWorkspace() {
 
     return (
       <div
-        className="min-h-screen w-screen bg-white overflow-y-auto font-sans relative"
+        className="min-h-screen w-full max-w-full bg-white overflow-y-auto font-sans relative"
         dir={pageData.direction || (pageData.language === 'ar' ? 'rtl' : 'ltr')}
       >
         {/* Floating Customer Live View Exit Pill */}
@@ -1172,7 +1176,7 @@ function BuilderWorkspace() {
   }
 
   return (
-    <div className="flex flex-col h-screen w-screen overflow-hidden overflow-x-hidden bg-[#0D131E] font-sans text-[#F8FAFC]" dir={dir}>
+    <div className="flex flex-col h-screen w-full max-w-full overflow-hidden overflow-x-hidden bg-[#0D131E] font-sans text-[#F8FAFC]" dir={dir}>
       {/* Top Application Navbar */}
       <HeaderNav
         pageData={pageData}
@@ -1209,8 +1213,24 @@ function BuilderWorkspace() {
         onUpdateTitle={(title) => handleUpdatePageMeta({ title })}
         isLeftSidebarOpen={isLeftSidebarOpen}
         isRightSidebarOpen={isRightSidebarOpen}
-        onToggleLeftSidebar={() => setIsLeftSidebarOpen((prev) => !prev)}
-        onToggleRightSidebar={() => setIsRightSidebarOpen((prev) => !prev)}
+        onToggleLeftSidebar={() => {
+          setIsLeftSidebarOpen((prev) => {
+            const next = !prev;
+            if (next && typeof window !== 'undefined' && window.innerWidth < 1024) {
+              setIsRightSidebarOpen(false);
+            }
+            return next;
+          });
+        }}
+        onToggleRightSidebar={() => {
+          setIsRightSidebarOpen((prev) => {
+            const next = !prev;
+            if (next && typeof window !== 'undefined' && window.innerWidth < 1024) {
+              setIsLeftSidebarOpen(false);
+            }
+            return next;
+          });
+        }}
       />
 
       {/* Unverified Email Banner (Never shown for owner/admin) */}
@@ -1336,15 +1356,23 @@ function BuilderWorkspace() {
         />
       ) : activeTab === 'builder' ? (
         <div className="flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden relative">
-          {/* Compact Single-Row Product URL Scraper Bar (h-10) */}
+          {/* Compact Single-Row Product URL Scraper Bar */}
           {!isPreviewMode && (
-            <div className="h-10 bg-[#131B2A] border-b border-[#1E293B] px-2.5 shrink-0 flex items-center justify-between gap-2 overflow-x-hidden flex-nowrap">
+            <div className="min-h-10 bg-[#131B2A] border-b border-[#1E293B] px-2 sm:px-2.5 py-1 shrink-0 flex items-center justify-between gap-1.5 sm:gap-2 overflow-x-hidden flex-nowrap">
               <div className="flex items-center gap-1.5 shrink-0">
                 <button
                   type="button"
-                  onClick={() => setIsLeftSidebarOpen((prev) => !prev)}
+                  onClick={() =>
+                    setIsLeftSidebarOpen((prev) => {
+                      const next = !prev;
+                      if (next && typeof window !== 'undefined' && window.innerWidth < 1024) {
+                        setIsRightSidebarOpen(false);
+                      }
+                      return next;
+                    })
+                  }
                   title={isLeftSidebarOpen ? 'إخفاء قائمة الأقسام' : 'إظهار قائمة الأقسام'}
-                  className={`h-7 px-2 rounded-md border text-xs font-bold flex items-center gap-1 transition cursor-pointer ${
+                  className={`h-8 sm:h-7 px-2 rounded-md border text-xs font-bold flex items-center gap-1 transition cursor-pointer ${
                     isLeftSidebarOpen
                       ? 'bg-[#131B2A] text-[#E25B26] border-[#334155]'
                       : 'bg-[#0D131E] text-[#CBD5E1] border-[#1E293B] hover:text-white'
@@ -1371,24 +1399,25 @@ function BuilderWorkspace() {
                     disabled={isScraping}
                     value={scrapeUrl}
                     onChange={(e) => setScrapeUrl(e.target.value)}
-                    placeholder="https://... (Shopify, YouCan, AliExpress, Amazon, Jumia, Noon)"
-                    className="w-full h-7 pr-8 pl-2.5 py-1 rounded-md bg-[#0D131E] border border-[#334155]/80 text-[#F8FAFC] placeholder-slate-500 text-xs focus:outline-none focus:border-[#E25B26] focus:ring-1 focus:ring-[#E25B26] transition"
+                    placeholder="https://... (Shopify, YouCan, AliExpress, Amazon)"
+                    className="w-full h-8 sm:h-7 pr-8 pl-2.5 py-1 rounded-md bg-[#0D131E] border border-[#334155]/80 text-[#F8FAFC] placeholder-slate-500 text-xs focus:outline-none focus:border-[#E25B26] focus:ring-1 focus:ring-[#E25B26] transition"
                   />
                 </div>
                 <button
                   type="submit"
                   disabled={isScraping}
-                  className="h-7 px-2.5 py-1 rounded-md bg-gradient-to-r from-[#E25B26] to-[#F16F3C] hover:from-[#E25B26] hover:to-[#F16F3C] disabled:opacity-60 text-white font-bold text-xs shadow-sm shadow-[#E25B26]/20 flex items-center gap-1 transition cursor-pointer shrink-0 whitespace-nowrap"
+                  className="h-8 sm:h-7 px-2.5 py-1 rounded-md bg-gradient-to-r from-[#E25B26] to-[#F16F3C] hover:from-[#E25B26] hover:to-[#F16F3C] disabled:opacity-60 text-white font-bold text-xs shadow-sm shadow-[#E25B26]/20 flex items-center gap-1 transition cursor-pointer shrink-0 whitespace-nowrap"
                 >
                   {isScraping ? (
                     <>
                       <Loader2 className="w-3 h-3 animate-spin" />
-                      <span>جاري الاستيراد...</span>
+                      <span className="hidden sm:inline">جاري الاستيراد...</span>
                     </>
                   ) : (
                     <>
                       <Sparkles className="w-3 h-3" />
-                      <span>استيراد منتج بالرابط</span>
+                      <span className="sm:hidden">استيراد</span>
+                      <span className="hidden sm:inline">استيراد منتج بالرابط</span>
                     </>
                   )}
                 </button>
@@ -1405,7 +1434,7 @@ function BuilderWorkspace() {
                       onClick={() =>
                         setBuilderRenderMode((m) => (m === 'scraped' ? 'blocks' : 'scraped'))
                       }
-                      className="h-7 px-2 py-1 rounded-md bg-[#131B2A] hover:bg-[#1E293B] text-[#F8FAFC] border border-[#334155] text-[11px] font-bold flex items-center gap-1 transition cursor-pointer whitespace-nowrap"
+                      className="h-8 sm:h-7 px-2 py-1 rounded-md bg-[#131B2A] hover:bg-[#1E293B] text-[#F8FAFC] border border-[#334155] text-[11px] font-bold flex items-center gap-1 transition cursor-pointer whitespace-nowrap"
                     >
                       {builderRenderMode === 'scraped' ? (
                         <>
@@ -1424,9 +1453,17 @@ function BuilderWorkspace() {
 
                 <button
                   type="button"
-                  onClick={() => setIsRightSidebarOpen((prev) => !prev)}
+                  onClick={() =>
+                    setIsRightSidebarOpen((prev) => {
+                      const next = !prev;
+                      if (next && typeof window !== 'undefined' && window.innerWidth < 1024) {
+                        setIsLeftSidebarOpen(false);
+                      }
+                      return next;
+                    })
+                  }
                   title={isRightSidebarOpen ? 'إخفاء خصائص التصميم' : 'إظهار خصائص التصميم'}
-                  className={`h-7 px-2 rounded-md border text-xs font-bold flex items-center gap-1 transition cursor-pointer ${
+                  className={`h-8 sm:h-7 px-2 rounded-md border text-xs font-bold flex items-center gap-1 transition cursor-pointer ${
                     isRightSidebarOpen
                       ? 'bg-[#131B2A] text-[#E25B26] border-[#334155]'
                       : 'bg-[#0D131E] text-[#CBD5E1] border-[#1E293B] hover:text-white'
@@ -1455,6 +1492,17 @@ function BuilderWorkspace() {
             </div>
           ) : (
             <div className="flex-1 min-w-0 min-h-0 flex overflow-hidden relative">
+              {/* Mobile Backdrop Overlay when a Sidebar Drawer is Open */}
+              {!isPreviewMode && (isLeftSidebarOpen || isRightSidebarOpen) && (
+                <div
+                  className="lg:hidden fixed inset-0 top-14 z-30 bg-black/50 backdrop-blur-[1px]"
+                  onClick={() => {
+                    setIsLeftSidebarOpen(false);
+                    setIsRightSidebarOpen(false);
+                  }}
+                />
+              )}
+
               {/* Collapsible Left Sidebar (Blocks & Layer Outline) */}
               {!isPreviewMode && isLeftSidebarOpen && (
                 <BlocksToolbar
