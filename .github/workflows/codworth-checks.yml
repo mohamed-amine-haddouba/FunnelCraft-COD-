@@ -62,9 +62,15 @@ jobs:
             echo "Verifier unexpectedly accepted a symlink archive."
             exit 1
           fi
-      - name: Verify deployment scripts parse
+      - name: Verify deployment scripts and PM2 preflight
         run: |
           bash -n deploy.sh scripts/backup-data.sh scripts/restore-data.sh
           node --check scripts/verify-backup.mjs
+          node --check scripts/check-pm2-config.mjs
+          CODWORTH_PM2_JLIST_JSON='[{"name":"funnelcraft-api","pm2_env":{"status":"online","exec_mode":"fork_mode","instances":1,"watch":false}}]' node scripts/check-pm2-config.mjs
+          if CODWORTH_PM2_JLIST_JSON='[{"name":"funnelcraft-api","pm2_env":{"status":"online","exec_mode":"cluster_mode","instances":2,"watch":false}}]' node scripts/check-pm2-config.mjs; then
+            echo "PM2 preflight unexpectedly accepted a multi-process configuration."
+            exit 1
+          fi
       - name: Audit production dependencies
         run: npm audit --omit=dev --audit-level=high
