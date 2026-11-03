@@ -86,3 +86,42 @@ test('PayPal settlement validates provider capture and is idempotent for duplica
     }
   }
 });
+
+test('PayPal ledger remains readable after upgrading from legacy order-ID filenames', () => {
+  const id = 'LEGACY-' + randomUUID();
+  const dir = fileURLToPath(new URL('../data/paypal-ledger/', import.meta.url));
+  const file = fileURLToPath(new URL(`../data/paypal-ledger/${id}.json`, import.meta.url));
+  fs.mkdirSync(dir, { recursive: true });
+  const legacy: ExpectedPayment = {
+    expectedAmount: '15.00', expectedCurrency: 'USD', priceMAD: 150,
+    originalPriceMAD: 150, discountAmountMAD: 0,
+    identifier: 'legacy-product', sourceType: 'landing_page',
+    userId: 'guest:legacy-test', billingCycle: 'monthly', createdAt: Date.now(),
+  };
+  try {
+    // Legacy files have no embedded orderId; loading them must not trigger
+    // a new purchase or silently forget a captured payment.
+    fs.writeFileSync(file, JSON.stringify(legacy), { flag: 'wx', mode: 0o600 });
+    assert.equal(getPayment(id)?.expectedAmount, '15.00');
+    assert.equal(getPayment(id)?.captureId, undefined);
+    savePayment(id, { ...legacy, captureId: 'CAPTURE-LEGACY', capturedAt: Date.now() });
+    assert.equal(getPayment(id)?.captureId, 'CAPTURE-LEGACY');
+    assert.equal(JSON.parse(fs.readFileSync(file, 'utf8')).orderId, id);
+    assert.equal(fs.readdirSync(dir).filter(name => name === id + '.json').length, 1);
+  } finally {
+    fs.rmSync(file, { force: true });
+  }
+});
+
+test('Corrupted legacy ledger fails closed instead of being treated as an unpaid order', () => {
+  const id = 'CORRUPT-' + randomUUID();
+  const dir = fileURLToPath(new URL('../data/paypal-ledger/', import.meta.url));
+  const file = fileURLToPath(new URL(`../data/paypal-ledger/${id}.json`, import.meta.url));
+  fs.mkdirSync(dir, { recursive: true });
+  try {
+    fs.writeFileSync(file, '{BROKEN JSON', { flag: 'wx', mode: 0o600 });
+    assert.throws(() => getPayment(id), /corrupt/i);
+  } finally {
+    fs.rmSync(file, { force: true });
+  }
+});
