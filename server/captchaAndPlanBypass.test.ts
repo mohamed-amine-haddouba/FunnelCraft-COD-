@@ -59,7 +59,7 @@ test('P0 CAPTCHA Fail-Closed Regression Suite', async (t) => {
       process.env.TURNSTILE_SECRET_KEY = 'secret-live-turnstile-key';
 
       assert.equal(await verifyCaptchaToken({ role: 'admin' }), false);
-      const valid = await verifyCaptchaToken({ email: 'naadianajah2020@gmail.com' });
+      const valid = await verifyCaptchaToken({ email: 'owner@example.test' });
       assert.equal(valid, false);
     } finally {
       if (prevBypass !== undefined) process.env.BYPASS_CAPTCHA = prevBypass;
@@ -201,7 +201,7 @@ test('Admin Plan Bypass for Custom Domains & Pixels', async (t) => {
   });
 
   await t.test('does not grant admin permissions to a previous owner address', () => {
-    const caps = getPlanCapabilities('free', 'merchant', 'naadianajah2020@gmail.com', 'different-owner@example.com');
+    const caps = getPlanCapabilities('free', 'merchant', 'owner@example.test', 'different-owner@example.com');
     assert.equal(caps.isAdmin, false);
     assert.equal(caps.canUseCustomDomain, false);
     assert.equal(caps.canUsePixels, false);
@@ -211,7 +211,7 @@ test('Admin Plan Bypass for Custom Domains & Pixels', async (t) => {
       {
         plan_id: 'free',
         role: 'admin',
-        email: 'naadianajah2020@gmail.com',
+        email: 'owner@example.test',
       },
       10,
       'different-owner@example.com'
@@ -223,7 +223,7 @@ test('Admin Plan Bypass for Custom Domains & Pixels', async (t) => {
       {
         plan_id: 'free',
         role: 'merchant',
-        email: 'naadianajah2020@gmail.com',
+        email: 'owner@example.test',
       },
       10,
       'different-owner@example.com'
