@@ -13,6 +13,8 @@ export interface PayPalLedgerSnapshot {
   captureId?: unknown;
   capturedAt?: unknown;
   createdAt?: unknown;
+  settlementVersion?: unknown;
+  entitlementsAppliedAt?: unknown;
 }
 export interface PaidOrderSnapshot {
   id?: unknown;
@@ -28,6 +30,7 @@ export type ReconciliationFindingCode =
   | 'DUPLICATE_PAYMENT_ORDER'
   | 'DUPLICATE_CAPTURE'
   | 'INVALID_CAPTURE_TIME'
+  | 'CAPTURE_SIDE_EFFECTS_PENDING'
   | 'PAID_ORDER_MISSING_PAYMENT'
   | 'PAID_ORDER_UNCAPTURED'
   | 'DUPLICATE_PRODUCT_ORDER'
@@ -98,6 +101,10 @@ export function reconcilePayPalSnapshots(
         continue;
       }
       capturedPayments += 1;
+      if (entry.settlementVersion === 2 && (typeof entry.entitlementsAppliedAt !== 'number' ||
+          !Number.isFinite(entry.entitlementsAppliedAt))) {
+        add('CAPTURE_SIDE_EFFECTS_PENDING');
+      }
       if (captureIds.has(entry.captureId)) add('DUPLICATE_CAPTURE');
       captureIds.add(entry.captureId);
       if (typeof entry.capturedAt !== 'number' || !Number.isFinite(entry.capturedAt)) {
@@ -143,7 +150,7 @@ export function reconcilePayPalSnapshots(
 
   const blockers = new Set<ReconciliationFindingCode>([
     'INVALID_LEDGER', 'DUPLICATE_PAYMENT_ORDER', 'DUPLICATE_CAPTURE',
-    'INVALID_CAPTURE_TIME', 'PAID_ORDER_MISSING_PAYMENT', 'PAID_ORDER_UNCAPTURED',
+    'INVALID_CAPTURE_TIME', 'CAPTURE_SIDE_EFFECTS_PENDING', 'PAID_ORDER_MISSING_PAYMENT', 'PAID_ORDER_UNCAPTURED',
     'DUPLICATE_PRODUCT_ORDER', 'MERCHANT_OWNERSHIP_MISMATCH', 'PRODUCT_QUOTE_MISMATCH',
   ]);
   const findings: ReconciliationFinding[] = [...counts.entries()].map(([code, count]) => ({
