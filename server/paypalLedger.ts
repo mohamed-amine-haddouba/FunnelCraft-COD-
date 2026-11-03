@@ -22,7 +22,6 @@ function validatePaymentId(id: string): void {
 // Provider order IDs are stored as data, never used to construct a filesystem
 // path. Each ledger file receives a random server-generated UUID filename.
 const paymentFileIndex = new Map<string, string>();
-let paymentFileIndexLoaded = false;
 
 function findPaymentFile(id: string): string | undefined {
   validatePaymentId(id);
