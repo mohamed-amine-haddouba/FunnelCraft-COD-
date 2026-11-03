@@ -72,3 +72,12 @@ test('rejects malformed amounts or missing order IDs without throwing or leaking
   );
   assert.deepEqual(result.findings, [{code:'INVALID_LEDGER',count:3,severity:'blocker'}]);
 });
+
+test('flags verified captures whose v2 settlement side effects are incomplete', () => {
+  const interrupted = { ...settled, settlementVersion: 2, entitlementsAppliedAt: undefined };
+  const broken = reconcilePayPalSnapshots([interrupted], [storefront], now);
+  assert.deepEqual(broken.findings, [{ code:'CAPTURE_SIDE_EFFECTS_PENDING', count:1, severity:'blocker' }]);
+  assert.equal(broken.hasBlockers,true);
+  const done = reconcilePayPalSnapshots([{ ...interrupted, entitlementsAppliedAt: now }], [storefront], now);
+  assert.equal(done.hasBlockers,false);
+});
