@@ -134,7 +134,7 @@ describe('Zero-Trust Sandbox Cockpit (server/sandboxNew.ts)', () => {
     assert.equal(body.code, 'FORBIDDEN_OWNER_ONLY');
   });
 
-  it('authenticates naadianajah2020@gmail.com and accesses status, logs, terminal, security logins, and backup', async () => {
+  it('authenticates owner@example.test and accesses status, logs, terminal, security logins, and backup', async () => {
     const loginRes = await fetch(`${baseUrl}/api/sandbox/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
