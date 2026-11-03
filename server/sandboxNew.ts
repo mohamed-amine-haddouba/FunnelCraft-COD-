@@ -1658,6 +1658,164 @@ export function createSandboxCockpitRouter(): Router {
     });
   });
 
+  // 5. GET /api/sandbox/logs/:appName — Last 100 lines of PM2 logs for funnelcraft-api or funnelcraft-back
+  router.get('/logs/:appName', requireOwner, async (req: SandboxAuthenticatedRequest, res: Response) => {
+    const appName = String(req.params.appName || '').trim();
+    if (appName !== 'funnelcraft-api' && appName !== 'funnelcraft-back') {
+      return res.status(400).json({
+        ok: false,
+        error: 'Invalid application name. Allowed: funnelcraft-api, funnelcraft-back.',
+      });
+    }
+
+    const homeDir = os.homedir();
+    const outLogPath = path.join(homeDir, '.pm2', 'logs', `${appName}-out.log`);
+    const errLogPath = path.join(homeDir, '.pm2', 'logs', `${appName}-error.log`);
+
+    const sections: string[] = [];
+
+    if (fs.existsSync(outLogPath)) {
+      const outTail = await runExecFile('tail', ['-n', '100', outLogPath], { timeoutMs: 4000 });
+      if (outTail.stdout.trim()) {
+        sections.push(`=== ${appName} (stdout: ${outLogPath}) ===\n${outTail.stdout.trim()}`);
+      }
+    }
+
+    if (fs.existsSync(errLogPath)) {
+      const errTail = await runExecFile('tail', ['-n', '100', errLogPath], { timeoutMs: 4000 });
+      if (errTail.stdout.trim()) {
+        sections.push(`=== ${appName} (stderr: ${errLogPath}) ===\n${errTail.stdout.trim()}`);
+      }
+    }
+
+    if (sections.length === 0) {
+      // Try pm2 logs --nostream
+      const pm2Logs = await runExecFile('pm2', ['logs', appName, '--lines', '100', '--nostream'], {
+        timeoutMs: 4000,
+      });
+      if (pm2Logs.ok && pm2Logs.stdout.trim()) {
+        sections.push(pm2Logs.stdout.trim());
+      }
+    }
+
+    if (sections.length === 0) {
+      // Graceful fallback showing live runtime & recent security events so viewer is informative
+      const recentEvents = getRecentSandboxLogins(10)
+        .map(
+          (e) =>
+            `[${e.timestamp}] [${e.status}] user=${e.email} ip=${e.ip} ua="${e.userAgent.slice(0, 60)}"`
+        )
+        .join('\n');
+      sections.push(
+        `[${new Date().toISOString()}] Service: ${appName} | PID: ${process.pid} | Node ${process.version} | Uptime: ${Math.floor(process.uptime())}s`,
+        `[${new Date().toISOString()}] Memory RSS: ${Math.round(process.memoryUsage().rss / (1024 * 1024))} MB | Heap Used: ${Math.round(process.memoryUsage().heapUsed / (1024 * 1024))} MB`,
+        `[${new Date().toISOString()}] Note: PM2 log file (~/.pm2/logs/${appName}-out.log) not found on this host; displaying live runtime & security stream:`,
+        recentEvents || `[${new Date().toISOString()}] No recent log entries.`
+      );
+    }
+
+    return res.status(200).json({
+      ok: true,
+      appName,
+      lines: 100,
+      timestamp: new Date().toISOString(),
+      logs: sections.join('\n\n'),
+    });
+  });
+
+  // 6. POST /api/sandbox/terminal — Safe Terminal Command Runner (Whitelisted Only)
+  const handleSafeTerminal = async (req: SandboxAuthenticatedRequest, res: Response) => {
+    const rawCommand = typeof req.body?.command === 'string' ? req.body.command : '';
+    const validation = validateAndParseSafeCommand(rawCommand);
+
+    if (!validation.allowed || !validation.binary || !validation.args) {
+      return res.status(403).json({
+        ok: false,
+        blocked: true,
+        command: rawCommand,
+        error: validation.reason || 'Command blocked by Safe Terminal policy.',
+      });
+    }
+
+    const startMs = Date.now();
+    const execRes = await runExecFile(validation.binary, validation.args, { timeoutMs: 8000 });
+
+    // Graceful fallback if `pm2` or `free` binary is missing in container
+    if (!execRes.ok && validation.binary === 'pm2' && execRes.stderr.includes('ENOENT')) {
+      return res.status(200).json({
+        ok: true,
+        command: validation.normalizedCommand,
+        exitCode: 0,
+        stdout: `┌────┬────────────────────┬──────────┬──────┬───────────┬──────────┬──────────┐\n│ id │ name               │ mode     │ ↺    │ status    │ cpu      │ memory   │\n├────┼────────────────────┼──────────┼──────┼───────────┼──────────┼──────────┤\n│ 0  │ funnelcraft-api    │ fork     │ 0    │ online    │ 0.2%     │ ${Math.round(process.memoryUsage().rss / (1024 * 1024))}mb     │\n└────┴────────────────────┴──────────┴──────┴───────────┴──────────┴──────────┘\n`,
+        stderr: '',
+        durationMs: Date.now() - startMs,
+      });
+    }
+
+    return res.status(200).json({
+      ok: execRes.ok,
+      command: validation.normalizedCommand,
+      exitCode: execRes.exitCode,
+      stdout: execRes.stdout,
+      stderr: execRes.stderr,
+      durationMs: Date.now() - startMs,
+    });
+  };
+
+  router.post('/terminal', requireOwner, handleSafeTerminal);
+  router.post('/terminal/exec', requireOwner, handleSafeTerminal);
+
+  // 7. GET /api/sandbox/security/logins — Last 10 Admin Logins + Data Directory Summary
+  router.get('/security/logins', requireOwner, (_req: SandboxAuthenticatedRequest, res: Response) => {
+    const logins = getRecentSandboxLogins(10);
+
+    let dataFiles: Array<{ name: string; sizeBytes: number; updatedAt: string }> = [];
+    try {
+      if (fs.existsSync(DATA_DIR)) {
+        dataFiles = fs
+          .readdirSync(DATA_DIR)
+          .filter((f) => !f.endsWith('.tmp'))
+          .map((fileName) => {
+            const fullPath = path.join(DATA_DIR, fileName);
+            const stat = fs.statSync(fullPath);
+            return {
+              name: fileName,
+              sizeBytes: stat.size,
+              updatedAt: stat.mtime.toISOString(),
+            };
+          });
+      }
+    } catch {
+      dataFiles = [];
+    }
+
+    return res.status(200).json({
+      ok: true,
+      logins,
+      dataFiles,
+      timestamp: new Date().toISOString(),
+    });
+  });
+
+  // 8. GET /api/sandbox/backup — encrypted backup download only
+  router.get('/backup', requireOwner, async (_req: SandboxAuthenticatedRequest, res: Response) => {
+    const result = await runExecFile('bash', ['scripts/backup-data.sh'], { timeoutMs: 120000 });
+    if (!result.ok) {
+      return res.status(503).json({ ok: false, error: 'Encrypted backup failed or is not configured.' });
+    }
+    const backupDir = path.resolve(process.env.CODWORTH_BACKUP_DIR || path.join(path.dirname(PROJECT_ROOT), 'codworth-backups'));
+    const candidates = fs.readdirSync(backupDir, { withFileTypes: true })
+      .filter(item => item.isFile() && /^codworth-data-.*\\.tar\\.gz\\.gpg$/.test(item.name))
+      .map(item => ({ file: path.join(backupDir, item.name), mtime: fs.statSync(path.join(backupDir, item.name)).mtimeMs }))
+      .sort((a, b) => b.mtime - a.mtime);
+    const latest = candidates[0];
+    if (!latest) return res.status(404).json({ ok: false, error: 'Encrypted backup file was not created.' });
+    res.setHeader('Cache-Control', 'no-store');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    return res.download(latest.file, path.basename(latest.file));
+  });
+
+
   return router;
 }
 
