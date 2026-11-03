@@ -1175,7 +1175,7 @@ export function createSandboxCockpitRouter(): Router {
   });
 
   // 1d. POST /api/sandbox/auth/reset-password — Verify 15-min token & update Owner password in data/users.json
-  router.post('/auth/reset-password', (req: Request, res: Response) => {
+  router.post('/auth/reset-password', resetCompletionLimiter, (req: Request, res: Response) => {
     const token = typeof req.body?.token === 'string' ? req.body.token.trim() : '';
     const newPassword = typeof req.body?.newPassword === 'string' ? req.body.newPassword : '';
 
