@@ -74,7 +74,7 @@ jobs:
           fi
       - name: Verify deployment scripts and PM2 preflight
         run: |
-          bash -n deploy.sh scripts/backup-data.sh scripts/restore-data.sh
+          bash -n deploy.sh scripts/backup-data.sh scripts/restore-data.sh scripts/configure-staging-public-routes.sh
           node --check scripts/verify-backup.mjs
           node --check scripts/check-pm2-config.mjs
           node --check scripts/reset-data.cjs
