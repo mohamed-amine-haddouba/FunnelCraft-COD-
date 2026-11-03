@@ -577,10 +577,12 @@ export function ensureOwnerAccountForEmail(email: string, initialPassword?: stri
     let changed = false;
     if (existing.role !== 'admin') {
       existing.role = 'admin';
+      existing.owner_auth_version = crypto.randomUUID();
       changed = true;
     }
     if (existing.status !== 'active') {
       existing.status = 'active';
+      existing.owner_auth_version = crypto.randomUUID();
       changed = true;
     }
     if (existing.email_verified !== true || existing.email_verification_required !== false) {
