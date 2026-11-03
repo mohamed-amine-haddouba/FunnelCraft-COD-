@@ -3,6 +3,7 @@ import { getPayment, savePayment, settlePayment } from './server/paypalLedger';
 import { createStripeCheckout, stripeWebhook } from './server/stripeBilling';
 import { resolvePayPalEnvironment } from './server/paypalEnvironment';
 import { isAllowedCorsOrigin } from './server/corsOrigins';
+import { isAnalyticsRange, summarizeOrderMetrics, orderCurrency } from './server/analyticsMetrics';
 import express, { Request as ExpressRequest, Response, NextFunction } from 'express';
 import { createServer as createViteServer } from 'vite';
 import path from 'path';
@@ -2792,23 +2793,23 @@ export async function startServer() {
       }
 
       const wantAll = user.role === 'admin' && req.query.all === 'true';
+      const rangeInput = req.query.range ?? 'all';
+      if (!isAnalyticsRange(rangeInput)) {
+        return res.status(400).json({ success: false, error: 'Unsupported analytics range.' });
+      }
       const scopedPages = wantAll ? getAllPagesAdmin() : getUserPages(user.id);
-      const scopedOrders = wantAll ? getAllOrders() : getOrdersForUser(user.id, false);
+      const allScopedOrders = wantAll ? getAllOrders() : getOrdersForUser(user.id, false);
+      const metrics = summarizeOrderMetrics(allScopedOrders, rangeInput);
+      const scopedOrders = metrics.orders;
+      const { totalOrders, totalRevenue, avgOrderValue, deliveryRate } = metrics;
 
+      // Views are currently lifetime counters: they cannot accurately be divided
+      // by a 7/30/90-day order count. Do not invent a period conversion rate.
       const totalVisitors = scopedPages.reduce((sum, p) => sum + (Number(p.viewsCount) || 0), 0);
-      const totalOrders = scopedOrders.length;
-      const totalRevenue = scopedOrders.reduce((sum, o) => sum + (Number(o.price) || 0), 0);
-      const avgOrderValue = totalOrders > 0 ? Math.round(totalRevenue / totalOrders) : 0;
-      const conversionRate =
-        totalVisitors > 0
-          ? Number(((totalOrders / totalVisitors) * 100).toFixed(2))
-          : totalOrders > 0
-          ? 100
-          : 0;
-      const deliveredCount = scopedOrders.filter((o) => o.status === 'delivered').length;
-      const deliveryRate =
-        totalOrders > 0 ? Number(((deliveredCount / totalOrders) * 100).toFixed(1)) : 0;
-      const formStarts = 0; // TODO: real form-start tracking requires a client beacon at POST /api/analytics/form-start (out of scope).
+      const conversionRate = rangeInput === 'all' && totalVisitors > 0
+        ? Number(((totalOrders / totalVisitors) * 100).toFixed(2))
+        : null;
+      const formStarts = null; // No period-scoped form-start events are stored yet.
 
       const cityAggregation: Record<string, { count: number; revenue: number }> = {};
       for (const order of scopedOrders) {
@@ -2818,7 +2819,9 @@ export async function startServer() {
           cityAggregation[cityKey] = { count: 0, revenue: 0 };
         }
         cityAggregation[cityKey].count += 1;
-        cityAggregation[cityKey].revenue += Number(order.price) || 0;
+        if (order.status === 'delivered' && orderCurrency(order) === 'MAD') {
+          cityAggregation[cityKey].revenue += Number(order.price) || 0;
+        }
       }
 
       const cityBreakdown = Object.entries(cityAggregation)
@@ -2834,13 +2837,17 @@ export async function startServer() {
       const topFunnels = scopedPages
         .map((p) => {
           const matchingOrders = scopedOrders.filter(
-            (o) => o.funnelId === p.id || (p.slug && o.pageSlug === p.slug)
+            (o) => o.funnelId === p.id ||
+              (!o.funnelId && o.userId === p.userId && p.slug && o.pageSlug === p.slug)
           );
           const pageVisitors = Number(p.viewsCount) || 0;
-          const pageOrdersCount = Math.max(Number(p.ordersCount) || 0, matchingOrders.length);
-          const pageRevenue = matchingOrders.reduce((sum, o) => sum + (Number(o.price) || 0), 0);
-          const crNum =
-            pageVisitors > 0 ? ((pageOrdersCount / pageVisitors) * 100).toFixed(2) : '0.00';
+          const pageOrdersCount = matchingOrders.length;
+          const pageRevenue = matchingOrders.reduce(
+            (sum, o) => sum + (o.status === 'delivered' && orderCurrency(o) === 'MAD' ? Number(o.price) || 0 : 0), 0
+          );
+          const crNum = rangeInput === 'all' && pageVisitors > 0
+            ? ((pageOrdersCount / pageVisitors) * 100).toFixed(2) + '%'
+            : '—';
 
           return {
             id: p.id,
@@ -2848,7 +2855,7 @@ export async function startServer() {
             slug: p.slug,
             visitors: pageVisitors,
             orders: pageOrdersCount,
-            cr: `${crNum}%`,
+            cr: crNum,
             revenue: `${pageRevenue.toLocaleString()} DH`,
             revenueRaw: pageRevenue,
             status: p.isPublished ? 'active' : 'draft',
@@ -2864,11 +2871,17 @@ export async function startServer() {
         hasData,
         totalVisitors,
         totalOrders,
-        totalRevenue,
-        avgOrderValue,
-        conversionRate,
+        totalRevenue, // Delivered MAD order value, not guaranteed cash collected.
+        avgOrderValue, // Recorded, non-cancelled MAD orders only.
+        conversionRate, // null when period-specific visitor events are unavailable.
         deliveryRate,
         formStarts,
+        range: rangeInput,
+        visitorPeriod: 'lifetime',
+        revenueCurrency: 'MAD',
+        orderStatusCounts: metrics.statusCounts,
+        recordedValueByCurrency: metrics.recordedValueByCurrency,
+        deliveredValueByCurrency: metrics.deliveredValueByCurrency,
         cityBreakdown,
         topFunnels,
       });
