@@ -444,11 +444,8 @@ function loadPaymentsFromDisk(): Map<string, ManualPaymentRequest> {
 }
 
 function savePaymentsToDisk(paymentsMap: Map<string, ManualPaymentRequest>) {
-  try {
-    const list = Array.from(paymentsMap.values());
-    fs.writeFileSync(PAYMENTS_FILE, JSON.stringify(list, null, 2), 'utf-8');
-  } catch (err) {
-    console.error('Failed to write payments to disk:', err);
+  if (!writeJsonFileAtomic(PAYMENTS_FILE, Array.from(paymentsMap.values()))) {
+    throw new Error('Failed to persist manual payments.');
   }
 }
 
@@ -1217,14 +1214,8 @@ function loadSessionsFromDisk(): void {
 }
 
 function saveSessionsToDisk(): void {
-  try {
-    if (!fs.existsSync(DATA_DIR)) {
-      fs.mkdirSync(DATA_DIR, { recursive: true });
-    }
-    const entries = Array.from(sessions.entries());
-    fs.writeFileSync(SESSIONS_FILE, JSON.stringify(entries, null, 2), 'utf-8');
-  } catch {
-    // ignore write error
+  if (!writeJsonFileAtomic(SESSIONS_FILE, Array.from(sessions.entries()))) {
+    throw new Error('Failed to persist session changes.');
   }
 }
 
@@ -1241,7 +1232,12 @@ export function createSession(userId: string): string {
   const tokenHash = hashSessionToken(rawToken);
   const expiresAt = Date.now() + 30 * 24 * 60 * 60 * 1000;
   sessions.set(tokenHash, { userId, expiresAt });
-  saveSessionsToDisk();
+  try {
+    saveSessionsToDisk();
+  } catch (error) {
+    sessions.delete(tokenHash); // Do not expose an unpersisted login as successful.
+    throw error;
+  }
   return rawToken;
 }
 
@@ -1548,13 +1544,9 @@ function rebuildActiveDomainCache(pagesMap: Map<string, StoredPage>): void {
 }
 
 function savePagesToDisk(pagesMap: Map<string, StoredPage>): void {
-  try {
-    rebuildActiveDomainCache(pagesMap);
-    const list = Array.from(pagesMap.values());
-    fs.writeFileSync(PAGES_FILE, JSON.stringify(list, null, 2), 'utf-8');
-  } catch (err) {
-    console.error('Failed to write pages to disk:', err);
-  }
+  const list = Array.from(pagesMap.values());
+  if (!writeJsonFileAtomic(PAGES_FILE, list)) throw new Error('Failed to persist pages.');
+  rebuildActiveDomainCache(pagesMap);
 }
 
 const pages = loadPagesFromDisk();
@@ -2564,10 +2556,7 @@ export function savePlans(plansInput: SubscriptionPlanConfig[]): SubscriptionPla
     (id) => byId.get(id) || DEFAULT_SUBSCRIPTION_PLANS.find((d) => d.id === id)!
   );
 
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
-  }
-  fs.writeFileSync(PLANS_FILE, JSON.stringify(ordered, null, 2), 'utf-8');
+  if (!writeJsonFileAtomic(PLANS_FILE, ordered)) throw new Error('Failed to persist plans.');
   return ordered;
 }
 
