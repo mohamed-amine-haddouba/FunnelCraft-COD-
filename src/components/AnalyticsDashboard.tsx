@@ -143,8 +143,10 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
           <p className="text-xs text-[#CBD5E1] mt-0.5">{t.analyticsDesc}</p>
           <p className="text-[11px] text-amber-200/80 mt-1">
             {language === 'ar'
-              ? 'فلتر التاريخ يطبق على الطلبات فقط؛ الزيارات إجمالية. التحويل وبداية الاستمارة غير متاحين بلا أحداث مؤرخة. القيم المالية المعروضة بالدرهم ليست إثباتاً للتحصيل.'
-              : 'La période filtre les commandes, pas les visites historiques. Conversion et débuts de formulaire indisponibles sans suivi daté. Les montants MAD ne prouvent pas un encaissement.'}
+              ? 'فلتر التاريخ يطبق على الطلبات فقط؛ الزيارات إجمالية لكل الفترات وليست فريدة. التحويل وبداية الاستمارة غير متاحين بلا أحداث مؤرخة. قيمة الطلبات المسلّمة بالدرهم لا تثبت التحصيل النقدي.'
+              : language === 'fr'
+                ? 'La période filtre les commandes, pas les visites. Les visites sont cumulées (non uniques). Conversion et débuts de formulaire indisponibles sans événements datés. La valeur livrée en MAD ne prouve pas un encaissement.'
+                : 'Date range filters orders only. Visits are lifetime page views, not unique visitors. Conversion and form starts need dated events. Delivered MAD order value is not proof of cash collection.'}
           </p>
         </div>
 
@@ -258,7 +260,9 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
                   {conversionRate === null ? '—' : `${conversionRate}%`}
                 </span>
               </div>
-              <p className="text-[11px] text-[#CBD5E1]/70 mt-1 truncate">{t.moroccanCodBenchmark}</p>
+              <p className="text-[11px] text-[#CBD5E1]/70 mt-1 truncate">
+                {language === 'ar' ? 'غير متاح حتى تسجيل الزيارات حسب الفترة' : language === 'fr' ? 'Indisponible sans visites datées' : 'Unavailable without period-based visit tracking'}
+              </p>
             </div>
 
             {/* KPI 2: Total Visitors */}
@@ -275,7 +279,7 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
                 </span>
               </div>
               <p className="text-[11px] text-[#CBD5E1]/70 mt-1 truncate">
-                {language === 'ar' ? 'زيارات صفحات الهبوط النشطة' : 'Visites uniques actives'}
+                {language === 'ar' ? 'مشاهدات إجمالية لكل الفترات (غير فريدة)' : language === 'fr' ? 'Vues cumulées (non uniques)' : 'Lifetime page views (not unique)'}
               </p>
             </div>
 
@@ -294,7 +298,7 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
                 </span>
               </div>
               <p className="text-[11px] text-[#CBD5E1]/70 mt-1 truncate">
-                {language === 'ar' ? 'متوسط قيمة الطلب الفعلي' : 'Panier moyen réel'}
+                {language === 'ar' ? 'متوسط الطلبات غير الملغاة (MAD)' : language === 'fr' ? 'Moyenne des commandes non annulées (MAD)' : 'Average non-cancelled order value (MAD)'}
               </p>
             </div>
 
@@ -312,7 +316,7 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
                 </span>
               </div>
               <p className="text-[11px] text-[#CBD5E1]/70 mt-1 truncate">
-                {language === 'ar' ? 'الطلبات المسلمة فقط' : 'Commandes livrées uniquement'}
+                {language === 'ar' ? 'المسلّمة من مجموع الطلبات' : language === 'fr' ? 'Livrées / toutes les commandes' : 'Delivered / all orders'}
               </p>
             </div>
           </div>
@@ -483,7 +487,7 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
                       <th className="py-2 px-3 text-start font-medium">{t.visitors}</th>
                       <th className="py-2 px-3 text-start font-medium">{t.ordersPlaced}</th>
                       <th className="py-2 px-3 text-start font-medium">{t.conversionRate}</th>
-                      <th className="py-2 px-3 text-start font-medium">{language === 'ar' ? 'قيمة الطلبات المسلّمة (MAD)' : 'Valeur livrée (MAD)'}</th>
+                      <th className="py-2 px-3 text-start font-medium">{language === 'ar' ? 'قيمة الطلبات المسلّمة (MAD)' : language === 'fr' ? 'Valeur livrée (MAD)' : 'Delivered order value (MAD)'}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-800/60">
