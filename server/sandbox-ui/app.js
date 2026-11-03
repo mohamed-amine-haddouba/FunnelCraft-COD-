@@ -1166,7 +1166,7 @@
     deployStreamStatus.textContent =
       'STREAMING 5-STEP PIPELINE (git pull → npm install → tsc → build → pm2 restart)...';
 
-    const streamUrl = `/api/sandbox/deploy/stream?token=${encodeURIComponent(token)}`;
+    const streamUrl = '/api/sandbox/deploy/stream';
     const es = new EventSource(streamUrl);
     activeDeployEventSource = es;
 
@@ -1245,7 +1245,7 @@
 
     setTerminalBadge('connecting', 'CONNECTING...');
     const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${wsProtocol}//${window.location.host}/api/sandbox/terminal?token=${encodeURIComponent(token)}`;
+    const wsUrl = `${wsProtocol}//${window.location.host}/api/sandbox/terminal`;
     const ws = new WebSocket(wsUrl);
     terminalSocket = ws;
 
