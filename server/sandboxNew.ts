@@ -52,6 +52,7 @@ export interface SandboxJwtPayload {
   iat: number;
   exp: number;
   jti: string;
+  authVersion: string;
 }
 
 export interface SandboxLoginAuditRecord {
@@ -77,6 +78,7 @@ export interface SandboxLoginTicketPayload {
   iat: number;
   exp: number;
   jti: string;
+  authVersion: string;
 }
 
 // In-memory 2FA OTP store for optional Email 2FA step
@@ -114,6 +116,27 @@ function base64UrlDecode(input: string): Buffer {
   return Buffer.from(normalized, 'base64');
 }
 
+// Tie signed owner tokens to the persisted password hash. This survives restarts
+// and invalidates both JWTs and pending 2FA tickets when the password changes.
+function ownerAuthVersion(email: string): string {
+  const user = findUserByEmail(email);
+  const credential = user && user.role === 'admin' && user.status === 'active'
+    ? `${user.id}:${user.password_hash}:${user.password_salt}`
+    : 'owner-not-active';
+  return crypto.createHmac('sha256', getSandboxJwtSecret()).update(credential).digest('hex');
+}
+
+function isCurrentOwnerAuth(payload: { email: string; authVersion?: string }): boolean {
+  if (!isAllowedOwnerEmail(payload.email) || typeof payload.authVersion !== 'string') return false;
+  const user = findUserByEmail(payload.email);
+  if (!user || user.role !== 'admin' || user.status !== 'active') return false;
+  const current = Buffer.from(ownerAuthVersion(payload.email), 'hex');
+  const provided = Buffer.from(payload.authVersion, 'hex');
+  return provided.length === current.length && crypto.timingSafeEqual(provided, current);
+}
+
+const activeOwnerTerminalSockets = new Set<WebSocket>();
+
 export function signSandboxJwt(email: string, ttlSeconds: number = JWT_TTL_SECONDS): {
   token: string;
   payload: SandboxJwtPayload;
@@ -123,6 +146,7 @@ export function signSandboxJwt(email: string, ttlSeconds: number = JWT_TTL_SECON
     sub: 'owner-cockpit',
     email: email.trim().toLowerCase(),
     role: 'owner',
+    authVersion: ownerAuthVersion(email.trim().toLowerCase()),
     iat: nowSec,
     exp: nowSec + ttlSeconds,
     jti: crypto.randomUUID(),
@@ -197,6 +221,9 @@ export function verifySandboxJwt(rawToken: string): {
   if (!isAllowedOwnerEmail(parsed.email)) {
     return { valid: false, reason: 'NOT_OWNER', payload: parsed };
   }
+  if (!isCurrentOwnerAuth(parsed)) {
+    return { valid: false, reason: 'EXPIRED' };
+  }
 
   return { valid: true, payload: parsed };
 }
@@ -212,6 +239,7 @@ export function signSandboxLoginTicket(
   const payload: SandboxLoginTicketPayload = {
     sub: '2fa_pending',
     email: email.trim().toLowerCase(),
+    authVersion: ownerAuthVersion(email.trim().toLowerCase()),
     iat: nowSec,
     exp: nowSec + ttlSeconds,
     jti: crypto.randomUUID(),
@@ -285,6 +313,9 @@ export function verifySandboxLoginTicket(rawTicket: string): {
 
   if (!isAllowedOwnerEmail(parsed.email)) {
     return { valid: false, reason: 'NOT_OWNER', payload: parsed };
+  }
+  if (!isCurrentOwnerAuth(parsed)) {
+    return { valid: false, reason: 'EXPIRED' };
   }
 
   return { valid: true, payload: parsed };
@@ -1169,6 +1200,8 @@ export function createSandboxCockpitRouter(): Router {
 
     ensureOwnerAccountForEmail(STRICT_OWNER_EMAIL, newPassword);
     sandboxResetTokens.delete(token);
+    // Stop any active terminal immediately, not merely on the next API call.
+    for (const socket of activeOwnerTerminalSockets) socket.close(4001, 'Owner credentials changed');
 
     return res.status(200).json({
       ok: true,
@@ -1980,6 +2013,14 @@ export function attachSandboxWebSocketServer(server: http.Server): WebSocketServ
   });
 
   wss.on('connection', (ws: WebSocket, _req: IncomingMessage, ownerPayload?: SandboxJwtPayload) => {
+    if (!ownerPayload || !isCurrentOwnerAuth(ownerPayload)) { ws.close(4001, 'Invalid owner session'); return; }
+    activeOwnerTerminalSockets.add(ws);
+    const sessionGuard = setInterval(() => {
+      if (!isCurrentOwnerAuth(ownerPayload) || ownerPayload.exp <= Math.floor(Date.now() / 1000)) {
+        ws.close(4001, 'Owner session expired');
+      }
+    }, 15000);
+    sessionGuard.unref();
     const shellPath = fs.existsSync('/bin/bash') ? '/bin/bash' : '/bin/sh';
     const shellEnv: Record<string, string> = {
       ...(process.env as Record<string, string>),
@@ -2087,6 +2128,7 @@ export function attachSandboxWebSocketServer(server: http.Server): WebSocketServ
     }
 
     ws.on('message', (rawMsg) => {
+      if (!isCurrentOwnerAuth(ownerPayload)) { ws.close(4001, 'Owner session expired'); return; }
       const text = typeof rawMsg === 'string' ? rawMsg : rawMsg.toString('utf-8');
       if (text.startsWith('{')) {
         try {
@@ -2119,8 +2161,9 @@ export function attachSandboxWebSocketServer(server: http.Server): WebSocketServ
       }
     });
 
-    ws.on('close', cleanupShell);
-    ws.on('error', cleanupShell);
+    const cleanupGuard = () => { clearInterval(sessionGuard); activeOwnerTerminalSockets.delete(ws); cleanupShell(); };
+    ws.on('close', cleanupGuard);
+    ws.on('error', cleanupGuard);
   });
 
   server.on('close', () => {
