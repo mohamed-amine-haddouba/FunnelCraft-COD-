@@ -32,3 +32,14 @@ test('analytics rejects unknown range values', () => {
   assert.equal(isAnalyticsRange('7days'), false);
   assert.equal(isAnalyticsRange(null), false);
 });
+
+test('funnel order matching never crosses merchant boundaries, including legacy slug matches', () => {
+  const orders = [
+    { id: 'same-id-other-merchant', userId: 'merchant-b', funnelId: 'shared-page', pageSlug: 'same-slug', createdAt: '2026-11-02T10:00:00Z', price: 10, status: 'delivered' as const },
+    { id: 'same-id-owner', userId: 'merchant-a', funnelId: 'shared-page', pageSlug: 'same-slug', createdAt: '2026-11-02T10:00:00Z', price: 20, status: 'delivered' as const },
+    { id: 'legacy-owner', userId: 'merchant-a', pageSlug: 'same-slug', createdAt: '2026-11-02T10:00:00Z', price: 30, status: 'pending' as const },
+    { id: 'legacy-other', userId: 'merchant-b', pageSlug: 'same-slug', createdAt: '2026-11-02T10:00:00Z', price: 40, status: 'pending' as const },
+  ];
+  const matches = getOrdersForFunnel(orders, { id: 'shared-page', userId: 'merchant-a', slug: 'same-slug' });
+  assert.deepEqual(matches.map(order => order.id), ['same-id-owner', 'legacy-owner']);
+});
