@@ -27,6 +27,7 @@ export interface PaidOrderSnapshot {
 }
 export type ReconciliationFindingCode =
   | 'INVALID_LEDGER'
+  | 'INVALID_ORDER_ROW'
   | 'DUPLICATE_PAYMENT_ORDER'
   | 'DUPLICATE_CAPTURE'
   | 'INVALID_CAPTURE_TIME'
@@ -67,6 +68,10 @@ export function reconcilePayPalSnapshots(
   let capturedPayments = 0;
 
   for (const order of storefrontOrders) {
+    if (!order || typeof order !== 'object' || Array.isArray(order)) {
+      add('INVALID_ORDER_ROW');
+      continue;
+    }
     if (order.paymentMethod !== 'paypal') continue;
     const id = order.paypalOrderId;
     if (typeof id !== 'string' || !orderIdPattern.test(id)) {
@@ -149,7 +154,7 @@ export function reconcilePayPalSnapshots(
   }
 
   const blockers = new Set<ReconciliationFindingCode>([
-    'INVALID_LEDGER', 'DUPLICATE_PAYMENT_ORDER', 'DUPLICATE_CAPTURE',
+    'INVALID_LEDGER', 'INVALID_ORDER_ROW', 'DUPLICATE_PAYMENT_ORDER', 'DUPLICATE_CAPTURE',
     'INVALID_CAPTURE_TIME', 'CAPTURE_SIDE_EFFECTS_PENDING', 'PAID_ORDER_MISSING_PAYMENT', 'PAID_ORDER_UNCAPTURED',
     'DUPLICATE_PRODUCT_ORDER', 'MERCHANT_OWNERSHIP_MISMATCH', 'PRODUCT_QUOTE_MISMATCH',
   ]);
