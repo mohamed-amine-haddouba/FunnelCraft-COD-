@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { randomUUID, createHash } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { createCoupon, getCoupons, saveCoupons } from './db';
 import { getPayment, savePayment, settlePayment, type ExpectedPayment } from './paypalLedger';
@@ -9,8 +9,7 @@ import { getPayment, savePayment, settlePayment, type ExpectedPayment } from './
 test('PayPal settlement validates provider capture and is idempotent for duplicate delivery', () => {
   const orderId = `codworth-test-${randomUUID()}`;
   const couponCode = `T${crypto.randomUUID().replace(/-/g, '').slice(0, 10).toUpperCase()}`;
-  const ledgerName = createHash('sha256').update(orderId, 'utf8').digest('hex') + '.json';
-  const ledgerFile = fileURLToPath(new URL(`../data/paypal-ledger/${ledgerName}`, import.meta.url));
+  const ledgerDirectory = fileURLToPath(new URL('../data/paypal-ledger/', import.meta.url));
   const expected: ExpectedPayment = {
     expectedAmount: '19.99',
     expectedCurrency: 'USD',
@@ -77,6 +76,13 @@ test('PayPal settlement validates provider capture and is idempotent for duplica
     }), /Conflicting capture/);
   } finally {
     saveCoupons(getCoupons().filter(coupon => coupon.code !== couponCode));
-    fs.rmSync(ledgerFile, { force: true });
+    if (fs.existsSync(ledgerDirectory)) {
+      for (const name of fs.readdirSync(ledgerDirectory)) {
+        const file = fileURLToPath(new URL(`../data/paypal-ledger/${name}`, import.meta.url));
+        try {
+          if (JSON.parse(fs.readFileSync(file, 'utf8')).orderId === orderId) fs.rmSync(file, { force: true });
+        } catch { /* unrelated ledger entry */ }
+      }
+    }
   }
 });
