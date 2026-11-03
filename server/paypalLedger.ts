@@ -14,8 +14,13 @@ export interface ExpectedPayment {
 }
 const directory = fileURLToPath(new URL('../data/paypal-ledger/', import.meta.url));
 function fileFor(id: string) {
-  if (!/^[A-Za-z0-9-]{1,80}$/.test(id)) throw new Error('Invalid payment ID');
-  return path.join(directory, id + '.json');
+  if (typeof id !== 'string' || !/^[A-Za-z0-9-]{1,80}$/.test(id)) {
+    throw new Error('Invalid payment ID');
+  }
+  // Never place provider-controlled identifiers in a filesystem path. A fixed
+  // 64-character digest prevents traversal and satisfies static taint analysis.
+  const filename = crypto.createHash('sha256').update(id, 'utf8').digest('hex') + '.json';
+  return path.join(directory, filename);
 }
 export function getPayment(id: string): ExpectedPayment | undefined {
   const file = fileFor(id);
