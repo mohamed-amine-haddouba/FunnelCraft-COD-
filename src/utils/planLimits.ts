@@ -1,6 +1,7 @@
 export const VPS_IP = '217.160.116.237';
 export const CNAME_TARGET = 'domains.codworth.me';
-export const PLATFORM_OWNER_EMAIL = 'naadianajah2020@gmail.com';
+// Owner identity belongs to authenticated server settings, not a client-side constant.
+export const PLATFORM_OWNER_EMAIL = '';
 
 export type PlanTier = 'free' | 'starter' | 'pro' | 'enterprise';
 export type PlanFeature =
