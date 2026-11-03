@@ -38,3 +38,9 @@ jobs:
         run: npm test
       - name: Production build
         run: npm run build
+      - name: Verify private backup and read-only archive check
+        run: |
+          CODWORTH_BACKUP_DIR="$RUNNER_TEMP/codworth-backup-fixture" bash scripts/backup-data.sh
+          BACKUP_FILE="$(find "$RUNNER_TEMP/codworth-backup-fixture" -type f -name '*.tar.gz' -print -quit)"
+          test -n "$BACKUP_FILE"
+          node scripts/verify-backup.mjs "$BACKUP_FILE"
