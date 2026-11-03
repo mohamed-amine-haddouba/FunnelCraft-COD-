@@ -805,7 +805,7 @@
         const data = await response.json().catch(() => ({}));
 
         if (response.status === 403) {
-          showLoginError(data.error || 'Access Denied (403): Only naadianajah2020@gmail.com is allowed.');
+          showLoginError(data.error || 'Access Denied (403): Only the configured owner account is authorized.');
           return;
         }
 
