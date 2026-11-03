@@ -1035,9 +1035,10 @@ export function createSandboxCockpitRouter(): Router {
 
   // 1b-logout. POST /api/sandbox/logout — Clear sandbox_sid cookie
   router.post('/logout', (_req: Request, res: Response) => {
+    const secure = process.env.NODE_ENV === 'production' ? '; Secure' : '';
     res.setHeader(
       'Set-Cookie',
-      'sandbox_sid=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0'
+      `sandbox_sid=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0${secure}`
     );
     return res.status(200).json({ ok: true });
   });
