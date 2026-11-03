@@ -463,21 +463,6 @@ export function extractSandboxTokenFromRequest(req: IncomingMessage | Request): 
     if (bearer) return bearer;
   }
 
-  const expressQueryToken = (req as Request).query?.token;
-  if (typeof expressQueryToken === 'string' && expressQueryToken.trim()) {
-    return expressQueryToken.trim();
-  }
-
-  if (typeof req.url === 'string' && req.url.includes('?')) {
-    try {
-      const parsedUrl = new URL(req.url, 'http://127.0.0.1');
-      const urlToken = (parsedUrl.searchParams.get('token') || '').trim();
-      if (urlToken) return urlToken;
-    } catch {
-      // ignore malformed URL
-    }
-  }
-
   const cookies = parseCookiesHeader(req.headers?.cookie);
   if (cookies.sandbox_sid && cookies.sandbox_sid.trim()) {
     return cookies.sandbox_sid.trim();
@@ -488,8 +473,8 @@ export function extractSandboxTokenFromRequest(req: IncomingMessage | Request): 
 
 /**
  * Zero-Trust Owner Authentication Middleware
- * Accepts Bearer JWT in Authorization header (primary), ?token= query param (for SSE / WS / Backup),
- * or sandbox_sid HttpOnly cookie. Strictly enforces email === configured owner.
+ * Accepts a Bearer JWT or the same-origin sandbox_sid HttpOnly cookie.
+ * Authentication tokens are never accepted from URLs, where they can leak into logs.
  */
 export function requireOwner(
   req: SandboxAuthenticatedRequest,
