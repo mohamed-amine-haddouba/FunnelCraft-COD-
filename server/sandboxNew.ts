@@ -1657,4 +1657,283 @@ export function createSandboxCockpitRouter(): Router {
       timestamp: new Date().toISOString(),
     });
   });
+
+  return router;
+}
+
+export function attachSandboxWebSocketServer(server: http.Server): WebSocketServer {
+  const wss = new WebSocketServer({ noServer: true });
+
+  server.on('upgrade', (req, socket, head) => {
+    let pathname = '';
+    try {
+      const parsed = new URL(req.url || '/', 'http://127.0.0.1');
+      pathname = parsed.pathname;
+    } catch {
+      pathname = (req.url || '').split('?')[0];
+    }
+
+    if (pathname !== '/api/sandbox/terminal' && pathname !== '/sandbox/terminal/ws') {
+      return;
+    }
+
+    if (process.env.NODE_ENV === 'production' && (process.env.ENABLE_OWNER_COCKPIT !== 'true' || !process.env.OWNER_EMAIL)) { socket.destroy(); return; }
+    const token = extractSandboxTokenFromRequest(req);
+    if (!token) {
+      socket.write(
+        'HTTP/1.1 401 Unauthorized\r\nContent-Type: text/plain\r\nConnection: close\r\n\r\nUnauthorized: Missing Sandbox JWT token.\r\n'
+      );
+      socket.destroy();
+      return;
+    }
+
+    const verification = verifySandboxJwt(token);
+    if (!verification.valid || !verification.payload) {
+      const statusLine =
+        verification.reason === 'NOT_OWNER' ? '403 Forbidden' : '401 Unauthorized';
+      socket.write(
+        `HTTP/1.1 ${statusLine}\r\nContent-Type: text/plain\r\nConnection: close\r\n\r\nAccess Denied.\r\n`
+      );
+      socket.destroy();
+      return;
+    }
+
+    wss.handleUpgrade(req, socket, head, (ws) => {
+      wss.emit('connection', ws, req, verification.payload);
+    });
+  });
+
+  wss.on('connection', (ws: WebSocket, _req: IncomingMessage, ownerPayload?: SandboxJwtPayload) => {
+    if (!ownerPayload || !isCurrentOwnerAuth(ownerPayload)) {
+      ws.close(4001, 'Invalid owner session');
+      return;
+    }
+    activeOwnerTerminalSockets.add(ws);
+    const sessionGuard = setInterval(() => {
+      if (!isCurrentOwnerAuth(ownerPayload) || ownerPayload.exp <= Math.floor(Date.now() / 1000)) {
+        ws.close(4001, 'Owner session expired');
+      }
+    }, 15000);
+    sessionGuard.unref();
+    const shellPath = fs.existsSync('/bin/bash') ? '/bin/bash' : '/bin/sh';
+    const shellEnv: Record<string, string> = {
+      ...(process.env as Record<string, string>),
+      TERM: 'xterm-256color',
+      COLORTERM: 'truecolor',
+      HOME: os.homedir(),
+      PS1: '\\[\\033[01;32m\\]owner@codworth\\[\\033[00m\\]:\\[\\033[01;34m\\]\\w\\[\\033[00m\\]\\$ ',
+    };
+
+    let ptyProc: any = null;
+    let fallbackProc: ReturnType<typeof spawn> | null = null;
+
+    // 1. Try spawning a real pseudo-terminal with node-pty
+    try {
+      const pty = requireModule('node-pty');
+      ptyProc = pty.spawn(shellPath, [], {
+        name: 'xterm-color',
+        cols: 100,
+        rows: 28,
+        cwd: PROJECT_ROOT,
+        env: shellEnv,
+      });
+
+      ptyProc.onData((data: string) => {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(data);
+        }
+      });
+
+      ptyProc.onExit(() => {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.close();
+        }
+      });
+    } catch {
+      // 2. Graceful fallback to child_process interactive bash if node-pty native addon is unavailable
+      fallbackProc = spawn(shellPath, ['-i'], {
+        cwd: PROJECT_ROOT,
+        env: shellEnv,
+      });
+
+      const sendChunk = (chunk: Buffer) => {
+        if (ws.readyState === WebSocket.OPEN) {
+          const text = chunk
+            .toString('utf-8')
+            .replace(/bash: cannot set terminal process group \([^)]*\): Inappropriate ioctl for device\r?\n?/g, '')
+            .replace(/bash: no job control in this shell\r?\n?/g, '');
+          if (text) {
+            ws.send(text);
+          }
+        }
+      };
+
+      fallbackProc.stdout?.on('data', sendChunk);
+      fallbackProc.stderr?.on('data', sendChunk);
+      fallbackProc.on('close', () => {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.close();
+        }
+      });
+    }
+
+    let cleanedUp = false;
+    const cleanupShell = () => {
+      if (cleanedUp) return;
+      cleanedUp = true;
+      if (ptyProc) {
+        try {
+          ptyProc.kill('SIGKILL');
+        } catch {
+          try {
+            ptyProc.kill();
+          } catch {
+            // ignore
+          }
+        }
+        try {
+          ptyProc._socket?.destroy?.();
+        } catch {
+          // ignore
+        }
+        ptyProc = null;
+      }
+      if (fallbackProc) {
+        try {
+          fallbackProc.stdin?.destroy();
+          fallbackProc.stdout?.destroy();
+          fallbackProc.stderr?.destroy();
+          fallbackProc.kill('SIGKILL');
+        } catch {
+          // ignore
+        }
+        fallbackProc = null;
+      }
+    };
+
+    if (ws.readyState === WebSocket.OPEN) {
+      ws.send(
+        `\r\n\x1b[1;32m● CodWorth Zero-Trust Interactive Shell\x1b[0m (${ownerPayload?.email || STRICT_OWNER_EMAIL})\r\n` +
+          `\x1b[90mWorking directory: ${PROJECT_ROOT} • Type commands below\x1b[0m\r\n\r\n`
+      );
+      if (fallbackProc) {
+        fallbackProc.stdin?.write('pwd\n');
+      }
+    }
+
+    ws.on('message', (rawMsg) => {
+      const text = typeof rawMsg === 'string' ? rawMsg : rawMsg.toString('utf-8');
+      if (text.startsWith('{')) {
+        try {
+          const parsed = JSON.parse(text);
+          if (parsed && parsed.type === 'resize') {
+            const cols = Math.max(20, Math.min(400, Number(parsed.cols) || 80));
+            const rows = Math.max(5, Math.min(200, Number(parsed.rows) || 24));
+            if (ptyProc && typeof ptyProc.resize === 'function') {
+              ptyProc.resize(cols, rows);
+            }
+            return;
+          }
+          if (parsed && parsed.type === 'input' && typeof parsed.data === 'string') {
+            if (ptyProc) {
+              ptyProc.write(parsed.data);
+            } else if (fallbackProc?.stdin?.writable) {
+              fallbackProc.stdin.write(parsed.data);
+            }
+            return;
+          }
+        } catch {
+          // treat as raw terminal input
+        }
+      }
+
+      if (ptyProc) {
+        ptyProc.write(text);
+      } else if (fallbackProc?.stdin?.writable) {
+        fallbackProc.stdin.write(text);
+      }
+    });
+
+    const cleanupGuard = () => {
+      clearInterval(sessionGuard);
+      activeOwnerTerminalSockets.delete(ws);
+      cleanupShell();
+    };
+    ws.on('close', cleanupGuard);
+    ws.on('error', cleanupGuard);
+  });
+
+  server.on('close', () => {
+    for (const client of wss.clients) {
+      try {
+        client.terminate();
+      } catch {
+        // ignore
+      }
+    }
+    try {
+      wss.close();
+    } catch {
+      // ignore
+    }
+  });
+
+  return wss;
+}
+
+/**
+ * Creates the standalone, fully isolated Sandbox Express application.
+ * Serves `server/sandbox-ui/` at `/sandbox` and mounts the API at `/api/sandbox`.
+ */
+export function createSandboxStandaloneApp(): Express {
+  const sandboxApp = express();
+  sandboxApp.set('trust proxy', process.env.TRUSTED_PROXY_CIDRS?.split(',').map(value => value.trim()).filter(Boolean) || false);
+
+  sandboxApp.use((_req: Request, res: Response, next: NextFunction) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Referrer-Policy', 'no-referrer');
+    res.setHeader('Cache-Control', 'no-store');
+    next();
+  });
+
+  const apiRouter = createSandboxCockpitRouter();
+  sandboxApp.use('/api/sandbox', apiRouter);
+
+  // Serve static assets from server/sandbox-ui
+  sandboxApp.use('/sandbox', express.static(SANDBOX_UI_DIR, { index: 'index.html' }));
+  sandboxApp.get(['/sandbox', '/sandbox/*'], (_req: Request, res: Response) => {
+    res.sendFile(path.join(SANDBOX_UI_DIR, 'index.html'));
+  });
+
+  // Root redirect on port 3002 to /sandbox
+  sandboxApp.get('/', (_req: Request, res: Response) => {
+    res.redirect('/sandbox');
+  });
+
+  return sandboxApp;
+}
+
+let activeSandboxServer: ReturnType<Express['listen']> | null = null;
+
+export function startSandboxServer(port: number = SANDBOX_PORT) {
+  if (activeSandboxServer) {
+    return activeSandboxServer;
+  }
+  const sandboxApp = createSandboxStandaloneApp();
+  const server = http.createServer(sandboxApp);
+  attachSandboxWebSocketServer(server);
+
+  activeSandboxServer = server.listen(port, '127.0.0.1', () => {
+    console.log(
+      `[SANDBOX COCKPIT] Zero-Trust Decoupled Admin Server listening on http://127.0.0.1:${port}/sandbox (Owner: ${STRICT_OWNER_EMAIL})`
+    );
+  });
+  activeSandboxServer.on('error', (err: any) => {
+    if (err?.code === 'EADDRINUSE') {
+      console.warn(`[SANDBOX COCKPIT] Port ${port} is already in use; using mounted router.`);
+    } else {
+      console.error('[SANDBOX COCKPIT] Server error:', err);
+    }
+  });
+  return activeSandboxServer;
 }
