@@ -22,10 +22,22 @@ export function getPayment(id: string): ExpectedPayment | undefined {
   return fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : undefined;
 }
 export function savePayment(id: string, entry: ExpectedPayment) {
-  fs.mkdirSync(directory, { recursive: true });
-  const file = fileFor(id), tmp = file + '.' + crypto.randomUUID() + '.tmp';
-  fs.writeFileSync(tmp, JSON.stringify(entry), { mode: 0o600 });
-  fs.renameSync(tmp, file);
+  const file = fileFor(id);
+  if (!/^\\d+(\\.\\d{1,2})?$/.test(entry.expectedAmount) ||
+      !Number.isFinite(Number(entry.expectedAmount)) || Number(entry.expectedAmount) <= 0 ||
+      !/^[A-Z]{3}$/.test(entry.expectedCurrency)) {
+    throw new Error('Invalid expected payment amount or currency.');
+  }
+  fs.mkdirSync(directory, { recursive: true, mode: 0o700 });
+  try { fs.chmodSync(directory, 0o700); } catch { /* existing host policy may manage directory mode */ }
+  const tmp = file + '.' + crypto.randomUUID() + '.tmp';
+  try {
+    fs.writeFileSync(tmp, JSON.stringify(entry), { encoding: 'utf8', mode: 0o600, flag: 'wx' });
+    fs.renameSync(tmp, file);
+  } catch (error) {
+    try { fs.rmSync(tmp, { force: true }); } catch { /* best effort cleanup */ }
+    throw error;
+  }
 }
 export function settlePayment(id: string, capture: { id?: string; status?: string; amount?: string; currency?: string; time?: string }) {
   const payment = getPayment(id);
