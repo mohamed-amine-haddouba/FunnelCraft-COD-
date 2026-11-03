@@ -36,7 +36,15 @@ export function isAnalyticsRange(value: unknown): value is AnalyticsRange {
 }
 
 export function orderCurrency(order: MetricOrder): string {
-  return (order.currency || 'MAD').trim().toUpperCase() || 'MAD';
+  const raw = typeof order.currency === 'string' ? order.currency : 'MAD';
+  return raw.trim().toUpperCase() || 'MAD';
+}
+
+const ORDER_STATUSES = new Set<AnalyticsStatus>([
+  'pending', 'paid', 'confirmed', 'shipped', 'delivered', 'cancelled',
+]);
+function isAnalyticsStatus(value: unknown): value is AnalyticsStatus {
+  return typeof value === 'string' && ORDER_STATUSES.has(value as AnalyticsStatus);
 }
 
 function amount(order: MetricOrder): number {
@@ -53,7 +61,7 @@ export function summarizeOrderMetrics<T extends MetricOrder>(
   const cutoff = days === null ? -Infinity : now - days * 24 * 60 * 60 * 1000;
   const filtered = orders.filter((order) => {
     const date = Date.parse(order.createdAt);
-    return Number.isFinite(date) && date >= cutoff && date <= now;
+    return isAnalyticsStatus(order.status) && Number.isFinite(date) && date >= cutoff && date <= now;
   });
   const statusCounts: Record<AnalyticsStatus, number> = {
     pending: 0, paid: 0, confirmed: 0, shipped: 0, delivered: 0, cancelled: 0,
@@ -62,7 +70,7 @@ export function summarizeOrderMetrics<T extends MetricOrder>(
   const deliveredValueByCurrency: Record<string, number> = {};
   const recordedCountByCurrency: Record<string, number> = {};
   for (const order of filtered) {
-    if (!(order.status in statusCounts)) continue;
+    if (!Object.hasOwn(statusCounts, order.status)) continue;
     statusCounts[order.status] += 1;
     const currency = orderCurrency(order);
     if (order.status !== 'cancelled') {
