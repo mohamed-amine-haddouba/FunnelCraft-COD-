@@ -8,6 +8,29 @@ export interface MetricOrder {
   currency?: string;
 }
 
+export interface FunnelMetricOrder extends MetricOrder {
+  userId?: string;
+  funnelId?: string;
+  pageSlug?: string;
+}
+export interface MetricPage {
+  id: string;
+  userId: string;
+  slug?: string | null;
+}
+
+/** Match orders to a funnel only within the page owner's tenant. */
+export function getOrdersForFunnel<T extends FunnelMetricOrder>(
+  orders: T[],
+  page: MetricPage
+): T[] {
+  return orders.filter((order) =>
+    order.userId === page.userId &&
+    (order.funnelId === page.id ||
+      (!order.funnelId && Boolean(page.slug) && order.pageSlug === page.slug))
+  );
+}
+
 export function isAnalyticsRange(value: unknown): value is AnalyticsRange {
   return value === '7d' || value === '30d' || value === '90d' || value === 'all';
 }
