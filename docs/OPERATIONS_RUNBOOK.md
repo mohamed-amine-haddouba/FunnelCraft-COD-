@@ -43,22 +43,23 @@ Do not set `BYPASS_CAPTCHA=true` in production. Keep test OTP pins out of produc
 The currently deployed older `deploy.sh` cannot call a backup script that has not yet been pulled. For the first rollout only:
 
 1. Confirm the live host is on the `main` branch and the working tree has no tracked local changes.
-2. Ensure GPG and `BACKUP_GPG_RECIPIENT` are configured in the shell environment.
-3. Fetch and fast-forward the code without restarting the running PM2 process:
+2. Before pulling anything, inspect `pm2 jlist`: exactly one `funnelcraft-api` process must be online in `fork_mode`, with one instance and watch mode disabled. If watch mode is enabled, disable it or stop the service during the manual first rollout window.
+3. Ensure GPG and `BACKUP_GPG_RECIPIENT` are configured in the shell environment.
+4. Fetch and fast-forward the code without restarting the running PM2 process:
    ```bash
    git pull --ff-only origin main
    ```
-4. Create the encrypted snapshot before installing dependencies or restarting:
+5. Create the encrypted snapshot before installing dependencies or restarting:
    ```bash
    bash scripts/backup-data.sh
    ```
-5. Copy the encrypted archive to isolated storage and rehearse decryption/verification on a separate recovery host.
-6. Run the new guarded deployment script:
+6. Copy the encrypted archive to isolated storage and rehearse decryption/verification on a separate recovery host.
+7. Run the new guarded deployment script:
    ```bash
    bash deploy.sh
    ```
 
-Subsequent deployments use the new script directly. It checks the branch and tracked working tree, fast-forwards only, requires an encrypted backup, uses `npm ci`, runs type-check/tests/build, restarts PM2, and checks health. It attempts to restore the previous Git commit if a post-pull step fails.
+Subsequent deployments use the new script directly. It checks the branch and tracked working tree, verifies the single-fork/no-watch PM2 configuration before pulling, fast-forwards only, requires an encrypted backup, uses `npm ci`, runs type-check/tests/build, restarts PM2, and checks health. CI also runs CodeQL and a high-severity production dependency audit. It attempts to restore the previous Git commit if a post-pull step fails.
 
 ## 4. Restore rehearsal (never overwrite production data)
 
