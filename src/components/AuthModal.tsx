@@ -48,7 +48,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
   const isAdminBypass =
     user?.role === 'admin' ||
-    email.trim().toLowerCase() === 'naadianajah2020@gmail.com' ||
     import.meta.env.VITE_BYPASS_CAPTCHA === 'true';
   const shouldRequireTurnstile = Boolean(TURNSTILE_SITE_KEY) && !isAdminBypass && !turnstileLoadError;
 
