@@ -1507,8 +1507,8 @@ function loadPagesFromDisk(): Map<string, StoredPage> {
     }
     if (p.customDomain === undefined) { p.customDomain = null; repaired = true; }
     if (!p.domainStatus) { p.domainStatus = p.customDomain ? 'pending_dns' : 'not_connected'; repaired = true; }
-    if (!p.expectedDnsIp) p.expectedDnsIp = VPS_IP;
-    if (!p.expectedDnsCname) p.expectedDnsCname = CNAME_TARGET;
+    if (!p.expectedDnsIp) { p.expectedDnsIp = VPS_IP; repaired = true; }
+    if (!p.expectedDnsCname) { p.expectedDnsCname = CNAME_TARGET; repaired = true; }
     pagesMap.set(p.id, p);
   }
   if (repaired) savePagesToDisk(pagesMap);
