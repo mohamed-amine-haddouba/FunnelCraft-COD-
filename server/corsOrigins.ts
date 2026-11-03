@@ -17,6 +17,7 @@ export function isAllowedCorsOrigin(origin: string | undefined, config: {
   try {
     const incoming = new URL(origin);
     if (!['http:', 'https:'].includes(incoming.protocol) || incoming.origin !== origin || incoming.username || incoming.password) return false;
+    if (config.production && incoming.protocol !== 'https:') return false;
     return allowed.some(value => {
       try {
         const trusted = new URL(value);
