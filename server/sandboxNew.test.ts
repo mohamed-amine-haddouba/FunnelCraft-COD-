@@ -182,12 +182,14 @@ describe('Zero-Trust Sandbox Cockpit (server/sandboxNew.ts)', () => {
       }),
     });
     assert.equal(loginRes.status, 200);
-    const loginData = (await loginRes.json()) as { ok: boolean; token: string };
+    const loginData = (await loginRes.json()) as { ok: boolean };
     assert.equal(loginData.ok, true);
-    assert.ok(loginData.token);
+    assert.equal((loginData as { token?: string }).token, undefined);
+    const loginCookie = loginRes.headers.get('set-cookie');
+    assert.ok(loginCookie && loginCookie.startsWith('sandbox_sid='));
 
     const authHeaders = {
-      Authorization: `Bearer ${loginData.token}`,
+      Cookie: loginCookie.split(';')[0],
       'Content-Type': 'application/json',
     };
 
@@ -389,16 +391,18 @@ describe('Zero-Trust Sandbox Cockpit (server/sandboxNew.ts)', () => {
       assert.equal(step2Res.status, 200);
       const step2Data = (await step2Res.json()) as {
         ok: boolean;
-        token: string;
+        token?: string;
         owner: { email: string; role: string };
       };
       assert.equal(step2Data.ok, true);
-      assert.ok(step2Data.token);
+      assert.equal(step2Data.token, undefined);
       assert.equal(step2Data.owner.email, STRICT_OWNER_EMAIL);
+      const sessionCookie = step2Res.headers.get('set-cookie');
+      assert.ok(sessionCookie && sessionCookie.startsWith('sandbox_sid='));
 
-      // Full JWT works on protected routes
+      // Protected routes use the HttpOnly session cookie; no JWT is returned to JavaScript.
       const statusRes = await fetch(`${baseUrl}/api/sandbox/status`, {
-        headers: { Authorization: `Bearer ${step2Data.token}` },
+        headers: { Cookie: sessionCookie.split(';')[0] },
       });
       assert.equal(statusRes.status, 200);
     } finally {
@@ -429,7 +433,7 @@ describe('Zero-Trust Sandbox Cockpit (server/sandboxNew.ts)', () => {
       assert.equal(res.status, 200, `Expected 200 for ${route}`);
       const html = await res.text();
       assert.ok(html.includes('id="xterm-container"'), `Expected xterm container in ${route}`);
-      assert.ok(html.includes('id="deploy-steps-grid"'), `Expected 5-step deploy grid in ${route}`);
+      assert.ok(html.includes('id="deploy-steps-grid"'), `Expected 7-step deploy grid in ${route}`);
     }
   });
 
@@ -580,37 +584,31 @@ describe('Zero-Trust Sandbox Cockpit (server/sandboxNew.ts)', () => {
     assert.ok(html.includes('id="step-up-alert"'));
   });
 
-  it('uses npm install --include=dev --legacy-peer-deps (Step 2) and ./node_modules/.bin/tsc --noEmit (Step 3) in deploy pipeline and deploy.sh', async () => {
+  it('routes every cockpit deployment through the guarded backup, test, build and rollback script', async () => {
     const fs = await import('node:fs');
     const path = await import('node:path');
     const sandboxSource = fs.readFileSync(path.resolve(process.cwd(), 'server/sandboxNew.ts'), 'utf-8');
     const deployShSource = fs.readFileSync(path.resolve(process.cwd(), 'deploy.sh'), 'utf-8');
 
-    // Verify server/sandboxNew.ts Step 2 & Step 3 commands
-    assert.ok(
-      sandboxSource.includes("['install', '--include=dev', '--legacy-peer-deps']"),
-      'Expected Step 2 to run npm install --include=dev --legacy-peer-deps'
-    );
-    assert.ok(
-      sandboxSource.includes("'./node_modules/.bin/tsc', ['--noEmit']"),
-      'Expected Step 3 to invoke ./node_modules/.bin/tsc --noEmit directly'
-    );
-    assert.equal(
-      sandboxSource.includes("'npx', ['tsc', '--noEmit']"),
-      false,
-      'Must not call npx tsc --noEmit in server/sandboxNew.ts'
-    );
+    assert.ok(sandboxSource.includes("spawn('bash', ['deploy.sh']"));
+    assert.ok(sandboxSource.includes("runExecFile('bash', ['deploy.sh']"));
+    assert.equal(sandboxSource.includes('allowNonZeroInContainer'), false);
+    assert.equal(sandboxSource.includes("router.post('/git-pull'"), false);
 
-    // Verify deploy.sh Step 2 & Step 3 commands
-    assert.ok(deployShSource.includes('npm install --include=dev --legacy-peer-deps'));
-    assert.ok(deployShSource.includes('./node_modules/.bin/tsc --noEmit'));
+    assert.ok(deployShSource.includes('node scripts/check-pm2-config.mjs'));
+    assert.ok(deployShSource.includes('bash scripts/backup-data.sh'));
+    assert.ok(deployShSource.includes('npm ci --include=dev --legacy-peer-deps'));
+    assert.ok(deployShSource.includes('npm run lint'));
+    assert.ok(deployShSource.includes('npm test'));
+    assert.ok(deployShSource.includes('npm run build'));
+    assert.ok(deployShSource.includes('rollback_on_error'));
 
-    // Verify UI step cards on /sandbox/deploy
     const uiRes = await fetch(`${baseUrl}/sandbox/deploy`);
     assert.equal(uiRes.status, 200);
     const html = await uiRes.text();
-    assert.ok(html.includes('npm install --include=dev --legacy-peer-deps'));
-    assert.ok(html.includes('./node_modules/.bin/tsc --noEmit'));
+    assert.ok(html.includes('npm ci --include=dev --legacy-peer-deps'));
+    assert.ok(html.includes('Encrypted Data Backup'));
+    assert.ok(html.includes('STEP 7'));
   });
   it('revokes owner JWT and outstanding 2FA tickets after owner password change', async () => {
     const oldJwt = signSandboxJwt(STRICT_OWNER_EMAIL).token;
