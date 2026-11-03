@@ -21,20 +21,30 @@ function validatePaymentId(id: string): void {
 
 // Provider order IDs are stored as data, never used to construct a filesystem
 // path. Each ledger file receives a random server-generated UUID filename.
+const paymentFileIndex = new Map<string, string>();
+let paymentFileIndexLoaded = false;
+
 function findPaymentFile(id: string): string | undefined {
   validatePaymentId(id);
-  if (!fs.existsSync(directory)) return undefined;
-  for (const item of fs.readdirSync(directory, { withFileTypes: true })) {
-    if (!item.isFile() || !/^[0-9a-f-]{36}\.json$/.test(item.name)) continue;
-    const candidate = path.join(directory, item.name);
-    try {
-      const record = JSON.parse(fs.readFileSync(candidate, 'utf8'));
-      if (record && record.orderId === id) return candidate;
-    } catch {
-      // Ignore unrelated or corrupt entries; selected payments fail closed.
+  if (!paymentFileIndexLoaded) {
+    if (fs.existsSync(directory)) {
+      for (const item of fs.readdirSync(directory, { withFileTypes: true })) {
+        if (!item.isFile() || !/^[0-9a-f-]{36}\.json$/.test(item.name)) continue;
+        const candidate = path.join(directory, item.name);
+        try {
+          const record = JSON.parse(fs.readFileSync(candidate, 'utf8'));
+          if (record && typeof record.orderId === 'string' &&
+              /^[A-Za-z0-9-]{1,80}$/.test(record.orderId)) {
+            paymentFileIndex.set(record.orderId, candidate);
+          }
+        } catch {
+          // Ignore unrelated or corrupt entries; selected payments fail closed.
+        }
+      }
     }
+    paymentFileIndexLoaded = true;
   }
-  return undefined;
+  return paymentFileIndex.get(id);
 }
 
 export function getPayment(id: string): ExpectedPayment | undefined {
@@ -60,6 +70,7 @@ export function savePayment(id: string, entry: ExpectedPayment) {
   try {
     fs.writeFileSync(tmp, JSON.stringify({ ...entry, orderId: id }), { encoding: 'utf8', mode: 0o600, flag: 'wx' });
     fs.renameSync(tmp, file);
+    paymentFileIndex.set(id, file);
   } catch (error) {
     try { fs.rmSync(tmp, { force: true }); } catch { /* best effort cleanup */ }
     throw error;
