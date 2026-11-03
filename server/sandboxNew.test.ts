@@ -92,6 +92,29 @@ describe('Zero-Trust Sandbox Cockpit (server/sandboxNew.ts)', () => {
     assert.equal(verifySandboxJwt(loginTicket).valid, false);
   });
 
+  it('rejects cross-origin and origin-less cookie-authenticated state changes', async () => {
+    const crossOrigin = await fetch(`${baseUrl}/api/sandbox/logout`, {
+      method: 'POST',
+      headers: { Origin: 'https://attacker.example.test', Cookie: 'sandbox_sid=fake-session' },
+    });
+    assert.equal(crossOrigin.status, 403);
+    assert.equal((await crossOrigin.json()).code, 'UNTRUSTED_ORIGIN');
+
+    const previousNodeEnv = process.env.NODE_ENV;
+    try {
+      process.env.NODE_ENV = 'production';
+      const missingOrigin = await fetch(`${baseUrl}/api/sandbox/logout`, {
+        method: 'POST',
+        headers: { Cookie: 'sandbox_sid=fake-session' },
+      });
+      assert.equal(missingOrigin.status, 403);
+      assert.equal((await missingOrigin.json()).code, 'ORIGIN_REQUIRED');
+    } finally {
+      if (previousNodeEnv === undefined) delete process.env.NODE_ENV;
+      else process.env.NODE_ENV = previousNodeEnv;
+    }
+  });
+
   it('never accepts owner JWTs from URL query parameters; same-origin HttpOnly cookie remains supported', () => {
     const queryOnly = {
       headers: {},
