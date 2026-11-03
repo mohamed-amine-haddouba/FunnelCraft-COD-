@@ -341,18 +341,16 @@ export function ensureDataFiles(): void {
 function loadUsersFromDisk(): Map<string, StoredUser> {
   const usersMap = new Map<string, StoredUser>();
   if (fs.existsSync(USERS_FILE)) {
-    try {
-      const data = fs.readFileSync(USERS_FILE, 'utf-8');
-      const list: StoredUser[] = JSON.parse(data);
-      if (Array.isArray(list)) {
-        for (const u of list) {
-          if (u && u.id) {
-            usersMap.set(u.id, u);
-          }
-        }
+    const data = fs.readFileSync(USERS_FILE, 'utf-8');
+    let parsed: unknown;
+    try { parsed = JSON.parse(data); }
+    catch { throw new Error('users.json is corrupt. Restore a verified backup before starting CodWorth.'); }
+    if (!Array.isArray(parsed)) throw new Error('users.json must contain an array. Restore a verified backup.');
+    for (const user of parsed as StoredUser[]) {
+      if (!user || typeof user.id !== 'string' || !user.id || typeof user.email !== 'string') {
+        throw new Error('users.json contains an invalid user record. Restore a verified backup.');
       }
-    } catch (e) {
-      console.warn('Failed to parse users.json:', e);
+      usersMap.set(user.id, user);
     }
   }
 
@@ -412,16 +410,17 @@ const users = loadUsersFromDisk();
 
 function loadPaymentsFromDisk(): Map<string, ManualPaymentRequest> {
   const map = new Map<string, ManualPaymentRequest>();
-  if (fs.existsSync(PAYMENTS_FILE)) {
-    try {
-      const data = fs.readFileSync(PAYMENTS_FILE, 'utf-8');
-      const list: ManualPaymentRequest[] = JSON.parse(data);
-      for (const p of list) {
-        map.set(p.id, p);
-      }
-    } catch (e) {
-      console.warn('Failed to parse payments.json, re-initializing store:', e);
+  if (!fs.existsSync(PAYMENTS_FILE)) return map;
+  const data = fs.readFileSync(PAYMENTS_FILE, 'utf-8');
+  let parsed: unknown;
+  try { parsed = JSON.parse(data); }
+  catch { throw new Error('payments.json is corrupt. Restore a verified backup before starting CodWorth.'); }
+  if (!Array.isArray(parsed)) throw new Error('payments.json must contain an array. Restore a verified backup.');
+  for (const payment of parsed as ManualPaymentRequest[]) {
+    if (!payment || typeof payment.id !== 'string' || !payment.id) {
+      throw new Error('payments.json contains an invalid payment record. Restore a verified backup.');
     }
+    map.set(payment.id, payment);
   }
   return map;
 }
@@ -798,17 +797,13 @@ export function createUser(
 /* ---------------- EMAIL VERIFICATIONS STORE (Part A2) ---------------- */
 
 function loadEmailVerificationsFromDisk(): EmailVerificationRecord[] {
-  if (!fs.existsSync(EMAIL_VERIFICATIONS_FILE)) {
-    return [];
-  }
-  try {
-    const raw = fs.readFileSync(EMAIL_VERIFICATIONS_FILE, 'utf-8');
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch (err) {
-    console.warn('Failed to parse email_verifications.json:', err);
-    return [];
-  }
+  if (!fs.existsSync(EMAIL_VERIFICATIONS_FILE)) return [];
+  const raw = fs.readFileSync(EMAIL_VERIFICATIONS_FILE, 'utf-8');
+  let parsed: unknown;
+  try { parsed = JSON.parse(raw); }
+  catch { throw new Error('email_verifications.json is corrupt. Restore a verified backup before starting CodWorth.'); }
+  if (!Array.isArray(parsed)) throw new Error('email_verifications.json must contain an array.');
+  return parsed as EmailVerificationRecord[];
 }
 
 function saveEmailVerificationsToDisk(records: EmailVerificationRecord[]): boolean {
@@ -1470,42 +1465,29 @@ export function slugify(text: string): string {
 
 function loadPagesFromDisk(): Map<string, StoredPage> {
   const pagesMap = new Map<string, StoredPage>();
-  if (fs.existsSync(PAGES_FILE)) {
-    try {
-      const data = fs.readFileSync(PAGES_FILE, 'utf-8');
-      const list: StoredPage[] = JSON.parse(data);
-      let repaired = false;
-      for (const p of list) {
-        if (!p.slug || p.slug === '404' || p.slug.includes('404-page')) {
-          p.slug = slugify(p.title || 'landing-page');
-          if (p.data && typeof p.data === 'object') {
-            (p.data as Record<string, unknown>).slug = p.slug;
-          }
-          repaired = true;
-        }
-        if (p.customDomain === undefined) {
-          p.customDomain = null;
-          repaired = true;
-        }
-        if (!p.domainStatus) {
-          p.domainStatus = p.customDomain ? 'pending_dns' : 'not_connected';
-          repaired = true;
-        }
-        if (!p.expectedDnsIp) {
-          p.expectedDnsIp = VPS_IP;
-        }
-        if (!p.expectedDnsCname) {
-          p.expectedDnsCname = CNAME_TARGET;
-        }
-        pagesMap.set(p.id, p);
-      }
-      if (repaired) {
-        savePagesToDisk(pagesMap);
-      }
-    } catch (e) {
-      console.warn('Failed to parse pages.json, re-initializing store:', e);
+  if (!fs.existsSync(PAGES_FILE)) return pagesMap;
+  const data = fs.readFileSync(PAGES_FILE, 'utf-8');
+  let parsed: unknown;
+  try { parsed = JSON.parse(data); }
+  catch { throw new Error('pages.json is corrupt. Restore a verified backup before starting CodWorth.'); }
+  if (!Array.isArray(parsed)) throw new Error('pages.json must contain an array. Restore a verified backup.');
+  let repaired = false;
+  for (const p of parsed as StoredPage[]) {
+    if (!p || typeof p.id !== 'string' || !p.id || typeof p.userId !== 'string') {
+      throw new Error('pages.json contains an invalid page record. Restore a verified backup.');
     }
+    if (!p.slug || p.slug === '404' || p.slug.includes('404-page')) {
+      p.slug = slugify(p.title || 'landing-page');
+      if (p.data && typeof p.data === 'object') (p.data as Record<string, unknown>).slug = p.slug;
+      repaired = true;
+    }
+    if (p.customDomain === undefined) { p.customDomain = null; repaired = true; }
+    if (!p.domainStatus) { p.domainStatus = p.customDomain ? 'pending_dns' : 'not_connected'; repaired = true; }
+    if (!p.expectedDnsIp) p.expectedDnsIp = VPS_IP;
+    if (!p.expectedDnsCname) p.expectedDnsCname = CNAME_TARGET;
+    pagesMap.set(p.id, p);
   }
+  if (repaired) savePagesToDisk(pagesMap);
   return pagesMap;
 }
 
