@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import { randomUUID } from 'node:crypto';
+import fs from 'node:fs';
+import path from 'node:path';
 import Stripe from 'stripe';
 import { createUser, createSession, deleteUser, findUserById, getAllOrders, getPublishedPageBySlug, getUserByToken, publishPage, recordCodOrder, saveUserPage, setUserEmailVerifiedState, updateUserAccountStatus } from './db';
 import { getPayment, savePayment, settlePayment } from './paypalLedger';
@@ -91,4 +93,34 @@ test('Non-public URL forms and unsafe HTML values cannot pass their respective b
   const marker = '</script><script>window.marker=true</script>';
   const html = generateStandaloneHtml({title:'Fixture',theme:{primaryColor:marker},blocks:[],language:'en'} as never);
   assert.ok(!html.includes(marker));
+});
+
+test('deleteUser invalidates all sessions for the deleted user without affecting other users', () => {
+  const deletedUser = createUser(randomUUID() + '@example.org', 'Test!pass123', 'Deleted User');
+  const activeUser = createUser(randomUUID() + '@example.org', 'Test!pass123', 'Active User');
+  const deletedToken1 = createSession(deletedUser.id);
+  const deletedToken2 = createSession(deletedUser.id);
+  const activeToken = createSession(activeUser.id);
+
+  assert.equal(getUserByToken(deletedToken1)?.id, deletedUser.id);
+  assert.equal(getUserByToken(deletedToken2)?.id, deletedUser.id);
+  assert.equal(getUserByToken(activeToken)?.id, activeUser.id);
+
+  const sessionsFile = path.resolve(process.cwd(), 'data', 'sessions.json');
+  const beforeEntries = JSON.parse(fs.readFileSync(sessionsFile, 'utf-8')) as Array<[string, { userId: string }]>;
+  assert.equal(beforeEntries.filter(([, s]) => s.userId === deletedUser.id).length, 2);
+  assert.equal(beforeEntries.filter(([, s]) => s.userId === activeUser.id).length, 1);
+
+  assert.equal(deleteUser(deletedUser.id), true);
+
+  // Immediately verify on-disk sessions.json before calling getUserByToken
+  const afterEntries = JSON.parse(fs.readFileSync(sessionsFile, 'utf-8')) as Array<[string, { userId: string }]>;
+  assert.equal(afterEntries.filter(([, s]) => s.userId === deletedUser.id).length, 0);
+  assert.equal(afterEntries.filter(([, s]) => s.userId === activeUser.id).length, 1);
+
+  assert.equal(getUserByToken(deletedToken1), undefined);
+  assert.equal(getUserByToken(deletedToken2), undefined);
+  assert.equal(getUserByToken(activeToken)?.id, activeUser.id);
+
+  deleteUser(activeUser.id);
 });

@@ -7,7 +7,7 @@ import { spawnSync } from 'node:child_process';
 const root = fileURLToPath(new URL('../', import.meta.url));
 const dir = mkdtempSync(join(tmpdir(), 'funnelcraft-test-'));
 try {
-  for (const item of ['server.ts', 'server', 'src', 'package.json', 'tsconfig.json'])
+  for (const item of ['server.ts', 'server', 'src', 'package.json', 'tsconfig.json', 'deploy.sh'])
     cpSync(join(root, item), join(dir, item), { recursive: true });
   mkdirSync(join(dir, 'data'));
   cpSync(join(root, 'data/disposable_email_domains.json'), join(dir, 'data/disposable_email_domains.json'));

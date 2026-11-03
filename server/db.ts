@@ -696,6 +696,7 @@ export function updateUserAccountStatus(
 export function deleteUser(userId: string): boolean {
   const exists = users.has(userId);
   if (!exists) return false;
+  invalidateAllUserSessions(userId);
   users.delete(userId);
   saveUsersToDisk(users);
   return true;
