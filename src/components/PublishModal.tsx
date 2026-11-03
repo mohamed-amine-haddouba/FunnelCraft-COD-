@@ -61,10 +61,7 @@ export const PublishModal: React.FC<PublishModalProps> = ({
     verifyPageCustomDomain,
   } = useAuth();
 
-  const isAdminUser =
-    isAdmin ||
-    user?.role === 'admin' ||
-    user?.email?.trim().toLowerCase() === 'naadianajah2020@gmail.com';
+  const isAdminUser = isAdmin || user?.role === 'admin';
   const hasCustomDomainAccess = canUseCustomDomain || isAdminUser || isPro;
 
   const [activeTab, setActiveTab] = useState<'platform' | 'custom'>('platform');
