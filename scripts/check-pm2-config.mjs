@@ -1,7 +1,8 @@
 // Fail deployment if the JSON-backed app is configured for multi-process or watch mode.
 import { spawnSync } from 'node:child_process';
 
-const raw = process.env.CODWORTH_PM2_JLIST_JSON || (() => {
+const testFixture = process.env.NODE_ENV === 'test' ? process.env.CODWORTH_PM2_JLIST_JSON : '';
+const raw = testFixture || (() => {
   const result = spawnSync('pm2', ['jlist'], { encoding: 'utf8', maxBuffer: 8 * 1024 * 1024 });
   if (result.error || result.status !== 0) throw new Error('Unable to inspect PM2 process configuration.');
   return result.stdout;
