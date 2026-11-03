@@ -81,3 +81,9 @@ test('flags verified captures whose v2 settlement side effects are incomplete', 
   const done = reconcilePayPalSnapshots([{ ...interrupted, entitlementsAppliedAt: now }], [storefront], now);
   assert.equal(done.hasBlockers,false);
 });
+
+test('reports malformed saved order rows without disclosing data or crashing', () => {
+  const audit = reconcilePayPalSnapshots([], [null as unknown as PaidOrderSnapshot], now);
+  assert.deepEqual(audit.findings, [{ code:'INVALID_ORDER_ROW', count:1, severity:'blocker' }]);
+  assert.equal(audit.hasBlockers, true);
+});
