@@ -857,6 +857,11 @@ export function createSandboxCockpitRouter(): Router {
   const otpSendLimiter = createSandboxLimiter(3, 'Too many 2FA code requests. Please try again later.');
   const resetRequestLimiter = createSandboxLimiter(3, 'Too many password reset requests. Please try again later.');
   const resetCompletionLimiter = createSandboxLimiter(5, 'Too many password reset attempts. Please try again later.');
+  const gitFetchLimiter = createSandboxLimiter(2, 'Git fetch is temporarily rate-limited.');
+  const backupLimiter = createSandboxLimiter(1, 'A backup was just requested. Please wait before creating another.');
+  const logsLimiter = createSandboxLimiter(30, 'Log requests are temporarily rate-limited.');
+  const safeTerminalLimiter = createSandboxLimiter(30, 'Terminal commands are temporarily rate-limited.');
+  const securityAuditLimiter = createSandboxLimiter(30, 'Security audit requests are temporarily rate-limited.');
 
   // 1a. POST /api/sandbox/login (Step 1) — Verify Owner email + password; issue loginTicket if 2FA required or full JWT otherwise
   router.post('/login', loginLimiter, async (req: Request, res: Response) => {
@@ -1520,7 +1525,7 @@ export function createSandboxCockpitRouter(): Router {
   router.get('/system', requireOwner, handleSystemStatus);
 
   // 3. POST /api/sandbox/git-fetch — inspect remote updates without changing the working tree
-  router.post('/git-fetch', requireOwner, async (_req: SandboxAuthenticatedRequest, res: Response) => {
+  router.post('/git-fetch', gitFetchLimiter, requireOwner, async (_req: SandboxAuthenticatedRequest, res: Response) => {
     const startMs = Date.now();
     const fetched = await runExecFile('git', ['fetch', '--prune', 'origin', 'main'], { timeoutMs: 60000 });
     if (!fetched.ok) {
@@ -1660,7 +1665,7 @@ export function createSandboxCockpitRouter(): Router {
   });
 
   // 5. GET /api/sandbox/logs/:appName — Last 100 lines of PM2 logs for funnelcraft-api or funnelcraft-back
-  router.get('/logs/:appName', requireOwner, async (req: SandboxAuthenticatedRequest, res: Response) => {
+  router.get('/logs/:appName', logsLimiter, requireOwner, async (req: SandboxAuthenticatedRequest, res: Response) => {
     const appName = String(req.params.appName || '').trim();
     if (appName !== 'funnelcraft-api' && appName !== 'funnelcraft-back') {
       return res.status(400).json({
@@ -1763,11 +1768,11 @@ export function createSandboxCockpitRouter(): Router {
     });
   };
 
-  router.post('/terminal', requireOwner, handleSafeTerminal);
-  router.post('/terminal/exec', requireOwner, handleSafeTerminal);
+  router.post('/terminal', safeTerminalLimiter, requireOwner, handleSafeTerminal);
+  router.post('/terminal/exec', safeTerminalLimiter, requireOwner, handleSafeTerminal);
 
   // 7. GET /api/sandbox/security/logins — Last 10 Admin Logins + Data Directory Summary
-  router.get('/security/logins', requireOwner, (_req: SandboxAuthenticatedRequest, res: Response) => {
+  router.get('/security/logins', securityAuditLimiter, requireOwner, (_req: SandboxAuthenticatedRequest, res: Response) => {
     const logins = getRecentSandboxLogins(10);
 
     let dataFiles: Array<{ name: string; sizeBytes: number; updatedAt: string }> = [];
@@ -1799,7 +1804,7 @@ export function createSandboxCockpitRouter(): Router {
   });
 
   // 8. GET /api/sandbox/backup — encrypted backup download only
-  router.get('/backup', requireOwner, async (_req: SandboxAuthenticatedRequest, res: Response) => {
+  router.get('/backup', backupLimiter, requireOwner, async (_req: SandboxAuthenticatedRequest, res: Response) => {
     const result = await runExecFile('bash', ['scripts/backup-data.sh'], { timeoutMs: 120000 });
     if (!result.ok) {
       return res.status(503).json({ ok: false, error: 'Encrypted backup failed or is not configured.' });
