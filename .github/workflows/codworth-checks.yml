@@ -49,9 +49,22 @@ jobs:
           (cd "$(dirname "$BACKUP_FILE")" && sha256sum -c "$(basename "$BACKUP_FILE").sha256")
           gpg --batch --yes --decrypt --output "$RUNNER_TEMP/codworth-data.tar.gz" "$BACKUP_FILE"
           node scripts/verify-backup.mjs "$RUNNER_TEMP/codworth-data.tar.gz"
+          bash scripts/restore-data.sh "$BACKUP_FILE" "$RUNNER_TEMP/codworth-restore/data"
+          test -f "$RUNNER_TEMP/codworth-restore/data/disposable_email_domains.json"
+          if bash scripts/restore-data.sh "$BACKUP_FILE" "$RUNNER_TEMP/codworth-restore/data"; then
+            echo "Restore unexpectedly overwrote an existing target."
+            exit 1
+          fi
+          mkdir -p "$RUNNER_TEMP/codworth-malicious/data"
+          ln -s /etc/passwd "$RUNNER_TEMP/codworth-malicious/data/escape.json"
+          tar -czf "$RUNNER_TEMP/codworth-malicious.tar.gz" -C "$RUNNER_TEMP/codworth-malicious" data
+          if node scripts/verify-backup.mjs "$RUNNER_TEMP/codworth-malicious.tar.gz"; then
+            echo "Verifier unexpectedly accepted a symlink archive."
+            exit 1
+          fi
       - name: Verify deployment scripts parse
         run: |
-          bash -n deploy.sh scripts/backup-data.sh
+          bash -n deploy.sh scripts/backup-data.sh scripts/restore-data.sh
           node --check scripts/verify-backup.mjs
       - name: Audit production dependencies
         run: npm audit --omit=dev --audit-level=high
