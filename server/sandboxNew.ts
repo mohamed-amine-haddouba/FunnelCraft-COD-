@@ -31,7 +31,7 @@ const DATA_DIR = path.resolve(PROJECT_ROOT, 'data');
 const SANDBOX_UI_DIR = path.resolve(__dirname, 'sandbox-ui');
 const SANDBOX_LOGIN_AUDIT_FILE = path.resolve(DATA_DIR, 'sandbox_login_audit.json');
 
-export const STRICT_OWNER_EMAIL = (process.env.OWNER_EMAIL || (process.env.NODE_ENV === 'production' ? '' : 'naadianajah2020@gmail.com')).trim().toLowerCase();
+export const STRICT_OWNER_EMAIL = (process.env.OWNER_EMAIL || (process.env.NODE_ENV === 'production' ? '' : 'owner@example.test')).trim().toLowerCase();
 export const SANDBOX_PORT = Number(process.env.SANDBOX_PORT) || 3002;
 export const JWT_TTL_SECONDS = 30 * 60; // 30 minutes
 
@@ -489,7 +489,7 @@ export function extractSandboxTokenFromRequest(req: IncomingMessage | Request): 
 /**
  * Zero-Trust Owner Authentication Middleware
  * Accepts Bearer JWT in Authorization header (primary), ?token= query param (for SSE / WS / Backup),
- * or sandbox_sid HttpOnly cookie. Strictly enforces email === naadianajah2020@gmail.com.
+ * or sandbox_sid HttpOnly cookie. Strictly enforces email === configured owner.
  */
 export function requireOwner(
   req: SandboxAuthenticatedRequest,
@@ -512,7 +512,7 @@ export function requireOwner(
       return res.status(403).json({
         ok: false,
         code: 'FORBIDDEN_OWNER_ONLY',
-        error: 'Access Denied (403): Only naadianajah2020@gmail.com is authorized to access the Sandbox Cockpit.',
+        error: 'Access Denied (403): Only configured owner is authorized to access the Sandbox Cockpit.',
       });
     }
     return res.status(401).json({
@@ -868,7 +868,7 @@ export function createSandboxCockpitRouter(): Router {
       });
     }
 
-    // Strict Owner-Only Gate: Any email other than naadianajah2020@gmail.com gets 403
+    // Strict Owner-Only Gate: Any email other than configured owner gets 403
     if (!isAllowedOwnerEmail(rawEmail)) {
       recordSandboxLoginAttempt({
         email: rawEmail,
@@ -881,7 +881,7 @@ export function createSandboxCockpitRouter(): Router {
       return res.status(403).json({
         ok: false,
         code: 'FORBIDDEN_OWNER_ONLY',
-        error: 'Access Denied (403): Only naadianajah2020@gmail.com is authorized to access this Cockpit.',
+        error: 'Access Denied (403): Only configured owner is authorized to access this Cockpit.',
       });
     }
 
@@ -1062,7 +1062,7 @@ export function createSandboxCockpitRouter(): Router {
       return res.status(403).json({
         ok: false,
         code: 'FORBIDDEN_OWNER_ONLY',
-        error: 'Access Denied (403): Only naadianajah2020@gmail.com is authorized.',
+        error: 'Access Denied (403): Only configured owner is authorized.',
       });
     }
 
@@ -1124,7 +1124,7 @@ export function createSandboxCockpitRouter(): Router {
       return res.status(403).json({
         ok: false,
         code: 'FORBIDDEN_OWNER_ONLY',
-        error: 'Access Denied (403): Only naadianajah2020@gmail.com is authorized.',
+        error: 'Access Denied (403): Only configured owner is authorized.',
       });
     }
 
@@ -1161,7 +1161,7 @@ export function createSandboxCockpitRouter(): Router {
     return res.status(200).json({
       ok: true,
       sent,
-      message: 'Password reset link sent to naadianajah2020@gmail.com (valid for 15 minutes).',
+      message: 'Password reset link requested (valid for 15 minutes).',
     });
   });
 
