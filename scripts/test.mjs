@@ -14,7 +14,7 @@ try {
   symlinkSync(join(root, 'node_modules'), join(dir, 'node_modules'), 'junction');
   const tests = ['server', 'src/utils'].flatMap(folder => readdirSync(join(dir, folder)).filter(f => f.endsWith('.test.ts')).map(f => join(folder, f)));
   const result = spawnSync(process.execPath, ['--import', 'tsx', '--test', '--test-concurrency=1', ...tests], {
-    cwd: dir, stdio: 'inherit', env: { ...Object.fromEntries(Object.entries(process.env).filter(([name]) => /^(PATH|SystemRoot|TMPDIR|TEMP|TMP|HOME|LANG|LD_LIBRARY_PATH|CODEX_NETWORK_ALLOW_LOCAL_BINDING|NO_PROXY)$/.test(name))), OWNER_EMAIL: 'naadianajah2020@gmail.com', NODE_ENV: 'test', NODE_TEST_NO_LISTEN: '1' }
+    cwd: dir, stdio: 'inherit', env: { ...Object.fromEntries(Object.entries(process.env).filter(([name]) => /^(PATH|SystemRoot|TMPDIR|TEMP|TMP|HOME|LANG|LD_LIBRARY_PATH|CODEX_NETWORK_ALLOW_LOCAL_BINDING|NO_PROXY)$/.test(name))), OWNER_EMAIL: 'owner@example.test', NODE_ENV: 'test', NODE_TEST_NO_LISTEN: '1' }
   });
   if (result.error || result.signal) console.error('Test process stopped:', result.error || result.signal);
   process.exitCode = result.status ?? 1;
