@@ -16,18 +16,30 @@ if [[ -n "$(git status --porcelain --untracked-files=no)" ]]; then
 fi
 
 PREVIOUS_SHA="$(git rev-parse HEAD)"
+HEALTH_URL="${CODWORTH_HEALTH_URL:-http://127.0.0.1:${PORT:-3000}/api/health}"
 ROLLBACK_ENABLED=0
 rollback_on_error() {
   local status="$?"
+  local rollback_healthy=0
   trap - ERR
   if [[ "$ROLLBACK_ENABLED" == "1" ]]; then
     echo "[DEPLOY] Deployment failed. Attempting rollback to $PREVIOUS_SHA ..." >&2
     if git reset --hard "$PREVIOUS_SHA" \
       && npm ci --include=dev --legacy-peer-deps \
       && npm run build \
-      && NODE_ENV=production pm2 restart funnelcraft-api --update-env \
-      && pm2 save; then
-      echo "[DEPLOY] Previous code restored. Verify /api/health and review PM2 logs." >&2
+      && NODE_ENV=production pm2 restart funnelcraft-api --update-env; then
+      for attempt in $(seq 1 30); do
+        if curl --fail --silent --max-time 3 "$HEALTH_URL" >/dev/null; then
+          rollback_healthy=1
+          break
+        fi
+        sleep 2
+      done
+      if [[ "$rollback_healthy" == "1" ]] && pm2 save; then
+        echo "[DEPLOY] Previous version restored and healthy at $PREVIOUS_SHA." >&2
+      else
+        echo "[DEPLOY] CRITICAL: rollback did not pass health checks. Keep traffic disabled and restore manually." >&2
+      fi
     else
       echo "[DEPLOY] CRITICAL: automatic rollback failed. Keep traffic disabled and restore manually." >&2
     fi
@@ -61,7 +73,6 @@ npm run build
 echo ">>> [6/6] Restart and verify application health"
 NODE_ENV=production pm2 restart funnelcraft-api --update-env
 
-HEALTH_URL="${CODWORTH_HEALTH_URL:-http://127.0.0.1:${PORT:-3000}/api/health}"
 HEALTH_OK=0
 for attempt in $(seq 1 30); do
   if curl --fail --silent --show-error --max-time 3 "$HEALTH_URL" >/dev/null; then
