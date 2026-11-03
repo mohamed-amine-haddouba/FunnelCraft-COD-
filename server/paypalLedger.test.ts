@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { randomUUID } from 'node:crypto';
+import { randomUUID, createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { createCoupon, getCoupons, saveCoupons } from './db';
 import { getPayment, savePayment, settlePayment, type ExpectedPayment } from './paypalLedger';
@@ -9,7 +9,8 @@ import { getPayment, savePayment, settlePayment, type ExpectedPayment } from './
 test('PayPal settlement validates provider capture and is idempotent for duplicate delivery', () => {
   const orderId = `codworth-test-${randomUUID()}`;
   const couponCode = `T${crypto.randomUUID().replace(/-/g, '').slice(0, 10).toUpperCase()}`;
-  const ledgerFile = fileURLToPath(new URL(`../data/paypal-ledger/${orderId}.json`, import.meta.url));
+  const ledgerName = createHash('sha256').update(orderId, 'utf8').digest('hex') + '.json';
+  const ledgerFile = fileURLToPath(new URL(`../data/paypal-ledger/${ledgerName}`, import.meta.url));
   const expected: ExpectedPayment = {
     expectedAmount: '19.99',
     expectedCurrency: 'USD',
@@ -34,6 +35,8 @@ test('PayPal settlement validates provider capture and is idempotent for duplica
   });
 
   try {
+    assert.throws(() => getPayment('../outside'), /Invalid payment ID/);
+    assert.throws(() => savePayment('../outside', expected), /Invalid payment ID/);
     assert.throws(() => savePayment(orderId, { ...expected, expectedAmount: '-1.00' }), /Invalid expected payment/);
     assert.throws(() => savePayment(orderId, { ...expected, expectedCurrency: 'usd' }), /Invalid expected payment/);
     savePayment(orderId, expected);
