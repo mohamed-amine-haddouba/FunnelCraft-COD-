@@ -32,7 +32,7 @@ const DATA_DIR = path.resolve(PROJECT_ROOT, 'data');
 const SANDBOX_UI_DIR = path.resolve(__dirname, 'sandbox-ui');
 const SANDBOX_LOGIN_AUDIT_FILE = path.resolve(DATA_DIR, 'sandbox_login_audit.json');
 
-export const STRICT_OWNER_EMAIL = (process.env.OWNER_EMAIL || (process.env.NODE_ENV === 'production' ? '' : 'owner@example.test')).trim().toLowerCase();
+export const STRICT_OWNER_EMAIL = (process.env.OWNER_EMAIL || '').trim().toLowerCase();
 export const SANDBOX_PORT = Number(process.env.SANDBOX_PORT) || 3002;
 export const JWT_TTL_SECONDS = 30 * 60; // 30 minutes
 
