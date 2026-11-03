@@ -26,23 +26,41 @@ let paymentFileIndexLoaded = false;
 
 function findPaymentFile(id: string): string | undefined {
   validatePaymentId(id);
-  if (!paymentFileIndexLoaded) {
-    if (fs.existsSync(directory)) {
-      for (const item of fs.readdirSync(directory, { withFileTypes: true })) {
-        if (!item.isFile() || !/^[0-9a-f-]{36}\.json$/.test(item.name)) continue;
-        const candidate = path.join(directory, item.name);
-        try {
-          const record = JSON.parse(fs.readFileSync(candidate, 'utf8'));
-          if (record && typeof record.orderId === 'string' &&
-              /^[A-Za-z0-9-]{1,80}$/.test(record.orderId)) {
-            paymentFileIndex.set(record.orderId, candidate);
-          }
-        } catch {
-          // Ignore unrelated or corrupt entries; selected payments fail closed.
-        }
-      }
+  const cached = paymentFileIndex.get(id);
+  if (cached && fs.existsSync(cached)) return cached;
+  if (!fs.existsSync(directory)) return undefined;
+
+  // Compatibility with earlier releases: old ledgers were written as
+  // <paypalOrderId>.json without an orderId field inside the record.
+  // Never derive a filesystem path from a network-supplied order ID.
+  // Instead, enumerate directory entries and validate them before reading.
+  for (const item of fs.readdirSync(directory, { withFileTypes: true })) {
+    if (!item.isFile() || !/^[A-Za-z0-9-]{1,80}\.json$/.test(item.name)) continue;
+    const file = path.join(directory, item.name);
+    const basename = item.name.slice(0, -5);
+    let record: Record<string, unknown>;
+    try {
+      record = JSON.parse(fs.readFileSync(file, 'utf8'));
+    } catch {
+      // A corrupt legacy ledger belonging to this order must not look like an
+      // unpaid/unknown checkout. Other corrupt files are flagged by the
+      // read-only reconciliation report.
+      if (basename === id) throw new Error('Payment ledger is corrupt; reconcile before continuing.');
+      continue;
     }
-    paymentFileIndexLoaded = true;
+    if (!record || typeof record !== 'object' || Array.isArray(record)) continue;
+    const storedId = typeof record.orderId === 'string'
+      ? record.orderId
+      : typeof record.expectedAmount === 'string' && typeof record.userId === 'string'
+        ? basename
+        : undefined;
+    if (storedId && /^[A-Za-z0-9-]{1,80}$/.test(storedId)) {
+      const indexed = paymentFileIndex.get(storedId);
+      if (indexed && indexed !== file) {
+        throw new Error('Duplicate payment ledgers detected; manual reconciliation required.');
+      }
+      paymentFileIndex.set(storedId, file);
+    }
   }
   return paymentFileIndex.get(id);
 }
@@ -51,7 +69,14 @@ export function getPayment(id: string): ExpectedPayment | undefined {
   const file = findPaymentFile(id);
   if (!file) return undefined;
   const record = JSON.parse(fs.readFileSync(file, 'utf8'));
-  if (!record || record.orderId !== id) return undefined;
+  if (!record || typeof record !== 'object' || Array.isArray(record)) {
+    throw new Error('Invalid payment ledger entry.');
+  }
+  // Pre-upgrade records have no embedded orderId but are addressed only by
+  // a validated, enumerated legacy filename.
+  if (record.orderId !== undefined && record.orderId !== id) {
+    throw new Error('Payment ledger order ID mismatch.');
+  }
   const { orderId: _storedOrderId, ...payment } = record;
   return payment as ExpectedPayment;
 }
