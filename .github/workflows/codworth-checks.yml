@@ -67,10 +67,27 @@ jobs:
           bash -n deploy.sh scripts/backup-data.sh scripts/restore-data.sh
           node --check scripts/verify-backup.mjs
           node --check scripts/check-pm2-config.mjs
+          node --check scripts/reset-data.cjs
           NODE_ENV=test CODWORTH_PM2_JLIST_JSON='[{"name":"funnelcraft-api","pm2_env":{"status":"online","exec_mode":"fork_mode","instances":1,"watch":false}}]' node scripts/check-pm2-config.mjs
           if NODE_ENV=test CODWORTH_PM2_JLIST_JSON='[{"name":"funnelcraft-api","pm2_env":{"status":"online","exec_mode":"cluster_mode","instances":2,"watch":false}}]' node scripts/check-pm2-config.mjs; then
             echo "PM2 preflight unexpectedly accepted a multi-process configuration."
             exit 1
           fi
+      - name: Verify factory reset is preview-only and backup-gated
+        run: |
+          mkdir -p "$RUNNER_TEMP/codworth-reset-fixture"
+          printf '%s\\n' '[{"id":"owner","email":"owner@example.test","role":"admin","status":"active"},{"id":"merchant","email":"merchant@example.test","role":"user"}]' > "$RUNNER_TEMP/codworth-reset-fixture/users.json"
+          printf '%s\\n' '[{"id":"order-1"}]' > "$RUNNER_TEMP/codworth-reset-fixture/orders.json"
+          printf '%s\\n' '[]' > "$RUNNER_TEMP/codworth-reset-fixture/pages.json"
+          printf '%s\\n' '[]' > "$RUNNER_TEMP/codworth-reset-fixture/sessions.json"
+          printf '%s\\n' '[]' > "$RUNNER_TEMP/codworth-reset-fixture/coupons.json"
+          printf '%s\\n' '[]' > "$RUNNER_TEMP/codworth-reset-fixture/payments.json"
+          OWNER_EMAIL=owner@example.test CODWORTH_DATA_DIR="$RUNNER_TEMP/codworth-reset-fixture" node scripts/reset-data.cjs
+          node -e "const fs=require('fs'),d=process.env.FIXTURE;const users=JSON.parse(fs.readFileSync(d+'/users.json'));const orders=JSON.parse(fs.readFileSync(d+'/orders.json'));if(users.length!==2||orders.length!==1)process.exit(1)" FIXTURE="$RUNNER_TEMP/codworth-reset-fixture"
+          if OWNER_EMAIL=owner@example.test RESET_CONFIRM=DELETE_ALL_NON_OWNER_DATA BACKUP_GPG_RECIPIENT='' CODWORTH_DATA_DIR="$RUNNER_TEMP/codworth-reset-fixture" node scripts/reset-data.cjs --confirm-production-reset; then
+            echo "Factory reset unexpectedly proceeded without an encryption key."
+            exit 1
+          fi
+          node -e "const fs=require('fs'),d=process.env.FIXTURE;const users=JSON.parse(fs.readFileSync(d+'/users.json'));const orders=JSON.parse(fs.readFileSync(d+'/orders.json'));if(users.length!==2||orders.length!==1)process.exit(1)" FIXTURE="$RUNNER_TEMP/codworth-reset-fixture"
       - name: Audit production dependencies
         run: npm audit --omit=dev --audit-level=high
