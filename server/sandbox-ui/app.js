@@ -415,7 +415,7 @@
     if (authenticated) {
       loginView.classList.add('hidden');
       cockpitView.classList.remove('hidden');
-      const savedOwner = sessionStorage.getItem(STORAGE_OWNER_KEY) || 'naadianajah2020@gmail.com';
+      const savedOwner = sessionStorage.getItem(STORAGE_OWNER_KEY) || 'Platform Owner';
       sidebarOwnerEmail.textContent = savedOwner;
       isSessionLocked = false;
       if (stepUpLock) {
