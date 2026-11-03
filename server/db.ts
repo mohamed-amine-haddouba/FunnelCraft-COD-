@@ -306,54 +306,35 @@ export function migrateUsersEmailVerificationInPlace(
 
 export function ensureDataFiles(): void {
   try {
-    if (!fs.existsSync(DATA_DIR)) {
-      fs.mkdirSync(DATA_DIR, { recursive: true });
-    }
+    if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 
-    if (!fs.existsSync(USERS_FILE)) {
-      const ownerUser = createDefaultOwnerUser();
-      writeJsonFileAtomic(USERS_FILE, ownerUser ? [ownerUser] : []);
-    }
+    const initialSettings: PlatformSettings = {
+      bankAccounts: [],
+      updatedAt: new Date().toISOString(),
+    };
+    const ownerUser = createDefaultOwnerUser();
+    const initialFiles: Array<[string, unknown]> = [
+      [USERS_FILE, ownerUser ? [ownerUser] : []],
+      [PAYMENTS_FILE, []],
+      [PAGES_FILE, []],
+      [ORDERS_FILE, []],
+      [SETTINGS_FILE, initialSettings],
+      [PLANS_FILE, DEFAULT_SUBSCRIPTION_PLANS],
+      [COUPONS_FILE, []],
+      [SECURITY_LOGIN_AUDIT_FILE, []],
+      [EMAIL_VERIFICATIONS_FILE, []],
+    ];
 
-    if (!fs.existsSync(PAYMENTS_FILE)) {
-      fs.writeFileSync(PAYMENTS_FILE, JSON.stringify([], null, 2), 'utf-8');
-    }
-
-    if (!fs.existsSync(PAGES_FILE)) {
-      fs.writeFileSync(PAGES_FILE, JSON.stringify([], null, 2), 'utf-8');
-    }
-
-    if (!fs.existsSync(ORDERS_FILE)) {
-      fs.writeFileSync(ORDERS_FILE, JSON.stringify([], null, 2), 'utf-8');
-    }
-
-    if (!fs.existsSync(SETTINGS_FILE)) {
-      const initialSettings: PlatformSettings = {
-        bankAccounts: [],
-        updatedAt: new Date().toISOString(),
-      };
-      fs.writeFileSync(SETTINGS_FILE, JSON.stringify(initialSettings, null, 2), 'utf-8');
-    }
-
-    if (!fs.existsSync(PLANS_FILE)) {
-      fs.writeFileSync(PLANS_FILE, JSON.stringify(DEFAULT_SUBSCRIPTION_PLANS, null, 2), 'utf-8');
-    }
-
-    if (!fs.existsSync(COUPONS_FILE)) {
-      fs.writeFileSync(COUPONS_FILE, JSON.stringify([], null, 2), 'utf-8');
-    }
-
-    if (!fs.existsSync(SECURITY_LOGIN_AUDIT_FILE)) {
-      fs.writeFileSync(SECURITY_LOGIN_AUDIT_FILE, JSON.stringify([], null, 2), 'utf-8');
-    }
-
-    if (!fs.existsSync(EMAIL_VERIFICATIONS_FILE)) {
-      writeJsonFileAtomic(EMAIL_VERIFICATIONS_FILE, []);
+    for (const [file, initialValue] of initialFiles) {
+      if (!fs.existsSync(file) && !writeJsonFileAtomic(file, initialValue)) {
+        throw new Error(`Unable to initialize ${path.basename(file)}.`);
+      }
     }
 
     console.log('[BOOT] Data files verified (existing files preserved).');
   } catch (err) {
     console.error('[BOOT] Failed to verify or initialize data files:', err);
+    throw err; // Never start with partially initialized or silently missing persistence.
   }
 }
 
@@ -420,7 +401,8 @@ function loadUsersFromDisk(): Map<string, StoredUser> {
 
 function saveUsersToDisk(usersMap: Map<string, StoredUser>): boolean {
   const list = Array.from(usersMap.values());
-  return writeJsonFileAtomic(USERS_FILE, list);
+  if (!writeJsonFileAtomic(USERS_FILE, list)) throw new Error('Unable to persist user records.');
+  return true;
 }
 
 ensureDataFiles();
@@ -830,7 +812,10 @@ function loadEmailVerificationsFromDisk(): EmailVerificationRecord[] {
 }
 
 function saveEmailVerificationsToDisk(records: EmailVerificationRecord[]): boolean {
-  return writeJsonFileAtomic(EMAIL_VERIFICATIONS_FILE, records);
+  if (!writeJsonFileAtomic(EMAIL_VERIFICATIONS_FILE, records)) {
+    throw new Error('Unable to persist email verification records.');
+  }
+  return true;
 }
 
 const emailVerificationRecords: EmailVerificationRecord[] = loadEmailVerificationsFromDisk();
