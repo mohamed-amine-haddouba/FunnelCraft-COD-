@@ -16,6 +16,7 @@ import {
   STRICT_OWNER_EMAIL,
   sandboxResetTokens,
   SANDBOX_RESET_TOKEN_TTL_MS,
+  extractSandboxTokenFromRequest,
 } from './sandboxNew';
 import { ensureOwnerAccountForEmail } from './db';
 
