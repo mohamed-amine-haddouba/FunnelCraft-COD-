@@ -1805,7 +1805,7 @@ export function createSandboxCockpitRouter(): Router {
     }
     const backupDir = path.resolve(process.env.CODWORTH_BACKUP_DIR || path.join(path.dirname(PROJECT_ROOT), 'codworth-backups'));
     const candidates = fs.readdirSync(backupDir, { withFileTypes: true })
-      .filter(item => item.isFile() && /^codworth-data-.*\\.tar\\.gz\\.gpg$/.test(item.name))
+      .filter(item => item.isFile() && /^codworth-data-.*\.tar\.gz\.gpg$/.test(item.name))
       .map(item => ({ file: path.join(backupDir, item.name), mtime: fs.statSync(path.join(backupDir, item.name)).mtimeMs }))
       .sort((a, b) => b.mtime - a.mtime);
     const latest = candidates[0];
