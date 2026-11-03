@@ -3758,11 +3758,12 @@ export async function startServer() {
             blocks: [],
           };
 
+    // Expose public content only, not internal StoredPage metadata such as
+    // compiled HTML, domain proof, or future private fields.
     return res.json({
       success: true,
-      page,
+      page: { id: page.id, title: page.title, slug: page.slug },
       data: pageData,
-      ...pageData,
       userId: page.userId,
     });
   });
