@@ -1,6 +1,7 @@
 import { resolveQuote } from './server/checkout';
 import { getPayment, savePayment, settlePayment } from './server/paypalLedger';
 import { createStripeCheckout, stripeWebhook } from './server/stripeBilling';
+import { resolvePayPalEnvironment } from './server/paypalEnvironment';
 import express, { Request as ExpressRequest, Response, NextFunction } from 'express';
 import { createServer as createViteServer } from 'vite';
 import path from 'path';
@@ -144,12 +145,8 @@ function getPayPalRuntimeConfig() {
   const webhookId = cleanEnvValue(process.env.PAYPAL_WEBHOOK_ID);
   const rawEnv = cleanEnvValue(process.env.PAYPAL_ENVIRONMENT).toLowerCase();
 
-  // Accept 'live', 'production', or 'prod' (or fallback to NODE_ENV === 'production' when PAYPAL_ENVIRONMENT is unset)
-  const isLive =
-    rawEnv === 'live' ||
-    rawEnv === 'production' ||
-    rawEnv === 'prod' ||
-    (!rawEnv && cleanEnvValue(process.env.NODE_ENV).toLowerCase() === 'production');
+  // Never infer live PayPal from NODE_ENV: staging normally runs in production mode.
+  const isLive = resolvePayPalEnvironment(rawEnv) === 'live';
 
   const sdkEnvironment = isLive ? PayPalEnvironment.Production : PayPalEnvironment.Sandbox;
   const environmentLabel: 'live' | 'sandbox' = isLive ? 'live' : 'sandbox';
@@ -1556,7 +1553,21 @@ export async function startServer() {
 
     setResetPasswordToken(user.email, token, expiresAt);
 
-    const resetUrl = `https://codworth.me/reset-password?token=${token}&email=${encodeURIComponent(user.email)}`;
+    const resetOrigin = (process.env.APP_ORIGIN || 'https://codworth.me').trim().replace(/\/$/, '');
+    let resetUrl: string;
+    try {
+      const origin = new URL(resetOrigin);
+      if (origin.protocol !== 'https:' || origin.username || origin.password || origin.search || origin.hash || origin.pathname !== '/') {
+        throw new Error('Unsafe APP_ORIGIN');
+      }
+      const target = new URL('/reset-password', origin);
+      target.searchParams.set('token', token);
+      target.searchParams.set('email', user.email);
+      resetUrl = target.toString();
+    } catch {
+      console.error('[AUTH] Invalid APP_ORIGIN; password reset email was not sent.');
+      return res.status(503).json({ success: false, error: 'Password reset is temporarily unavailable.' });
+    }
     await sendPasswordResetEmail(user.email, user.full_name, resetUrl);
 
     return res.json({
