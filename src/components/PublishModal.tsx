@@ -182,34 +182,26 @@ export const PublishModal: React.FC<PublishModalProps> = ({
     setStatusMessage(null);
 
     try {
-      // 1. Ensure the page exists in cloud first
-      let pageId = currentPage?.id || pageData.id;
-      const compiledHtml = generateStandaloneHtml({
-        ...pageData,
-        slug: slug.trim(),
+      // 1. Always persist the latest edited blocks, theme and slug before publishing.
+      // Existing pages must not republish stale cloud data after design changes.
+      const latestPageData = { ...pageData, slug: slug.trim() };
+      const compiledHtml = generateStandaloneHtml(latestPageData);
+      const saveRes = await saveUserPageToCloud({
+        id: currentPage?.id || pageData.id,
+        title: latestPageData.title,
+        slug: latestPageData.slug,
+        data: latestPageData,
       });
 
-      if (!currentPage?.id) {
-        const saveRes = await saveUserPageToCloud({
-          id: pageId,
-          title: pageData.title,
-          slug: slug.trim(),
-          data: pageData,
-        });
-
-        if (saveRes.isLimitReached) {
-          setIsPublishing(false);
-          onRequireUpgrade(saveRes.error);
-          return;
-        }
-
-        if (!saveRes.success || !saveRes.page) {
-          setIsPublishing(false);
-          setStatusMessage({ text: saveRes.error || 'تعذر حفظ مسودة الصفحة قبل النشر.', type: 'error' });
-          return;
-        }
-        pageId = saveRes.page.id;
+      if (saveRes.isLimitReached) {
+        onRequireUpgrade(saveRes.error);
+        return;
       }
+      if (!saveRes.success || !saveRes.page) {
+        setStatusMessage({ text: saveRes.error || 'تعذر حفظ آخر تعديلات الصفحة قبل النشر.', type: 'error' });
+        return;
+      }
+      const pageId = saveRes.page.id;
 
       // 2. Publish live
       const pubRes = await publishUserPageInCloud(
