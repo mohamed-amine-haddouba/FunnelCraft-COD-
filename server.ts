@@ -552,9 +552,9 @@ export async function startServer() {
   const activeOtps = new Map<string, ActiveOtp>();
 
   // Masking helpers
-  const maskPhone = (phone: string = '+212 722-256897') => {
+  const maskPhone = (phone: string = '') => {
     const clean = phone.trim();
-    if (clean.length < 8) return '+212 6•• ••0000';
+    if (clean.length < 8) return 'غير متوفر';
     return clean.slice(0, 7) + '•• ••' + clean.slice(-4);
   };
 
@@ -999,7 +999,7 @@ export async function startServer() {
         codeHash: crypto.createHmac('sha256', challenge).update(otpCode).digest('hex'),
         userId: user.id,
         email: user.email,
-        phone: user.phone || '+212 722-256897',
+        phone: user.phone || '',
         channel: chosenChannel,
         expiresAt: Date.now() + 5 * 60 * 1000,
         attempts: 0,
@@ -1024,7 +1024,7 @@ export async function startServer() {
         challenge,
         userId: user.id,
         email: user.email,
-        phone: user.phone || '+212 722-256897',
+        phone: user.phone || '',
         maskedPhone: maskPhone(user.phone),
         maskedEmail: maskEmail(user.email),
         channel: chosenChannel,
@@ -1080,7 +1080,7 @@ export async function startServer() {
     const otpCode = String(crypto.randomInt(100000, 1000000));
     const deviceInfo = extractDeviceInfo(req);
     const chosenChannel = channel === 'whatsapp' ? 'whatsapp' : 'email';
-    const targetPhone = user.phone || '+212 722-256897';
+    const targetPhone = user.phone || '';
     const targetEmail = user.email || 'merchant@example.com';
 
     activeOtps.set(storeKey, {
@@ -1305,7 +1305,7 @@ export async function startServer() {
           codeHash: crypto.createHmac('sha256', challenge).update(otpCode).digest('hex'),
           userId: user.id,
           email: user.email,
-          phone: user.phone || '+212 722-256897',
+          phone: user.phone || '',
           channel: chosenChannel,
           expiresAt: Date.now() + 5 * 60 * 1000,
           attempts: 0,
@@ -1330,7 +1330,7 @@ export async function startServer() {
         challenge,
           userId: user.id,
           email: user.email,
-          phone: user.phone || '+212 722-256897',
+          phone: user.phone || '',
           maskedPhone: maskPhone(user.phone),
           maskedEmail: maskEmail(user.email),
           channel: chosenChannel,
