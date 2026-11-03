@@ -36,8 +36,9 @@ export function isAnalyticsRange(value: unknown): value is AnalyticsRange {
 }
 
 export function orderCurrency(order: MetricOrder): string {
-  const raw = typeof order.currency === 'string' ? order.currency : 'MAD';
-  return raw.trim().toUpperCase() || 'MAD';
+  if (order.currency === undefined || order.currency === null || order.currency === '') return 'MAD';
+  if (typeof order.currency !== 'string') return 'UNKNOWN';
+  return order.currency.trim().toUpperCase() || 'MAD';
 }
 
 const ORDER_STATUSES = new Set<AnalyticsStatus>([
