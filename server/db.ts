@@ -1382,7 +1382,8 @@ export function createManualPaymentRequest(
   proofImageUrl?: string,
   notes?: string
 ): ManualPaymentRequest {
-  const id = `pay-${method.toLowerCase()}-${Date.now().toString().slice(-6)}`;
+  // UUID avoids collisions when two merchants submit in the same millisecond.
+  const id = `pay-${method.toLowerCase()}-${crypto.randomUUID()}`;
   const request: ManualPaymentRequest = {
     id,
     userId,
@@ -1397,8 +1398,9 @@ export function createManualPaymentRequest(
     notes,
   };
 
+  const updated = new Map(manualPayments).set(id, request);
+  savePaymentsToDisk(updated);
   manualPayments.set(id, request);
-  savePaymentsToDisk(manualPayments);
   return request;
 }
 
@@ -1420,12 +1422,33 @@ export function getAllManualPayments(): ManualPaymentRequest[] {
 
 export function approveManualPayment(paymentId: string): { payment: ManualPaymentRequest; user: UserProfile } {
   const payment = manualPayments.get(paymentId);
-  if (!payment) {
-    throw new Error('Payment request not found.');
+  if (!payment) throw new Error('Payment request not found.');
+  const account = findUserById(payment.userId);
+  if (!account || account.status !== 'active') {
+    throw new Error('Payment owner is missing or inactive; review manually.');
+  }
+  if (payment.status === 'approved') {
+    // Duplicate admin clicks must not renew membership or alter the dates.
+    return { payment, user: toSafeProfile(account) };
+  }
+  if (payment.status !== 'pending') {
+    throw new Error('Rejected payments cannot be approved; submit a new request.');
   }
 
-  payment.status = 'approved';
-  savePaymentsToDisk(manualPayments);
+  // Persist a stable approval timestamp before applying the entitlement.
+  // A failure after changing the user's plan can safely be retried with
+  // exactly the same subscription period end.
+  const startedAt = payment.approvalStartedAt || new Date().toISOString();
+  const parsed = Date.parse(startedAt);
+  if (!Number.isFinite(parsed) || parsed > Date.now() + 60000) {
+    throw new Error('Invalid payment approval timestamp; review manually.');
+  }
+  if (!payment.approvalStartedAt) {
+    const startedPayment: ManualPaymentRequest = { ...payment, approvalStartedAt: startedAt };
+    const startedMap = new Map(manualPayments).set(paymentId, startedPayment);
+    savePaymentsToDisk(startedMap);
+    manualPayments.set(paymentId, startedPayment);
+  }
 
   const updatedUser = updateUserSubscription(
     payment.userId,
@@ -1433,21 +1456,28 @@ export function approveManualPayment(paymentId: string): { payment: ManualPaymen
     'pro_monthly',
     `manual_${payment.method.toLowerCase()}`,
     payment.transactionReference,
-    new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+    new Date(parsed + 30 * 24 * 60 * 60 * 1000).toISOString()
   );
-
-  return { payment, user: updatedUser };
+  const approved: ManualPaymentRequest = { ...payment, approvalStartedAt: startedAt, status: 'approved' };
+  const approvedMap = new Map(manualPayments).set(paymentId, approved);
+  savePaymentsToDisk(approvedMap);
+  manualPayments.set(paymentId, approved);
+  return { payment: approved, user: updatedUser };
 }
 
 export function rejectManualPayment(paymentId: string): ManualPaymentRequest {
   const payment = manualPayments.get(paymentId);
-  if (!payment) {
-    throw new Error('Payment request not found.');
+  if (!payment) throw new Error('Payment request not found.');
+  if (payment.status === 'rejected') return payment;
+  if (payment.status === 'approved' || payment.approvalStartedAt) {
+    throw new Error('An approved or processing payment cannot be rejected; reconcile manually.');
   }
 
-  payment.status = 'rejected';
-  savePaymentsToDisk(manualPayments);
-  return payment;
+  const rejected: ManualPaymentRequest = { ...payment, status: 'rejected' };
+  const updatedMap = new Map(manualPayments).set(paymentId, rejected);
+  savePaymentsToDisk(updatedMap);
+  manualPayments.set(paymentId, rejected);
+  return rejected;
 }
 
 /* ---------------- USER PAGES / FUNNELS PERSISTENCE ---------------- */
