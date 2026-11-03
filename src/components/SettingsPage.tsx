@@ -68,10 +68,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
     logout,
   } = useAuth();
   const { t, dir, isRtl, language } = useLanguage();
-  const isAdminUser =
-    capabilities.isAdmin ||
-    user?.role === 'admin' ||
-    user?.email?.trim().toLowerCase() === 'naadianajah2020@gmail.com';
+  const isAdminUser = capabilities.isAdmin || user?.role === 'admin';
   const isProUser =
     isAdminUser ||
     capabilities.canUseCustomDomain ||
