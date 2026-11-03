@@ -1057,10 +1057,7 @@ function BuilderWorkspace() {
   }
 
   // Mandatory Email Verification Gate (Owner/Admin exempt)
-  const isOwnerAccount =
-    isAdmin ||
-    user.role === 'admin' ||
-    user.email?.trim().toLowerCase() === 'naadianajah2020@gmail.com';
+  const isOwnerAccount = isAdmin || user.role === 'admin';
   if (!isOwnerAccount && user.email_verified === false && user.email_verification_required !== false) {
     return <Navigate to={`/verify-email?email=${encodeURIComponent(user.email)}`} replace />;
   }
@@ -1992,8 +1989,7 @@ function LoginRoute() {
   }
 
   if (isLoggedIn && user) {
-    const isSuperAdmin =
-      user.role === 'admin' || user.email?.trim().toLowerCase() === 'naadianajah2020@gmail.com';
+    const isSuperAdmin = user.role === 'admin';
     if (!isSuperAdmin && user.email_verified === false && user.email_verification_required !== false) {
       return <Navigate to={`/verify-email?email=${encodeURIComponent(user.email)}`} replace />;
     }
