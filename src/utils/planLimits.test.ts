@@ -85,9 +85,9 @@ describe('Subscription Plan Capabilities & Limit Enforcement', () => {
 
     const ownerByEmail = checkFeatureAccess(
       'api_integrations',
-      { plan_id: 'free', role: 'user', email: 'naadianajah2020@gmail.com' },
+      { plan_id: 'free', role: 'user', email: 'owner@example.test' },
       50,
-      'naadianajah2020@gmail.com'
+      'owner@example.test'
     );
     assert.equal(ownerByEmail.allowed, true);
   });
