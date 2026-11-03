@@ -25,7 +25,7 @@ function findPaymentFile(id: string): string | undefined {
   validatePaymentId(id);
   if (!fs.existsSync(directory)) return undefined;
   for (const item of fs.readdirSync(directory, { withFileTypes: true })) {
-    if (!item.isFile() || !/^[0-9a-f-]{36}\\.json$/.test(item.name)) continue;
+    if (!item.isFile() || !/^[0-9a-f-]{36}\.json$/.test(item.name)) continue;
     const candidate = path.join(directory, item.name);
     try {
       const record = JSON.parse(fs.readFileSync(candidate, 'utf8'));
@@ -48,7 +48,7 @@ export function getPayment(id: string): ExpectedPayment | undefined {
 
 export function savePayment(id: string, entry: ExpectedPayment) {
   const existing = findPaymentFile(id);
-  if (!/^\\d+(\\.\\d{1,2})?$/.test(entry.expectedAmount) ||
+  if (!/^\d+(\.\d{1,2})?$/.test(entry.expectedAmount) ||
       !Number.isFinite(Number(entry.expectedAmount)) || Number(entry.expectedAmount) <= 0 ||
       !/^[A-Z]{3}$/.test(entry.expectedCurrency)) {
     throw new Error('Invalid expected payment amount or currency.');
