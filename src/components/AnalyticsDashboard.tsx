@@ -50,9 +50,11 @@ export interface AnalyticsApiResponse {
   totalOrders: number;
   totalRevenue: number;
   avgOrderValue: number;
-  conversionRate: number;
+  conversionRate: number | null;
   deliveryRate: number;
-  formStarts: number;
+  formStarts: number | null;
+  visitorPeriod?: 'lifetime';
+  revenueCurrency?: string;
   cityBreakdown: CityStats[];
   topFunnels: FunnelAnalyticsItem[];
 }
@@ -110,9 +112,9 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
   const totalVisitors = analytics?.totalVisitors ?? 0;
   const totalOrders = analytics?.totalOrders ?? 0;
   const avgOrderValue = analytics?.avgOrderValue ?? 0;
-  const conversionRate = analytics?.conversionRate ?? 0;
+  const conversionRate = analytics?.conversionRate ?? null;
   const deliveryRate = analytics?.deliveryRate ?? 0;
-  const formStarts = analytics?.formStarts ?? 0;
+  const formStarts = analytics?.formStarts ?? null;
   const cityList = analytics?.cityBreakdown ?? [];
   const topFunnels = analytics?.topFunnels ?? [];
 
@@ -140,6 +142,11 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
             </span>
           </div>
           <p className="text-xs text-[#CBD5E1] mt-0.5">{t.analyticsDesc}</p>
+          <p className="text-[11px] text-amber-200/80 mt-1">
+            {language === 'ar'
+              ? 'فلتر التاريخ يطبق على الطلبات فقط؛ الزيارات إجمالية. التحويل وبداية الاستمارة غير متاحين بلا أحداث مؤرخة. القيم المالية المعروضة بالدرهم ليست إثباتاً للتحصيل.'
+              : 'La période filtre les commandes, pas les visites historiques. Conversion et débuts de formulaire indisponibles sans suivi daté. Les montants MAD ne prouvent pas un encaissement.'}
+          </p>
         </div>
 
         {/* Filters & Actions */}
@@ -249,7 +256,7 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
               </div>
               <div className="flex items-baseline gap-2">
                 <span className="text-xl md:text-2xl font-bold tracking-tight text-white">
-                  {conversionRate}%
+                  {conversionRate === null ? '—' : `${conversionRate}%`}
                 </span>
               </div>
               <p className="text-[11px] text-[#CBD5E1]/70 mt-1 truncate">{t.moroccanCodBenchmark}</p>
@@ -306,7 +313,7 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
                 </span>
               </div>
               <p className="text-[11px] text-[#CBD5E1]/70 mt-1 truncate">
-                {language === 'ar' ? 'الطلبات المؤكدة والمسلمة' : 'Commandes confirmées et livrées'}
+                {language === 'ar' ? 'الطلبات المسلمة فقط' : 'Commandes livrées uniquement'}
               </p>
             </div>
           </div>
@@ -349,7 +356,7 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
                     <div className="flex items-center justify-between text-xs mb-1">
                       <span className="text-[#CBD5E1] font-medium">{t.formStarts}</span>
                       <span className="text-[#CBD5E1]">
-                        {formStarts.toLocaleString()}
+                        {formStarts === null ? '—' : formStarts.toLocaleString()}
                       </span>
                     </div>
                     <div className="h-2 w-full bg-[#131B2A] rounded-full overflow-hidden">
@@ -358,7 +365,7 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
                         style={{
                           width: `${
                             totalVisitors > 0
-                              ? Math.min(100, Math.round((formStarts / totalVisitors) * 100))
+                              ? Math.min(100, Math.round(((formStarts ?? 0) / totalVisitors) * 100))
                               : 0
                           }%`,
                         }}
@@ -375,13 +382,13 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
                       </span>
                       <span className="text-[#E25B26] font-semibold">
                         {totalOrders}{' '}
-                        <span className="text-[10px] text-[#E25B26]">({conversionRate}%)</span>
+                        <span className="text-[10px] text-[#E25B26]">({conversionRate === null ? '—' : `${conversionRate}%`})</span>
                       </span>
                     </div>
                     <div className="h-2 w-full bg-[#131B2A] rounded-full overflow-hidden">
                       <div
                         className="h-full bg-[#E25B26] rounded-full"
-                        style={{ width: `${Math.min(100, conversionRate)}%` }}
+                        style={{ width: `${Math.min(100, conversionRate ?? 0)}%` }}
                       />
                     </div>
                   </div>
@@ -477,7 +484,7 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
                       <th className="py-2 px-3 text-start font-medium">{t.visitors}</th>
                       <th className="py-2 px-3 text-start font-medium">{t.ordersPlaced}</th>
                       <th className="py-2 px-3 text-start font-medium">{t.conversionRate}</th>
-                      <th className="py-2 px-3 text-start font-medium">{t.totalRevenue}</th>
+                      <th className="py-2 px-3 text-start font-medium">{language === 'ar' ? 'قيمة الطلبات المسلّمة (MAD)' : 'Valeur livrée (MAD)'}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-800/60">
