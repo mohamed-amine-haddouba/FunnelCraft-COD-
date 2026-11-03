@@ -76,12 +76,12 @@ jobs:
       - name: Verify factory reset is preview-only and backup-gated
         run: |
           mkdir -p "$RUNNER_TEMP/codworth-reset-fixture"
-          printf '%s\\n' '[{"id":"owner","email":"owner@example.test","role":"admin","status":"active"},{"id":"merchant","email":"merchant@example.test","role":"user"}]' > "$RUNNER_TEMP/codworth-reset-fixture/users.json"
-          printf '%s\\n' '[{"id":"order-1"}]' > "$RUNNER_TEMP/codworth-reset-fixture/orders.json"
-          printf '%s\\n' '[]' > "$RUNNER_TEMP/codworth-reset-fixture/pages.json"
-          printf '%s\\n' '[]' > "$RUNNER_TEMP/codworth-reset-fixture/sessions.json"
-          printf '%s\\n' '[]' > "$RUNNER_TEMP/codworth-reset-fixture/coupons.json"
-          printf '%s\\n' '[]' > "$RUNNER_TEMP/codworth-reset-fixture/payments.json"
+          printf '%s\n' '[{"id":"owner","email":"owner@example.test","role":"admin","status":"active"},{"id":"merchant","email":"merchant@example.test","role":"user"}]' > "$RUNNER_TEMP/codworth-reset-fixture/users.json"
+          printf '%s\n' '[{"id":"order-1"}]' > "$RUNNER_TEMP/codworth-reset-fixture/orders.json"
+          printf '%s\n' '[]' > "$RUNNER_TEMP/codworth-reset-fixture/pages.json"
+          printf '%s\n' '[]' > "$RUNNER_TEMP/codworth-reset-fixture/sessions.json"
+          printf '%s\n' '[]' > "$RUNNER_TEMP/codworth-reset-fixture/coupons.json"
+          printf '%s\n' '[]' > "$RUNNER_TEMP/codworth-reset-fixture/payments.json"
           OWNER_EMAIL=owner@example.test CODWORTH_DATA_DIR="$RUNNER_TEMP/codworth-reset-fixture" node scripts/reset-data.cjs
           FIXTURE="$RUNNER_TEMP/codworth-reset-fixture" node -e "const fs=require('fs'),d=process.env.FIXTURE;const users=JSON.parse(fs.readFileSync(d+'/users.json'));const orders=JSON.parse(fs.readFileSync(d+'/orders.json'));if(users.length!==2||orders.length!==1)process.exit(1)"
           if OWNER_EMAIL=owner@example.test RESET_CONFIRM=DELETE_ALL_NON_OWNER_DATA BACKUP_GPG_RECIPIENT='' CODWORTH_DATA_DIR="$RUNNER_TEMP/codworth-reset-fixture" node scripts/reset-data.cjs --confirm-production-reset; then
