@@ -834,9 +834,9 @@ export function createSandboxCockpitRouter(): Router {
     );
   };
 
-  const loginLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 5, // Max 5 attempts per 15 minutes per IP
+  const createSandboxLimiter = (max: number, error: string) => rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max,
     standardHeaders: true,
     legacyHeaders: false,
     keyGenerator: (req) => getClientIp(req),
@@ -844,12 +844,12 @@ export function createSandboxCockpitRouter(): Router {
       process.env.NODE_ENV !== 'production' && req.headers['x-test-bypass-rate-limit'] === '1',
     validate: false,
     statusCode: 429,
-    message: {
-      ok: false,
-      code: 'RATE_LIMITED',
-      error: 'Too many authentication attempts (max 5 per 15 minutes). Please try again later.',
-    },
+    message: { ok: false, code: 'RATE_LIMITED', error },
   });
+  const loginLimiter = createSandboxLimiter(5, 'Too many login attempts. Please try again later.');
+  const otpSendLimiter = createSandboxLimiter(3, 'Too many 2FA code requests. Please try again later.');
+  const resetRequestLimiter = createSandboxLimiter(3, 'Too many password reset requests. Please try again later.');
+  const resetCompletionLimiter = createSandboxLimiter(5, 'Too many password reset attempts. Please try again later.');
 
   // 1a. POST /api/sandbox/login (Step 1) — Verify Owner email + password; issue loginTicket if 2FA required or full JWT otherwise
   router.post('/login', loginLimiter, async (req: Request, res: Response) => {
@@ -1037,7 +1037,7 @@ export function createSandboxCockpitRouter(): Router {
   });
 
   // 1c. POST /api/sandbox/2fa/send — Send 6-digit Email 2FA code to Owner (accepts Step 2 loginTicket or email)
-  router.post('/2fa/send', async (req: Request, res: Response) => {
+  router.post('/2fa/send', otpSendLimiter, async (req: Request, res: Response) => {
     const rawLoginTicket =
       typeof req.body?.loginTicket === 'string' ? req.body.loginTicket.trim() : '';
     let rawEmail = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : '';
@@ -1067,11 +1067,20 @@ export function createSandboxCockpitRouter(): Router {
     }
 
     const ownerUser = findUserByEmail(rawEmail);
-    if (!rawLoginTicket && rawPassword && ownerUser && !timingSafeVerifyPassword(ownerUser, rawPassword)) {
+    if (!ownerUser || ownerUser.role !== 'admin' || ownerUser.status !== 'active') {
+      return res.status(403).json({
+        ok: false,
+        code: 'OWNER_ACCOUNT_UNAVAILABLE',
+        error: 'Owner account is unavailable.',
+      });
+    }
+    // A short-lived signed ticket proves Step 1 already checked the password.
+    // Email-only requests must never be able to trigger repeated OTP delivery.
+    if (!rawLoginTicket && (!rawPassword || !timingSafeVerifyPassword(ownerUser, rawPassword))) {
       return res.status(401).json({
         ok: false,
         code: 'INVALID_CREDENTIALS',
-        error: 'Invalid Owner password.',
+        error: 'A valid owner password or login ticket is required.',
       });
     }
 
@@ -1106,7 +1115,7 @@ export function createSandboxCockpitRouter(): Router {
   });
 
   // 1c. POST /api/sandbox/auth/forgot-password — Generate 15-min reset token & email Owner
-  router.post('/auth/forgot-password', async (req: Request, res: Response) => {
+  router.post('/auth/forgot-password', resetRequestLimiter, async (req: Request, res: Response) => {
     const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : '';
     const ip = getClientIp(req);
     const location = resolveClientGeoLocation(req, ip);
