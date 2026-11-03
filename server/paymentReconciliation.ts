@@ -147,7 +147,7 @@ export function reconcilePayPalSnapshots(
     'DUPLICATE_PRODUCT_ORDER', 'MERCHANT_OWNERSHIP_MISMATCH', 'PRODUCT_QUOTE_MISMATCH',
   ]);
   const findings: ReconciliationFinding[] = [...counts.entries()].map(([code, count]) => ({
-    code, count, severity: blockers.has(code) ? 'blocker' : 'review',
+    code, count, severity: blockers.has(code) ? 'blocker' as const : 'review' as const,
   })).sort((a,b) => a.code.localeCompare(b.code));
   return {
     ledgerEntries: ledgerEntries.length,
