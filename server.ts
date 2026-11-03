@@ -3480,6 +3480,21 @@ export async function startServer() {
         const expected = getPayment(orderId);
         if (!expected || expected.userId !== authUserId) return res.status(404).json({ success: false, error: 'Checkout not found.' });
         if (expected.captureId) {
+          // A verified capture may have been persisted before the server
+          // crashed while applying a subscription/coupon. Finish the v2
+          // settlement idempotently instead of falsely acknowledging it.
+          if (expected.settlementVersion === 2 && !expected.entitlementsAppliedAt) {
+            if (typeof expected.capturedAt !== 'number' || !Number.isFinite(expected.capturedAt)) {
+              throw new Error('Saved PayPal capture requires reconciliation.');
+            }
+            settlePayment(orderId, {
+              id: expected.captureId,
+              status: 'COMPLETED',
+              amount: expected.expectedAmount,
+              currency: expected.expectedCurrency,
+              time: new Date(expected.capturedAt).toISOString(),
+            });
+          }
           const user = expected.sourceType === 'plan' ? findUserById(authUserId) : undefined;
           return res.json({ success: true, id: orderId, status: 'COMPLETED', capturedAmount: Number(expected.expectedAmount), capturedCurrency: expected.expectedCurrency, user: user ? toSafeProfile(user) : undefined });
         }
