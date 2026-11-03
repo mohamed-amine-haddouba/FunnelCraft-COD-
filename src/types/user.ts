@@ -105,6 +105,7 @@ export interface StoredPage {
   domainStatus?: CustomDomainStatus;
   domainError?: string | null;
   domainVerifiedAt?: string | null;
+  domainProof?: string;
   expectedDnsIp?: string;
   expectedDnsCname?: string;
   pixels?: PagePixelsConfig;

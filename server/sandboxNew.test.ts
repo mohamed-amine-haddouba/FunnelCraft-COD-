@@ -454,14 +454,14 @@ describe('Zero-Trust Sandbox Cockpit (server/sandboxNew.ts)', () => {
   });
 
   it('verifies Master Password on POST /api/sandbox/auth/step-up to issue fresh 30m JWT and rejects invalid passwords with 401', async () => {
-    // 1. Missing password -> 401
+    // A password alone is not a full owner session.
     const emptyRes = await fetch(`${baseUrl}/api/sandbox/auth/step-up`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'x-test-bypass-rate-limit': '1',
       },
-      body: JSON.stringify({ password: '' }),
+      body: JSON.stringify({ password: TEST_OWNER_PASS }),
     });
     assert.equal(emptyRes.status, 401);
 
@@ -471,6 +471,7 @@ describe('Zero-Trust Sandbox Cockpit (server/sandboxNew.ts)', () => {
       headers: {
         'Content-Type': 'application/json',
         'x-test-bypass-rate-limit': '1',
+        Authorization: `Bearer ${signSandboxJwt(STRICT_OWNER_EMAIL).token}`,
       },
       body: JSON.stringify({ password: 'WrongMasterPassword!' }),
     });
@@ -485,6 +486,7 @@ describe('Zero-Trust Sandbox Cockpit (server/sandboxNew.ts)', () => {
       headers: {
         'Content-Type': 'application/json',
         'x-test-bypass-rate-limit': '1',
+        Authorization: `Bearer ${signSandboxJwt(STRICT_OWNER_EMAIL).token}`,
       },
       body: JSON.stringify({ password: TEST_OWNER_PASS }),
     });

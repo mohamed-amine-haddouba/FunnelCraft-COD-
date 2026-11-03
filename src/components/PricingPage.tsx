@@ -134,7 +134,7 @@ export const PricingPage: React.FC<PricingPageProps> = ({
   onNavigateToTerms,
   onNavigateToPrivacy,
 }) => {
-  const { user, token, isLoggedIn, isPro, upgradeToPro, refreshUser, submitManualPayment, userPayments } = useAuth();
+  const { user, token, isLoggedIn, isPro, refreshUser, submitManualPayment, userPayments } = useAuth();
   const { t, language, setLanguage, dir } = useLanguage();
   const effectivePlan: SubscriptionPlanId =
     user?.plan_id && user.plan_id !== 'free'
@@ -470,54 +470,6 @@ export const PricingPage: React.FC<PricingPageProps> = ({
   const totalChargeMAD = appliedCoupon ? appliedCoupon.finalPrice : baseChargeMAD;
   const paypalSettlement = calculatePayPalUsdSettlement(totalChargeMAD, exchangeRates);
   const pendingPayment = userPayments?.find((p) => p.status === 'pending');
-
-  // Direct PayPal API Order Creation + Upgrade Handler
-  const handleDirectPayPalUpgrade = async () => {
-    if (!selectedPaidTier) return;
-    setIsProcessing(true);
-    setCheckoutError(null);
-
-    try {
-      const activeToken = token || localStorage.getItem('funnelcraft_auth_token') || '';
-      const createRes = await fetch('/api/paypal/create-order', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${activeToken}`,
-        },
-        body: JSON.stringify({
-          userId: user?.id,
-          identifier: selectedPaidTier.id,
-          planId: selectedPaidTier.id,
-          billingCycle,
-          couponCode: appliedCoupon?.code || undefined,
-        }),
-      });
-
-      const createData = await createRes.json().catch(() => ({}));
-      if (!createRes.ok && !createData.id) {
-        // Still allow sandbox/simulated instant upgrade if PayPal keys are not configured in preview
-      }
-
-      const upgradeRes = await upgradeToPro(selectedPaidTier.id);
-      await refreshUser();
-      if (upgradeRes.success) {
-        try {
-          localStorage.setItem('funnelcraft_plan', selectedPaidTier.id);
-        } catch (_) {}
-        onUpgradeSuccess(selectedPaidTier.id);
-        setCheckoutSuccess(
-          `🎉 تم تفعيل اشتراكك في ${selectedPaidTier.nameAr} بنجاح! جميع الميزات الاحترافية مفتوحة الآن.`
-        );
-      } else {
-        setCheckoutError(upgradeRes.message || 'تعذر تفعيل الباقة تلقائياً. حاول مرة أخرى.');
-      }
-    } catch (_err) {
-      setCheckoutError('حدث خطأ أثناء الاتصال ببوابة PayPal. يرجى المحاولة مرة أخرى.');
-    } finally {
-      setIsProcessing(false);
-    }
-  };
 
   // Manual Bank Transfer Receipt Submission
   const handleManualBankSubmit = async (e: React.FormEvent) => {
@@ -1342,12 +1294,8 @@ export const PricingPage: React.FC<PricingPageProps> = ({
                                   '[PAYPAL FRONTEND] Capture success, now upgrading plan...'
                                 );
 
-                                // Refresh authenticated user session (already upgraded in capture-order) and invoke upgradeToPro fallback
                                 await refreshUser();
-                                const upg = await upgradeToPro(selectedPaidTier.id);
-                                await refreshUser();
-
-                                if (captureData.user || upg.success) {
+                                if (captureData.user?.plan_id === selectedPaidTier.id) {
                                   try {
                                     localStorage.setItem('funnelcraft_plan', selectedPaidTier.id);
                                   } catch (_) {}
@@ -1387,27 +1335,7 @@ export const PricingPage: React.FC<PricingPageProps> = ({
                       )}
                     </div>
 
-                    {/* Instant PayPal Sandbox / Direct Checkout Button for quick verification */}
-                    <button
-                      type="button"
-                      disabled={isProcessing}
-                      onClick={handleDirectPayPalUpgrade}
-                      className="w-full py-3 px-4 rounded-xl bg-brand-accent hover:opacity-90 disabled:opacity-50 text-white font-black text-xs flex items-center justify-center gap-2 shadow-lg transition cursor-pointer"
-                    >
-                      {isProcessing ? (
-                        <>
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                          <span>جاري تفعيل الاشتراك...</span>
-                        </>
-                      ) : (
-                        <>
-                          <CreditCard className="w-4 h-4" />
-                          <span>
-                            إتمام الدفع الفوري عبر PayPal ({paypalSettlement.formattedUSD} USD)
-                          </span>
-                        </>
-                      )}
-                    </button>
+
                   </div>
                 </div>
               ) : banks.length === 0 || !selectedBank ? (

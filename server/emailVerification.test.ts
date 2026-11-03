@@ -147,6 +147,12 @@ test('Email Verification & Invalid/Fake/Disposable Email Rejection Suite (11 Tes
         clearEmailValidationCacheForTest();
         const savedNodeEnv = process.env.NODE_ENV;
         process.env.NODE_ENV = 'production';
+        const prevSecret = process.env.TURNSTILE_SECRET_KEY;
+        process.env.TURNSTILE_SECRET_KEY = 'fixture-only';
+        const originalFetch = globalThis.fetch;
+        globalThis.fetch = (url, options) => String(url) === 'https://challenges.cloudflare.com/turnstile/v0/siteverify'
+          ? Promise.resolve(Response.json({ success: true }))
+          : originalFetch(url, options);
         setCustomMxResolverForTest(async (domain) => {
           if (domain === 'this-domain-definitely-does-not-exist-xyz123.com') {
             const err = new Error('queryMx ENOTFOUND') as NodeJS.ErrnoException;
@@ -160,7 +166,7 @@ test('Email Verification & Invalid/Fake/Disposable Email Rejection Suite (11 Tes
           const { status, body } = await postJson('/api/auth/register', {
             email: 'user@this-domain-definitely-does-not-exist-xyz123.com',
             password: 'Password123',
-            full_name: 'No MX User',
+            full_name: 'No MX User', turnstileToken: 'fixture-token',
           });
           assert.equal(status, 400);
           assert.equal(body.code, 'EMAIL_DOMAIN_HAS_NO_MX');
@@ -173,6 +179,9 @@ test('Email Verification & Invalid/Fake/Disposable Email Rejection Suite (11 Tes
             undefined
           );
         } finally {
+          globalThis.fetch = originalFetch;
+          if (prevSecret === undefined) delete process.env.TURNSTILE_SECRET_KEY;
+          else process.env.TURNSTILE_SECRET_KEY = prevSecret;
           setCustomMxResolverForTest(null);
           clearEmailValidationCacheForTest();
           if (savedNodeEnv !== undefined) process.env.NODE_ENV = savedNodeEnv;

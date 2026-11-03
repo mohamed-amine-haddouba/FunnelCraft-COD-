@@ -6,14 +6,16 @@ import { LandingPageData, LandingPageBlock } from '../types/landingPage';
  */
 export function generateStandaloneHtml(data: LandingPageData): string {
   const isRtl = data.direction === 'rtl' || data.language === 'ar';
-  const primaryColor = data.theme?.primaryColor || '#10b981';
+  const primaryColor = safeColor(data.theme?.primaryColor, '#10b981');
   const fontFamily = isRtl ? 'Cairo, sans-serif' : 'Inter, sans-serif';
-  const lang = data.language || (isRtl ? 'ar' : 'en');
+  const lang = ['en','ar','fr'].includes(data.language) ? data.language : 'en';
 
   // Render individual block HTML
+  const turnstileKey = (typeof process !== 'undefined' ? process.env.VITE_TURNSTILE_SITE_KEY : import.meta.env?.VITE_TURNSTILE_SITE_KEY) || '';
+  const publicKey = /^[a-zA-Z0-9_-]{1,128}$/.test(turnstileKey) ? turnstileKey : '';
   const blocks = Array.isArray(data.blocks) ? data.blocks : [];
   const blocksHtml = blocks
-    .map((block) => renderBlockToHtml(block, data))
+    .map((block) => renderBlockToHtml(block, data, publicKey))
     .join('\n');
 
   const fbPixelId = (data.pixels?.facebookPixelId || '').replace(/[^a-zA-Z0-9_-]/g, '');
@@ -65,6 +67,7 @@ export function generateStandaloneHtml(data: LandingPageData): string {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>${escapeHtml(data.title)}</title>
   <meta name="description" content="${escapeHtml(data.title)} - Cash on Delivery Fast Checkout">
+  ${publicKey ? '<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>' : ''}
   ${fbPixelScript}
   ${ttPixelScript}
   ${gaScript}
@@ -248,7 +251,7 @@ export function generateStandaloneHtml(data: LandingPageData): string {
         submitBtn.innerHTML = '<span>${isRtl ? 'جاري تأكيد الطلب...' : 'Confirming Order...'}</span>';
       }
 
-      let generatedId = '#COD-' + Math.floor(10000 + Math.random() * 90000);
+      let generatedId;
 
       try {
         const payload = {
@@ -259,7 +262,9 @@ export function generateStandaloneHtml(data: LandingPageData): string {
           customerCity: city,
           customerAddress: address,
           customerNotes: notes,
-          bundleName: selectedBundleName || 'Default Offer',
+          bundleId: form.querySelector('input[name=bundleOption]:checked')?.closest('.bundle-card')?.dataset.id,
+          captchaToken: form.querySelector('[name=cf-turnstile-response]')?.value,
+          bundleName: selectedBundleName,
           bundlePrice: selectedBundlePrice || 0,
         };
 
@@ -269,14 +274,14 @@ export function generateStandaloneHtml(data: LandingPageData): string {
           body: JSON.stringify(payload),
         });
 
-        if (res.ok) {
-          const resData = await res.json();
-          if (resData.orderId) {
-            generatedId = resData.orderId;
-          }
-        }
+        const result = await res.json();
+        if (!res.ok || !result.success || !result.orderId) throw new Error(result.error || 'Order could not be confirmed.');
+        generatedId = result.orderId;
+        selectedBundlePrice = result.total + ' ' + result.currency;
       } catch (err) {
-        console.warn('Network submit fallback:', err);
+        alert(err.message || 'Order could not be confirmed. Please try again.');
+        if (window.turnstile) window.turnstile.reset();
+        return;
       } finally {
         if (submitBtn) {
           submitBtn.disabled = false;
@@ -332,18 +337,18 @@ export function generateStandaloneHtml(data: LandingPageData): string {
 </html>`;
 }
 
-function renderBlockToHtml(block: LandingPageBlock, page: LandingPageData): string {
+function renderBlockToHtml(block: LandingPageBlock, page: LandingPageData, publicKey: string): string {
   switch (block.type) {
     case 'promo-bar':
       return `
       <div class="${block.isSticky ? 'sticky top-0 z-40' : ''} text-center py-2.5 px-4 text-xs md:text-sm font-semibold shadow-md flex items-center justify-center flex-wrap gap-2 transition"
-           style="background-color: ${block.bgColor}; color: ${block.textColor};">
+           style="background-color: ${safeColor(block.bgColor, '#ffffff')}; color: ${safeColor(block.textColor, '#111111')};">
         <span>${escapeHtml(block.text)}</span>
         ${
           block.showTimer
             ? `<div class="inline-flex items-center gap-1.5 bg-white/20 px-2.5 py-0.5 rounded-full font-mono text-xs font-bold tracking-widest">
                 <span>⏱</span>
-                <span data-timer data-minutes="${block.countdownMinutes}">14:59</span>
+                <span data-timer data-minutes="${Number(block.countdownMinutes)}">14:59</span>
               </div>`
             : ''
         }
@@ -368,7 +373,7 @@ function renderBlockToHtml(block: LandingPageBlock, page: LandingPageData): stri
           <!-- Gallery -->
           <div class="lg:col-span-6 space-y-4">
             <div class="relative rounded-3xl overflow-hidden bg-gray-100 shadow-xl border border-gray-200 aspect-square">
-              <img id="main-hero-img" src="${block.images[0] || 'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?auto=format&fit=crop&w=1000&q=80'}" 
+              <img id="main-hero-img" src="${safeImage(block.images[0]) || 'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?auto=format&fit=crop&w=1000&q=80'}"
                    alt="${escapeHtml(block.headline)}" 
                    class="w-full h-full object-cover">
               <span class="absolute top-4 left-4 bg-red-600 text-white font-extrabold text-xs px-3 py-1.5 rounded-full uppercase tracking-wider shadow-lg">
@@ -381,8 +386,8 @@ function renderBlockToHtml(block: LandingPageBlock, page: LandingPageData): stri
                     ${block.images
                       .map(
                         (img, idx) => `
-                        <img src="${img}" 
-                             onclick="document.getElementById('main-hero-img').src='${img}'"
+                        <img src="${safeImage(img)}"
+                             onclick="document.getElementById('main-hero-img').src=this.src"
                              alt="Thumbnail ${idx + 1}" 
                              class="w-20 h-20 rounded-xl object-cover cursor-pointer border-2 border-transparent hover:border-emerald-500 transition shadow">`
                       )
@@ -414,10 +419,10 @@ function renderBlockToHtml(block: LandingPageBlock, page: LandingPageData): stri
             <div class="p-5 rounded-2xl bg-white border border-gray-200 shadow-sm space-y-4">
               <div class="flex items-baseline gap-3">
                 <span class="text-3xl md:text-4xl font-black text-emerald-600">
-                  ${block.priceDiscounted} ${escapeHtml(block.currency)}
+                  ${Number(block.priceDiscounted)} ${escapeHtml(block.currency)}
                 </span>
                 <span class="text-lg md:text-xl text-gray-400 line-through">
-                  ${block.priceOriginal} ${escapeHtml(block.currency)}
+                  ${Number(block.priceOriginal)} ${escapeHtml(block.currency)}
                 </span>
                 <span class="ml-auto bg-emerald-100 text-emerald-800 text-xs font-bold px-2.5 py-1 rounded-md">
                   Save ${discountPercentage}%
@@ -427,8 +432,8 @@ function renderBlockToHtml(block: LandingPageBlock, page: LandingPageData): stri
               <!-- Rating -->
               <div class="flex items-center gap-2 text-sm text-gray-600 border-t border-gray-100 pt-3">
                 <div class="flex text-amber-400 text-base">★★★★★</div>
-                <span class="font-bold text-gray-900">${block.rating || 4.9}/5</span>
-                <span class="text-gray-400">(${block.reviewCount || 2800}+ reviews)</span>
+                <span class="font-bold text-gray-900">${Number(block.rating || 4.9)}/5</span>
+                <span class="text-gray-400">(${Number(block.reviewCount || 2800)}+ reviews)</span>
               </div>
             </div>
 
@@ -559,7 +564,7 @@ function renderBlockToHtml(block: LandingPageBlock, page: LandingPageData): stri
             ★★★★★
           </div>
           <h2 class="text-3xl md:text-4xl font-black text-gray-900 mb-2">${escapeHtml(block.title)}</h2>
-          <p class="text-gray-600 text-sm">${escapeHtml(block.subtitle)} (${block.totalReviews}+ reviews)</p>
+          <p class="text-gray-600 text-sm">${escapeHtml(block.subtitle)} (${Number(block.totalReviews)}+ reviews)</p>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -577,7 +582,7 @@ function renderBlockToHtml(block: LandingPageBlock, page: LandingPageData): stri
               <div class="flex items-center gap-3 pt-3 border-t border-gray-100">
                 ${
                   rev.avatar
-                    ? `<img src="${rev.avatar}" alt="${escapeHtml(rev.name)}" class="w-10 h-10 rounded-full object-cover border border-emerald-500">`
+                    ? `<img src="${safeImage(rev.avatar)}" alt="${escapeHtml(rev.name)}" class="w-10 h-10 rounded-full object-cover border border-emerald-500">`
                     : `<div class="w-10 h-10 rounded-full bg-emerald-100 text-emerald-700 font-bold flex items-center justify-center text-sm">${escapeHtml(
                         rev.name.charAt(0)
                       )}</div>`
@@ -607,6 +612,7 @@ function renderBlockToHtml(block: LandingPageBlock, page: LandingPageData): stri
           </div>
 
           <form onsubmit="handleCodSubmit(event)" class="space-y-6">
+            ${publicKey ? `<div class="cf-turnstile" data-sitekey="${publicKey}"></div>` : ''}
             <!-- Step 1: Bundle Selection -->
             <div>
               <label class="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-3">
@@ -616,7 +622,7 @@ function renderBlockToHtml(block: LandingPageBlock, page: LandingPageData): stri
                 ${block.bundles
                   .map(
                     (bundle, idx) => `
-                  <div onclick="selectBundle(this, '${bundle.price} ${escapeHtml(block.currency)}', '${escapeHtml(bundle.name)}')" 
+                  <div data-id="${escapeHtml(bundle.id)}" data-price="${Number(bundle.price) + Number(block.shippingCost || 0)} ${escapeHtml(block.currency)}" data-name="${escapeHtml(bundle.name)}" onclick="selectBundle(this, this.dataset.price, this.dataset.name)"
                        class="bundle-card border rounded-2xl p-4 cursor-pointer transition flex items-center justify-between gap-4 ${
                          bundle.popular
                            ? 'border-emerald-500 bg-emerald-50/50 ring-2 ring-emerald-500'
@@ -640,10 +646,10 @@ function renderBlockToHtml(block: LandingPageBlock, page: LandingPageData): stri
                     </div>
                     <div class="text-right">
                       <div class="text-lg md:text-xl font-black text-emerald-600">
-                        ${bundle.price} ${escapeHtml(block.currency)}
+                        ${Number(bundle.price)} ${escapeHtml(block.currency)}
                       </div>
                       <div class="text-xs text-gray-400 line-through">
-                        ${bundle.originalPrice} ${escapeHtml(block.currency)}
+                        ${Number(bundle.originalPrice)} ${escapeHtml(block.currency)}
                       </div>
                     </div>
                   </div>`
@@ -768,6 +774,15 @@ function renderBlockToHtml(block: LandingPageBlock, page: LandingPageData): stri
   }
 }
 
+function safeColor(value: string | undefined, fallback: string) {
+  return typeof value === 'string' && /^#(?:[0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(value) ? value : fallback;
+}
+function safeImage(value: string) {
+  try {
+    const url = new URL(value);
+    return ['https:', 'http:'].includes(url.protocol) ? escapeHtml(url.href) : '';
+  } catch { return ''; }
+}
 function escapeHtml(str: string | undefined): string {
   if (!str) return '';
   return str
