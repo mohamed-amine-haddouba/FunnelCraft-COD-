@@ -548,6 +548,30 @@ describe('Zero-Trust Sandbox Cockpit (server/sandboxNew.ts)', () => {
     assert.ok(html.includes('npm install --include=dev --legacy-peer-deps'));
     assert.ok(html.includes('./node_modules/.bin/tsc --noEmit'));
   });
+  it('revokes owner JWT and outstanding 2FA tickets after owner password change', async () => {
+    const oldJwt = signSandboxJwt(STRICT_OWNER_EMAIL).token;
+    const oldTicket = signSandboxLoginTicket(STRICT_OWNER_EMAIL).loginTicket;
+    assert.equal(verifySandboxJwt(oldJwt).valid, true);
+    assert.equal(verifySandboxLoginTicket(oldTicket).valid, true);
+    try {
+      ensureOwnerAccountForEmail(STRICT_OWNER_EMAIL, 'ResetTokenTest#2026');
+      assert.equal(verifySandboxJwt(oldJwt).valid, false);
+      assert.equal(verifySandboxLoginTicket(oldTicket).valid, false);
+      const oldResponse = await fetch(`${baseUrl}/api/sandbox/status`, {
+        headers: { Authorization: `Bearer ${oldJwt}` },
+      });
+      assert.equal(oldResponse.status, 401);
+      const newJwt = signSandboxJwt(STRICT_OWNER_EMAIL).token;
+      assert.equal(verifySandboxJwt(newJwt).valid, true);
+      const newResponse = await fetch(`${baseUrl}/api/sandbox/status`, {
+        headers: { Authorization: `Bearer ${newJwt}` },
+      });
+      assert.equal(newResponse.status, 200);
+    } finally {
+      ensureOwnerAccountForEmail(STRICT_OWNER_EMAIL, TEST_OWNER_PASS);
+    }
+  });
+
 });
 
 
