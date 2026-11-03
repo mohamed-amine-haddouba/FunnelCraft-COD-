@@ -352,12 +352,12 @@ export const CustomerLandingPage: React.FC<CustomerLandingPageProps> = ({
         error?: string;
       };
 
-      if (!response.ok || data.success === false) {
+      if (!response.ok || !data.success || !(data.orderId || data.order?.id)) {
         throw new Error(data.error || 'حدث خطأ أثناء تسجيل الطلب. المرجو المحاولة مرة أخرى.');
       }
 
       setOrderSuccess({
-        orderId: data.orderId || data.order?.id || `ORD-${Date.now().toString().slice(-6)}`,
+        orderId: data.orderId || data.order!.id!,
         totalPrice: finalPrice,
         currency: product.currency || 'MAD',
         quantity: finalQuantity,
@@ -1191,7 +1191,7 @@ export const CustomerLandingPage: React.FC<CustomerLandingPageProps> = ({
                               error?: string;
                             };
 
-                            if (!orderResponse.ok || recordedOrder.success === false) {
+                            if (!orderResponse.ok || !recordedOrder.success || !(recordedOrder.orderId || recordedOrder.order?.id)) {
                               throw new Error(
                                 recordedOrder.error || 'تم الدفع ولكن تعذر حفظ الطلب في السجل.'
                               );
@@ -1204,8 +1204,7 @@ export const CustomerLandingPage: React.FC<CustomerLandingPageProps> = ({
                             setOrderSuccess({
                               orderId:
                                 recordedOrder.orderId ||
-                                recordedOrder.order?.id ||
-                                `#PP-${Date.now().toString().slice(-5)}`,
+                                recordedOrder.order!.id!,
                               totalPrice: verifiedAmount,
                               currency: verifiedCurrency,
                               quantity: finalQuantity,

@@ -7,11 +7,10 @@ import {
   verifyCaptchaToken,
   verifyTurnstileToken,
   verifyRecaptchaToken,
-  isAdminCaptchaBypass,
 } from './captcha';
 import { getPlanCapabilities, checkFeatureAccess } from '../src/utils/planLimits';
 
-test('P0 CAPTCHA Fail-Closed & Admin Bypass Regression Suite', async (t) => {
+test('P0 CAPTCHA Fail-Closed Regression Suite', async (t) => {
   await t.test('verifyCaptchaToken({}) with no secret env and BYPASS_CAPTCHA unset -> false', async () => {
     const prevBypass = process.env.BYPASS_CAPTCHA;
     const prevTurnstile = process.env.TURNSTILE_SECRET_KEY;
@@ -52,16 +51,16 @@ test('P0 CAPTCHA Fail-Closed & Admin Bypass Regression Suite', async (t) => {
     }
   });
 
-  await t.test('verifyCaptchaToken({ email: "naadianajah2020@gmail.com" }) -> true', async () => {
+  await t.test('claimed email or role cannot exempt a request from CAPTCHA', async () => {
     const prevBypass = process.env.BYPASS_CAPTCHA;
     const prevTurnstile = process.env.TURNSTILE_SECRET_KEY;
     try {
       process.env.BYPASS_CAPTCHA = 'false';
       process.env.TURNSTILE_SECRET_KEY = 'secret-live-turnstile-key';
 
-      assert.equal(isAdminCaptchaBypass('naadianajah2020@gmail.com', 'merchant'), true);
+      assert.equal(await verifyCaptchaToken({ role: 'admin' }), false);
       const valid = await verifyCaptchaToken({ email: 'naadianajah2020@gmail.com' });
-      assert.equal(valid, true);
+      assert.equal(valid, false);
     } finally {
       if (prevBypass !== undefined) process.env.BYPASS_CAPTCHA = prevBypass;
       else delete process.env.BYPASS_CAPTCHA;
@@ -201,11 +200,11 @@ test('Admin Plan Bypass for Custom Domains & Pixels', async (t) => {
     assert.equal(pixelAccess.allowed, true);
   });
 
-  await t.test('grants canUseCustomDomain and canUsePixels when email === "naadianajah2020@gmail.com" even if role is merchant and plan is free', () => {
+  await t.test('does not grant admin permissions to a previous owner address', () => {
     const caps = getPlanCapabilities('free', 'merchant', 'naadianajah2020@gmail.com', 'different-owner@example.com');
-    assert.equal(caps.isAdmin, true);
-    assert.equal(caps.canUseCustomDomain, true);
-    assert.equal(caps.canUsePixels, true);
+    assert.equal(caps.isAdmin, false);
+    assert.equal(caps.canUseCustomDomain, false);
+    assert.equal(caps.canUsePixels, false);
 
     const domainAccess = checkFeatureAccess(
       'custom_domain',
@@ -229,6 +228,6 @@ test('Admin Plan Bypass for Custom Domains & Pixels', async (t) => {
       10,
       'different-owner@example.com'
     );
-    assert.equal(pixelAccess.allowed, true);
+    assert.equal(pixelAccess.allowed, false);
   });
 });

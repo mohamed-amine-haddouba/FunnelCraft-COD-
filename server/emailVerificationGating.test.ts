@@ -5,7 +5,7 @@ import path from 'node:path';
 import http from 'node:http';
 import { setEmailVerificationTestInterceptor } from './mailer';
 import {
-  createSession,
+  createSession, createUser, saveUserPage, publishPage,
   findUserByEmail as getUserByEmail,
   setUserEmailVerifiedState,
 } from './db';
@@ -223,6 +223,9 @@ test('Email Verification Gating & Anti-Enumeration Integration Suite (5 Tests)',
     await t.test(
       '5. Public POST /api/orders/submit WITH valid CAPTCHA still works without auth',
       async () => {
+        const merchant = createUser('fixture-order@demo.ma', 'Fixture-Password12', 'Fixture');
+        const page = saveUserPage(merchant.id, { title: 'Fixture watch', slug: 'fixture-watch', data: { price: 299, currency: 'MAD' } }).page;
+        publishPage(merchant.id, page.id, page.slug);
         const res = await fetch(`${baseUrl}/api/orders/submit`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -233,6 +236,7 @@ test('Email Verification Gating & Anti-Enumeration Integration Suite (5 Tests)',
             customerAddress: 'شارع الزرقطوني رقم 10',
             productTitle: 'ساعة ذكية احترافية',
             totalPrice: 299,
+            pageSlug: page.slug,
             turnstileToken: 'valid-test-bypass-token',
           }),
         });

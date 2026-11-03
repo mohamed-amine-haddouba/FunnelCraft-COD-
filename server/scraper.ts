@@ -1,3 +1,5 @@
+import { validateProductUrl, publicFetch } from './publicFetch';
+export { validateProductUrl };
 import dotenv from 'dotenv';
 import { GoogleGenAI } from '@google/genai';
 
@@ -204,58 +206,7 @@ function isRecord(val: unknown): val is Record<string, unknown> {
   return typeof val === 'object' && val !== null && !Array.isArray(val);
 }
 
-export function validateProductUrl(inputUrl: string): { isValid: boolean; error?: string; url?: URL } {
-  if (!inputUrl || typeof inputUrl !== 'string') {
-    return { isValid: false, error: 'Product URL is required.' };
-  }
 
-  let formatted = inputUrl.trim();
-  if (!formatted.startsWith('http://') && !formatted.startsWith('https://')) {
-    formatted = 'https://' + formatted;
-  }
-
-  try {
-    const parsed = new URL(formatted);
-    if (!['http:', 'https:'].includes(parsed.protocol)) {
-      return { isValid: false, error: 'Only HTTP and HTTPS URLs are allowed.' };
-    }
-
-    const hostname = parsed.hostname.toLowerCase();
-    const disallowedPrefixes = [
-      'localhost',
-      '127.0.0.1',
-      '0.0.0.0',
-      '::1',
-      '169.254.',
-      '10.',
-      '192.168.',
-      '172.16.',
-      '172.17.',
-      '172.18.',
-      '172.19.',
-      '172.20.',
-      '172.21.',
-      '172.22.',
-      '172.23.',
-      '172.24.',
-      '172.25.',
-      '172.26.',
-      '172.27.',
-      '172.28.',
-      '172.29.',
-      '172.30.',
-      '172.31.',
-    ];
-
-    if (disallowedPrefixes.some((prefix) => hostname === prefix || hostname.startsWith(prefix))) {
-      return { isValid: false, error: 'Private and internal network addresses are not allowed.' };
-    }
-
-    return { isValid: true, url: parsed };
-  } catch {
-    return { isValid: false, error: 'Invalid URL format. Please provide a valid product link.' };
-  }
-}
 
 export function detectPlatform(url: URL): SupportedPlatform {
   const host = url.hostname.toLowerCase();
@@ -530,7 +481,7 @@ async function tryShopifyOrJsonEndpoint(url: URL): Promise<Partial<ScrapedProduc
 
   for (const endpoint of candidateUrls) {
     try {
-      const response = await fetch(endpoint, {
+      const response = await publicFetch(endpoint, {
         headers: {
           'User-Agent':
             'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
@@ -1371,7 +1322,7 @@ export async function scrapeProductData(url: string): Promise<ScrapedProduct> {
   // Fetch raw HTML for Layer 1 (JSON-LD & OpenGraph), Layer 2 (DOM Heuristics), and Layer 3 (Gemini Fallback)
   let html = '';
   try {
-    const response = await fetch(parsedUrl.toString(), {
+    const response = await publicFetch(parsedUrl.toString(), {
       headers: {
         'User-Agent':
           'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',

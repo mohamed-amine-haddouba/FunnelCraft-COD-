@@ -72,51 +72,16 @@ export function sanitizeIpString(raw: unknown): string | null {
   return null;
 }
 
-/**
- * Extracts and validates the real public client IP address from an Express/HTTP request.
- * Priority order:
- * 1. req.headers['cf-connecting-ip'] (Cloudflare edge header)
- * 2. req.headers['x-real-ip'] (Nginx X-Real-IP header)
- * 3. req.headers['x-forwarded-for'] (First client hop in proxy chain)
- * 4. req.ip (Express trust proxy resolved IP)
- * 5. req.socket?.remoteAddress
- */
+/** Use Express proxy policy, or the socket peer for non-Express requests. */
 export function getClientIp(req: {
   headers?: Record<string, string | string[] | undefined>;
   ip?: string;
   socket?: { remoteAddress?: string | undefined };
 }): string {
-  const headers = req?.headers || {};
-
-  const readHeader = (name: string): string | undefined => {
-    const val = headers[name] ?? headers[name.toLowerCase()];
-    if (Array.isArray(val)) return val[0];
-    return typeof val === 'string' ? val : undefined;
-  };
-
-  // 1. Cloudflare CF-Connecting-IP
-  const cfIp = sanitizeIpString(readHeader('cf-connecting-ip'));
-  if (cfIp) return cfIp;
-
-  // 2. X-Forwarded-For (first hop is the original client IP)
-  const xffRaw = readHeader('x-forwarded-for');
-  if (typeof xffRaw === 'string' && xffRaw.trim()) {
-    const hops = xffRaw.split(',');
-    for (const hop of hops) {
-      const cleanHop = sanitizeIpString(hop);
-      if (cleanHop) return cleanHop;
-    }
-  }
-
-  // 3. Nginx X-Real-IP
-  const realIp = sanitizeIpString(readHeader('x-real-ip'));
-  if (realIp) return realIp;
-
-  // 4. Express req.ip (populated via app.set('trust proxy', 1))
+  // Express resolves forwarded headers only through explicitly trusted proxies.
   const expressIp = sanitizeIpString(req?.ip);
   if (expressIp) return expressIp;
 
-  // 5. Socket remoteAddress fallback
   const socketIp = sanitizeIpString(req?.socket?.remoteAddress);
   if (socketIp) return socketIp;
 

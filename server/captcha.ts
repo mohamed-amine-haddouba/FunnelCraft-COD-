@@ -4,7 +4,6 @@ dotenv.config();
 
 const TURNSTILE_VERIFY_URL = 'https://challenges.cloudflare.com/turnstile/v0/siteverify';
 const RECAPTCHA_VERIFY_URL = 'https://www.google.com/recaptcha/api/siteverify';
-const DEFAULT_OWNER_EMAIL = 'naadianajah2020@gmail.com';
 
 let hasLoggedMissingCaptchaSecret = false;
 
@@ -26,49 +25,7 @@ export interface RecaptchaVerifyResponse {
   'error-codes'?: string[];
 }
 
-/**
- * Checks whether CAPTCHA should be bypassed for the Platform Owner / Admin account.
- * CRITICAL: Even if BYPASS_CAPTCHA is false, if the user logging in is the Owner
- * (naadianajah2020@gmail.com) or role === 'admin', bypass the CAPTCHA check and return true.
- */
-export function isAdminCaptchaBypass(email?: string | null, role?: string | null): boolean {
-  const normalizedRole = (role || '').trim().toLowerCase();
-  if (normalizedRole === 'admin') {
-    return true;
-  }
-
-  const normalizedEmail = (email || '').trim().toLowerCase();
-  if (!normalizedEmail) {
-    return false;
-  }
-
-  const configuredOwner = (process.env.OWNER_EMAIL || DEFAULT_OWNER_EMAIL).trim().toLowerCase();
-  return (
-    normalizedEmail === DEFAULT_OWNER_EMAIL ||
-    (configuredOwner.length > 0 && normalizedEmail === configuredOwner)
-  );
-}
-
-/**
- * Extracts the client IP address from an Express request, prioritizing Cloudflare / proxy headers.
- */
-export function extractClientIp(req: {
-  ip?: string;
-  headers?: Record<string, string | string[] | undefined>;
-}): string | undefined {
-  const cfIp = req.headers?.['cf-connecting-ip'];
-  if (typeof cfIp === 'string' && cfIp.trim()) {
-    return cfIp.trim();
-  }
-
-  const forwarded = req.headers?.['x-forwarded-for'];
-  if (typeof forwarded === 'string' && forwarded.trim()) {
-    return forwarded.split(',')[0].trim();
-  }
-  if (Array.isArray(forwarded) && forwarded.length > 0) {
-    return forwarded[0].trim();
-  }
-
+export function extractClientIp(req: { ip?: string }): string | undefined {
   return req.ip;
 }
 
@@ -83,11 +40,7 @@ export async function verifyRecaptchaToken(
   email?: string,
   role?: string
 ): Promise<boolean> {
-  if (isAdminCaptchaBypass(email, role)) {
-    return true;
-  }
-
-  if (process.env.BYPASS_CAPTCHA === 'true') {
+  if (process.env.NODE_ENV !== 'production' && process.env.BYPASS_CAPTCHA === 'true') {
     console.warn('[CAPTCHA] BYPASS_CAPTCHA=true is active. Bypassing reCAPTCHA verification.');
     return true;
   }
@@ -167,8 +120,7 @@ export async function verifyRecaptchaToken(
  * Verifies a Cloudflare Turnstile token against Cloudflare's siteverify endpoint.
  *
  * - Reads TURNSTILE_SECRET_KEY from .env.
- * - If process.env.BYPASS_CAPTCHA === 'true', logs a warning and returns true.
- * - If the user is Owner (naadianajah2020@gmail.com) or role === 'admin', bypasses CAPTCHA and returns true.
+ * - If process.env.NODE_ENV !== 'production' && process.env.BYPASS_CAPTCHA === 'true', logs a warning and returns true.
  * - Fails closed (returns false) if secret key is missing.
  */
 export async function verifyTurnstileToken(
@@ -177,13 +129,9 @@ export async function verifyTurnstileToken(
   email?: string,
   role?: string
 ): Promise<boolean> {
-  if (isAdminCaptchaBypass(email, role)) {
-    return true;
-  }
-
   const secretKey = (process.env.TURNSTILE_SECRET_KEY || '').trim();
 
-  if (process.env.BYPASS_CAPTCHA === 'true') {
+  if (process.env.NODE_ENV !== 'production' && process.env.BYPASS_CAPTCHA === 'true') {
     console.warn('[Turnstile] BYPASS_CAPTCHA=true is active in .env. Bypassing Turnstile verification.');
     return true;
   }
@@ -252,9 +200,7 @@ export async function verifyTurnstileToken(
 /**
  * Unified CAPTCHA verifier supporting both Cloudflare Turnstile and Google reCAPTCHA v3.
  * - Reads TURNSTILE_SECRET_KEY / RECAPTCHA_SECRET_KEY from .env.
- * - If process.env.BYPASS_CAPTCHA === 'true', logs a warning and returns true.
- * - CRITICAL: Even if BYPASS_CAPTCHA is false, if the user logging in is the Owner
- *   (naadianajah2020@gmail.com) or role === 'admin', bypasses CAPTCHA and returns true.
+ * - If process.env.NODE_ENV !== 'production' && process.env.BYPASS_CAPTCHA === 'true', logs a warning and returns true.
  * - Fails closed (returns false) when neither secret is configured.
  */
 export async function verifyCaptchaToken(options: {
@@ -269,13 +215,9 @@ export async function verifyCaptchaToken(options: {
   const turnstileSecretKey = (process.env.TURNSTILE_SECRET_KEY || '').trim();
   const recaptchaSecretKey = (process.env.RECAPTCHA_SECRET_KEY || '').trim();
 
-  // 1. CRITICAL: Always bypass CAPTCHA for Owner (naadianajah2020@gmail.com) or Admin (role === 'admin')
-  if (isAdminCaptchaBypass(options.email, options.role)) {
-    return true;
-  }
-
+  // Unverified identity claims never bypass CAPTCHA.
   // 2. Environment variable bypass (BYPASS_CAPTCHA=true)
-  if (process.env.BYPASS_CAPTCHA === 'true') {
+  if (process.env.NODE_ENV !== 'production' && process.env.BYPASS_CAPTCHA === 'true') {
     console.warn('[CAPTCHA] BYPASS_CAPTCHA=true is enabled. Returning true without blocking login.');
     return true;
   }

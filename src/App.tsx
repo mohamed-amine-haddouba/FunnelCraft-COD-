@@ -288,6 +288,7 @@ function buildBlocksFromScrapedProduct(
 function BuilderWorkspace() {
   const {
     user,
+    token,
     isLoading,
     isLoggedIn,
     planId,
@@ -504,6 +505,7 @@ function BuilderWorkspace() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({ url: trimmedUrl }),
       });

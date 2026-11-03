@@ -1,3 +1,5 @@
+import { Turnstile } from '@marsidev/react-turnstile';
+import { executeRecaptcha } from '../../utils/recaptcha';
 import React, { useState, useEffect } from 'react';
 import { CodFormBlock, ThemeConfig } from '../../types/landingPage';
 import {
@@ -47,6 +49,9 @@ export const CodFormBlockView: React.FC<Props> = ({
   const [address, setAddress] = useState('');
   const [note, setNote] = useState('');
   const [orderSubmitted, setOrderSubmitted] = useState(false);
+  const [formError, setFormError] = useState('');
+  const [captchaToken, setCaptchaToken] = useState('');
+  const [captchaAttempt, setCaptchaAttempt] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [orderId, setOrderId] = useState<string | null>(null);
 
@@ -85,13 +90,15 @@ export const CodFormBlockView: React.FC<Props> = ({
       return;
     }
 
+    setFormError('');
     setSubmitting(true);
     try {
       const res = await fetch('/api/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          pageSlug: pageSlug || 'builder-preview',
+          pageSlug, bundleId: selectedBundle, turnstileToken: captchaToken,
+          recaptchaToken: await executeRecaptcha('cod_checkout'),
           pageTitle: pageTitle || block.title,
           productName: pageTitle || activeBundle?.name || block.title,
           customerName: fullName.trim() || 'Customer',
@@ -113,11 +120,12 @@ export const CodFormBlockView: React.FC<Props> = ({
         }),
       });
       const json = await res.json();
-      if (json.success && (json.orderId || json.order?.id)) {
-        setOrderId(json.orderId || json.order?.id);
-      }
+      const confirmedId = json.orderId || json.order?.id;
+      if (!res.ok || !json.success || !confirmedId) throw new Error(json.error || 'تعذر تأكيد الطلب. حاول مرة أخرى.');
+      setOrderId(confirmedId);
+      setOrderSubmitted(true);
       onOrderConfirmed?.({
-        orderId: json.orderId || json.order?.id || `ORD-${Date.now()}`,
+        orderId: confirmedId,
         customerName: fullName.trim() || 'Customer',
         customerPhone: phone.trim(),
         customerCountry: country || 'Morocco',
@@ -128,11 +136,12 @@ export const CodFormBlockView: React.FC<Props> = ({
         totalPrice: totalAmount,
       });
       trackSubmitCodOrder(totalAmount, block.currency || 'MAD', activeBundle?.name || block.title);
-    } catch {
-      // Fallback for offline preview
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : 'تعذر إرسال الطلب. حاول مرة أخرى.');
+      setCaptchaToken('');
+      setCaptchaAttempt(n => n + 1);
     } finally {
       setSubmitting(false);
-      setOrderSubmitted(true);
     }
   };
 
@@ -210,6 +219,8 @@ export const CodFormBlockView: React.FC<Props> = ({
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="p-6 md:p-8 space-y-6">
+            {formError && <p role="alert">{formError}</p>}
+            {import.meta.env.VITE_TURNSTILE_SITE_KEY && <Turnstile key={captchaAttempt} siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY} onSuccess={setCaptchaToken} onExpire={() => setCaptchaToken('')} />}
             {/* Step 1: Bundle / Quantity Offers */}
             <div>
               <label className="block text-sm font-extrabold uppercase tracking-wider text-slate-700 mb-3">

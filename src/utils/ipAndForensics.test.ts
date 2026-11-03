@@ -10,7 +10,7 @@ import {
 } from './ipAndForensics';
 
 describe('Zero-Trust Public IP Resolution & Sanitization (getClientIp)', () => {
-  it('prioritizes cf-connecting-ip when present and valid', () => {
+  it('ignores an untrusted Cloudflare header', () => {
     const ip = getClientIp({
       headers: {
         'cf-connecting-ip': '196.200.145.22',
@@ -18,17 +18,17 @@ describe('Zero-Trust Public IP Resolution & Sanitization (getClientIp)', () => {
       },
       ip: '127.0.0.1',
     });
-    assert.equal(ip, '196.200.145.22');
+    assert.equal(ip, '127.0.0.1');
   });
 
-  it('extracts the first valid public client IP from x-forwarded-for chain', () => {
+  it('uses the socket peer unless Express trusts the proxy', () => {
     const ip = getClientIp({
       headers: {
         'x-forwarded-for': '105.159.24.88, 172.68.10.2, 127.0.0.1',
       },
       ip: '127.0.0.1',
     });
-    assert.equal(ip, '105.159.24.88');
+    assert.equal(ip, '127.0.0.1');
   });
 
   it('strips IPv4-mapped IPv6 prefix (::ffff:) and ports cleanly', () => {
@@ -40,8 +40,9 @@ describe('Zero-Trust Public IP Resolution & Sanitization (getClientIp)', () => {
   it('handles full IPv6 addresses and rejects header injection / XSS payloads', () => {
     assert.equal(
       getClientIp({
+        ip: '2a01:e0a:123:4560::1',
         headers: {
-          'x-forwarded-for': '2a01:e0a:123:4560::1',
+          'x-forwarded-for': '127.0.0.1',
         },
       }),
       '2a01:e0a:123:4560::1'

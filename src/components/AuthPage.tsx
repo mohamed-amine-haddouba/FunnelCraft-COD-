@@ -90,10 +90,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const [turnstileLoadError, setTurnstileLoadError] = useState(false);
 
-  const isAdminBypass =
-    user?.role === 'admin' ||
-    email.trim().toLowerCase() === 'naadianajah2020@gmail.com' ||
-    import.meta.env.VITE_BYPASS_CAPTCHA === 'true';
+  const isAdminBypass = import.meta.env.DEV && import.meta.env.VITE_BYPASS_CAPTCHA === 'true';
   const shouldRequireTurnstile = Boolean(TURNSTILE_SITE_KEY) && !isAdminBypass && !turnstileLoadError;
 
   // 2FA OTP state

@@ -31,7 +31,7 @@ const DATA_DIR = path.resolve(PROJECT_ROOT, 'data');
 const SANDBOX_UI_DIR = path.resolve(__dirname, 'sandbox-ui');
 const SANDBOX_LOGIN_AUDIT_FILE = path.resolve(DATA_DIR, 'sandbox_login_audit.json');
 
-export const STRICT_OWNER_EMAIL = 'naadianajah2020@gmail.com';
+export const STRICT_OWNER_EMAIL = (process.env.OWNER_EMAIL || (process.env.NODE_ENV === 'production' ? '' : 'naadianajah2020@gmail.com')).trim().toLowerCase();
 export const SANDBOX_PORT = Number(process.env.SANDBOX_PORT) || 3002;
 export const JWT_TTL_SECONDS = 30 * 60; // 30 minutes
 
@@ -294,7 +294,7 @@ export function isAllowedOwnerEmail(email: string | undefined | null): boolean {
   if (!email || typeof email !== 'string') return false;
   const normalized = email.trim().toLowerCase();
   const configuredOwner = (process.env.OWNER_EMAIL || STRICT_OWNER_EMAIL).trim().toLowerCase();
-  return normalized === STRICT_OWNER_EMAIL || normalized === configuredOwner;
+  return Boolean(normalized && configuredOwner && normalized === configuredOwner);
 }
 
 function loadSandboxLoginAudits(): SandboxLoginAuditRecord[] {
@@ -396,7 +396,7 @@ function verifyTotpOrEmailOtp(email: string, code: string): boolean {
 
   // Optional static/env TOTP pin fallback if SANDBOX_2FA_PIN is set
   const envPin = (process.env.SANDBOX_2FA_PIN || '').trim();
-  if (envPin && envPin.length === 6) {
+  if (process.env.NODE_ENV !== 'production' && envPin && envPin.length === 6) {
     const a = Buffer.from(envPin, 'utf-8');
     const b = Buffer.from(cleanCode, 'utf-8');
     if (a.length === b.length && crypto.timingSafeEqual(a, b)) {
@@ -780,6 +780,10 @@ export function validateAndParseSafeCommand(rawCommand: string): {
 
 export function createSandboxCockpitRouter(): Router {
   const router = Router();
+  if (process.env.NODE_ENV === 'production' && (process.env.ENABLE_OWNER_COCKPIT !== 'true' || !process.env.OWNER_EMAIL)) {
+    router.use((_req, res) => { res.sendStatus(404); });
+    return router;
+  }
   router.use(express.json({ limit: '1mb' }));
 
   // Serve xterm and xterm-addon-fit browser assets locally from node_modules
@@ -795,7 +799,7 @@ export function createSandboxCockpitRouter(): Router {
   const setSandboxSidCookie = (res: Response, token: string) => {
     res.setHeader(
       'Set-Cookie',
-      `sandbox_sid=${encodeURIComponent(token)}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${JWT_TTL_SECONDS}`
+      `sandbox_sid=${encodeURIComponent(token)}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${JWT_TTL_SECONDS}${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`
     );
   };
 
@@ -817,7 +821,7 @@ export function createSandboxCockpitRouter(): Router {
   });
 
   // 1a. POST /api/sandbox/login (Step 1) — Verify Owner email + password; issue loginTicket if 2FA required or full JWT otherwise
-  router.post('/login', async (req: Request, res: Response) => {
+  router.post('/login', loginLimiter, async (req: Request, res: Response) => {
     const rawEmail = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : '';
     const rawPassword = typeof req.body?.password === 'string' ? req.body.password : '';
 
@@ -887,7 +891,7 @@ export function createSandboxCockpitRouter(): Router {
 
     // Check 2FA requirement if owner has 2FA enabled or SANDBOX_REQUIRE_2FA=true
     const require2FA =
-      process.env.SANDBOX_REQUIRE_2FA === 'true' || Boolean(ownerUser?.two_factor_enabled);
+      process.env.NODE_ENV === 'production' || process.env.SANDBOX_REQUIRE_2FA === 'true' || Boolean(ownerUser?.two_factor_enabled);
 
     if (require2FA) {
       const { loginTicket } = signSandboxLoginTicket(rawEmail);
@@ -1173,7 +1177,7 @@ export function createSandboxCockpitRouter(): Router {
   });
 
   // 1e. POST /api/sandbox/auth/step-up — Verify Owner Master Password to unlock idle session & issue fresh 30m JWT
-  router.post('/auth/step-up', loginLimiter, (req: Request, res: Response) => {
+  router.post('/auth/step-up', loginLimiter, requireOwner, (req: SandboxAuthenticatedRequest, res: Response) => {
     const rawPassword = typeof req.body?.password === 'string' ? req.body.password : '';
     const ip = getClientIp(req);
     const location = resolveClientGeoLocation(req, ip);
@@ -1188,9 +1192,9 @@ export function createSandboxCockpitRouter(): Router {
     }
 
     const ownerUser =
-      findUserByEmail(STRICT_OWNER_EMAIL) ||
+      findUserByEmail(req.sandboxOwner!.email) ||
       ensureOwnerAccountForEmail(
-        STRICT_OWNER_EMAIL,
+        req.sandboxOwner!.email,
         process.env.SANDBOX_OWNER_PASSWORD || process.env.OWNER_INITIAL_PASSWORD || ''
       );
 
@@ -1206,7 +1210,7 @@ export function createSandboxCockpitRouter(): Router {
 
     if (!passwordMatches) {
       recordSandboxLoginAttempt({
-        email: STRICT_OWNER_EMAIL,
+        email: req.sandboxOwner!.email,
         ip,
         location,
         userAgent,
@@ -1220,11 +1224,11 @@ export function createSandboxCockpitRouter(): Router {
       });
     }
 
-    const { token, payload } = signSandboxJwt(STRICT_OWNER_EMAIL);
+    const { token, payload } = signSandboxJwt(req.sandboxOwner!.email);
     setSandboxSidCookie(res, token);
 
     recordSandboxLoginAttempt({
-      email: STRICT_OWNER_EMAIL,
+      email: req.sandboxOwner!.email,
       ip,
       location,
       userAgent,
@@ -1944,6 +1948,7 @@ export function attachSandboxWebSocketServer(server: http.Server): WebSocketServ
       return;
     }
 
+    if (process.env.NODE_ENV === 'production' && (process.env.ENABLE_OWNER_COCKPIT !== 'true' || !process.env.OWNER_EMAIL)) { socket.destroy(); return; }
     const token = extractSandboxTokenFromRequest(req);
     if (!token) {
       socket.write(
@@ -2137,7 +2142,7 @@ export function attachSandboxWebSocketServer(server: http.Server): WebSocketServ
  */
 export function createSandboxStandaloneApp(): Express {
   const sandboxApp = express();
-  sandboxApp.set('trust proxy', 1);
+  sandboxApp.set('trust proxy', process.env.TRUSTED_PROXY_CIDRS?.split(',').map(value => value.trim()).filter(Boolean) || false);
 
   sandboxApp.use((_req: Request, res: Response, next: NextFunction) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');

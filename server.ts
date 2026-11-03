@@ -1,3 +1,6 @@
+import { resolveQuote } from './server/checkout';
+import { getPayment, savePayment, settlePayment } from './server/paypalLedger';
+import { createStripeCheckout, stripeWebhook } from './server/stripeBilling';
 import express, { Request as ExpressRequest, Response, NextFunction } from 'express';
 import { createServer as createViteServer } from 'vite';
 import path from 'path';
@@ -42,7 +45,6 @@ import {
   updatePagePixels,
   incrementPageViews,
   incrementPageOrders,
-  recordPageOrder,
   isSlugAvailable,
   getPageOrders,
   getAllOrders,
@@ -59,6 +61,7 @@ import {
   setResetPasswordToken,
   clearResetPasswordToken,
   updateUserPassword,
+  hashPasswordWithSalt,
   getBankAccounts,
   saveBankAccounts,
   upsertBankAccount,
@@ -309,6 +312,17 @@ export function requireVerifiedEmail(req: AuthRequest, res: Response, next: Next
   });
 }
 
+// A guest checkout belongs to the browser holding this first-party, HTTP-only cookie.
+function checkoutBuyer(req: AuthRequest, res: Response, create = false) {
+  if (req.user) return req.user.id;
+  let token = /(?:^|; *)fc_buyer=([a-f0-9]{64})(?:;|$)/.exec(req.headers.cookie || '')?.[1];
+  if (!token && create) {
+    token = crypto.randomBytes(32).toString('hex');
+    res.cookie('fc_buyer', token, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', maxAge: 86400000, path: '/api' });
+  }
+  return token ? 'guest:' + crypto.createHash('sha256').update(token).digest('hex') : '';
+}
+
 // Input Sanitization Helper (prevents stored XSS in customer/merchant text fields)
 function sanitizeInput(val: unknown, maxLength: number = 500): string {
   if (typeof val !== 'string') return '';
@@ -459,7 +473,7 @@ export async function startServer() {
   const PORT = Number(process.env.PORT) || 3000;
 
   // Task 1: Trust Nginx Reverse Proxy so req.ip reflects the real client IP
-  app.set('trust proxy', 1);
+  app.set('trust proxy', process.env.TRUSTED_PROXY_CIDRS?.split(',').map((value) => value.trim()).filter(Boolean) || false);
 
   // Task 5: Helmet security headers to block MIME sniffing, XSS, and cross-origin framing
   app.use(
@@ -494,6 +508,7 @@ export async function startServer() {
     next();
   });
 
+  app.post('/api/billing/webhook', express.raw({ type: 'application/json', limit: '1mb' }), stripeWebhook);
   app.use(express.json({ limit: '10mb' }));
 
   // Health check endpoint
@@ -503,7 +518,6 @@ export async function startServer() {
 
   // Decoupled Zero-Trust Owner Sandbox Cockpit (/api/sandbox and standalone /sandbox UI)
   const sandboxUiDir = path.resolve(__dirname, 'server', 'sandbox-ui');
-  app.use('/api/sandbox/login', loginLimiter);
   app.use('/api/sandbox/2fa/send', loginLimiter);
   app.use('/api/sandbox', createSandboxCockpitRouter());
   app.use('/sandbox', express.static(sandboxUiDir, { index: 'index.html' }));
@@ -514,7 +528,8 @@ export async function startServer() {
   /* ---------------- AUTHENTICATION & LIVE 2FA OTP ENGINE ---------------- */
 
   interface ActiveOtp {
-    code: string;
+    challenge: string;
+    codeHash: string;
     userId: string;
     email: string;
     phone: string;
@@ -586,7 +601,6 @@ export async function startServer() {
       remoteIp: clientIp,
       expectedAction: 'register',
       email: typeof email === 'string' ? email : undefined,
-      role: typeof req.body?.role === 'string' ? req.body.role : undefined,
     });
     if (!isCaptchaValid) {
       return res.status(400).json({
@@ -971,12 +985,14 @@ export async function startServer() {
     const requires2FA = user.two_factor_enabled || simulate2fa;
 
     if (requires2FA) {
-      const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+      const otpCode = String(crypto.randomInt(100000, 1000000));
       const deviceInfo = extractDeviceInfo(req);
       const chosenChannel = user.phone && !user.email ? 'whatsapp' : 'email';
 
+      const challenge = crypto.randomBytes(32).toString('hex');
       activeOtps.set(user.id, {
-        code: otpCode,
+          challenge,
+        codeHash: crypto.createHmac('sha256', challenge).update(otpCode).digest('hex'),
         userId: user.id,
         email: user.email,
         phone: user.phone || '+212 722-256897',
@@ -1001,6 +1017,7 @@ export async function startServer() {
       return res.json({
         success: true,
         requires2FA: true,
+        challenge,
         userId: user.id,
         email: user.email,
         phone: user.phone || '+212 722-256897',
@@ -1037,20 +1054,15 @@ export async function startServer() {
 
   // 3. Send / Resend OTP Code (Merchant choice: Email or WhatsApp, with 45s cooldown)
   app.post('/api/auth/send-otp', async (req: Request, res: Response) => {
-    const { userId, email, channel } = req.body;
-    const targetUserId = userId || (email ? findUserByEmail(email)?.id : undefined);
-
-    if (!targetUserId && !email) {
-      return res.status(400).json({ success: false, error: 'User identifier is required.' });
+    const { userId, challenge } = req.body;
+    const existing = typeof userId === 'string' ? activeOtps.get(userId) : undefined;
+    if (!existing || existing.challenge !== challenge || Date.now() >= existing.expiresAt) {
+      return res.status(401).json({ success: false, error: 'Sign in again to request a code.' });
     }
-
-    const user = targetUserId ? findUserById(targetUserId) : findUserByEmail(email);
-    if (!user) {
-      return res.status(404).json({ success: false, error: 'User not found.' });
-    }
-
+    const user = findUserById(existing.userId);
+    if (!user || user.status === 'suspended') return res.sendStatus(403);
     const storeKey = user.id;
-    const existing = activeOtps.get(storeKey);
+    const channel = existing.channel;
 
     // Rate limiting: 45 seconds cooldown between resends
     if (existing && Date.now() - existing.lastSentAt < 45000) {
@@ -1061,14 +1073,15 @@ export async function startServer() {
       });
     }
 
-    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpCode = String(crypto.randomInt(100000, 1000000));
     const deviceInfo = extractDeviceInfo(req);
     const chosenChannel = channel === 'whatsapp' ? 'whatsapp' : 'email';
     const targetPhone = user.phone || '+212 722-256897';
     const targetEmail = user.email || 'merchant@example.com';
 
     activeOtps.set(storeKey, {
-      code: otpCode,
+      challenge,
+      codeHash: crypto.createHmac('sha256', challenge).update(otpCode).digest('hex'),
       userId: user.id,
       email: targetEmail,
       phone: targetPhone,
@@ -1127,7 +1140,7 @@ export async function startServer() {
     const storeKey = userId || (email ? findUserByEmail(email)?.id : undefined);
     const record = storeKey ? activeOtps.get(storeKey) : undefined;
 
-    if (!record) {
+    if (!record || record.challenge !== req.body.challenge) {
       recordSecurityLoginAudit({
         userEmail: candidateEmail,
         ipAddress: clientIp,
@@ -1176,7 +1189,7 @@ export async function startServer() {
     }
 
     // Strict code match - no on-screen bypass shortcuts
-    if (record.code !== cleanCode) {
+    if (record.codeHash !== crypto.createHmac('sha256', record.challenge).update(cleanCode).digest('hex')) {
       const remaining = Math.max(0, 5 - record.attempts);
       recordSecurityLoginAudit({
         userEmail: record.email || candidateEmail,
@@ -1201,6 +1214,7 @@ export async function startServer() {
       return res.status(404).json({ success: false, error: 'User not found.' });
     }
 
+    if (user.status === 'suspended') return res.sendStatus(403);
     const updatedProfile = recordUserLoginMetadata(user.id, clientIp, clientLocation, rawUserAgent);
     recordSecurityLoginAudit({
       userEmail: user.email,
@@ -1260,6 +1274,7 @@ export async function startServer() {
         picture: verifiedUser.picture,
       });
 
+      if (user.status === 'suspended') return res.sendStatus(403);
       if (!existingBeforeGoogle) {
         void sendAdminNotificationEmail(
           `🌐 تسجيل تاجر جديد عبر Google: ${user.full_name}`,
@@ -1276,12 +1291,14 @@ export async function startServer() {
       }
 
       if (user.two_factor_enabled) {
-        const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+        const otpCode = String(crypto.randomInt(100000, 1000000));
         const deviceInfo = extractDeviceInfo(req);
         const chosenChannel = user.phone && !user.email ? 'whatsapp' : 'email';
 
-        activeOtps.set(user.id, {
-          code: otpCode,
+        const challenge = crypto.randomBytes(32).toString('hex');
+      activeOtps.set(user.id, {
+          challenge,
+          codeHash: crypto.createHmac('sha256', challenge).update(otpCode).digest('hex'),
           userId: user.id,
           email: user.email,
           phone: user.phone || '+212 722-256897',
@@ -1306,6 +1323,7 @@ export async function startServer() {
         return res.json({
           success: true,
           requires2FA: true,
+        challenge,
           userId: user.id,
           email: user.email,
           phone: user.phone || '+212 722-256897',
@@ -1580,7 +1598,7 @@ export async function startServer() {
     }
 
     const newSalt = crypto.randomBytes(16).toString('hex');
-    const newHash = crypto.pbkdf2Sync(newPassword, newSalt, 1000, 64, 'sha512').toString('hex');
+    const newHash = hashPasswordWithSalt(newPassword, newSalt).hash;
 
     updateUserPassword(user.email, newHash, newSalt);
     clearResetPasswordToken(user.email);
@@ -1595,7 +1613,7 @@ export async function startServer() {
 
   const isUserAdminOrOwner = (user?: { role?: string; email?: string } | null): boolean => {
     if (!user) return false;
-    const ownerEmail = (process.env.OWNER_EMAIL || 'naadianajah2020@gmail.com').trim().toLowerCase();
+    const ownerEmail = (process.env.OWNER_EMAIL || '').trim().toLowerCase();
     return user.role === 'admin' || (user.email || '').trim().toLowerCase() === ownerEmail;
   };
 
@@ -1678,154 +1696,10 @@ export async function startServer() {
 
   /* ---------------- STRIPE & SUBSCRIPTION BILLING ($10/MO) ---------------- */
 
-  // Create Stripe Checkout Session
-  app.post('/api/billing/create-checkout-session', authMiddleware, requireVerifiedEmail, async (req: AuthRequest, res: Response) => {
-    const user = req.user!;
-    const returnUrl = req.body.returnUrl || 'http://localhost:3000';
-
-    // If real Stripe API key is configured, create live Stripe Checkout Session
-    if (process.env.STRIPE_SECRET_KEY) {
-      try {
-        // Dynamic import of stripe if installed or native https request
-        const stripeModule = await import('stripe');
-        const Stripe = (stripeModule as any).default || stripeModule;
-        const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-
-        const session = await stripe.checkout.sessions.create({
-          payment_method_types: ['card'],
-          mode: 'subscription',
-          line_items: [
-            {
-              price_data: {
-                currency: 'usd',
-                product_data: {
-                  name: 'CodWorth Pro Subscription',
-                  description: 'Unlimited landing pages, AI generations, and clean HTML exports.',
-                },
-                unit_amount: 1000, // $10.00
-                recurring: { interval: 'month' },
-              },
-              quantity: 1,
-            },
-          ],
-          customer_email: user.email,
-          client_reference_id: user.id,
-          success_url: `${returnUrl}?session_id={CHECKOUT_SESSION_ID}&billing=success`,
-          cancel_url: `${returnUrl}?billing=cancelled`,
-        });
-
-        return res.json({ success: true, url: session.url, sessionId: session.id });
-      } catch (stripeErr: any) {
-        console.warn('Stripe checkout session creation failed, using sandbox simulator:', stripeErr.message);
-      }
-    }
-
-    // Interactive Instant Sandbox Upgrade for Preview & Prototyping
-    const rawPlanId = typeof req.body?.planId === 'string' ? req.body.planId.trim().toLowerCase() : 'pro';
-    const targetPlanId: 'starter' | 'pro' | 'enterprise' =
-      rawPlanId === 'starter' || rawPlanId === 'enterprise' ? rawPlanId : 'pro';
-    const targetTier =
-      targetPlanId === 'starter'
-        ? 'starter_tier'
-        : targetPlanId === 'enterprise'
-          ? 'enterprise_tier'
-          : 'pro_monthly';
-
-    updateUserPlan(user.id, targetPlanId);
-    const updatedUser = updateUserSubscription(
-      user.id,
-      'active',
-      targetTier,
-      'cus_test_stripe_' + Date.now(),
-      'sub_test_stripe_' + Date.now(),
-      new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
-    );
-
-    void sendAdminNotificationEmail(
-      `💎 ترقية اشتراك ${targetPlanId.toUpperCase()} جديدة: ${updatedUser.full_name}`,
-      `
-      <h3 style="margin: 0 0 14px 0; color: #10b981; font-size: 18px;">تمت ترقية حساب تاجر إلى باقة ${targetPlanId.toUpperCase()}!</h3>
-      <div style="background-color: #020617; border: 1px solid #1e293b; border-radius: 16px; padding: 18px;">
-        <p style="margin: 6px 0;"><strong>👤 التاجر:</strong> ${updatedUser.full_name}</p>
-        <p style="margin: 6px 0;"><strong>📧 البريد الإلكتروني:</strong> <span dir="ltr">${updatedUser.email}</span></p>
-        <p style="margin: 6px 0;"><strong>💳 الباقة:</strong> ${targetPlanId.toUpperCase()}</p>
-      </div>
-      `
-    ).catch((err) => console.error('Admin notification error (checkout upgrade):', err));
-
-    return res.json({
-      success: true,
-      simulated: true,
-      user: updatedUser,
-      message: `Successfully upgraded to ${targetPlanId.toUpperCase()}! Unlimited pages unlocked.`,
-    });
-  });
-
-  // Direct Simulated Upgrade for 1-Click Testing in AI Studio
-  app.post('/api/billing/simulate-upgrade', authMiddleware, (req: AuthRequest, res: Response) => {
-    const updatedUser = updateUserSubscription(
-      req.user!.id,
-      'active',
-      'pro_monthly',
-      'cus_test_' + Date.now(),
-      'sub_test_' + Date.now(),
-      new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
-    );
-
-    void sendAdminNotificationEmail(
-      `💎 ترقية اشتراك Pro: ${updatedUser.full_name}`,
-      `
-      <h3 style="margin: 0 0 14px 0; color: #10b981; font-size: 18px;">تم تفعيل اشتراك Pro لتاجر!</h3>
-      <div style="background-color: #020617; border: 1px solid #1e293b; border-radius: 16px; padding: 18px;">
-        <p style="margin: 6px 0;"><strong>👤 التاجر:</strong> ${updatedUser.full_name}</p>
-        <p style="margin: 6px 0;"><strong>📧 البريد الإلكتروني:</strong> <span dir="ltr">${updatedUser.email}</span></p>
-        <p style="margin: 6px 0;"><strong>💳 الباقة:</strong> Pro Monthly ($10/mo)</p>
-      </div>
-      `
-    ).catch((err) => console.error('Admin notification error (simulate upgrade):', err));
-
-    return res.json({
-      success: true,
-      user: updatedUser,
-      message: '🎉 Upgraded to CodWorth Pro ($10/month)! Unlimited pages unlocked.',
-    });
-  });
-
-  // Stripe Webhook Endpoint
-  app.post('/api/billing/webhook', (req: Request, res: Response) => {
-    const event = req.body;
-    console.log('Received billing webhook event:', event?.type);
-
-    try {
-      if (event?.type === 'checkout.session.completed') {
-        const session = event.data?.object;
-        const userId = session?.client_reference_id;
-        const customerId = session?.customer;
-        const subscriptionId = session?.subscription;
-
-        if (userId) {
-          updateUserSubscription(
-            userId,
-            'active',
-            'pro_monthly',
-            customerId,
-            subscriptionId,
-            new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
-          );
-        }
-      } else if (event?.type === 'customer.subscription.deleted') {
-        const sub = event.data?.object;
-        const customerId = sub?.customer;
-        // Find user by customer ID and mark cancelled
-        if (customerId) {
-          // find and update
-        }
-      }
-      return res.json({ received: true });
-    } catch (err: any) {
-      return res.status(400).send(`Webhook Error: ${err.message}`);
-    }
-  });
+  app.post('/api/billing/create-checkout-session', authMiddleware, requireVerifiedEmail, createStripeCheckout);
+  app.post('/api/billing/simulate-upgrade', (_req: Request, res: Response) =>
+    res.status(410).json({ success: false, error: 'Simulated upgrades have been removed.' })
+  );
 
   /* ---------------- MULTI-CURRENCY EXCHANGE RATES (PUBLIC, 1-HOUR CACHE) ---------------- */
 
@@ -2359,6 +2233,16 @@ export async function startServer() {
   });
 
   // Get specific page by ID (Strictly enforces req.user.id ownership or admin)
+  app.get('/api/pages/check-slug', (req: Request, res: Response) => {
+    const slug = ((req.query.slug as string) || '').trim();
+    const excludePageId = ((req.query.excludeId as string) || '').trim();
+    if (!slug) {
+      return res.status(400).json({ success: false, error: 'Slug is required.' });
+    }
+    const available = isSlugAvailable(slug, excludePageId || undefined);
+    return res.json({ success: true, slug, available });
+  });
+
   app.get('/api/pages/:id', authMiddleware, (req: AuthRequest, res: Response) => {
     const isAdmin = isUserAdminOrOwner(req.user);
     const page = getUserPageById(req.user!.id, req.params.id, isAdmin);
@@ -2555,71 +2439,37 @@ export async function startServer() {
           });
         }
 
-        if (candidateDomain !== page.customDomain) {
+        if (candidateDomain !== page.customDomain || !page.domainProof) {
           setPageCustomDomain(user.id, pageId, candidateDomain, isAdmin);
         }
 
         const targetDomain = (page.customDomain || candidateDomain).trim().toLowerCase();
-        const wwwVariant = targetDomain.startsWith('www.') ? targetDomain : `www.${targetDomain}`;
-        const rootVariant = targetDomain.replace(/^www\./, '');
 
-        const aRecords: string[] = [];
-        const cnameRecords: string[] = [];
 
-        // 1. Resolve A records on targetDomain and rootVariant
-        try {
-          const resolvedA = await dns.resolve4(targetDomain);
-          for (const ip of resolvedA) {
-            if (!aRecords.includes(ip)) aRecords.push(ip);
-          }
-        } catch (_err) {
-          // ENODATA / ENOTFOUND expected if not configured or CNAME only
-        }
-
-        if (rootVariant !== targetDomain) {
-          try {
-            const resolvedRootA = await dns.resolve4(rootVariant);
-            for (const ip of resolvedRootA) {
-              if (!aRecords.includes(ip)) aRecords.push(ip);
-            }
-          } catch (_err) {
-            // ignore
-          }
-        }
-
-        // 2. Resolve CNAME records on targetDomain and wwwVariant
-        try {
-          const resolvedCname = await dns.resolveCname(targetDomain);
-          for (const cn of resolvedCname) {
-            const cleanCn = cn.trim().toLowerCase().replace(/\.$/, '');
-            if (!cnameRecords.includes(cleanCn)) cnameRecords.push(cleanCn);
-          }
-        } catch (_err) {
-          // ENODATA / ENOTFOUND expected if root domain uses A record
-        }
-
-        if (wwwVariant !== targetDomain) {
-          try {
-            const resolvedWwwCname = await dns.resolveCname(wwwVariant);
-            for (const cn of resolvedWwwCname) {
-              const cleanCn = cn.trim().toLowerCase().replace(/\.$/, '');
-              if (!cnameRecords.includes(cleanCn)) cnameRecords.push(cleanCn);
-            }
-          } catch (_err) {
-            // ignore
-          }
-        }
+        const proof = page.domainProof;
+        const txtName = '_funnelcraft.' + targetDomain;
+        const [aRecords, rawCnames, txt] = await Promise.all([
+          dns.resolve4(targetDomain).catch((): string[] => []),
+          dns.resolveCname(targetDomain).catch((): string[] => []),
+          dns.resolveTxt(txtName).catch((): string[][] => []),
+        ]);
+        const cnameRecords = rawCnames.map(name => name.toLowerCase().replace(/\.$/, ''));
+        const txtVerified = Boolean(proof && txt.some(parts => parts.join('') === proof));
+        const current = getUserPageById(user.id, pageId, isAdmin);
+        if (!current || current.customDomain !== targetDomain || current.domainProof !== proof)
+          return res.status(409).json({ success: false, error: 'Domain settings changed. Verify again.' });
 
         const expectedCnames = new Set([CNAME_TARGET.toLowerCase(), 'codworth.me', 'www.codworth.me']);
         const hasValidARecord = aRecords.includes(VPS_IP);
         const hasValidCname = cnameRecords.some((cn) => expectedCnames.has(cn));
 
         const expectedRecords = {
+          txtRecord: { type: 'TXT', host: txtName, value: proof },
           aRecord: { type: 'A', host: '@', value: VPS_IP, ttl: 'Auto / 3600' },
           cnameRecord: { type: 'CNAME', host: 'www', value: CNAME_TARGET, ttl: 'Auto / 3600' },
         };
 
-        if (hasValidARecord || hasValidCname) {
+        if (txtVerified && (hasValidARecord || hasValidCname)) {
           const verifiedPage = updatePageDomainStatus(user.id, pageId, 'active', null, isAdmin);
           return res.status(200).json({
             success: true,
@@ -2641,7 +2491,7 @@ export async function startServer() {
             ? `Detected A: [${aRecords.join(', ') || 'none'}], CNAME: [${cnameRecords.join(', ') || 'none'}].`
             : 'No matching DNS A or CNAME records were found yet.';
 
-        const errorMessage = `DNS verification failed for "${targetDomain}". ${detectedSummary} Expected A record (@ -> ${VPS_IP}) or CNAME record (www -> ${CNAME_TARGET}).`;
+        const errorMessage = !txtVerified ? `Add TXT ${txtName} with value ${proof}, then verify again.` : `DNS verification failed for "${targetDomain}". ${detectedSummary} Expected A record (@ -> ${VPS_IP}) or CNAME record (www -> ${CNAME_TARGET}).`;
 
         const failedPage = updatePageDomainStatus(user.id, pageId, 'error', errorMessage, isAdmin);
 
@@ -2720,15 +2570,7 @@ export async function startServer() {
   /* ---------------- 1-CLICK PUBLISHING & LIVE DOMAIN HOSTING ---------------- */
 
   // Check if a slug is available for publishing
-  app.get('/api/pages/check-slug', (req: Request, res: Response) => {
-    const slug = ((req.query.slug as string) || '').trim();
-    const excludePageId = ((req.query.excludeId as string) || '').trim();
-    if (!slug) {
-      return res.status(400).json({ success: false, error: 'Slug is required.' });
-    }
-    const available = isSlugAvailable(slug, excludePageId || undefined);
-    return res.json({ success: true, slug, available });
-  });
+
 
   // Publish a landing page live
   app.post('/api/pages/:id/publish', authMiddleware, requireVerifiedEmail, (req: AuthRequest, res: Response) => {
@@ -2736,7 +2578,7 @@ export async function startServer() {
       const user = req.user!;
       const isAdmin = isUserAdminOrOwner(user);
       const pageId = req.params.id;
-      const { slug, customDomain, compiledHtml } = req.body;
+      const { slug, customDomain } = req.body;
 
       if (!slug || !slug.trim()) {
         return res.status(400).json({ success: false, error: 'A live URL slug is required for publishing.' });
@@ -2777,9 +2619,9 @@ export async function startServer() {
         });
       }
 
-      // Generate clean standalone HTML if not provided
-      let finalHtml = compiledHtml;
-      if (!finalHtml && existingPage.data) {
+      // Render only the saved page data. Uploaded HTML is never trusted.
+      let finalHtml: string | undefined;
+      if (existingPage.data) {
         finalHtml = generateStandaloneHtml({
           ...existingPage.data,
           slug: slug.trim(),
@@ -2854,7 +2696,7 @@ export async function startServer() {
       const host = req.get('host') || 'localhost:3000';
       const protocol = req.protocol === 'https' || req.get('x-forwarded-proto') === 'https' ? 'https' : 'http';
       const liveUrl = page.isPublished ? `${protocol}://${host}/p/${page.slug}` : null;
-      const orders = page.slug ? getPageOrders(page.slug) : [];
+      const orders = page.slug ? getPageOrders(page.slug, page.userId) : [];
 
       return res.json({
         success: true,
@@ -2946,9 +2788,7 @@ export async function startServer() {
           : totalOrders > 0
           ? 100
           : 0;
-      const deliveredCount = scopedOrders.filter(
-        (o) => o.status === 'delivered' || o.status === 'confirmed' || o.status === 'paid'
-      ).length;
+      const deliveredCount = scopedOrders.filter((o) => o.status === 'delivered').length;
       const deliveryRate =
         totalOrders > 0 ? Number(((deliveredCount / totalOrders) * 100).toFixed(1)) : 0;
       const formStarts = 0; // TODO: real form-start tracking requires a client beacon at POST /api/analytics/form-start (out of scope).
@@ -3042,7 +2882,7 @@ export async function startServer() {
   });
 
   // POST /api/orders: Receives new order submissions from COD forms or PayPal Checkout (Sanitized & owner-resolved via pageSlug/funnelId or req.user.id)
-  app.post('/api/orders', optionalAuthMiddleware, async (req: AuthRequest, res: Response) => {
+  app.post(['/api/orders', '/api/orders/submit'], optionalAuthMiddleware, async (req: AuthRequest, res: Response) => {
     try {
       if (req.user && !isOwnerOrAdminUser(req.user, process.env.OWNER_EMAIL) && req.user.email_verified !== true) {
         return res.status(403).json({
@@ -3104,24 +2944,25 @@ export async function startServer() {
         return res.status(400).json({ success: false, error: 'Phone number is required for Cash on Delivery.' });
       }
 
-      // Never trust client-provided req.body.userId; resolve owner from pageSlug/funnelId in db, or fallback to authenticated req.user.id
+      const payment = isPayPal && typeof paypalOrderId === 'string' && /^[A-Za-z0-9-]{1,80}$/.test(paypalOrderId) ? getPayment(paypalOrderId) : undefined;
+      if (isPayPal && (!payment?.captureId || payment.sourceType !== 'landing_page' || payment.userId !== checkoutBuyer(req, res))) {
+        return res.status(400).json({ success: false, error: 'A verified product payment is required.' });
+      }
+      const quote = isPayPal ? payment?.quote : resolveQuote(req.body);
+      if (!quote) return res.status(400).json({ success: false, error: 'Published offer unavailable. Refresh the page.' });
+      const prior = isPayPal && getAllOrders().find(o => o.paypalOrderId === paypalOrderId);
+      if (prior) return res.json({ success: true, orderId: prior.id });
       const order = recordCodOrder({
-        customerName: sanitizeInput(customerName || (isPayPal ? 'زبون PayPal' : 'زبون'), 100) || 'زبون',
+        customerName: sanitizeInput(customerName || 'Customer', 100),
         phone: effectivePhone,
-        customerCountry: sanitizeInput(customerCountry || country || 'Morocco', 80) || 'Morocco',
-        city: sanitizeInput(city || customerCity || 'Casablanca', 80) || 'Casablanca',
+        customerCountry: sanitizeInput(customerCountry || country || 'Morocco', 80),
+        city: sanitizeInput(city || customerCity || '', 80),
         address: sanitizeInput(address || customerAddress || '', 250),
-        productName: sanitizeInput(productName || 'منتج مميز', 160) || 'منتج مميز',
-        price: price || 299,
-        quantity: Math.max(1, Math.min(99, Number(quantity) || 1)),
-        funnelId: typeof funnelId === 'string' ? funnelId.trim() : undefined,
-        pageSlug: typeof pageSlug === 'string' ? pageSlug.trim() : undefined,
-        userId: req.user?.id,
-        notes: sanitizeInput(notes || '', 500),
-        paymentMethod: isPayPal ? 'paypal' : 'cod',
-        status: isPayPal && (!status || status === 'paid') ? 'paid' : status,
-        currency: typeof currency === 'string' && currency.trim() ? currency.trim().toUpperCase() : 'MAD',
-        paypalOrderId: typeof paypalOrderId === 'string' ? sanitizeInput(paypalOrderId, 80) : undefined,
+        productName: quote.product, price: quote.price, quantity: quote.quantity,
+        funnelId: quote.pageId, pageSlug: quote.slug, userId: quote.ownerId,
+        notes: sanitizeInput(notes || req.body.customerNotes || '', 500),
+        paymentMethod: isPayPal ? 'paypal' : 'cod', status: isPayPal ? 'paid' : 'pending',
+        currency: quote.currency, paypalOrderId: isPayPal ? paypalOrderId : undefined,
       });
 
       void sendAdminNotificationEmail(
@@ -3143,8 +2984,8 @@ export async function startServer() {
 
       return res.json({
         success: true,
-        order,
         orderId: order.id,
+        total: order.price, currency: order.currency,
         message: 'Order created successfully!',
       });
     } catch (err: any) {
@@ -3258,28 +3099,6 @@ export async function startServer() {
       });
     }
   });
-
-  // Server-side registry of expected PayPal order amounts (OrderId -> Expected Amount & Metadata)
-  const expectedPayPalOrders = new Map<
-    string,
-    {
-      expectedAmount: string;
-      expectedCurrency: string;
-      priceMAD: number;
-      originalPriceMAD: number;
-      discountAmountMAD: number;
-      couponCode?: string;
-      identifier: string;
-      sourceType: 'plan' | 'landing_page';
-      userId?: string;
-      planId?: 'starter' | 'pro' | 'enterprise';
-      billingCycle?: 'monthly' | 'yearly';
-      createdAt: number;
-    }
-  >();
-
-  // Track PayPal order IDs whose coupon usage has already been incremented (prevents double-counting between capture & webhook)
-  const redeemedCouponOrders = new Set<string>();
 
   // Helper to normalize a planId string to a valid paid SubscriptionPlanId
   const normalizePaidPlanId = (raw: unknown): 'starter' | 'pro' | 'enterprise' | null => {
@@ -3396,99 +3215,9 @@ export async function startServer() {
       };
     }
 
-    // 2. Otherwise resolve as a Landing Page product checkout by pageSlug / funnelId / identifier
-    const lookupKeys = [rawPageSlug, rawFunnelId, rawIdentifier].filter(Boolean);
-    let resolvedPage: ReturnType<typeof getPublishedPageBySlug> = null;
-    let matchedKey = '';
-
-    for (const key of lookupKeys) {
-      const found = getPublishedPageBySlug(key);
-      if (found) {
-        resolvedPage = found;
-        matchedKey = key;
-        break;
-      }
-    }
-
-    if (!resolvedPage || !resolvedPage.data) {
-      return null;
-    }
-
-    const pageData = resolvedPage.data as Record<string, any>;
-    const scrapedData = (pageData.scrapedData || {}) as Record<string, any>;
-    const requestedBundleIndex =
-      payload.bundleIndex !== undefined && payload.bundleIndex !== null && payload.bundleIndex !== ''
-        ? Number(payload.bundleIndex)
-        : undefined;
-    const requestedBundleQuantity =
-      payload.bundleQuantity !== undefined && payload.bundleQuantity !== null && payload.bundleQuantity !== ''
-        ? Number(payload.bundleQuantity)
-        : undefined;
-
-    let priceMAD = 0;
-
-    // Collect bundles from scrapedData.bundles, pageData.bundles, or cod-form block in pageData.blocks
-    let bundles: Array<{ price?: number; quantity?: number }> = [];
-    if (Array.isArray(scrapedData.bundles) && scrapedData.bundles.length > 0) {
-      bundles = scrapedData.bundles;
-    } else if (Array.isArray(pageData.bundles) && pageData.bundles.length > 0) {
-      bundles = pageData.bundles;
-    } else if (Array.isArray(pageData.blocks)) {
-      const codBlock = pageData.blocks.find(
-        (b: any) => b && b.type === 'cod-form' && b.content && Array.isArray(b.content.bundles)
-      );
-      if (codBlock?.content?.bundles?.length > 0) {
-        bundles = codBlock.content.bundles;
-      }
-    }
-
-    if (bundles.length > 0) {
-      let selectedBundle = bundles[0];
-      if (
-        typeof requestedBundleIndex === 'number' &&
-        Number.isInteger(requestedBundleIndex) &&
-        requestedBundleIndex >= 0 &&
-        requestedBundleIndex < bundles.length
-      ) {
-        selectedBundle = bundles[requestedBundleIndex];
-      } else if (
-        typeof requestedBundleQuantity === 'number' &&
-        Number.isFinite(requestedBundleQuantity) &&
-        requestedBundleQuantity > 0
-      ) {
-        const byQty = bundles.find((b) => Number(b?.quantity) === requestedBundleQuantity);
-        if (byQty) {
-          selectedBundle = byQty;
-        }
-      }
-      priceMAD = Number(selectedBundle?.price);
-    }
-
-    // Fallback to base product price if bundles had no valid price
-    if (!Number.isFinite(priceMAD) || priceMAD <= 0) {
-      const rawBasePrice =
-        scrapedData.price ??
-        pageData.price ??
-        pageData.productPrice ??
-        (Array.isArray(pageData.blocks)
-          ? pageData.blocks.find((b: any) => b?.type === 'cod-form')?.content?.productPrice
-          : undefined);
-      const basePrice = Number(String(rawBasePrice ?? '').replace(/[^\d.]/g, ''));
-
-      if (Number.isFinite(basePrice) && basePrice > 0) {
-        if (requestedBundleQuantity === 2) {
-          priceMAD = Math.round(basePrice * 2 * 0.85);
-        } else if (requestedBundleQuantity === 3) {
-          priceMAD = Math.round(basePrice * 3 * 0.75);
-        } else {
-          priceMAD = basePrice;
-        }
-      }
-    }
-
-    if (!Number.isFinite(priceMAD) || priceMAD <= 0) {
-      return null;
-    }
+    const quote = resolveQuote(payload);
+    if (!quote || quote.currency !== 'MAD') return null;
+    const priceMAD = quote.price;
 
     const settlement = calculatePayPalUsdSettlement(priceMAD, activeRates);
     if (!Number.isFinite(settlement.amount) || settlement.amount <= 0) {
@@ -3502,7 +3231,7 @@ export async function startServer() {
       amountUSD: settlement.amount,
       formattedValue: settlement.amount.toFixed(2),
       currencyCode: 'USD',
-      identifier: `page:${resolvedPage.slug || matchedKey}`,
+      identifier: `page:${quote.pageId}`,
       sourceType: 'landing_page',
     };
   };
@@ -3510,15 +3239,7 @@ export async function startServer() {
   // POST /api/paypal/create-order: Creates a PayPal order using ONLY server-verified database/plan prices and validated coupons (Requires Authentication)
   app.post(
     '/api/paypal/create-order',
-    (req: AuthRequest, res: Response, next: NextFunction) => {
-      const ppConfig = getPayPalRuntimeConfig();
-      console.log(
-        `[PAYPAL BACKEND] Incoming POST /api/paypal/create-order | Env: ${ppConfig.environmentLabel.toUpperCase()} | ClientID: ${ppConfig.clientId.slice(0, 10)}... | HasAuthHeader: ${Boolean(req.headers.authorization)} | Body:`,
-        JSON.stringify(req.body || {})
-      );
-      return authMiddleware(req, res, next);
-    },
-    requireVerifiedEmail,
+    optionalAuthMiddleware,
     async (req: AuthRequest, res: Response) => {
       try {
         const ppConfig = getPayPalRuntimeConfig();
@@ -3536,7 +3257,7 @@ export async function startServer() {
           bundleQuantity,
         } = req.body || {};
 
-        const resolvedUserId = req.user!.id;
+        const resolvedUserId = checkoutBuyer(req, res, true);
         const normalizedPlanId = normalizePaidPlanId(planId || identifier);
         const resolvedCycle: 'monthly' | 'yearly' = billingCycle === 'yearly' ? 'yearly' : 'monthly';
         const cleanCouponCode =
@@ -3570,6 +3291,7 @@ export async function startServer() {
           cleanCouponCode ? `| Coupon: ${cleanCouponCode}` : ''
         );
 
+        const productSnapshot = resolveQuote(req.body);
         const resolvedOrder = resolveTrustedPayPalOrderPrice({
           identifier,
           planId,
@@ -3593,6 +3315,8 @@ export async function startServer() {
           });
         }
 
+        if (resolvedOrder.sourceType === 'plan' && !req.user) return res.status(401).json({ success: false, error: 'Sign in to purchase a plan.' });
+        if (resolvedOrder.sourceType === 'plan' && !req.user?.email_verified && !isOwnerOrAdminUser(req.user)) return res.status(403).json({ success: false, code: 'EMAIL_NOT_VERIFIED', error: 'Verify your email first.' });
         if (!ppConfig.clientId || !ppConfig.clientSecret) {
           console.error('[PAYPAL] Missing PAYPAL_CLIENT_ID or PAYPAL_CLIENT_SECRET in environment.');
           return res.status(500).json({
@@ -3607,22 +3331,12 @@ export async function startServer() {
 
         const formattedValue = resolvedOrder.formattedValue;
 
-        // Embed userId, planId, couponCode, and expected amount in customId (max 127 chars in PayPal v2)
-        const customIdPayload = JSON.stringify({
-          id: resolvedOrder.identifier,
-          u: resolvedUserId || '',
-          p: normalizedPlanId || '',
-          c: resolvedOrder.appliedCouponCode || '',
-          amt: formattedValue,
-          cur: normalizedCurrency,
-        }).slice(0, 127);
-
         const { result, statusCode } = await ppConfig.ordersController.createOrder({
           body: {
             intent: CheckoutPaymentIntent.Capture,
             purchaseUnits: [
               {
-                customId: customIdPayload,
+                customId: crypto.randomUUID(),
                 amount: {
                   currencyCode: normalizedCurrency,
                   value: formattedValue,
@@ -3642,7 +3356,7 @@ export async function startServer() {
         }
 
         // Record expected order amount, coupon metadata, & user/plan metadata on the server for verification during capture/webhook
-        expectedPayPalOrders.set(result.id, {
+        savePayment(result.id, {
           expectedAmount: formattedValue,
           expectedCurrency: normalizedCurrency,
           priceMAD: resolvedOrder.priceMAD,
@@ -3652,8 +3366,9 @@ export async function startServer() {
           identifier: resolvedOrder.identifier,
           sourceType: resolvedOrder.sourceType,
           userId: resolvedUserId,
-          planId: normalizedPlanId || undefined,
-          billingCycle: resolvedCycle,
+          planId: resolvedOrder.sourceType === 'plan' ? normalizePaidPlanId(resolvedOrder.identifier.split(':')[1]) || undefined : undefined,
+          billingCycle: resolvedOrder.identifier.endsWith(':yearly') ? 'yearly' : 'monthly',
+          quote: resolvedOrder.sourceType === 'landing_page' ? productSnapshot || undefined : undefined,
           createdAt: Date.now(),
         });
 
@@ -3705,18 +3420,12 @@ export async function startServer() {
   // POST /api/paypal/capture-order/:orderId: Captures an approved PayPal order, verifies COMPLETED status & expected amount, increments coupon usage, and upgrades user plan in DB (Requires Authentication)
   app.post(
     '/api/paypal/capture-order/:orderId',
-    (req: AuthRequest, res: Response, next: NextFunction) => {
-      console.log(
-        `[PAYPAL BACKEND] Incoming POST /api/paypal/capture-order/${req.params.orderId} | HasAuthHeader: ${Boolean(req.headers.authorization)}`
-      );
-      return authMiddleware(req, res, next);
-    },
-    requireVerifiedEmail,
+    optionalAuthMiddleware,
     async (req: AuthRequest, res: Response) => {
       try {
         const ppConfig = getPayPalRuntimeConfig();
         const orderId = (req.params.orderId || '').trim();
-        const authUserId = req.user!.id;
+        const authUserId = checkoutBuyer(req, res);
 
         console.log(
           '[PAYPAL] Capturing order:',
@@ -3742,178 +3451,16 @@ export async function startServer() {
           });
         }
 
-        const { result, statusCode } = await ppConfig.ordersController.captureOrder({
-          id: orderId,
-          prefer: 'return=representation',
-        });
-
-        const captureStatus =
-          result?.status ||
-          result?.purchaseUnits?.[0]?.payments?.captures?.[0]?.status;
-
-        if (captureStatus !== 'COMPLETED') {
-          console.warn('[PAYPAL CAPTURE] Non-COMPLETED status for order:', orderId, 'Status:', captureStatus);
-          return res.status(400).json({
-            success: false,
-            status: captureStatus || 'UNKNOWN',
-            error: `PayPal order capture status is ${captureStatus || 'incomplete'}, expected COMPLETED.`,
-            details: result,
-          });
+        const expected = getPayment(orderId);
+        if (!expected || expected.userId !== authUserId) return res.status(404).json({ success: false, error: 'Checkout not found.' });
+        if (expected.captureId) {
+          const user = expected.sourceType === 'plan' ? findUserById(authUserId) : undefined;
+          return res.json({ success: true, id: orderId, status: 'COMPLETED', capturedAmount: Number(expected.expectedAmount), capturedCurrency: expected.expectedCurrency, user: user ? toSafeProfile(user) : undefined });
         }
-
-        // Extract the actual captured amount and currency returned by PayPal
-        const captureObj = result?.purchaseUnits?.[0]?.payments?.captures?.[0];
-        const capturedAmountValue =
-          captureObj?.amount?.value ?? result?.purchaseUnits?.[0]?.amount?.value;
-        const capturedCurrencyCode =
-          captureObj?.amount?.currencyCode ?? result?.purchaseUnits?.[0]?.amount?.currencyCode ?? 'USD';
-
-        // Resolve expected server-side amount & metadata from:
-        // 1) In-memory expectedPayPalOrders map
-        // 2) Re-evaluating identifier/pageSlug/planId/couponCode from request body
-        // 3) Embedded customId metadata on the PayPal purchaseUnit
-        const storedOrder = expectedPayPalOrders.get(orderId);
-        const reEvaluatedOrder = resolveTrustedPayPalOrderPrice(req.body || {});
-        let customIdMeta: {
-          id?: string;
-          u?: string;
-          userId?: string;
-          p?: string;
-          planId?: string;
-          c?: string;
-          couponCode?: string;
-          amt?: string;
-          cur?: string;
-        } | null = null;
-        const rawCustomId =
-          captureObj?.customId || result?.purchaseUnits?.[0]?.customId;
-        if (typeof rawCustomId === 'string' && rawCustomId.startsWith('{')) {
-          try {
-            customIdMeta = JSON.parse(rawCustomId);
-          } catch (_e) {
-            customIdMeta = null;
-          }
-        }
-
-        const expectedAmountStr =
-          storedOrder?.expectedAmount ||
-          reEvaluatedOrder?.formattedValue ||
-          customIdMeta?.amt;
-        const expectedCurrencyStr =
-          storedOrder?.expectedCurrency ||
-          reEvaluatedOrder?.currencyCode ||
-          customIdMeta?.cur ||
-          'USD';
-
-        const numericCaptured = Number(capturedAmountValue);
-        const numericExpected = Number(expectedAmountStr);
-
-        if (
-          !Number.isFinite(numericCaptured) ||
-          numericCaptured <= 0 ||
-          !Number.isFinite(numericExpected) ||
-          numericExpected <= 0 ||
-          numericCaptured.toFixed(2) !== numericExpected.toFixed(2) ||
-          String(capturedCurrencyCode).toUpperCase() !== String(expectedCurrencyStr).toUpperCase()
-        ) {
-          console.error('[SECURITY] PayPal Capture Price Mismatch Detected:', {
-            orderId,
-            capturedAmountValue,
-            capturedCurrencyCode,
-            expectedAmountStr,
-            expectedCurrencyStr,
-          });
-          return res.status(400).json({
-            success: false,
-            code: 'PRICE_TAMPERING_DETECTED',
-            error: 'Security verification failed: Captured amount does not match the expected server-side price.',
-          });
-        }
-
-        // Increment coupon usage (currentUses) if a coupon was used on this order (idempotent per orderId)
-        const usedCouponCode =
-          storedOrder?.couponCode ||
-          customIdMeta?.c ||
-          customIdMeta?.couponCode ||
-          (typeof req.body?.couponCode === 'string' ? req.body.couponCode.trim().toUpperCase() : '');
-
-        if (usedCouponCode && !redeemedCouponOrders.has(orderId)) {
-          redeemedCouponOrders.add(orderId);
-          const updatedCoupon = incrementCouponUsage(usedCouponCode);
-          if (updatedCoupon) {
-            console.log(
-              `[PAYPAL CAPTURE] Incremented coupon usage for ${updatedCoupon.code}: ${updatedCoupon.currentUses}/${updatedCoupon.maxUses}`
-            );
-          }
-        }
-
-        // Resolve target userId and planId for subscription upgrade (req.user.id is guaranteed by authMiddleware)
-        const resolvedUserId =
-          req.user?.id ||
-          storedOrder?.userId ||
-          customIdMeta?.userId ||
-          customIdMeta?.u ||
-          '';
-        const resolvedPlanId =
-          normalizePaidPlanId(req.body?.planId) ||
-          normalizePaidPlanId(req.body?.identifier) ||
-          storedOrder?.planId ||
-          normalizePaidPlanId(customIdMeta?.planId) ||
-          normalizePaidPlanId(customIdMeta?.p) ||
-          normalizePaidPlanId(storedOrder?.identifier) ||
-          normalizePaidPlanId(customIdMeta?.id);
-
-        let upgradedUser: ReturnType<typeof toSafeProfile> | null = null;
-
-        if (resolvedUserId && resolvedPlanId) {
-          const existingUser = findUserById(resolvedUserId);
-          if (existingUser) {
-            console.log('[PAYPAL CAPTURE] Upgrading user:', resolvedUserId, 'to plan:', resolvedPlanId);
-
-            // 1. Update user's plan_id ('starter' | 'pro' | 'enterprise') and subscription_status ('active')
-            updateUserPlan(resolvedUserId, resolvedPlanId);
-
-            // 2. Also record PayPal subscription metadata & period end
-            const tier =
-              resolvedPlanId === 'starter'
-                ? 'starter_tier'
-                : resolvedPlanId === 'enterprise'
-                  ? 'enterprise_tier'
-                  : 'pro_monthly';
-            const cycleDays =
-              req.body?.billingCycle === 'yearly' || storedOrder?.billingCycle === 'yearly'
-                ? 365
-                : 30;
-
-            upgradedUser = updateUserSubscription(
-              resolvedUserId,
-              'active',
-              tier,
-              `paypal_${result.payer?.payerId || 'payer'}`,
-              `paypal_order_${orderId}`,
-              new Date(Date.now() + cycleDays * 24 * 60 * 60 * 1000).toISOString()
-            );
-          } else {
-            console.warn('[PAYPAL CAPTURE] User ID not found in DB:', resolvedUserId);
-          }
-        }
-
-        // Clean up stored order after successful verification & upgrade
-        expectedPayPalOrders.delete(orderId);
-
-        return res.status(statusCode || 200).json({
-          success: true,
-          id: result.id,
-          status: 'COMPLETED',
-          capturedAmount: Number(numericCaptured.toFixed(2)),
-          capturedCurrency: expectedCurrencyStr,
-          couponCode: usedCouponCode || undefined,
-          planId: resolvedPlanId || undefined,
-          user: upgradedUser || undefined,
-          payer: result.payer,
-          purchaseUnits: result.purchaseUnits,
-          order: result,
-        });
+        const { result } = await ppConfig.ordersController.captureOrder({ id: orderId, paypalRequestId: orderId, prefer: 'return=representation' });
+        const capture = result.purchaseUnits?.[0]?.payments?.captures?.[0];
+        const user = settlePayment(orderId, { id: capture?.id, status: capture?.status, amount: capture?.amount?.value, currency: capture?.amount?.currencyCode, time: capture?.createTime });
+        return res.json({ success: true, id: orderId, status: 'COMPLETED', capturedAmount: Number(expected.expectedAmount), capturedCurrency: expected.expectedCurrency, user, payer: result.payer, purchaseUnits: result.purchaseUnits });
       } catch (err: any) {
         const ppErr = extractPayPalErrorDetails(err);
         console.error('[PAYPAL CAPTURE-ORDER ERROR]', {
@@ -4047,89 +3594,12 @@ export async function startServer() {
       }
 
       if (event.event_type === 'PAYMENT.CAPTURE.COMPLETED') {
-        const resource = event.resource || {};
-        const paypalOrderId =
-          resource?.supplementary_data?.related_ids?.order_id || resource?.id || '';
-        const rawCustomId =
-          resource?.custom_id ||
-          resource?.purchase_units?.[0]?.custom_id ||
-          '';
-
-        let customMeta: {
-          id?: string;
-          u?: string;
-          userId?: string;
-          p?: string;
-          planId?: string;
-          c?: string;
-          couponCode?: string;
-        } | null = null;
-
-        if (typeof rawCustomId === 'string' && rawCustomId.trim().startsWith('{')) {
-          try {
-            customMeta = JSON.parse(rawCustomId);
-          } catch (_e) {
-            customMeta = null;
-          }
-        }
-
-        const storedOrder = paypalOrderId ? expectedPayPalOrders.get(paypalOrderId) : undefined;
-        const webhookCouponCode =
-          customMeta?.c ||
-          customMeta?.couponCode ||
-          storedOrder?.couponCode ||
-          '';
-
-        if (webhookCouponCode && paypalOrderId && !redeemedCouponOrders.has(paypalOrderId)) {
-          redeemedCouponOrders.add(paypalOrderId);
-          const updatedCoupon = incrementCouponUsage(webhookCouponCode);
-          if (updatedCoupon) {
-            console.log(
-              `[PAYPAL WEBHOOK] Incremented coupon usage for ${updatedCoupon.code}: ${updatedCoupon.currentUses}/${updatedCoupon.maxUses}`
-            );
-          }
-        }
-
-        const webhookUserId =
-          customMeta?.userId ||
-          customMeta?.u ||
-          storedOrder?.userId ||
-          (typeof rawCustomId === 'string' && !rawCustomId.startsWith('{') ? rawCustomId.trim() : '');
-        const webhookPlanId =
-          normalizePaidPlanId(customMeta?.planId) ||
-          normalizePaidPlanId(customMeta?.p) ||
-          storedOrder?.planId ||
-          normalizePaidPlanId(customMeta?.id) ||
-          normalizePaidPlanId(storedOrder?.identifier) ||
-          'pro';
-
-        console.log(
-          `[PAYPAL WEBHOOK] PAYMENT.CAPTURE.COMPLETED for order ${paypalOrderId} | userId: ${webhookUserId || 'none'} | planId: ${webhookPlanId}`
-        );
-
-        if (webhookUserId && webhookPlanId) {
-          const targetUser = findUserById(webhookUserId);
-          if (targetUser) {
-            console.log('[PAYPAL CAPTURE] Upgrading user:', webhookUserId, 'to plan:', webhookPlanId);
-            updateUserPlan(webhookUserId, webhookPlanId);
-            const tier =
-              webhookPlanId === 'starter'
-                ? 'starter_tier'
-                : webhookPlanId === 'enterprise'
-                  ? 'enterprise_tier'
-                  : 'pro_monthly';
-            updateUserSubscription(
-              webhookUserId,
-              'active',
-              tier,
-              'paypal_webhook',
-              `paypal_order_${paypalOrderId}`,
-              new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
-            );
-          }
+        const capture = event.resource;
+        const id = capture?.supplementary_data?.related_ids?.order_id;
+        if (typeof id === 'string' && getPayment(id)) {
+          settlePayment(id, { id: capture.id, status: capture.status, amount: capture.amount?.value, currency: capture.amount?.currency_code, time: capture.create_time });
         }
       }
-
       return res.status(200).json({ received: true, eventType: event.event_type });
     } catch (err: any) {
       console.error('PayPal Webhook Error:', err);
@@ -4172,77 +3642,7 @@ export async function startServer() {
   app.patch('/api/orders/:id', authMiddleware, requireVerifiedEmail, handleUpdateOrder);
   app.put('/api/orders/:id', authMiddleware, requireVerifiedEmail, handleUpdateOrder);
 
-  // Public COD order submission legacy alias endpoint
-  app.post('/api/orders/submit', async (req: Request, res: Response) => {
-    try {
-      const isCaptchaValid = await verifyCaptchaToken({
-        recaptchaToken: req.body.recaptchaToken || req.body['g-recaptcha-response'],
-        turnstileToken: req.body.turnstileToken || req.body['cf-turnstile-response'],
-        captchaToken: req.body.captchaToken,
-        remoteIp: extractClientIp(req),
-        expectedAction: 'cod_checkout',
-        email: req.user?.email,
-        role: req.user?.role,
-      });
-      if (!isCaptchaValid) {
-        return res.status(400).json({
-          success: false,
-          error: 'يرجى إتمام التحقق الأمني (CAPTCHA) قبل تأكيد الطلب.',
-        });
-      }
 
-      const {
-        pageSlug,
-        pageTitle,
-        customerName,
-        customerPhone,
-        customerCity,
-        customerAddress,
-        customerNotes,
-        bundleName,
-        bundlePrice,
-      } = req.body;
-
-      if (!customerPhone || !customerPhone.trim()) {
-        return res.status(400).json({ success: false, error: 'Phone number is required.' });
-      }
-
-      const result = recordPageOrder({
-        pageSlug: (pageSlug || '').trim(),
-        pageTitle,
-        customerName: (customerName || 'Customer').trim(),
-        customerPhone: customerPhone.trim(),
-        customerCity: customerCity?.trim(),
-        customerAddress: customerAddress?.trim(),
-        customerNotes: customerNotes?.trim(),
-        bundleName,
-        bundlePrice,
-      });
-
-      void sendAdminNotificationEmail(
-        `🛒 طلب COD جديد (${result.orderId}) - ${pageTitle || bundleName || 'منتج'}`,
-        `
-        <h3 style="margin: 0 0 14px 0; color: #10b981; font-size: 18px;">تم تسجيل طلب دفع عند الاستلام جديد!</h3>
-        <div style="background-color: #020617; border: 1px solid #1e293b; border-radius: 16px; padding: 18px;">
-          <p style="margin: 6px 0;"><strong>🆔 رقم الطلب:</strong> <span dir="ltr">${result.orderId}</span></p>
-          <p style="margin: 6px 0;"><strong>📦 العرض / المنتج:</strong> ${bundleName || pageTitle || 'منتج CodWorth'}</p>
-          <p style="margin: 6px 0;"><strong>💵 السعر:</strong> ${bundlePrice || 299} MAD</p>
-          <p style="margin: 6px 0;"><strong>👤 الزبون:</strong> ${(customerName || 'Customer').trim()}</p>
-          <p style="margin: 6px 0;"><strong>📱 الهاتف:</strong> <span dir="ltr">${customerPhone.trim()}</span></p>
-          <p style="margin: 6px 0;"><strong>🏙️ المدينة:</strong> ${customerCity || 'غير محدد'}</p>
-        </div>
-        `
-      ).catch((err) => console.error('Admin notification error (submit order):', err));
-
-      return res.json({
-        success: true,
-        orderId: result.orderId,
-        message: 'Order received! Confirmation sent to seller.',
-      });
-    } catch (err: any) {
-      return res.status(500).json({ success: false, error: err.message });
-    }
-  });
 
   // Public Contact Form Submission -> Sends Admin Notification Email
   app.post('/api/contact', async (req: Request, res: Response) => {
@@ -4359,6 +3759,12 @@ export async function startServer() {
     if (!normalized) return false;
     return ILLEGAL_CONTENT_PATTERNS.some((pattern) => pattern.test(normalized));
   }
+
+  const aiLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000, limit: 20, standardHeaders: 'draft-8', legacyHeaders: false,
+    keyGenerator: (req: AuthRequest) => req.user!.id,
+    message: { success: false, error: 'Hourly AI/import request limit reached.' },
+  });
 
   const handleAiGeneratePage = async (req: AuthRequest, res: Response) => {
     const rawLanguage = String(req.body?.language || 'ar').trim().toLowerCase();
@@ -4487,12 +3893,12 @@ Otherwise, return ONLY a valid JSON object with: id, title, language, direction,
     return res.json({ success: true, data: fallbackData });
   };
 
-  app.post('/api/generate-page', optionalAuthMiddleware, handleAiGeneratePage);
-  app.post('/api/ai/generate', optionalAuthMiddleware, handleAiGeneratePage);
+  app.post('/api/generate-page', authMiddleware, requireVerifiedEmail, aiLimiter, handleAiGeneratePage);
+  app.post('/api/ai/generate', authMiddleware, requireVerifiedEmail, aiLimiter, handleAiGeneratePage);
 
   /* ---------------- MULTI-LAYER DEEP PRODUCT SCRAPER ENDPOINT ---------------- */
 
-  app.post('/api/scrape-product', async (req: Request, res: Response) => {
+  app.post('/api/scrape-product', authMiddleware, requireVerifiedEmail, aiLimiter, checkPlanLimit('create_page'), async (req: Request, res: Response) => {
     const { url } = req.body as { url?: string };
     if (!url || typeof url !== 'string' || !url.trim()) {
       return res.status(400).json({ success: false, error: 'Product URL is required.' });
@@ -4516,7 +3922,7 @@ Otherwise, return ONLY a valid JSON object with: id, title, language, direction,
 
   /* ---------------- IMPORT PRODUCT FROM URL (AliExpress, Alibaba, Shopify, YouCan) ---------------- */
 
-  app.post('/api/ai/import-from-url', optionalAuthMiddleware, async (req: AuthRequest, res: Response) => {
+  app.post('/api/ai/import-from-url', authMiddleware, requireVerifiedEmail, aiLimiter, checkPlanLimit('ai_builder'), checkPlanLimit('create_page'), async (req: AuthRequest, res: Response) => {
     // If authenticated and on free tier, verify limit
     if (req.user && req.user.subscription_status !== 'active') {
       if (req.user.pages_created_count >= 2) {
@@ -4756,8 +4162,8 @@ Return ONLY a valid JSON object matching this exact schema (no markdown outside 
       const page = getActivePageByCustomDomain(rawHost);
       if (page && page.domainStatus === 'active') {
         incrementPageViews(page.slug);
-        let htmlContent = page.compiledHtml;
-        if (!htmlContent && page.data) {
+        let htmlContent: string | undefined;
+        if (page.data) {
           htmlContent = generateStandaloneHtml({
             ...page.data,
             slug: page.slug,

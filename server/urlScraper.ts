@@ -1,3 +1,5 @@
+import { validateProductUrl, publicFetch } from './publicFetch';
+export { validateProductUrl };
 /**
  * CodWorth - E-Commerce Product URL Scraper & Metadata Extractor
  * Supports AliExpress, Alibaba, Shopify, YouCan, and general e-commerce stores.
@@ -60,59 +62,7 @@ const NICHE_UNSPLASH_FALLBACKS: Record<string, string[]> = {
 /**
  * Validates and sanitizes product URLs to prevent SSRF and invalid protocols
  */
-export function validateProductUrl(inputUrl: string): { isValid: boolean; error?: string; url?: URL } {
-  if (!inputUrl || typeof inputUrl !== 'string') {
-    return { isValid: false, error: 'Product URL is required.' };
-  }
 
-  let formatted = inputUrl.trim();
-  if (!formatted.startsWith('http://') && !formatted.startsWith('https://')) {
-    formatted = 'https://' + formatted;
-  }
-
-  try {
-    const parsed = new URL(formatted);
-    if (!['http:', 'https:'].includes(parsed.protocol)) {
-      return { isValid: false, error: 'Only HTTP and HTTPS URLs are allowed.' };
-    }
-
-    const hostname = parsed.hostname.toLowerCase();
-    // Disallow loopback / private IP addresses to prevent SSRF
-    const disallowed = [
-      'localhost',
-      '127.0.0.1',
-      '0.0.0.0',
-      '::1',
-      '169.254.',
-      '10.',
-      '192.168.',
-      '172.16.',
-      '172.17.',
-      '172.18.',
-      '172.19.',
-      '172.20.',
-      '172.21.',
-      '172.22.',
-      '172.23.',
-      '172.24.',
-      '172.25.',
-      '172.26.',
-      '172.27.',
-      '172.28.',
-      '172.29.',
-      '172.30.',
-      '172.31.',
-    ];
-
-    if (disallowed.some((d) => hostname === d || hostname.startsWith(d))) {
-      return { isValid: false, error: 'Private and internal network addresses are not allowed.' };
-    }
-
-    return { isValid: true, url: parsed };
-  } catch (e: any) {
-    return { isValid: false, error: 'Invalid URL format. Please paste a full web link.' };
-  }
-}
 
 /**
  * Detects the e-commerce store platform from the hostname/pathname
@@ -226,7 +176,7 @@ export async function scrapeProductFromUrl(targetUrl: string): Promise<ScrapedPr
       if (match && match[1]) {
         const handle = match[1];
         const jsonUrl = `${url.origin}/products/${handle}.js`;
-        const res = await fetch(jsonUrl, {
+        const res = await publicFetch(jsonUrl, {
           headers: {
             'User-Agent':
               'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
@@ -280,7 +230,7 @@ export async function scrapeProductFromUrl(targetUrl: string): Promise<ScrapedPr
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 8000);
 
-    const response = await fetch(url.toString(), {
+    const response = await publicFetch(url.toString(), {
       headers: {
         'User-Agent':
           'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',

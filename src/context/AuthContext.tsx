@@ -213,6 +213,7 @@ interface AuthContextType {
 }
 
 export interface TwoFactorState {
+  challenge: string;
   isRequired: boolean;
   userId: string;
   email: string;
@@ -350,6 +351,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           const tfaState: TwoFactorState = {
             isRequired: true,
             userId: data.userId,
+            challenge: data.challenge,
             email: data.email,
             phone: data.phone,
             maskedPhone: data.maskedPhone,
@@ -458,6 +460,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           const tfaState: TwoFactorState = {
             isRequired: true,
             userId: data.userId,
+            challenge: data.challenge,
             email: data.email,
             phone: data.phone,
             maskedPhone: data.maskedPhone,
@@ -507,6 +510,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           setTwoFactorData({
             isRequired: true,
             userId: data.userId,
+            challenge: data.challenge,
             email: data.email,
             phone: data.phone,
             maskedPhone: data.maskedPhone,
@@ -542,6 +546,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           userId: twoFactorData.userId,
+          challenge: twoFactorData.challenge,
           email: twoFactorData.email,
           phone: twoFactorData.phone,
           channel: channel || twoFactorData.channel,
@@ -572,6 +577,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           userId: twoFactorData.userId,
+          challenge: twoFactorData.challenge,
           email: twoFactorData.email,
           code,
           trustDevice,

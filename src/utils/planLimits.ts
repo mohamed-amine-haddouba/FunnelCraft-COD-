@@ -141,9 +141,8 @@ export function isOwnerOrAdminAccount(
     return false;
   }
 
-  const normalizedOwner = (ownerEmail || PLATFORM_OWNER_EMAIL).toString().trim().toLowerCase();
+  const normalizedOwner = (ownerEmail || '').toString().trim().toLowerCase();
   return (
-    normalizedEmail === PLATFORM_OWNER_EMAIL ||
     (normalizedOwner.length > 0 && normalizedEmail === normalizedOwner)
   );
 }

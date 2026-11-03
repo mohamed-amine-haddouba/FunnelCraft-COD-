@@ -78,6 +78,7 @@ export interface SaaSCoupon {
   discountValue: number;
   maxUses: number;
   currentUses: number;
+  redemptionIds?: string[];
   expiresAt: string;
   isActive: boolean;
   createdAt?: string;
@@ -144,7 +145,7 @@ if (!fs.existsSync(DATA_DIR)) {
 }
 
 function hashPassword(password: string, salt: string): string {
-  return crypto.pbkdf2Sync(password, salt, 1000, 64, 'sha512').toString('hex');
+  return 'scrypt-v1$' + crypto.scryptSync(password, salt, 64, { N: 32768, r: 8, p: 3, maxmem: 64 * 1024 * 1024 }).toString('hex');
 }
 
 export function hashPasswordWithSalt(password: string, salt?: string): { hash: string; salt: string } {
@@ -222,7 +223,6 @@ export function isOwnerOrAdminUser(
   const envOwner = (configuredOwnerEmail ?? getConfiguredOwnerEmail()).trim().toLowerCase();
   return (
     user.role === 'admin' ||
-    email === 'naadianajah2020@gmail.com' ||
     Boolean(envOwner && email === envOwner)
   );
 }
@@ -466,6 +466,11 @@ export function toSafeProfile(user: StoredUser): UserProfile {
     initialPasswordBootstrapped,
     ...profile
   } = user;
+  if (profile.role !== 'admin' && (profile.subscription_status === 'cancelled' ||
+      profile.subscription_status === 'past_due' ||
+      (profile.current_period_end && Date.parse(profile.current_period_end) <= Date.now()))) {
+    return { ...profile, plan_id: 'free', subscription_tier: 'free_tier', subscription_status: 'free' };
+  }
   return profile;
 }
 
@@ -682,6 +687,7 @@ export function updateUserAccountStatus(
   const user = users.get(userId);
   if (!user) throw new Error('User not found.');
   user.status = status;
+  if (status === 'suspended') invalidateAllUserSessions(userId);
   users.set(userId, user);
   saveUsersToDisk(users);
   return toSafeProfile(user);
@@ -711,7 +717,7 @@ export function createAdminUser(data: {
   }
 
   const salt = crypto.randomBytes(16).toString('hex');
-  const passwordHash = hashPassword(data.password || 'password123', salt);
+  const passwordHash = hashPassword(data.password || crypto.randomBytes(32).toString('hex'), salt);
   const id = `user-${crypto.randomUUID()}`;
   const planId = data.planId || 'free';
   const configuredOwner = getConfiguredOwnerEmail();
@@ -774,7 +780,6 @@ export function createUser(
 
   const configuredOwner = getConfiguredOwnerEmail();
   const isSuperAdminEmail =
-    normalized === 'naadianajah2020@gmail.com' ||
     Boolean(configuredOwner && normalized === configuredOwner);
   const nowIso = new Date().toISOString();
 
@@ -1021,16 +1026,18 @@ export function timingSafeVerifyPassword(user: StoredUser | undefined, attempt: 
   const candidate = typeof attempt === 'string' ? attempt : '';
   const saltToUse = user?.password_salt || DUMMY_SALT;
   const expectedHex = user?.password_hash || DUMMY_HASH;
-  const computedHex = hashPassword(candidate, saltToUse);
-
-  const expectedBuf = Buffer.from(expectedHex, 'hex');
-  const computedBuf = Buffer.from(computedHex, 'hex');
-
-  if (expectedBuf.length !== computedBuf.length) {
-    return false;
+  const legacy = /^[0-9a-f]{128}$/i.test(expectedHex);
+  const actual = legacy
+    ? crypto.pbkdf2Sync(candidate, saltToUse, 1000, 64, 'sha512').toString('hex')
+    : hashPassword(candidate, saltToUse);
+  const expected = Buffer.from(expectedHex);
+  const computed = Buffer.from(actual);
+  if (expected.length !== computed.length || !crypto.timingSafeEqual(expected, computed) || !user || !candidate) return false;
+  if (legacy) {
+    user.password_hash = hashPassword(candidate, saltToUse);
+    saveUsersToDisk(users);
   }
-  const matches = crypto.timingSafeEqual(expectedBuf, computedBuf);
-  return Boolean(user && candidate.length > 0 && matches);
+  return true;
 }
 
 export function verifyPassword(user: StoredUser, attempt: string): boolean {
@@ -1225,6 +1232,8 @@ function hashSessionToken(rawToken: string): string {
 }
 
 export function createSession(userId: string): string {
+  const user = users.get(userId);
+  if (!user || user.status === 'suspended') throw new Error('Account unavailable.');
   const rawToken = crypto.randomBytes(32).toString('hex');
   const tokenHash = hashSessionToken(rawToken);
   const expiresAt = Date.now() + 30 * 24 * 60 * 60 * 1000;
@@ -1251,7 +1260,13 @@ export function getUserByToken(token: string): StoredUser | undefined {
     saveSessionsToDisk();
     return undefined;
   }
-  return users.get(session.userId);
+  const user = users.get(session.userId);
+  if (!user || user.status === 'suspended') {
+    sessions.delete(tokenHash);
+    saveSessionsToDisk();
+    return undefined;
+  }
+  return user;
 }
 
 export function deleteSession(token: string): void {
@@ -1310,20 +1325,21 @@ export function updateUserSubscription(
   stripeSubscriptionId?: string,
   currentPeriodEnd?: string
 ): UserProfile {
-  const user = users.get(userId);
-  if (!user) {
+  const previous = users.get(userId);
+  if (!previous) {
     throw new Error('User not found.');
   }
 
+  const user = { ...previous };
   user.subscription_status = status;
   user.subscription_tier = tier;
   if (status === 'active') {
-    user.status = 'active';
+    // Payment must never reactivate an administratively suspended account.
     if (tier === 'starter_tier') {
       user.plan_id = 'starter';
     } else if (tier === 'enterprise_tier') {
       user.plan_id = 'enterprise';
-    } else if (!user.plan_id || user.plan_id === 'free') {
+    } else {
       user.plan_id = 'pro';
     }
   } else if (status === 'free') {
@@ -1333,8 +1349,9 @@ export function updateUserSubscription(
   if (stripeSubscriptionId) user.stripe_subscription_id = stripeSubscriptionId;
   if (currentPeriodEnd) user.current_period_end = currentPeriodEnd;
 
+  const updated = new Map(users).set(userId, user);
+  if (!saveUsersToDisk(updated)) throw new Error('Unable to save subscription.');
   users.set(userId, user);
-  saveUsersToDisk(users);
   return toSafeProfile(user);
 }
 
@@ -1513,7 +1530,7 @@ const activeDomainToSlugCache = new Map<string, string>();
 function rebuildActiveDomainCache(pagesMap: Map<string, StoredPage>): void {
   activeDomainToSlugCache.clear();
   for (const p of pagesMap.values()) {
-    if (p.customDomain && p.domainStatus === 'active') {
+    if (p.isPublished && p.customDomain && p.domainStatus === 'active') {
       const clean = p.customDomain.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, '');
       if (clean) {
         activeDomainToSlugCache.set(clean, p.slug);
@@ -1556,6 +1573,16 @@ export function saveUserPage(
     data: unknown;
   }
 ): { page: StoredPage; isNew: boolean } {
+  let domain: string | null | undefined;
+  if (pageInput.customDomain !== undefined) {
+    domain = null;
+    if (pageInput.customDomain?.trim()) {
+      const check = validateAndNormalizeCustomDomain(pageInput.customDomain);
+      if (!check.valid || isDomainClaimedByAnotherPage(check.normalizedDomain, pageInput.id))
+        throw new Error('Invalid or already connected domain.');
+      domain = check.normalizedDomain;
+    }
+  }
   const now = new Date().toISOString();
   const dataRecord =
     typeof pageInput.data === 'object' && pageInput.data !== null
@@ -1577,18 +1604,18 @@ export function saveUserPage(
         : existing.slug && !existing.slug.includes('404')
         ? existing.slug
         : slugify(existing.title);
+    if (existing.isPublished && !isSlugAvailable(candidateExistingSlug, existing.id)) throw new Error('Slug is taken.');
     existing.slug = candidateExistingSlug;
     existing.data = pageInput.data;
     if (existing.pixels && existing.data && typeof existing.data === 'object') {
       (existing.data as Record<string, unknown>).pixels = existing.pixels;
     }
-    if (pageInput.customDomain !== undefined) {
-      existing.customDomain = pageInput.customDomain || null;
-      if (!existing.customDomain) {
-        existing.domainStatus = 'not_connected';
-      } else if (!existing.domainStatus || existing.domainStatus === 'not_connected') {
-        existing.domainStatus = 'pending_dns';
-      }
+    if (domain !== undefined && domain !== existing.customDomain) {
+      existing.customDomain = domain;
+      existing.domainStatus = domain ? 'pending_dns' : 'not_connected';
+      existing.domainVerifiedAt = null;
+      existing.domainError = null;
+      existing.domainProof = domain ? crypto.randomBytes(18).toString('hex') : undefined;
     }
     if (pageInput.isPublished !== undefined) existing.isPublished = pageInput.isPublished;
     if (pageInput.compiledHtml !== undefined) existing.compiledHtml = pageInput.compiledHtml;
@@ -1610,7 +1637,7 @@ export function saveUserPage(
       ? { ...(pageInput.data as Record<string, unknown>), id: pageId, title }
       : { id: pageId, title, blocks: [] };
 
-  const normalizedCustomDomain = pageInput.customDomain ? pageInput.customDomain.trim().toLowerCase() : null;
+  const normalizedCustomDomain = domain || null;
 
   const newPage: StoredPage = {
     id: pageId,
@@ -1618,6 +1645,7 @@ export function saveUserPage(
     title,
     slug,
     customDomain: normalizedCustomDomain,
+    domainProof: normalizedCustomDomain ? crypto.randomBytes(18).toString('hex') : undefined,
     domainStatus: normalizedCustomDomain ? 'pending_dns' : 'not_connected',
     expectedDnsIp: VPS_IP,
     expectedDnsCname: CNAME_TARGET,
@@ -1752,6 +1780,7 @@ export function setPageCustomDomain(
 
   const isSameDomain = p.customDomain === normalizedDomain;
   p.customDomain = normalizedDomain;
+  if (!isSameDomain || !p.domainProof) p.domainProof = crypto.randomBytes(18).toString('hex');
   if (!isSameDomain || !p.domainStatus || p.domainStatus === 'not_connected' || p.domainStatus === 'error') {
     p.domainStatus = 'pending_dns';
     p.domainError = null;
@@ -1874,11 +1903,12 @@ export function publishPage(
   compiledHtml?: string,
   isAdmin = false
 ): StoredPage {
-  const p = pages.get(pageId);
-  if (!p || (p.userId !== userId && !isAdmin)) {
+  const original = pages.get(pageId);
+  if (!original || (original.userId !== userId && !isAdmin)) {
     throw new Error('Page not found or permission denied.');
   }
 
+  const p = { ...original };
   const cleanSlug = slugify(slug);
   if (!cleanSlug) {
     throw new Error('A valid page URL slug is required.');
@@ -1909,6 +1939,8 @@ export function publishPage(
       }
       if (p.customDomain !== validation.normalizedDomain) {
         p.customDomain = validation.normalizedDomain;
+        p.domainProof = crypto.randomBytes(18).toString('hex');
+        p.domainVerifiedAt = null;
         p.domainStatus = 'pending_dns';
       }
     }
@@ -1961,25 +1993,10 @@ export function getPublishedPageBySlug(slug: string): StoredPage | null {
     const pageSlug = (p.slug || '').trim().toLowerCase();
     const pageSlugified = slugify(pageSlug);
     if (
-      pageSlug === normalized ||
+      p.id.toLowerCase() === normalized || pageSlug === normalized ||
       pageSlug === slugifiedTarget ||
       pageSlugified === normalized ||
       pageSlugified === slugifiedTarget
-    ) {
-      return p;
-    }
-  }
-
-  // 2. Fallback to any saved page matching the slug or ID so saved funnel links always resolve
-  for (const p of pages.values()) {
-    const pageSlug = (p.slug || '').trim().toLowerCase();
-    const pageSlugified = slugify(pageSlug);
-    if (
-      pageSlug === normalized ||
-      pageSlug === slugifiedTarget ||
-      pageSlugified === normalized ||
-      pageSlugified === slugifiedTarget ||
-      p.id.toLowerCase() === normalized
     ) {
       return p;
     }
@@ -2004,7 +2021,7 @@ export function getActivePageByCustomDomain(host: string): StoredPage | null {
     activeDomainToSlugCache.get(normalized.replace(/^www\./, ''));
   if (cachedSlug) {
     const bySlug = getPublishedPageBySlug(cachedSlug);
-    if (bySlug && bySlug.domainStatus === 'active') {
+    if (bySlug && bySlug.isPublished && bySlug.customDomain?.toLowerCase() === normalized && bySlug.domainStatus === 'active') {
       return bySlug;
     }
   }
@@ -2012,9 +2029,9 @@ export function getActivePageByCustomDomain(host: string): StoredPage | null {
   // Fallback linear scan for active custom domains
   const bare = normalized.replace(/^www\./, '');
   for (const p of pages.values()) {
-    if (p.customDomain && p.domainStatus === 'active') {
-      const pageDom = p.customDomain.trim().toLowerCase().replace(/^www\./, '');
-      if (pageDom === bare) {
+    if (p.isPublished && p.customDomain && p.domainStatus === 'active') {
+      const pageDom = p.customDomain.trim().toLowerCase();
+      if (pageDom === normalized) {
         activeDomainToSlugCache.set(normalized, p.slug);
         return p;
       }
@@ -2074,27 +2091,16 @@ export interface CustomerOrder {
 }
 
 function loadOrdersFromDisk(): CustomerOrder[] {
-  if (fs.existsSync(ORDERS_FILE)) {
-    try {
-      const parsed: unknown = JSON.parse(fs.readFileSync(ORDERS_FILE, 'utf-8'));
-      if (Array.isArray(parsed)) {
-        return parsed as CustomerOrder[];
-      }
-    } catch {
-      // Return empty array if corrupted
-    }
-  }
-  return [];
+  if (!fs.existsSync(ORDERS_FILE)) return [];
+  const parsed: unknown = JSON.parse(fs.readFileSync(ORDERS_FILE, 'utf-8'));
+  if (!Array.isArray(parsed)) throw new Error('Invalid order storage. Restore a known-good backup.');
+  return parsed as CustomerOrder[];
 }
 
 const orders: CustomerOrder[] = loadOrdersFromDisk();
 
 function saveOrdersToDisk(list: CustomerOrder[]): void {
-  try {
-    fs.writeFileSync(ORDERS_FILE, JSON.stringify(list, null, 2), 'utf-8');
-  } catch (e) {
-    console.error('Failed to save orders to disk:', e);
-  }
+  if (!writeJsonFileAtomic(ORDERS_FILE, list)) throw new Error('Unable to persist order. Please retry.');
 }
 
 export function getAllOrders(): CustomerOrder[] {
@@ -2111,25 +2117,8 @@ export function getOrdersForUser(userId?: string, isAdmin?: boolean): CustomerOr
     return [];
   }
 
-  const userSlugs = new Set<string>();
-  for (const p of pages.values()) {
-    if (p.userId === userId && p.slug) {
-      userSlugs.add(p.slug.toLowerCase());
-    }
-  }
-
-  const u = users.get(userId);
-  const userEmail = u?.email?.toLowerCase();
-  const storeName = u?.store_name?.toLowerCase();
-
-  return orders
-    .filter((o) => {
-      if (o.userId === userId) return true;
-      if (userEmail && o.userEmail?.toLowerCase() === userEmail) return true;
-      if (storeName && o.storeName?.toLowerCase() === storeName) return true;
-      if (o.pageSlug && userSlugs.has(o.pageSlug.toLowerCase())) return true;
-      return false;
-    })
+  // Ownership is immutable. Names, emails and slugs are display data, not ACLs.
+  return orders.filter((order) => order.userId === userId)
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 }
 
@@ -2197,7 +2186,7 @@ export function recordCodOrder(orderData: {
   currency?: string;
   paypalOrderId?: string;
 }): CustomerOrder {
-  const randomSuffix = Math.floor(10000 + Math.random() * 90000);
+  const randomSuffix = crypto.randomUUID();
   const prefix = orderData.paymentMethod === 'paypal' ? '#PP' : '#COD';
   const orderId = `${prefix}-${randomSuffix}`;
 
@@ -2212,7 +2201,7 @@ export function recordCodOrder(orderData: {
 
   if (orderData.pageSlug) {
     const page = getPublishedPageBySlug(orderData.pageSlug);
-    if (page && page.userId) {
+    if (page && page.userId && (!resolvedUserId || resolvedUserId === page.userId)) {
       resolvedUserId = page.userId;
       const owner = users.get(page.userId);
       if (owner) {
@@ -2222,7 +2211,7 @@ export function recordCodOrder(orderData: {
     }
   } else if (orderData.funnelId) {
     const page = pages.get(orderData.funnelId);
-    if (page && page.userId) {
+    if (page && page.userId && (!resolvedUserId || resolvedUserId === page.userId)) {
       resolvedUserId = page.userId;
       const owner = users.get(page.userId);
       if (owner) {
@@ -2267,11 +2256,9 @@ export function recordCodOrder(orderData: {
     bundlePrice: numPrice,
   };
 
+  // Persist before acknowledging or changing the in-memory collection.
+  saveOrdersToDisk([newOrder, ...orders]);
   orders.unshift(newOrder);
-  if (orders.length > 500) {
-    orders.pop();
-  }
-  saveOrdersToDisk(orders);
 
   if (orderData.pageSlug) {
     const page = getPublishedPageBySlug(orderData.pageSlug);
@@ -2353,8 +2340,8 @@ export function recordPageOrder(orderData: {
   return { success: true, orderId: created.id, page: page || undefined };
 }
 
-export function getPageOrders(slug: string): CustomerOrder[] {
-  return orders.filter((o) => o.pageSlug === slug);
+export function getPageOrders(slug: string, ownerId: string): CustomerOrder[] {
+  return orders.filter((o) => o.userId === ownerId && o.pageSlug === slug);
 }
 
 /* ---------------- PLATFORM SETTINGS & DYNAMIC MOROCCAN BANKS STORE (data/settings.json) ---------------- */
@@ -2594,6 +2581,7 @@ export function getCoupons(): SaaSCoupon[] {
             discountType: c.discountType === 'fixed' ? 'fixed' : 'percentage',
             discountValue: Math.max(0, Number(c.discountValue) || 0),
             maxUses: Math.max(1, Math.floor(Number(c.maxUses) || 1)),
+            redemptionIds: Array.isArray(c.redemptionIds) ? c.redemptionIds.filter((id: unknown) => typeof id === 'string') : [],
             currentUses: Math.max(0, Math.floor(Number(c.currentUses) || 0)),
             expiresAt: String(c.expiresAt || new Date(Date.now() + 30 * 86400000).toISOString()),
             isActive: c.isActive !== false,
@@ -2611,7 +2599,7 @@ export function saveCoupons(coupons: SaaSCoupon[]): SaaSCoupon[] {
   if (!fs.existsSync(DATA_DIR)) {
     fs.mkdirSync(DATA_DIR, { recursive: true });
   }
-  fs.writeFileSync(COUPONS_FILE, JSON.stringify(coupons, null, 2), 'utf-8');
+  if (!writeJsonFileAtomic(COUPONS_FILE, coupons)) throw new Error('Unable to save coupons.');
   return coupons;
 }
 
@@ -2685,7 +2673,7 @@ export function deleteOrDisableCoupon(code: string): boolean {
   return true;
 }
 
-export function incrementCouponUsage(code: string): SaaSCoupon | null {
+export function incrementCouponUsage(code: string, redemptionId?: string): SaaSCoupon | null {
   const normalizedCode = (code || '').trim().toUpperCase();
   if (!normalizedCode) return null;
 
@@ -2693,6 +2681,10 @@ export function incrementCouponUsage(code: string): SaaSCoupon | null {
   const target = allCoupons.find((c) => c.code === normalizedCode);
   if (!target) return null;
 
+  if (redemptionId) {
+    if (target.redemptionIds?.includes(redemptionId)) return target;
+    target.redemptionIds = [...(target.redemptionIds || []), redemptionId];
+  }
   target.currentUses = (target.currentUses || 0) + 1;
   if (target.currentUses >= target.maxUses) {
     target.isActive = false;
