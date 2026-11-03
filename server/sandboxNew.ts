@@ -1524,22 +1524,37 @@ export function createSandboxCockpitRouter(): Router {
   router.get('/status', requireOwner, handleSystemStatus);
   router.get('/system', requireOwner, handleSystemStatus);
 
-  // 3. POST /api/sandbox/git-pull — Pull Latest Code (git pull origin main)
-  router.post('/git-pull', requireOwner, async (_req: SandboxAuthenticatedRequest, res: Response) => {
+  // 3. POST /api/sandbox/git-fetch — inspect remote updates without changing the working tree
+  router.post('/git-fetch', requireOwner, async (_req: SandboxAuthenticatedRequest, res: Response) => {
     const startMs = Date.now();
-    const result = await runExecFile('git', ['pull', 'origin', 'main'], { timeoutMs: 45000 });
-    return res.status(200).json({
-      ok: result.ok,
-      command: 'git pull origin main',
-      exitCode: result.exitCode,
-      stdout: result.stdout,
-      stderr: result.stderr,
+    const fetched = await runExecFile('git', ['fetch', '--prune', 'origin', 'main'], { timeoutMs: 60000 });
+    if (!fetched.ok) {
+      return res.status(502).json({
+        ok: false, command: 'git fetch --prune origin main', exitCode: fetched.exitCode,
+        stdout: fetched.stdout, stderr: fetched.stderr, durationMs: Date.now() - startMs,
+      });
+    }
+    const [local, remote] = await Promise.all([
+      runExecFile('git', ['rev-parse', 'HEAD'], { timeoutMs: 10000 }),
+      runExecFile('git', ['rev-parse', 'origin/main'], { timeoutMs: 10000 }),
+    ]);
+    if (!local.ok || !remote.ok) {
+      return res.status(502).json({ ok: false, error: 'Unable to compare local and remote commits.' });
+    }
+    return res.json({
+      ok: true,
+      command: 'git fetch --prune origin main',
+      localCommit: local.stdout.trim(),
+      remoteCommit: remote.stdout.trim(),
+      updateAvailable: local.stdout.trim() !== remote.stdout.trim(),
+      stdout: fetched.stdout,
+      stderr: fetched.stderr,
       durationMs: Date.now() - startMs,
       timestamp: new Date().toISOString(),
     });
   });
 
-  // 4. GET /api/sandbox/deploy/stream — Real-time 5-Step SSE Deploy Pipeline
+  // 4. GET /api/sandbox/deploy/stream — stream the single guarded deployment entrypoint
   router.get('/deploy/stream', requireOwner, (req: SandboxAuthenticatedRequest, res: Response) => {
     res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
     res.setHeader('Cache-Control', 'no-cache, no-transform');
@@ -1548,721 +1563,104 @@ export function createSandboxCockpitRouter(): Router {
     res.flushHeaders?.();
 
     let clientClosed = false;
-    req.on('close', () => {
-      clientClosed = true;
+    res.on('close', () => {
+      if (!res.writableEnded) clientClosed = true;
     });
-
     const sendEvent = (
       type: 'stdout' | 'stderr' | 'step' | 'done' | 'error',
       message: string,
       extra?: Record<string, unknown>
     ) => {
-      if (clientClosed) return;
-      const payload = JSON.stringify({
-        type,
-        message,
-        timestamp: new Date().toISOString(),
-        ...extra,
-      });
-      res.write(`data: ${payload}\n\n`);
+      if (clientClosed || res.writableEnded) return;
+      res.write(`data: ${JSON.stringify({ type, message, timestamp: new Date().toISOString(), ...extra })}\\n\\n`);
     };
 
-    const runStepStream = (
-      stepNum: number,
-      stepTitle: string,
-      cmd: string,
-      args: string[],
-      allowNonZeroInContainer: boolean = false
-    ): Promise<{ ok: boolean; exitCode: number }> => {
-      return new Promise((resolve) => {
-        if (clientClosed) {
-          resolve({ ok: false, exitCode: 1 });
-          return;
-        }
-        const fullCmd = `${cmd} ${args.join(' ')}`;
-        sendEvent('step', `\n━━━ STEP ${stepNum}/5: ${stepTitle} (${fullCmd}) ━━━\n`, {
-          step: stepNum,
-          totalSteps: 5,
-          status: 'running',
-          command: fullCmd,
-          title: stepTitle,
-        });
-
-        const child = spawn(cmd, args, {
-          cwd: PROJECT_ROOT,
-          env: { ...process.env, PAGER: 'cat', FORCE_COLOR: '0' },
-        });
-
-        let stderrBuf = '';
-
-        child.stdout.on('data', (chunk: Buffer) => {
-          sendEvent('stdout', chunk.toString('utf-8'), { step: stepNum });
-        });
-
-        child.stderr.on('data', (chunk: Buffer) => {
-          const text = chunk.toString('utf-8');
-          stderrBuf += text;
-          sendEvent('stderr', text, { step: stepNum });
-        });
-
-        child.on('error', (err) => {
-          if (allowNonZeroInContainer) {
-            sendEvent('stdout', `[info] ${fullCmd}: ${err.message} (continuing in standalone container mode)\n`, {
-              step: stepNum,
-            });
-            sendEvent('step', `✓ Step ${stepNum}/5 completed (${stepTitle}).\n`, {
-              step: stepNum,
-              totalSteps: 5,
-              status: 'success',
-              command: fullCmd,
-              title: stepTitle,
-            });
-            resolve({ ok: true, exitCode: 0 });
-            return;
-          }
-          sendEvent('stderr', `[process error] ${err.message}\n`, { step: stepNum });
-          sendEvent('step', `❌ Step ${stepNum}/5 failed (${stepTitle}).\n`, {
-            step: stepNum,
-            totalSteps: 5,
-            status: 'error',
-            command: fullCmd,
-            title: stepTitle,
-          });
-          resolve({ ok: false, exitCode: 1 });
-        });
-
-        child.on('close', (code) => {
-          const exitCode = typeof code === 'number' ? code : 1;
-          if (exitCode === 0) {
-            sendEvent('step', `✓ Step ${stepNum}/5 succeeded (${stepTitle}).\n`, {
-              step: stepNum,
-              totalSteps: 5,
-              status: 'success',
-              command: fullCmd,
-              title: stepTitle,
-            });
-            resolve({ ok: true, exitCode: 0 });
-          } else if (allowNonZeroInContainer) {
-            sendEvent(
-              'stdout',
-              `[info] ${fullCmd} exited with ${exitCode} (${stderrBuf.trim().slice(0, 120) || 'standalone mode'}); continuing.\n`,
-              { step: stepNum }
-            );
-            sendEvent('step', `✓ Step ${stepNum}/5 completed (${stepTitle}).\n`, {
-              step: stepNum,
-              totalSteps: 5,
-              status: 'success',
-              command: fullCmd,
-              title: stepTitle,
-            });
-            resolve({ ok: true, exitCode: 0 });
-          } else {
-            sendEvent('step', `❌ Step ${stepNum}/5 failed with exit code ${exitCode} (${stepTitle}).\n`, {
-              step: stepNum,
-              totalSteps: 5,
-              status: 'error',
-              command: fullCmd,
-              title: stepTitle,
-            });
-            resolve({ ok: false, exitCode });
-          }
-        });
-      });
-    };
-
-    void (async () => {
+    void new Promise<void>((resolve) => {
       const startedAt = Date.now();
-      sendEvent('stdout', `[CodWorth Zero-Trust Deployer] Starting 5-step pipeline at ${new Date().toISOString()}\n`);
+      let outputBuffer = '';
+      let currentStep = 0;
+      let currentTitle = '';
+      let settled = false;
+      sendEvent('stdout', `[CodWorth Guarded Deployment] Starting at ${new Date().toISOString()}\\n`);
 
-      // Step 1: git pull origin main
-      const step1 = await runStepStream(1, 'Pulling Latest Code', 'git', ['pull', 'origin', 'main'], true);
-      if (!step1.ok) {
-        sendEvent('error', `\n❌ Deployment aborted at Step 1 (git pull origin main).\n`, {
-          ok: false,
-          success: false,
-          step: 1,
-          exitCode: step1.exitCode,
-        });
-        res.end();
-        return;
-      }
-
-      // Step 2: npm install --include=dev --legacy-peer-deps
-      const step2 = await runStepStream(
-        2,
-        'Installing Dependencies',
-        'npm',
-        ['install', '--include=dev', '--legacy-peer-deps']
-      );
-      if (!step2.ok) {
-        sendEvent('error', `\n❌ Deployment aborted at Step 2 (npm install --include=dev --legacy-peer-deps).\n`, {
-          ok: false,
-          success: false,
-          step: 2,
-          exitCode: step2.exitCode,
-        });
-        res.end();
-        return;
-      }
-
-      // Step 3: ./node_modules/.bin/tsc --noEmit
-      const step3 = await runStepStream(3, 'TypeScript Validation', './node_modules/.bin/tsc', ['--noEmit']);
-      if (!step3.ok) {
-        sendEvent('error', `\n❌ Deployment aborted at Step 3 (./node_modules/.bin/tsc --noEmit).\n`, {
-          ok: false,
-          success: false,
-          step: 3,
-          exitCode: step3.exitCode,
-        });
-        res.end();
-        return;
-      }
-
-      // Step 4: npm run build
-      const step4 = await runStepStream(4, 'Production Bundle Build', 'npm', ['run', 'build']);
-      if (!step4.ok) {
-        sendEvent('error', `\n❌ Deployment aborted at Step 4 (npm run build).\n`, {
-          ok: false,
-          success: false,
-          step: 4,
-          exitCode: step4.exitCode,
-        });
-        res.end();
-        return;
-      }
-
-      // Step 5: pm2 restart funnelcraft-api
-      const step5 = await runStepStream(5, 'Restarting PM2 Service', 'pm2', ['restart', 'funnelcraft-api'], true);
-      if (step5.ok) {
-        await runExecFile('pm2', ['save'], { timeoutMs: 5000 });
-      }
-
-      const elapsedSec = ((Date.now() - startedAt) / 1000).toFixed(1);
-      sendEvent('done', `\n✅ All 5 deployment steps completed in ${elapsedSec}s.\n`, {
-        ok: true,
-        success: true,
-        exitCode: 0,
-        durationMs: Date.now() - startedAt,
-      });
-      res.end();
-    })();
-  });
-
-  // 4b. POST /api/sandbox/deploy — Synchronous/JSON fallback for programmatic callers
-  router.post('/deploy', requireOwner, async (_req: SandboxAuthenticatedRequest, res: Response) => {
-    const startMs = Date.now();
-    const logs: string[] = [];
-
-    const tscRes = await runExecFile('./node_modules/.bin/tsc', ['--noEmit'], { timeoutMs: 60000 });
-    logs.push(`$ ./node_modules/.bin/tsc --noEmit\n${tscRes.stdout}${tscRes.stderr}`);
-    if (!tscRes.ok) {
-      return res.status(400).json({
-        ok: false,
-        step: 'tsc',
-        exitCode: tscRes.exitCode,
-        output: logs.join('\n'),
-        durationMs: Date.now() - startMs,
-      });
-    }
-
-    const buildRes = await runExecFile('npm', ['run', 'build'], { timeoutMs: 120000 });
-    logs.push(`$ npm run build\n${buildRes.stdout}${buildRes.stderr}`);
-    if (!buildRes.ok) {
-      return res.status(400).json({
-        ok: false,
-        step: 'build',
-        exitCode: buildRes.exitCode,
-        output: logs.join('\n'),
-        durationMs: Date.now() - startMs,
-      });
-    }
-
-    const pm2Res = await runExecFile('pm2', ['restart', 'funnelcraft-api', '--update-env'], {
-      timeoutMs: 15000,
-    });
-    if (pm2Res.ok) {
-      logs.push(`$ pm2 restart funnelcraft-api --update-env\n${pm2Res.stdout}`);
-    } else {
-      logs.push(`[info] Build verified and updated (PM2 not active in local container).`);
-    }
-
-    return res.status(200).json({
-      ok: true,
-      exitCode: 0,
-      output: logs.join('\n\n'),
-      durationMs: Date.now() - startMs,
-      timestamp: new Date().toISOString(),
-    });
-  });
-
-  // 5. GET /api/sandbox/logs/:appName — Last 100 lines of PM2 logs for funnelcraft-api or funnelcraft-back
-  router.get('/logs/:appName', requireOwner, async (req: SandboxAuthenticatedRequest, res: Response) => {
-    const appName = String(req.params.appName || '').trim();
-    if (appName !== 'funnelcraft-api' && appName !== 'funnelcraft-back') {
-      return res.status(400).json({
-        ok: false,
-        error: 'Invalid application name. Allowed: funnelcraft-api, funnelcraft-back.',
-      });
-    }
-
-    const homeDir = os.homedir();
-    const outLogPath = path.join(homeDir, '.pm2', 'logs', `${appName}-out.log`);
-    const errLogPath = path.join(homeDir, '.pm2', 'logs', `${appName}-error.log`);
-
-    const sections: string[] = [];
-
-    if (fs.existsSync(outLogPath)) {
-      const outTail = await runExecFile('tail', ['-n', '100', outLogPath], { timeoutMs: 4000 });
-      if (outTail.stdout.trim()) {
-        sections.push(`=== ${appName} (stdout: ${outLogPath}) ===\n${outTail.stdout.trim()}`);
-      }
-    }
-
-    if (fs.existsSync(errLogPath)) {
-      const errTail = await runExecFile('tail', ['-n', '100', errLogPath], { timeoutMs: 4000 });
-      if (errTail.stdout.trim()) {
-        sections.push(`=== ${appName} (stderr: ${errLogPath}) ===\n${errTail.stdout.trim()}`);
-      }
-    }
-
-    if (sections.length === 0) {
-      // Try pm2 logs --nostream
-      const pm2Logs = await runExecFile('pm2', ['logs', appName, '--lines', '100', '--nostream'], {
-        timeoutMs: 4000,
-      });
-      if (pm2Logs.ok && pm2Logs.stdout.trim()) {
-        sections.push(pm2Logs.stdout.trim());
-      }
-    }
-
-    if (sections.length === 0) {
-      // Graceful fallback showing live runtime & recent security events so viewer is informative
-      const recentEvents = getRecentSandboxLogins(10)
-        .map(
-          (e) =>
-            `[${e.timestamp}] [${e.status}] user=${e.email} ip=${e.ip} ua="${e.userAgent.slice(0, 60)}"`
-        )
-        .join('\n');
-      sections.push(
-        `[${new Date().toISOString()}] Service: ${appName} | PID: ${process.pid} | Node ${process.version} | Uptime: ${Math.floor(process.uptime())}s`,
-        `[${new Date().toISOString()}] Memory RSS: ${Math.round(process.memoryUsage().rss / (1024 * 1024))} MB | Heap Used: ${Math.round(process.memoryUsage().heapUsed / (1024 * 1024))} MB`,
-        `[${new Date().toISOString()}] Note: PM2 log file (~/.pm2/logs/${appName}-out.log) not found on this host; displaying live runtime & security stream:`,
-        recentEvents || `[${new Date().toISOString()}] No recent log entries.`
-      );
-    }
-
-    return res.status(200).json({
-      ok: true,
-      appName,
-      lines: 100,
-      timestamp: new Date().toISOString(),
-      logs: sections.join('\n\n'),
-    });
-  });
-
-  // 6. POST /api/sandbox/terminal — Safe Terminal Command Runner (Whitelisted Only)
-  const handleSafeTerminal = async (req: SandboxAuthenticatedRequest, res: Response) => {
-    const rawCommand = typeof req.body?.command === 'string' ? req.body.command : '';
-    const validation = validateAndParseSafeCommand(rawCommand);
-
-    if (!validation.allowed || !validation.binary || !validation.args) {
-      return res.status(403).json({
-        ok: false,
-        blocked: true,
-        command: rawCommand,
-        error: validation.reason || 'Command blocked by Safe Terminal policy.',
-      });
-    }
-
-    const startMs = Date.now();
-    const execRes = await runExecFile(validation.binary, validation.args, { timeoutMs: 8000 });
-
-    // Graceful fallback if `pm2` or `free` binary is missing in container
-    if (!execRes.ok && validation.binary === 'pm2' && execRes.stderr.includes('ENOENT')) {
-      return res.status(200).json({
-        ok: true,
-        command: validation.normalizedCommand,
-        exitCode: 0,
-        stdout: `┌────┬────────────────────┬──────────┬──────┬───────────┬──────────┬──────────┐\n│ id │ name               │ mode     │ ↺    │ status    │ cpu      │ memory   │\n├────┼────────────────────┼──────────┼──────┼───────────┼──────────┼──────────┤\n│ 0  │ funnelcraft-api    │ fork     │ 0    │ online    │ 0.2%     │ ${Math.round(process.memoryUsage().rss / (1024 * 1024))}mb     │\n└────┴────────────────────┴──────────┴──────┴───────────┴──────────┴──────────┘\n`,
-        stderr: '',
-        durationMs: Date.now() - startMs,
-      });
-    }
-
-    return res.status(200).json({
-      ok: execRes.ok,
-      command: validation.normalizedCommand,
-      exitCode: execRes.exitCode,
-      stdout: execRes.stdout,
-      stderr: execRes.stderr,
-      durationMs: Date.now() - startMs,
-    });
-  };
-
-  router.post('/terminal', requireOwner, handleSafeTerminal);
-  router.post('/terminal/exec', requireOwner, handleSafeTerminal);
-
-  // 7. GET /api/sandbox/security/logins — Last 10 Admin Logins + Data Directory Summary
-  router.get('/security/logins', requireOwner, (_req: SandboxAuthenticatedRequest, res: Response) => {
-    const logins = getRecentSandboxLogins(10);
-
-    let dataFiles: Array<{ name: string; sizeBytes: number; updatedAt: string }> = [];
-    try {
-      if (fs.existsSync(DATA_DIR)) {
-        dataFiles = fs
-          .readdirSync(DATA_DIR)
-          .filter((f) => !f.endsWith('.tmp'))
-          .map((fileName) => {
-            const fullPath = path.join(DATA_DIR, fileName);
-            const stat = fs.statSync(fullPath);
-            return {
-              name: fileName,
-              sizeBytes: stat.size,
-              updatedAt: stat.mtime.toISOString(),
-            };
-          });
-      }
-    } catch {
-      dataFiles = [];
-    }
-
-    return res.status(200).json({
-      ok: true,
-      logins,
-      dataFiles,
-      timestamp: new Date().toISOString(),
-    });
-  });
-
-  // 8. GET /api/sandbox/backup — Create & Download a .tar.gz backup of data/
-  router.get('/backup', requireOwner, (req: SandboxAuthenticatedRequest, res: Response) => {
-    if (!fs.existsSync(DATA_DIR)) {
-      fs.mkdirSync(DATA_DIR, { recursive: true });
-    }
-
-    const dateStamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-    const filename = `codworth-data-backup-${dateStamp}.tar.gz`;
-
-    res.setHeader('Content-Type', 'application/gzip');
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-    res.setHeader('Cache-Control', 'no-store');
-
-    const tarProc = spawn('tar', ['-czf', '-', '-C', PROJECT_ROOT, 'data'], {
-      cwd: PROJECT_ROOT,
-    });
-
-    tarProc.stdout.pipe(res);
-
-    let stderrMsg = '';
-    tarProc.stderr.on('data', (chunk: Buffer) => {
-      stderrMsg += chunk.toString('utf-8');
-    });
-
-    tarProc.on('error', (err) => {
-      if (!res.headersSent) {
-        res.status(500).json({
-          ok: false,
-          error: `Backup archive creation failed: ${err.message}`,
-        });
-      } else {
-        res.end();
-      }
-    });
-
-    tarProc.on('close', (code) => {
-      if (code !== 0 && !res.headersSent) {
-        res.status(500).json({
-          ok: false,
-          error: `tar exited with code ${code}: ${stderrMsg}`,
-        });
-      }
-    });
-  });
-
-  return router;
-}
-
-/**
- * Attaches the Zero-Trust Interactive Web Terminal WebSocket server (`/api/sandbox/terminal`)
- * to an HTTP server instance. Strictly verifies the owner JWT before upgrading.
- */
-export function attachSandboxWebSocketServer(server: http.Server): WebSocketServer {
-  const wss = new WebSocketServer({ noServer: true });
-
-  server.on('upgrade', (req, socket, head) => {
-    let pathname = '';
-    try {
-      const parsed = new URL(req.url || '/', 'http://127.0.0.1');
-      pathname = parsed.pathname;
-    } catch {
-      pathname = (req.url || '').split('?')[0];
-    }
-
-    if (pathname !== '/api/sandbox/terminal' && pathname !== '/sandbox/terminal/ws') {
-      return;
-    }
-
-    if (process.env.NODE_ENV === 'production' && (process.env.ENABLE_OWNER_COCKPIT !== 'true' || !process.env.OWNER_EMAIL)) { socket.destroy(); return; }
-    const origin = req.headers.origin;
-    if ((process.env.NODE_ENV === 'production' && !origin) || (origin && !isAllowedCorsOrigin(origin, {
-      appOrigin: process.env.APP_ORIGIN,
-      extraOrigins: process.env.CORS_ALLOWED_ORIGINS,
-      production: process.env.NODE_ENV === 'production',
-    }))) {
-      socket.write('HTTP/1.1 403 Forbidden\\r\\nConnection: close\\r\\n\\r\\nForbidden origin.\\r\\n');
-      socket.destroy();
-      return;
-    }
-    const token = extractSandboxTokenFromRequest(req);
-    if (!token) {
-      socket.write(
-        'HTTP/1.1 401 Unauthorized\r\nContent-Type: text/plain\r\nConnection: close\r\n\r\nUnauthorized: Missing Sandbox JWT token.\r\n'
-      );
-      socket.destroy();
-      return;
-    }
-
-    const verification = verifySandboxJwt(token);
-    if (!verification.valid || !verification.payload) {
-      const statusLine =
-        verification.reason === 'NOT_OWNER' ? '403 Forbidden' : '401 Unauthorized';
-      socket.write(
-        `HTTP/1.1 ${statusLine}\r\nContent-Type: text/plain\r\nConnection: close\r\n\r\nAccess Denied.\r\n`
-      );
-      socket.destroy();
-      return;
-    }
-
-    wss.handleUpgrade(req, socket, head, (ws) => {
-      wss.emit('connection', ws, req, verification.payload);
-    });
-  });
-
-  wss.on('connection', (ws: WebSocket, _req: IncomingMessage, ownerPayload?: SandboxJwtPayload) => {
-    if (!ownerPayload || !isCurrentOwnerAuth(ownerPayload)) { ws.close(4001, 'Invalid owner session'); return; }
-    activeOwnerTerminalSockets.add(ws);
-    const sessionGuard = setInterval(() => {
-      if (!isCurrentOwnerAuth(ownerPayload) || ownerPayload.exp <= Math.floor(Date.now() / 1000)) {
-        ws.close(4001, 'Owner session expired');
-      }
-    }, 15000);
-    sessionGuard.unref();
-    const shellPath = fs.existsSync('/bin/bash') ? '/bin/bash' : '/bin/sh';
-    const shellEnv: Record<string, string> = {
-      ...(process.env as Record<string, string>),
-      TERM: 'xterm-256color',
-      COLORTERM: 'truecolor',
-      HOME: os.homedir(),
-      PS1: '\\[\\033[01;32m\\]owner@codworth\\[\\033[00m\\]:\\[\\033[01;34m\\]\\w\\[\\033[00m\\]\\$ ',
-    };
-
-    let ptyProc: any = null;
-    let fallbackProc: ReturnType<typeof spawn> | null = null;
-
-    // 1. Try spawning a real pseudo-terminal with node-pty
-    try {
-      const pty = requireModule('node-pty');
-      ptyProc = pty.spawn(shellPath, [], {
-        name: 'xterm-color',
-        cols: 100,
-        rows: 28,
+      const child = spawn('bash', ['deploy.sh'], {
         cwd: PROJECT_ROOT,
-        env: shellEnv,
+        env: { ...process.env, PAGER: 'cat', FORCE_COLOR: '0' },
       });
 
-      ptyProc.onData((data: string) => {
-        if (ws.readyState === WebSocket.OPEN) {
-          ws.send(data);
-        }
-      });
-
-      ptyProc.onExit(() => {
-        if (ws.readyState === WebSocket.OPEN) {
-          ws.close();
-        }
-      });
-    } catch {
-      // 2. Graceful fallback to child_process interactive bash if node-pty native addon is unavailable
-      fallbackProc = spawn(shellPath, ['-i'], {
-        cwd: PROJECT_ROOT,
-        env: shellEnv,
-      });
-
-      const sendChunk = (chunk: Buffer) => {
-        if (ws.readyState === WebSocket.OPEN) {
-          const text = chunk
-            .toString('utf-8')
-            .replace(/bash: cannot set terminal process group \([^)]*\): Inappropriate ioctl for device\r?\n?/g, '')
-            .replace(/bash: no job control in this shell\r?\n?/g, '');
-          if (text) {
-            ws.send(text);
+      const processOutput = (stream: 'stdout' | 'stderr', chunk: Buffer) => {
+        const output = chunk.toString('utf-8');
+        if (stream === 'stdout') {
+          outputBuffer += output;
+          const lines = outputBuffer.split(/\\r?\\n/);
+          outputBuffer = lines.pop() || '';
+          for (const line of lines) {
+            const match = line.match(/^>>> \\[(\\d+)\\/7\\] (.+)$/);
+            if (!match) continue;
+            if (currentStep > 0) {
+              sendEvent('step', `✓ Step ${currentStep}/7 completed (${currentTitle}).\\n`, {
+                step: currentStep, totalSteps: 7, status: 'success', title: currentTitle,
+              });
+            }
+            currentStep = Number(match[1]);
+            currentTitle = match[2];
+            sendEvent('step', `\\n━━━ STEP ${currentStep}/7: ${currentTitle} ━━━\\n`, {
+              step: currentStep, totalSteps: 7, status: 'running', title: currentTitle, command: 'bash deploy.sh',
+            });
           }
         }
+        sendEvent(stream, output, { step: currentStep || undefined });
       };
 
-      fallbackProc.stdout?.on('data', sendChunk);
-      fallbackProc.stderr?.on('data', sendChunk);
-      fallbackProc.on('close', () => {
-        if (ws.readyState === WebSocket.OPEN) {
-          ws.close();
-        }
-      });
-    }
+      child.stdout.on('data', (chunk: Buffer) => processOutput('stdout', chunk));
+      child.stderr.on('data', (chunk: Buffer) => processOutput('stderr', chunk));
 
-    let cleanedUp = false;
-    const cleanupShell = () => {
-      if (cleanedUp) return;
-      cleanedUp = true;
-      if (ptyProc) {
-        try {
-          ptyProc.kill('SIGKILL');
-        } catch {
-          try {
-            ptyProc.kill();
-          } catch {
-            // ignore
+      const finish = (code: number, processError?: Error) => {
+        if (settled) return;
+        settled = true;
+        if (outputBuffer) sendEvent('stdout', outputBuffer, { step: currentStep || undefined });
+        if (processError) sendEvent('stderr', `[process error] ${processError.message}\\n`);
+        if (code === 0 && !processError) {
+          if (currentStep > 0) {
+            sendEvent('step', `✓ Step ${currentStep}/7 completed (${currentTitle}).\\n`, {
+              step: currentStep, totalSteps: 7, status: 'success', title: currentTitle,
+            });
           }
-        }
-        try {
-          ptyProc._socket?.destroy?.();
-        } catch {
-          // ignore
-        }
-        ptyProc = null;
-      }
-      if (fallbackProc) {
-        try {
-          fallbackProc.stdin?.destroy();
-          fallbackProc.stdout?.destroy();
-          fallbackProc.stderr?.destroy();
-          fallbackProc.kill('SIGKILL');
-        } catch {
-          // ignore
-        }
-        fallbackProc = null;
-      }
-    };
-
-    if (ws.readyState === WebSocket.OPEN) {
-      ws.send(
-        `\r\n\x1b[1;32m● CodWorth Zero-Trust Interactive Shell\x1b[0m (${ownerPayload?.email || STRICT_OWNER_EMAIL})\r\n` +
-          `\x1b[90mWorking directory: ${PROJECT_ROOT} • Type commands below\x1b[0m\r\n\r\n`
-      );
-      if (fallbackProc) {
-        fallbackProc.stdin?.write('pwd\n');
-      }
-    }
-
-    ws.on('message', (rawMsg) => {
-      if (!isCurrentOwnerAuth(ownerPayload)) { ws.close(4001, 'Owner session expired'); return; }
-      const text = typeof rawMsg === 'string' ? rawMsg : rawMsg.toString('utf-8');
-      if (text.startsWith('{')) {
-        try {
-          const parsed = JSON.parse(text);
-          if (parsed && parsed.type === 'resize') {
-            const cols = Math.max(20, Math.min(400, Number(parsed.cols) || 80));
-            const rows = Math.max(5, Math.min(200, Number(parsed.rows) || 24));
-            if (ptyProc && typeof ptyProc.resize === 'function') {
-              ptyProc.resize(cols, rows);
-            }
-            return;
+          sendEvent('done', `\\n✓ Guarded deployment completed in ${((Date.now() - startedAt) / 1000).toFixed(1)}s.\\n`, {
+            ok: true, success: true, exitCode: 0, durationMs: Date.now() - startedAt,
+          });
+        } else {
+          if (currentStep > 0) {
+            sendEvent('step', `✕ Step ${currentStep}/7 failed.\\n`, {
+              step: currentStep, totalSteps: 7, status: 'error', title: currentTitle,
+            });
           }
-          if (parsed && parsed.type === 'input' && typeof parsed.data === 'string') {
-            if (ptyProc) {
-              ptyProc.write(parsed.data);
-            } else if (fallbackProc?.stdin?.writable) {
-              fallbackProc.stdin.write(parsed.data);
-            }
-            return;
-          }
-        } catch {
-          // treat as raw terminal input
+          sendEvent('error', `\\n✕ Guarded deployment failed with exit code ${code}. Review the output and rollback health above.\\n`, {
+            ok: false, success: false, step: currentStep || undefined, exitCode: code,
+            durationMs: Date.now() - startedAt,
+          });
         }
-      }
+        if (!res.writableEnded) res.end();
+        resolve();
+      };
 
-      if (ptyProc) {
-        ptyProc.write(text);
-      } else if (fallbackProc?.stdin?.writable) {
-        fallbackProc.stdin.write(text);
-      }
+      child.on('error', (error) => finish(1, error));
+      child.on('close', (code) => finish(typeof code === 'number' ? code : 1));
     });
-
-    const cleanupGuard = () => { clearInterval(sessionGuard); activeOwnerTerminalSockets.delete(ws); cleanupShell(); };
-    ws.on('close', cleanupGuard);
-    ws.on('error', cleanupGuard);
   });
 
-  server.on('close', () => {
-    for (const client of wss.clients) {
-      try {
-        client.terminate();
-      } catch {
-        // ignore
-      }
-    }
-    try {
-      wss.close();
-    } catch {
-      // ignore
-    }
+  // 4b. POST /api/sandbox/deploy — JSON fallback using the exact same guarded pipeline
+  router.post('/deploy', requireOwner, async (_req: SandboxAuthenticatedRequest, res: Response) => {
+    const startMs = Date.now();
+    const result = await runExecFile('bash', ['deploy.sh'], { timeoutMs: 15 * 60 * 1000 });
+    return res.status(result.ok ? 200 : 502).json({
+      ok: result.ok,
+      command: 'bash deploy.sh',
+      exitCode: result.exitCode,
+      stdout: result.stdout,
+      stderr: result.stderr,
+      durationMs: Date.now() - startMs,
+      timestamp: new Date().toISOString(),
+    });
   });
 
-  return wss;
-}
-
-/**
- * Creates the standalone, fully isolated Sandbox Express application.
- * Serves `server/sandbox-ui/` at `/sandbox` and mounts the API at `/api/sandbox`.
- */
-export function createSandboxStandaloneApp(): Express {
-  const sandboxApp = express();
-  sandboxApp.set('trust proxy', process.env.TRUSTED_PROXY_CIDRS?.split(',').map(value => value.trim()).filter(Boolean) || false);
-
-  sandboxApp.use((_req: Request, res: Response, next: NextFunction) => {
-    res.setHeader('X-Content-Type-Options', 'nosniff');
-    res.setHeader('Referrer-Policy', 'no-referrer');
-    res.setHeader('Cache-Control', 'no-store');
-    next();
-  });
-
-  const apiRouter = createSandboxCockpitRouter();
-  sandboxApp.use('/api/sandbox', apiRouter);
-
-  // Serve static assets from server/sandbox-ui
-  sandboxApp.use('/sandbox', express.static(SANDBOX_UI_DIR, { index: 'index.html' }));
-  sandboxApp.get(['/sandbox', '/sandbox/*'], (_req: Request, res: Response) => {
-    res.sendFile(path.join(SANDBOX_UI_DIR, 'index.html'));
-  });
-
-  // Root redirect on port 3002 to /sandbox
-  sandboxApp.get('/', (_req: Request, res: Response) => {
-    res.redirect('/sandbox');
-  });
-
-  return sandboxApp;
-}
-
-let activeSandboxServer: ReturnType<Express['listen']> | null = null;
-
-export function startSandboxServer(port: number = SANDBOX_PORT) {
-  if (activeSandboxServer) {
-    return activeSandboxServer;
-  }
-  const sandboxApp = createSandboxStandaloneApp();
-  const server = http.createServer(sandboxApp);
-  attachSandboxWebSocketServer(server);
-
-  activeSandboxServer = server.listen(port, '127.0.0.1', () => {
-    console.log(
-      `[SANDBOX COCKPIT] Zero-Trust Decoupled Admin Server listening on http://127.0.0.1:${port}/sandbox (Owner: ${STRICT_OWNER_EMAIL})`
-    );
-  });
-  activeSandboxServer.on('error', (err: any) => {
-    if (err?.code === 'EADDRINUSE') {
-      console.warn(`[SANDBOX COCKPIT] Port ${port} is already in use; using mounted router.`);
-    } else {
-      console.error('[SANDBOX COCKPIT] Server error:', err);
-    }
-  });
-  return activeSandboxServer;
-}
