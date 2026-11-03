@@ -117,12 +117,13 @@ function base64UrlDecode(input: string): Buffer {
   return Buffer.from(normalized, 'base64');
 }
 
-// The password salt is random per credential change and is not a password hash.
-// Using it as a version marker avoids re-hashing a password on every owner API call.
+// A random, persisted version rotates only when the owner credentials change.
+// It is deliberately separate from password material and never leaves safe profiles.
 function ownerAuthVersion(email: string): string {
   const user = findUserByEmail(email);
-  const credential = user && user.role === 'admin' && user.status === 'active'
-    ? `${user.id}:${user.password_salt}`
+  const credential = user && user.role === 'admin' && user.status === 'active' &&
+      typeof user.owner_auth_version === 'string'
+    ? `${user.id}:${user.owner_auth_version}`
     : 'owner-not-active';
   return crypto.createHmac('sha256', getSandboxJwtSecret()).update(credential).digest('hex');
 }
