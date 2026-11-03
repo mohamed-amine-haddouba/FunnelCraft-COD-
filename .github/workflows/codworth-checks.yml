@@ -42,7 +42,7 @@ jobs:
         run: |
           export GNUPGHOME="$RUNNER_TEMP/codworth-gnupg"
           mkdir -m 700 -p "$GNUPGHOME"
-          gpg --batch --pinentry-mode loopback --passphrase '' --quick-generate-key 'CodWorth Backup CI <codworth-backup-ci@example.test>' default default 1d
+          gpg --batch --pinentry-mode loopback --passphrase '' --quick-generate-key 'CodWorth Backup CI <codworth-backup-ci@example.test>' rsa3072 encr 1d
           CODWORTH_BACKUP_DIR="$RUNNER_TEMP/codworth-backup-fixture" BACKUP_GPG_RECIPIENT="codworth-backup-ci@example.test" bash scripts/backup-data.sh
           BACKUP_FILE="$(find "$RUNNER_TEMP/codworth-backup-fixture" -type f -name '*.tar.gz.gpg' -print -quit)"
           test -n "$BACKUP_FILE"
