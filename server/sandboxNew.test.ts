@@ -201,6 +201,32 @@ describe('Zero-Trust Sandbox Cockpit (server/sandboxNew.ts)', () => {
     assert.ok(buf.byteLength > 20);
   });
 
+  it('requires owner password or a valid short-lived ticket before sending a 2FA code', async () => {
+    const emailOnly = await fetch(`${baseUrl}/api/sandbox/2fa/send`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: STRICT_OWNER_EMAIL }),
+    });
+    assert.equal(emailOnly.status, 401);
+
+    const wrongPassword = await fetch(`${baseUrl}/api/sandbox/2fa/send`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: STRICT_OWNER_EMAIL, password: 'not-the-owner-password' }),
+    });
+    assert.equal(wrongPassword.status, 401);
+
+    const { loginTicket } = signSandboxLoginTicket(STRICT_OWNER_EMAIL);
+    const authorized = await fetch(`${baseUrl}/api/sandbox/2fa/send`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ loginTicket }),
+    });
+    assert.equal(authorized.status, 200);
+    const response = await authorized.json() as { ok: boolean };
+    assert.equal(response.ok, true);
+  });
+
   it('enforces owner-only forgot-password, 15m token TTL, password length >= 8, single-use token deletion, and updates owner password', async () => {
     assert.equal(SANDBOX_RESET_TOKEN_TTL_MS, 15 * 60 * 1000);
     sandboxResetTokens.clear();
