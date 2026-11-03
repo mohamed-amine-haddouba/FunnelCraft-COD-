@@ -1572,7 +1572,7 @@ export function createSandboxCockpitRouter(): Router {
       extra?: Record<string, unknown>
     ) => {
       if (clientClosed || res.writableEnded) return;
-      res.write(`data: ${JSON.stringify({ type, message, timestamp: new Date().toISOString(), ...extra })}\\n\\n`);
+      res.write(`data: ${JSON.stringify({ type, message, timestamp: new Date().toISOString(), ...extra })}\n\n`);
     };
 
     void new Promise<void>((resolve) => {
@@ -1581,7 +1581,7 @@ export function createSandboxCockpitRouter(): Router {
       let currentStep = 0;
       let currentTitle = '';
       let settled = false;
-      sendEvent('stdout', `[CodWorth Guarded Deployment] Starting at ${new Date().toISOString()}\\n`);
+      sendEvent('stdout', `[CodWorth Guarded Deployment] Starting at ${new Date().toISOString()}\n`);
 
       const child = spawn('bash', ['deploy.sh'], {
         cwd: PROJECT_ROOT,
@@ -1592,19 +1592,19 @@ export function createSandboxCockpitRouter(): Router {
         const output = chunk.toString('utf-8');
         if (stream === 'stdout') {
           outputBuffer += output;
-          const lines = outputBuffer.split(/\\r?\\n/);
+          const lines = outputBuffer.split(/\r?\n/);
           outputBuffer = lines.pop() || '';
           for (const line of lines) {
-            const match = line.match(/^>>> \\[(\\d+)\\/7\\] (.+)$/);
+            const match = line.match(/^>>> \[(\d+)\/7\] (.+)$/);
             if (!match) continue;
             if (currentStep > 0) {
-              sendEvent('step', `✓ Step ${currentStep}/7 completed (${currentTitle}).\\n`, {
+              sendEvent('step', `✓ Step ${currentStep}/7 completed (${currentTitle}).\n`, {
                 step: currentStep, totalSteps: 7, status: 'success', title: currentTitle,
               });
             }
             currentStep = Number(match[1]);
             currentTitle = match[2];
-            sendEvent('step', `\\n━━━ STEP ${currentStep}/7: ${currentTitle} ━━━\\n`, {
+            sendEvent('step', `\n━━━ STEP ${currentStep}/7: ${currentTitle} ━━━\n`, {
               step: currentStep, totalSteps: 7, status: 'running', title: currentTitle, command: 'bash deploy.sh',
             });
           }
@@ -1619,23 +1619,23 @@ export function createSandboxCockpitRouter(): Router {
         if (settled) return;
         settled = true;
         if (outputBuffer) sendEvent('stdout', outputBuffer, { step: currentStep || undefined });
-        if (processError) sendEvent('stderr', `[process error] ${processError.message}\\n`);
+        if (processError) sendEvent('stderr', `[process error] ${processError.message}\n`);
         if (code === 0 && !processError) {
           if (currentStep > 0) {
-            sendEvent('step', `✓ Step ${currentStep}/7 completed (${currentTitle}).\\n`, {
+            sendEvent('step', `✓ Step ${currentStep}/7 completed (${currentTitle}).\n`, {
               step: currentStep, totalSteps: 7, status: 'success', title: currentTitle,
             });
           }
-          sendEvent('done', `\\n✓ Guarded deployment completed in ${((Date.now() - startedAt) / 1000).toFixed(1)}s.\\n`, {
+          sendEvent('done', `\n✓ Guarded deployment completed in ${((Date.now() - startedAt) / 1000).toFixed(1)}s.\n`, {
             ok: true, success: true, exitCode: 0, durationMs: Date.now() - startedAt,
           });
         } else {
           if (currentStep > 0) {
-            sendEvent('step', `✕ Step ${currentStep}/7 failed.\\n`, {
+            sendEvent('step', `✕ Step ${currentStep}/7 failed.\n`, {
               step: currentStep, totalSteps: 7, status: 'error', title: currentTitle,
             });
           }
-          sendEvent('error', `\\n✕ Guarded deployment failed with exit code ${code}. Review the output and rollback health above.\\n`, {
+          sendEvent('error', `\n✕ Guarded deployment failed with exit code ${code}. Review the output and rollback health above.\n`, {
             ok: false, success: false, step: currentStep || undefined, exitCode: code,
             durationMs: Date.now() - startedAt,
           });
