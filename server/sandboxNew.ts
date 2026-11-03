@@ -1657,4 +1657,4 @@ export function createSandboxCockpitRouter(): Router {
       timestamp: new Date().toISOString(),
     });
   });
-
+}
