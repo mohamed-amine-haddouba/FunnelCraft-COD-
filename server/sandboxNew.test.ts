@@ -513,6 +513,40 @@ describe('Zero-Trust Sandbox Cockpit (server/sandboxNew.ts)', () => {
     assert.ok(html.includes('id="btn-step-up-unlock"'));
     assert.ok(html.includes('id="step-up-alert"'));
   });
+
+  it('uses npm install --include=dev --legacy-peer-deps (Step 2) and ./node_modules/.bin/tsc --noEmit (Step 3) in deploy pipeline and deploy.sh', async () => {
+    const fs = await import('node:fs');
+    const path = await import('node:path');
+    const sandboxSource = fs.readFileSync(path.resolve(process.cwd(), 'server/sandboxNew.ts'), 'utf-8');
+    const deployShSource = fs.readFileSync(path.resolve(process.cwd(), 'deploy.sh'), 'utf-8');
+
+    // Verify server/sandboxNew.ts Step 2 & Step 3 commands
+    assert.ok(
+      sandboxSource.includes("['install', '--include=dev', '--legacy-peer-deps']"),
+      'Expected Step 2 to run npm install --include=dev --legacy-peer-deps'
+    );
+    assert.ok(
+      sandboxSource.includes("'./node_modules/.bin/tsc', ['--noEmit']"),
+      'Expected Step 3 to invoke ./node_modules/.bin/tsc --noEmit directly'
+    );
+    assert.equal(
+      sandboxSource.includes("'npx', ['tsc', '--noEmit']"),
+      false,
+      'Must not call npx tsc --noEmit in server/sandboxNew.ts'
+    );
+
+    // Verify deploy.sh Step 2 & Step 3 commands
+    assert.ok(deployShSource.includes('npm install --include=dev --legacy-peer-deps'));
+    assert.ok(deployShSource.includes('./node_modules/.bin/tsc --noEmit'));
+
+    // Verify UI step cards on /sandbox/deploy
+    const uiRes = await fetch(`${baseUrl}/sandbox/deploy`);
+    assert.equal(uiRes.status, 200);
+    const html = await uiRes.text();
+    assert.ok(html.includes('npm install --include=dev --legacy-peer-deps'));
+    assert.ok(html.includes('./node_modules/.bin/tsc --noEmit'));
+  });
 });
+
 
 

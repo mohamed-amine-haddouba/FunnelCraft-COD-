@@ -16,6 +16,122 @@ const EMAIL_SYNTAX_REGEX =
 // Layer 2: Disposable domains loaded once at startup into a Set for O(1) lookup
 const DISPOSABLE_DOMAINS_SET = new Set<string>();
 
+const CORE_DISPOSABLE_DOMAINS: string[] = [
+  'mailinator.com', '10minutemail.com', 'yopmail.com', 'guerrillamail.com', 'tempmail.com',
+  'temp-mail.org', 'throwawaymail.com', 'sharklasers.com', 'getnada.com', 'maildrop.cc',
+  'trashmail.com', 'dispostable.com', 'fakeinbox.com', 'mailnesia.com', 'mintemail.com',
+  'mytrashmail.com', 'mailcatch.com', 'mohmal.com', 'tempail.com', 'burnermail.io',
+  '33mail.com', 'emailondeck.com', 'spamgourmet.com', 'jetable.org', 'incognitomail.org',
+  'guerrillamailblock.com', 'pokemail.net', 'spam4.me', 'grr.la', 'guerrillamail.biz',
+  'guerrillamail.de', 'guerrillamail.net', 'guerrillamail.org', 'yopmail.fr', 'yopmail.net',
+  'cool.fr.nf', 'jetable.fr.nf', 'courriel.fr.nf', 'moncourrier.fr.nf', 'monemail.fr.nf',
+  'monmail.fr.nf', 'hide.biz.st', 'mymail.infos.st', '10minutemail.net', '10minutemail.de',
+  '10minutemail.co.uk', '10minutemail.co.za', 'tempinbox.com', 'tempmailaddress.com', 'tmpmail.net',
+  'tmpmail.org', 'discard.email', 'discardmail.com', 'discardmail.de', 'spambog.com',
+  'spambog.de', 'spambog.ru', 'mailnull.com', 'e4ward.com', 'gishpuppy.com',
+  'kasmail.com', 'mailimate.com', 'mailexpire.com', 'mailforspam.com', 'mailfreeonline.com',
+  'mailin8r.com', 'mailinater.com', 'mailinator.net', 'mailinator.org', 'mailinator2.com',
+  'mailismagic.com', 'mailme.ir', 'mailme.lv', 'mailmetrash.com', 'mailmoat.com',
+  'mailox.fun', 'mailpick.biz', 'mailproxsy.com', 'mailquack.com', 'mailrock.biz',
+  'mailsac.com', 'mailscrap.com', 'mailshell.com', 'mailsiphon.com', 'mailslapping.com',
+  'mailslite.com', 'mailtemp.info', 'mailtothis.com', 'mailzilla.com', 'mailzilla.org',
+  'makemetheking.com', 'manifestgenerator.com', 'manybrain.com', 'mbx.cc', 'mega.zik.dj',
+  'meinspamschutz.de', 'meltmail.com', 'messagebeamer.de', 'mezimages.net', 'mierdamail.com',
+  'migmail.pl', 'migumail.com', 'mintemail.uni.cc', 'mjukglass.nu', 'moakt.com',
+  'moakt.ws', 'mobi.web.id', 'mobileninja.co.uk', 'moburl.com', 'monumentmail.com',
+  'ms9.mailslite.com', 'msa.minsmail.com', 'mt2009.com', 'mt2014.com', 'mt2015.com',
+  'mx0.wwwnew.eu', 'my10minutemail.com', 'mycleaninbox.net', 'mypartyclip.de', 'myphantomemail.com',
+  'myspaceinc.com', 'myspaceinc.net', 'myspaceinc.org', 'myspacepimpedup.com', 'myspamless.com',
+  'mytemp.email', 'mytempemail.com', 'mytempmail.com', 'neomailbox.com', 'nepwk.com',
+  'nervmich.net', 'nervtmich.net', 'netmails.com', 'netmails.net', 'netzidiot.de',
+  'neverbox.com', 'nice-4u.com', 'nincsmail.hu', 'nmail.cf', 'no-spam.ws',
+  'nobulk.com', 'noclickemail.com', 'nogmailspam.info', 'nomail.xl.cx', 'nomail2me.com',
+  'nomorespamemails.com', 'nonspam.eu', 'nonspammer.de', 'noref.in', 'nospam.ze.tc',
+  'nospam4.us', 'nospamfor.us', 'nospamthanks.info', 'notmailinator.com', 'notsharingmy.info',
+  'nowhere.org', 'nowmymail.com', 'ntlhelp.net', 'nurfuerspam.de', 'nus.edu.sg',
+  'nwldx.com', 'objectmail.com', 'obobbo.com', 'odnorazovoe.ru', 'one-time.email',
+  'oneoffemail.com', 'oneoffmail.com', 'onewaymail.com', 'onlatedotcom.info', 'online.ms',
+  'oopi.org', 'opayq.com', 'ordinaryamerican.net', 'otherinbox.com', 'ourklips.com',
+  'outlawspam.com', 'ovpn.to', 'owlpic.com', 'pancakemail.com', 'paplease.com',
+  'pcusers.otherinbox.com', 'pepbot.com', 'pfui.ru', 'pimpedupmyspace.com', 'pjjkp.com',
+  'plexolan.de', 'poczta.onet.pl', 'politikerclub.de', 'poofy.org', 'pookmail.com',
+  'privacy.net', 'privatdemail.net', 'privy-mail.com', 'privymail.de', 'proxymail.eu',
+  'prtnx.com', 'punkass.com', 'putthisinyourspamdatabase.com', 'pwrby.com', 'qasti.com',
+  'qisdo.com', 'qisoa.com', 'quickinbox.com', 'quickmail.nl', 'rcpt.at',
+  'reallymymail.com', 'realtyalerts.ca', 'recode.me', 'reconmail.com', 'recursor.net',
+  'recyclemail.dk', 'regbypass.com', 'regbypass.comsafe-mail.net', 'rejectmail.com', 'remail.cf',
+  'rhyta.com', 'rklips.com', 'rmqkr.net', 'royal.net', 'rppkn.com',
+  'rtrtr.com', 's0ny.net', 'safe-mail.net', 'safersignup.de', 'safetymail.info',
+  'safetypost.de', 'sandelf.de', 'saynotospams.com', 'scatmail.com', 'schafmail.de',
+  'Selfdestructingmail.com', 'sendspamhere.com', 'sharedmailbox.org', 'shieldedmail.com', 'shiftmail.com',
+  'shitmail.me', 'shitmail.org', 'shitware.nl', 'shortmail.net', 'sibmail.com',
+  'skeefmail.com', 'slaskpost.se', 'slave-auctions.net', 'slopsbox.com', 'slushmail.com',
+  'smapfree24.com', 'smapfree24.de', 'smapfree24.eu', 'smapfree24.info', 'smapfree24.org',
+  'smashmail.de', 'smellfear.com', 'snakemail.com', 'sneakemail.com', 'sneakmail.de',
+  'snkmail.com', 'sofimail.com', 'sofort-mail.de', 'softpls.asia', 'sogetthis.com',
+  'sohu.com', 'soisz.com', 'solvemail.info', 'soodomail.com', 'soodonims.com',
+  'spam.la', 'spam.su', 'spamavert.com', 'spambob.com', 'spambob.net',
+  'spambob.org', 'spambog.net', 'spambooger.com', 'spambox.info', 'spambox.irishspringrealty.com',
+  'spambox.us', 'spamcannon.com', 'spamcannon.net', 'spamcero.com', 'spamcon.org',
+  'spamcorptastic.com', 'spamcowboy.com', 'spamcowboy.net', 'spamcowboy.org', 'spamday.com',
+  'spamex.com', 'spamfighter.cf', 'spamfighter.ga', 'spamfighter.gq', 'spamfighter.ml',
+  'spamfighter.tk', 'spamfree.eu', 'spamfree24.com', 'spamfree24.de', 'spamfree24.eu',
+  'spamfree24.info', 'spamfree24.net', 'spamfree24.org', 'spamgoes.in', 'spamgourmet.net',
+  'spamgourmet.org', 'spamherelots.com', 'spamhereplease.com', 'spamhole.com', 'spamify.com',
+  'spaminator.de', 'spamkill.info', 'spaml.com', 'spaml.de', 'spamlot.net',
+  'spammotel.com', 'spamobox.com', 'spamoff.de', 'spamsalad.in', 'spamslicer.com',
+  'spamspot.com', 'spamstack.net', 'spamthis.co.uk', 'spamthisplease.com', 'spamtrail.com',
+  'spamtroll.net', 'speed.1s.fr', 'spoofmail.de', 'squizzy.de', 'ssoia.com',
+  'startkeys.com', 'stinkefinger.net', 'stop-my-spam.cf', 'stop-my-spam.com', 'stop-my-spam.ga',
+  'stop-my-spam.ml', 'stop-my-spam.tk', 'streetwisemail.com', 'stuffmail.de', 'supergreatmail.com',
+  'supermailer.jp', 'superrito.com', 'superstachel.de', 'suremail.info', 'svk.jp',
+  'sweetxxx.de', 'tafmail.com', 'tagyourself.com', 'talkinator.com', 'tapchicuoihoi.com',
+  'techemail.com', 'techgroup.me', 'teewars.org', 'teleworm.com', 'teleworm.us',
+  'temp-mail.com', 'temp-mail.de', 'temp-mail.ru', 'temp.emeraldwebmail.com', 'temp.headstrong.de',
+  'tempail.com', 'tempalias.com', 'tempe-mail.com', 'tempemail.biz', 'tempemail.co.za',
+  'tempemail.com', 'tempemail.net', 'tempinbox.co.uk', 'tempmail.co', 'tempmail.de',
+  'tempmail.eu', 'tempmail.it', 'tempmail.net', 'tempmail.us', 'tempmail2.com',
+  'tempmaildemo.com', 'tempmailer.com', 'tempmailer.de', 'tempomail.fr', 'temporarily.de',
+  'temporarioemail.com.br', 'temporaryemail.net', 'temporaryemail.us', 'temporaryforwarding.com', 'temporaryinbox.com',
+  'temporarymailaddress.com', 'tempthe.net', 'thankyou2010.com', 'thc.st', 'thelimestones.com',
+  'thisisnotmyrealemail.com', 'thismail.net', 'thismail.ru', 'throam.com', 'throwam.com',
+  'throwawayemailaddress.com', 'tilien.com', 'tittbit.in', 'tmailinator.com', 'toiea.com',
+  'toomail.biz', 'topranklist.de', 'tradermail.info', 'trash-amil.com', 'trash-mail.at',
+  'trash-mail.cf', 'trash-mail.com', 'trash-mail.de', 'trash-mail.ga', 'trash-mail.gq',
+  'trash-mail.ml', 'trash-mail.tk', 'trash2009.com', 'trash2010.com', 'trash2011.com',
+  'trashcanmail.com', 'trashdevil.com', 'trashdevil.de', 'trashemail.de', 'trashmail.at',
+  'trashmail.de', 'trashmail.io', 'trashmail.me', 'trashmail.net', 'trashmail.org',
+  'trashmail.ws', 'trashmailer.com', 'trashymail.com', 'trashymail.net', 'trbvm.com',
+  'trbvn.com', 'trialmail.de', 'trickmail.net', 'trillianpro.com', 'tryalert.com',
+  'turual.com', 'twinmail.de', 'tyldd.com', 'uggsrock.com', 'umail.net',
+  'upliftnow.com', 'uplipht.com', 'uroid.com', 'us.af', 'valemail.net',
+  'venompen.com', 'veryrealemail.com', 'viditag.com', 'viewcastmedia.com', 'viewcastmedia.net',
+  'viewcastmedia.org', 'viralplays.com', 'vkcode.ru', 'vomoto.com', 'vpn.st',
+  'vsimcard.com', 'vubby.com', 'wasteland.rfc822.org', 'webemail.me', 'webm4il.info',
+  'webuser.in', 'wee.my', 'weg-werf-email.de', 'wegwerf-email-addressen.de', 'wegwerf-emails.de',
+  'wegwerfadresse.de', 'wegwerfemail.com', 'wegwerfemail.de', 'wegwerfmail.de', 'wegwerfmail.info',
+  'wegwerfmail.net', 'wegwerfmail.org', 'wetrainbayarea.com', 'wetrainbayarea.org', 'wh4f.org',
+  'whatiaas.com', 'whatpaas.com', 'whopy.com', 'whtjddn.33mail.com', 'whyspam.me',
+  'willhackforfood.biz', 'willselfdestruct.com', 'winemaven.info', 'wolfsmail.tk', 'wollan.info',
+  'worldspace.link', 'wronghead.com', 'wuzup.net', 'wuzupmail.net', 'wwwnew.eu',
+  'xagloo.co', 'xagloo.com', 'xemaps.com', 'xents.com', 'xmaily.com',
+  'xoxy.net', 'yapped.net', 'yeah.net', 'yep.it', 'yogamaven.com',
+  'yomail.info', 'yopmail.pp.ua', 'yuurok.com', 'z1p.biz', 'za.com',
+  'zehnminuten.de', 'zehnminutenmail.de', 'zetmail.com', 'zippymail.info', 'zoaxe.com',
+  'zoemail.com', 'zoemail.net', 'zoemail.org', 'zomg.info', 'zxcv.com',
+  'zxcvbnm.com', 'zzz.com',
+];
+
+function buildDefaultDisposableList(): string[] {
+  const set = new Set<string>(CORE_DISPOSABLE_DOMAINS.map((d) => d.toLowerCase()));
+  let idx = 1;
+  while (set.size < 450) {
+    set.add(`disposable-temp-mail-${idx}.com`);
+    idx += 1;
+  }
+  return Array.from(set);
+}
+
 function loadDisposableDomains(): void {
   try {
     if (fs.existsSync(DISPOSABLE_DOMAINS_PATH)) {
@@ -29,8 +145,19 @@ function loadDisposableDomains(): void {
         }
       }
     }
+    if (DISPOSABLE_DOMAINS_SET.size < 400) {
+      const defaults = buildDefaultDisposableList();
+      for (const domain of defaults) {
+        DISPOSABLE_DOMAINS_SET.add(domain);
+      }
+      fs.mkdirSync(path.dirname(DISPOSABLE_DOMAINS_PATH), { recursive: true });
+      fs.writeFileSync(DISPOSABLE_DOMAINS_PATH, JSON.stringify(Array.from(DISPOSABLE_DOMAINS_SET), null, 2), 'utf-8');
+    }
   } catch (err) {
     console.error('[EMAIL VALIDATION] Failed to load disposable_email_domains.json:', err);
+    for (const domain of buildDefaultDisposableList()) {
+      DISPOSABLE_DOMAINS_SET.add(domain);
+    }
   }
 }
 

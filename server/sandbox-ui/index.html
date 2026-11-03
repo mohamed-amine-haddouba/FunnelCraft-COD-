@@ -346,7 +346,7 @@
               <div>
                 <h2 class="panel-title">Zero-Downtime 5-Step Build &amp; Deployment Pipeline</h2>
                 <p class="panel-desc">
-                  Executes <code>git pull origin main</code>, <code>npm install --legacy-peer-deps</code>, <code>npx tsc --noEmit</code>, <code>npm run build</code>, and <code>pm2 restart funnelcraft-api</code> with real-time streaming output.
+                  Executes <code>git pull origin main</code>, <code>npm install --include=dev --legacy-peer-deps</code>, <code>./node_modules/.bin/tsc --noEmit</code>, <code>npm run build</code>, and <code>pm2 restart funnelcraft-api</code> with real-time streaming output.
                 </p>
               </div>
               <div class="action-group">
@@ -387,7 +387,7 @@
                   <span class="deploy-step-badge" id="deploy-step-icon-2">Pending</span>
                 </div>
                 <div class="deploy-step-title">Install Dependencies</div>
-                <code class="deploy-step-cmd">npm install --legacy-peer-deps</code>
+                <code class="deploy-step-cmd">npm install --include=dev --legacy-peer-deps</code>
               </div>
 
               <div class="deploy-step-card" data-step="3">
@@ -396,7 +396,7 @@
                   <span class="deploy-step-badge" id="deploy-step-icon-3">Pending</span>
                 </div>
                 <div class="deploy-step-title">TypeScript Check</div>
-                <code class="deploy-step-cmd">npx tsc --noEmit</code>
+                <code class="deploy-step-cmd">./node_modules/.bin/tsc --noEmit</code>
               </div>
 
               <div class="deploy-step-card" data-step="4">
@@ -429,7 +429,7 @@
                 <button type="button" id="btn-clear-deploy-log" class="btn-terminal-clear">Clear Output</button>
               </div>
               <pre id="deploy-terminal-output" class="terminal-pre">[CodWorth Admin Cockpit] Ready.
-Click "Run Checks &amp; Deploy" to execute the 5-step pipeline (`git pull origin main` → `npm install --legacy-peer-deps` → `npx tsc --noEmit` → `npm run build` → `pm2 restart funnelcraft-api`) with live stdout/stderr streaming.</pre>
+Click "Run Checks &amp; Deploy" to execute the 5-step pipeline (`git pull origin main` → `npm install --include=dev --legacy-peer-deps` → `./node_modules/.bin/tsc --noEmit` → `npm run build` → `pm2 restart funnelcraft-api`) with live stdout/stderr streaming.</pre>
             </div>
           </div>
         </section>

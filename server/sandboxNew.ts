@@ -1634,10 +1634,15 @@ export function createSandboxCockpitRouter(): Router {
         return;
       }
 
-      // Step 2: npm install --legacy-peer-deps
-      const step2 = await runStepStream(2, 'Installing Dependencies', 'npm', ['install', '--legacy-peer-deps']);
+      // Step 2: npm install --include=dev --legacy-peer-deps
+      const step2 = await runStepStream(
+        2,
+        'Installing Dependencies',
+        'npm',
+        ['install', '--include=dev', '--legacy-peer-deps']
+      );
       if (!step2.ok) {
-        sendEvent('error', `\n❌ Deployment aborted at Step 2 (npm install --legacy-peer-deps).\n`, {
+        sendEvent('error', `\n❌ Deployment aborted at Step 2 (npm install --include=dev --legacy-peer-deps).\n`, {
           ok: false,
           success: false,
           step: 2,
@@ -1647,10 +1652,10 @@ export function createSandboxCockpitRouter(): Router {
         return;
       }
 
-      // Step 3: npx tsc --noEmit
-      const step3 = await runStepStream(3, 'TypeScript Validation', 'npx', ['tsc', '--noEmit']);
+      // Step 3: ./node_modules/.bin/tsc --noEmit
+      const step3 = await runStepStream(3, 'TypeScript Validation', './node_modules/.bin/tsc', ['--noEmit']);
       if (!step3.ok) {
-        sendEvent('error', `\n❌ Deployment aborted at Step 3 (npx tsc --noEmit).\n`, {
+        sendEvent('error', `\n❌ Deployment aborted at Step 3 (./node_modules/.bin/tsc --noEmit).\n`, {
           ok: false,
           success: false,
           step: 3,
@@ -1695,8 +1700,8 @@ export function createSandboxCockpitRouter(): Router {
     const startMs = Date.now();
     const logs: string[] = [];
 
-    const tscRes = await runExecFile('npx', ['tsc', '--noEmit'], { timeoutMs: 60000 });
-    logs.push(`$ npx tsc --noEmit\n${tscRes.stdout}${tscRes.stderr}`);
+    const tscRes = await runExecFile('./node_modules/.bin/tsc', ['--noEmit'], { timeoutMs: 60000 });
+    logs.push(`$ ./node_modules/.bin/tsc --noEmit\n${tscRes.stdout}${tscRes.stderr}`);
     if (!tscRes.ok) {
       return res.status(400).json({
         ok: false,
