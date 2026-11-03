@@ -40,6 +40,10 @@ jobs:
         run: |
           node --import tsx scripts/reconcile-payments.mjs > "$RUNNER_TEMP/reconciliation.json"
           REPORT="$RUNNER_TEMP/reconciliation.json" node -e "const r=require(process.env.REPORT); if(r.mode!=='read-only'||r.hasBlockingFindings) process.exit(1)"
+      - name: Read-only PostgreSQL migration preflight smoke check
+        run: |
+          node --import tsx scripts/postgres-preflight.mjs > "$RUNNER_TEMP/postgres-preflight.json"
+          REPORT="$RUNNER_TEMP/postgres-preflight.json" node -e "const r=require(process.env.REPORT);if(r.mode!=='read-only'||r.hasBlockers||r.needsManualReview)process.exit(1)"
       - name: Production build
         run: npm run build
       - name: Verify encrypted backup and read-only archive check
