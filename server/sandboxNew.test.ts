@@ -233,12 +233,13 @@ describe('Zero-Trust Sandbox Cockpit (server/sandboxNew.ts)', () => {
     assert.ok(Array.isArray(secData.logins));
     assert.ok(secData.logins.length >= 1);
 
-    // Backup tar.gz stream
+    // Backup endpoint must fail closed when encryption is not configured.
+    // It must never fall back to serving an unencrypted customer-data archive.
     const backupRes = await fetch(`${baseUrl}/api/sandbox/backup`, { headers: authHeaders });
-    assert.equal(backupRes.status, 200);
-    assert.equal(backupRes.headers.get('content-type'), 'application/gzip');
-    const buf = await backupRes.arrayBuffer();
-    assert.ok(buf.byteLength > 20);
+    assert.equal(backupRes.status, 503);
+    const backupData = await backupRes.json() as { ok: boolean; error: string };
+    assert.equal(backupData.ok, false);
+    assert.match(backupData.error, /Encrypted backup failed/);
   });
 
   it('requires owner password or a valid short-lived ticket before sending a 2FA code', async () => {
