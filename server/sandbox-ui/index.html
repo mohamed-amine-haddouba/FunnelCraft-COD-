@@ -721,9 +721,9 @@ Click "Run Checks &amp; Deploy" to execute the guarded 7-step release pipeline w
           <div class="panel-card">
             <div class="panel-header">
               <div>
-                <h2 class="panel-title">One-Click Production Data Backup (<code>data/*.json</code>)</h2>
+                <h2 class="panel-title">One-Click Encrypted Data Backup (<code>data/*.json</code>)</h2>
                 <p class="panel-desc">
-                  Generate and download a compressed <code>.tar.gz</code> snapshot of the entire <code>data/</code> directory (users, pages, orders, payments, plans, coupons, and security audit logs).
+                  Generate and download a GPG-encrypted <code>.tar.gz.gpg</code> snapshot of the entire <code>data/</code> directory. Configure <code>BACKUP_GPG_RECIPIENT</code> on the server first; the matching private key is required for recovery.
                 </p>
               </div>
               <button type="button" id="btn-download-backup" class="btn btn-primary">
@@ -732,7 +732,7 @@ Click "Run Checks &amp; Deploy" to execute the guarded 7-step release pipeline w
                   <polyline points="7 10 12 15 17 10"/>
                   <line x1="12" y1="15" x2="12" y2="3"/>
                 </svg>
-                <span>Download data/ Backup (.tar.gz)</span>
+                <span>Download Encrypted Backup (.tar.gz.gpg)</span>
               </button>
             </div>
 
