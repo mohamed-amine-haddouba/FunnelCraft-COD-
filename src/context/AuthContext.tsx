@@ -1006,11 +1006,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const effectiveRole =
     user?.role === 'admin' || realAdminUser?.role === 'admin' ? 'admin' : user?.role;
-  const effectiveEmail =
-    user?.email?.trim().toLowerCase() === 'naadianajah2020@gmail.com' ||
-    realAdminUser?.email?.trim().toLowerCase() === 'naadianajah2020@gmail.com'
-      ? 'naadianajah2020@gmail.com'
-      : user?.email;
+  const effectiveEmail = user?.email || realAdminUser?.email;
   const planCaps = getPlanCapabilities(user?.plan_id, effectiveRole, effectiveEmail);
   const planId: PlanTier = planCaps.effectivePlan;
   const isAdmin = planCaps.isAdmin;
