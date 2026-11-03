@@ -3,7 +3,7 @@ import { getPayment, savePayment, settlePayment } from './server/paypalLedger';
 import { createStripeCheckout, stripeWebhook } from './server/stripeBilling';
 import { resolvePayPalEnvironment } from './server/paypalEnvironment';
 import { isAllowedCorsOrigin } from './server/corsOrigins';
-import { isAnalyticsRange, summarizeOrderMetrics, orderCurrency } from './server/analyticsMetrics';
+import { isAnalyticsRange, summarizeOrderMetrics, orderCurrency, getOrdersForFunnel } from './server/analyticsMetrics';
 import express, { Request as ExpressRequest, Response, NextFunction } from 'express';
 import { createServer as createViteServer } from 'vite';
 import path from 'path';
@@ -2836,10 +2836,7 @@ export async function startServer() {
 
       const topFunnels = scopedPages
         .map((p) => {
-          const matchingOrders = scopedOrders.filter(
-            (o) => o.funnelId === p.id ||
-              (!o.funnelId && o.userId === p.userId && p.slug && o.pageSlug === p.slug)
-          );
+          const matchingOrders = getOrdersForFunnel(scopedOrders, p);
           const pageVisitors = Number(p.viewsCount) || 0;
           const pageOrdersCount = matchingOrders.length;
           const pageRevenue = matchingOrders.reduce(
