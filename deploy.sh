@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-echo "[FunnelCraft-COD] Deploy $(date -u +%FT%TZ)"
+echo "[CodWorth] Deploy $(date -u +%FT%TZ)"
+
+echo ">>> [0/5] private data backup before repository update"
+bash scripts/backup-data.sh
 
 echo ">>> [1/5] git pull"
 git pull origin main
