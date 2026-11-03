@@ -123,9 +123,6 @@ export function settlePayment(id: string, capture: { id?: string; status?: strin
     throw new Error('Conflicting capture.');
   }
   const user = payment.sourceType === 'plan' ? findUserById(payment.userId) : undefined;
-  if (payment.sourceType === 'plan' && (!user || !payment.planId)) {
-    throw new Error('Missing subscription account.');
-  }
   const time = payment.captureId
     ? payment.capturedAt
     : Date.parse(capture.time || '');
@@ -140,6 +137,12 @@ export function settlePayment(id: string, capture: { id?: string; status?: strin
     // never silently grant an entitlement with no durable capture trail.
     recorded = { ...payment, captureId: capture.id, capturedAt: time, settlementVersion: 2 };
     savePayment(id, recorded);
+  }
+
+  if (recorded.sourceType === 'plan' && (!user || !recorded.planId)) {
+    // The provider has captured payment, so preserve that verified fact even
+    // when the subscriber was deleted. Manual reconciliation is now required.
+    throw new Error('Missing subscription account; captured payment requires reconciliation.');
   }
 
   // Old pre-v2 records have already been settled by the previous algorithm.
