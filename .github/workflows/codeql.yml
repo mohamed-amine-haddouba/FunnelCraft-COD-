@@ -24,7 +24,6 @@ jobs:
         uses: github/codeql-action/init@v4
         with:
           languages: javascript-typescript
-          build-mode: autobuild
       - name: Autobuild
         uses: github/codeql-action/autobuild@v4
       - name: Perform CodeQL analysis
