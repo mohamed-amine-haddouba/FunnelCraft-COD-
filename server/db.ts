@@ -588,6 +588,8 @@ export function ensureOwnerAccountForEmail(email: string, initialPassword?: stri
       existing.password_salt = salt;
       existing.mustChangePassword = false;
       existing.initialPasswordBootstrapped = false;
+      // A password reset must revoke all existing owner sessions.
+      invalidateAllUserSessions(existing.id);
       changed = true;
     }
     if (changed) {
@@ -642,7 +644,7 @@ export function getAllUsers(): UserProfile[] {
   return Array.from(users.values()).map((u) => {
     const userPagesCount = allPages.filter((p) => p.userId === u.id).length;
     const userOrdersCount = allOrders.filter(
-      (o) => o.userId === u.id || o.userEmail === u.email || (o.storeName && o.storeName === u.store_name)
+      (o) => o.userId === u.id
     ).length;
 
     return {
