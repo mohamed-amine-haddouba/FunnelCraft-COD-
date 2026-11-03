@@ -53,24 +53,27 @@ echo ">>> [1/6] Fast-forward only from origin/$DEPLOY_BRANCH"
 git pull --ff-only origin "$DEPLOY_BRANCH"
 ROLLBACK_ENABLED=1
 
-echo ">>> [2/6] Snapshot persistent data before installing or restarting"
+echo ">>> [2/7] Verify one online PM2 fork and disabled watch mode"
+node scripts/check-pm2-config.mjs
+
+echo ">>> [3/7] Snapshot persistent data before installing or restarting"
 if [[ ! -f scripts/backup-data.sh ]]; then
   echo "[DEPLOY] Backup script is missing after update; refusing deployment." >&2
   exit 1
 fi
 bash scripts/backup-data.sh
 
-echo ">>> [3/6] Install exact locked dependencies"
+echo ">>> [4/7] Install exact locked dependencies"
 npm ci --include=dev --legacy-peer-deps
 
-echo ">>> [4/6] Type-check and run isolated tests"
+echo ">>> [5/7] Type-check and run isolated tests"
 npm run lint
 npm test
 
-echo ">>> [5/6] Build production assets"
+echo ">>> [6/7] Build production assets"
 npm run build
 
-echo ">>> [6/6] Restart and verify application health"
+echo ">>> [7/7] Restart and verify application health"
 NODE_ENV=production pm2 restart funnelcraft-api --update-env
 
 HEALTH_OK=0
