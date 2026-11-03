@@ -200,16 +200,17 @@ function createDefaultOwnerUser(): StoredUser | null {
 }
 
 function writeJsonFileAtomic(filePath: string, payload: unknown): boolean {
+  const tmpPath = `${filePath}.${process.pid}.${crypto.randomUUID()}.tmp`;
   try {
     if (!fs.existsSync(DATA_DIR)) {
       fs.mkdirSync(DATA_DIR, { recursive: true });
     }
-    const tmpPath = `${filePath}.${process.pid}.${Date.now()}.tmp`;
-    fs.writeFileSync(tmpPath, JSON.stringify(payload, null, 2), 'utf-8');
+    fs.writeFileSync(tmpPath, JSON.stringify(payload, null, 2), { encoding: 'utf-8', mode: 0o600 });
     fs.renameSync(tmpPath, filePath);
     return true;
   } catch (err) {
-    console.error(`[DB ERROR] Atomic write failed for ${filePath}:`, err);
+    try { fs.rmSync(tmpPath, { force: true }); } catch { /* best effort */ }
+    console.error(`[DB ERROR] Atomic write failed for ${path.basename(filePath)}:`, err);
     return false;
   }
 }
