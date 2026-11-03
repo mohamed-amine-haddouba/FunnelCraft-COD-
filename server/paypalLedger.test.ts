@@ -1,12 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { createCoupon, getCoupons, saveCoupons } from './db';
 import { getPayment, savePayment, settlePayment, type ExpectedPayment } from './paypalLedger';
 
 test('PayPal settlement validates provider capture and is idempotent for duplicate delivery', () => {
-  const orderId = `codworth-test-${crypto.randomUUID()}`;
+  const orderId = `codworth-test-${randomUUID()}`;
   const couponCode = `T${crypto.randomUUID().replace(/-/g, '').slice(0, 10).toUpperCase()}`;
   const ledgerFile = fileURLToPath(new URL(`../data/paypal-ledger/${orderId}.json`, import.meta.url));
   const expected: ExpectedPayment = {
