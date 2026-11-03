@@ -72,7 +72,6 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
   const isPro =
     capabilities.canUseApiIntegrations ||
     user?.role === 'admin' ||
-    user?.email?.trim().toLowerCase() === 'naadianajah2020@gmail.com' ||
     user?.plan_id === 'pro' ||
     user?.plan_id === 'enterprise' ||
     currentPlan === 'pro' ||
