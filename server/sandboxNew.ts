@@ -941,7 +941,7 @@ export function createSandboxCockpitRouter(): Router {
       });
     }
 
-    const { token, payload } = signSandboxJwt(rawEmail);
+    const { token } = signSandboxJwt(rawEmail);
     setSandboxSidCookie(res, token);
 
     recordSandboxLoginAttempt({
@@ -954,8 +954,6 @@ export function createSandboxCockpitRouter(): Router {
 
     return res.status(200).json({
       ok: true,
-      token,
-      expiresAt: payload.exp * 1000,
       owner: {
         email: rawEmail,
         name: ownerUser?.full_name || 'Platform Owner',
@@ -1009,7 +1007,7 @@ export function createSandboxCockpitRouter(): Router {
     }
 
     const ownerUser = findUserByEmail(ownerEmail);
-    const { token, payload } = signSandboxJwt(ownerEmail);
+    const { token } = signSandboxJwt(ownerEmail);
     setSandboxSidCookie(res, token);
 
     recordSandboxLoginAttempt({
@@ -1023,8 +1021,6 @@ export function createSandboxCockpitRouter(): Router {
 
     return res.status(200).json({
       ok: true,
-      token,
-      expiresAt: payload.exp * 1000,
       owner: {
         email: ownerEmail,
         name: ownerUser?.full_name || 'Platform Owner',
@@ -1273,7 +1269,7 @@ export function createSandboxCockpitRouter(): Router {
       });
     }
 
-    const { token, payload } = signSandboxJwt(req.sandboxOwner!.email);
+    const { token } = signSandboxJwt(req.sandboxOwner!.email);
     setSandboxSidCookie(res, token);
 
     recordSandboxLoginAttempt({
@@ -1287,8 +1283,6 @@ export function createSandboxCockpitRouter(): Router {
 
     return res.status(200).json({
       ok: true,
-      token,
-      expiresAt: payload.exp * 1000,
       owner: {
         email: STRICT_OWNER_EMAIL,
         name: ownerUser?.full_name || 'Platform Owner',
