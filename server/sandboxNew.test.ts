@@ -91,6 +91,20 @@ describe('Zero-Trust Sandbox Cockpit (server/sandboxNew.ts)', () => {
     assert.equal(verifySandboxJwt(loginTicket).valid, false);
   });
 
+  it('never accepts owner JWTs from URL query parameters; same-origin HttpOnly cookie remains supported', () => {
+    const queryOnly = {
+      headers: {},
+      url: '/api/sandbox/terminal?token=secret-from-url',
+    } as unknown as Parameters<typeof extractSandboxTokenFromRequest>[0];
+    assert.equal(extractSandboxTokenFromRequest(queryOnly), '');
+
+    const cookieRequest = {
+      headers: { cookie: 'other=value; sandbox_sid=cookie-session-token' },
+      url: '/api/sandbox/terminal?token=attacker-token',
+    } as unknown as Parameters<typeof extractSandboxTokenFromRequest>[0];
+    assert.equal(extractSandboxTokenFromRequest(cookieRequest), 'cookie-session-token');
+  });
+
   it('enforces Safe Terminal command whitelist and blocks destructive / shell-injection inputs', () => {
     assert.equal(validateAndParseSafeCommand('ls -la').allowed, true);
     assert.equal(validateAndParseSafeCommand('pm2 list').allowed, true);
