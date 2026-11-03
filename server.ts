@@ -2,6 +2,7 @@ import { resolveQuote } from './server/checkout';
 import { getPayment, savePayment, settlePayment } from './server/paypalLedger';
 import { createStripeCheckout, stripeWebhook } from './server/stripeBilling';
 import { resolvePayPalEnvironment } from './server/paypalEnvironment';
+import { isAllowedCorsOrigin } from './server/corsOrigins';
 import express, { Request as ExpressRequest, Response, NextFunction } from 'express';
 import { createServer as createViteServer } from 'vite';
 import path from 'path';
@@ -486,10 +487,15 @@ export async function startServer() {
     })
   );
 
-  // CORS Configuration (supports codworth.me, localhost, and preview URLs)
+  // Credentialed CORS: do not reflect untrusted Origin headers.
+  // Additional trusted storefront origins must be configured explicitly.
   app.use(
     cors({
-      origin: true,
+      origin: (origin, callback) => callback(null, isAllowedCorsOrigin(origin, {
+        appOrigin: process.env.APP_ORIGIN,
+        extraOrigins: process.env.CORS_ALLOWED_ORIGINS,
+        production: process.env.NODE_ENV === 'production',
+      })),
       credentials: true,
       methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     })
