@@ -23,7 +23,7 @@ export function getPayment(id: string): ExpectedPayment | undefined {
 }
 export function savePayment(id: string, entry: ExpectedPayment) {
   const file = fileFor(id);
-  if (!/^\\d+(\\.\\d{1,2})?$/.test(entry.expectedAmount) ||
+  if (!/^\d+(\.\d{1,2})?$/.test(entry.expectedAmount) ||
       !Number.isFinite(Number(entry.expectedAmount)) || Number(entry.expectedAmount) <= 0 ||
       !/^[A-Z]{3}$/.test(entry.expectedCurrency)) {
     throw new Error('Invalid expected payment amount or currency.');
