@@ -480,10 +480,31 @@ describe('Zero-Trust Sandbox Cockpit (server/sandboxNew.ts)', () => {
       });
     });
 
-    // 2. Authenticated Owner WebSocket connection succeeds and executes commands
+    // 2. URL tokens are rejected; the HttpOnly session cookie authenticates the WebSocket.
     const { token } = signSandboxJwt(STRICT_OWNER_EMAIL);
+    await new Promise<void>((resolve, reject) => {
+      const queryTokenWs = new WebSocket(`${wsBase}/api/sandbox/terminal?token=${encodeURIComponent(token)}`);
+      queryTokenWs.on('open', () => {
+        queryTokenWs.terminate();
+        reject(new Error('A URL query token must not authenticate a WebSocket'));
+      });
+      queryTokenWs.on('error', () => {
+        queryTokenWs.terminate();
+        resolve();
+      });
+      queryTokenWs.on('unexpected-response', (_req, res) => {
+        assert.equal(res.statusCode, 401);
+        res.resume();
+        queryTokenWs.terminate();
+        resolve();
+      });
+    });
+
+    const sessionCookie = `sandbox_sid=${encodeURIComponent(token)}`;
     const outputReceived = await new Promise<string>((resolve, reject) => {
-      const ws = new WebSocket(`${wsBase}/api/sandbox/terminal?token=${encodeURIComponent(token)}`);
+      const ws = new WebSocket(`${wsBase}/api/sandbox/terminal`, {
+        headers: { Cookie: sessionCookie },
+      });
       let buffer = '';
       let resolved = false;
       const timer = setTimeout(() => {
@@ -521,7 +542,7 @@ describe('Zero-Trust Sandbox Cockpit (server/sandboxNew.ts)', () => {
     assert.ok(outputReceived.includes('CODWORTH_WS_PTY_READY'));
   });
 
-  it('verifies Master Password on POST /api/sandbox/auth/step-up to issue fresh 30m JWT and rejects invalid passwords with 401', async () => {
+  it('verifies Master Password on POST /api/sandbox/auth/step-up and issues a fresh HttpOnly session cookie', async () => {
     // A password alone is not a full owner session.
     const emptyRes = await fetch(`${baseUrl}/api/sandbox/auth/step-up`, {
       method: 'POST',
@@ -548,7 +569,7 @@ describe('Zero-Trust Sandbox Cockpit (server/sandboxNew.ts)', () => {
     assert.equal(wrongData.ok, false);
     assert.equal(wrongData.code, 'INVALID_CREDENTIALS');
 
-    // 3. Valid Master Password -> 200 + fresh 30m JWT + owner payload
+    // 3. Valid Master Password -> 200 + fresh HttpOnly cookie, no token in JSON.
     const validRes = await fetch(`${baseUrl}/api/sandbox/auth/step-up`, {
       method: 'POST',
       headers: {
@@ -561,15 +582,18 @@ describe('Zero-Trust Sandbox Cockpit (server/sandboxNew.ts)', () => {
     assert.equal(validRes.status, 200);
     const validData = (await validRes.json()) as {
       ok: boolean;
-      token: string;
+      token?: string;
       owner: { email: string; role: string };
     };
     assert.equal(validData.ok, true);
-    assert.ok(validData.token);
+    assert.equal(validData.token, undefined);
     assert.equal(validData.owner.email, STRICT_OWNER_EMAIL);
     assert.equal(validData.owner.role, 'owner');
 
-    const verified = verifySandboxJwt(validData.token);
+    const sessionCookie = validRes.headers.get('set-cookie');
+    assert.ok(sessionCookie && sessionCookie.startsWith('sandbox_sid='));
+    const cookieToken = decodeURIComponent(sessionCookie.split(';')[0].slice('sandbox_sid='.length));
+    const verified = verifySandboxJwt(cookieToken);
     assert.equal(verified.valid, true);
     assert.equal(verified.payload?.email, STRICT_OWNER_EMAIL);
 
