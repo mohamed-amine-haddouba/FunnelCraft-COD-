@@ -31,7 +31,7 @@ case "$TARGET_DIR/" in
     exit 1
     ;;
 esac
-if [[ -e "$TARGET_DIR" ]]; then
+if [[ -e "$TARGET_DIR" || -L "$TARGET_DIR" ]]; then
   echo "[RESTORE] Target already exists; refusing to overwrite data." >&2
   exit 1
 fi
