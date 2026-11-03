@@ -312,21 +312,20 @@ export function ensureDataFiles(): void {
       bankAccounts: [],
       updatedAt: new Date().toISOString(),
     };
-    const ownerUser = createDefaultOwnerUser();
-    const initialFiles: Array<[string, unknown]> = [
-      [USERS_FILE, ownerUser ? [ownerUser] : []],
-      [PAYMENTS_FILE, []],
-      [PAGES_FILE, []],
-      [ORDERS_FILE, []],
-      [SETTINGS_FILE, initialSettings],
-      [PLANS_FILE, DEFAULT_SUBSCRIPTION_PLANS],
-      [COUPONS_FILE, []],
-      [SECURITY_LOGIN_AUDIT_FILE, []],
-      [EMAIL_VERIFICATIONS_FILE, []],
+    const initialFiles: Array<[string, () => unknown]> = [
+      [USERS_FILE, () => { const ownerUser = createDefaultOwnerUser(); return ownerUser ? [ownerUser] : []; }],
+      [PAYMENTS_FILE, () => []],
+      [PAGES_FILE, () => []],
+      [ORDERS_FILE, () => []],
+      [SETTINGS_FILE, () => initialSettings],
+      [PLANS_FILE, () => DEFAULT_SUBSCRIPTION_PLANS],
+      [COUPONS_FILE, () => []],
+      [SECURITY_LOGIN_AUDIT_FILE, () => []],
+      [EMAIL_VERIFICATIONS_FILE, () => []],
     ];
 
-    for (const [file, initialValue] of initialFiles) {
-      if (!fs.existsSync(file) && !writeJsonFileAtomic(file, initialValue)) {
+    for (const [file, createInitialValue] of initialFiles) {
+      if (!fs.existsSync(file) && !writeJsonFileAtomic(file, createInitialValue())) {
         throw new Error(`Unable to initialize ${path.basename(file)}.`);
       }
     }
@@ -2452,34 +2451,28 @@ export function deleteBankAccount(id: string): boolean {
 /* ---------------- DYNAMIC SUBSCRIPTION PLANS & COUPONS STORE ---------------- */
 
 export function getPlans(): SubscriptionPlanConfig[] {
-  try {
-    if (fs.existsSync(PLANS_FILE)) {
-      const raw = fs.readFileSync(PLANS_FILE, 'utf-8');
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed.map((p) => {
-          const fallback =
-            DEFAULT_SUBSCRIPTION_PLANS.find((d) => d.id === p.id) || DEFAULT_SUBSCRIPTION_PLANS[0];
-          return {
-            id: p.id as 'starter' | 'pro' | 'enterprise',
-            name: typeof p.name === 'string' && p.name.trim() ? p.name.trim() : fallback.name,
-            nameAr:
-              typeof p.nameAr === 'string' && p.nameAr.trim() ? p.nameAr.trim() : fallback.nameAr,
-            priceMAD:
-              typeof p.priceMAD === 'number' && Number.isFinite(p.priceMAD) && p.priceMAD > 0
-                ? Math.round(p.priceMAD * 100) / 100
-                : fallback.priceMAD,
-            features: Array.isArray(p.features)
-              ? p.features.map((f: unknown) => String(f ?? '').trim()).filter(Boolean)
-              : fallback.features,
-          };
-        });
-      }
-    }
-  } catch (err) {
-    console.warn('Failed to read plans.json, falling back to default plans:', err);
+  if (!fs.existsSync(PLANS_FILE)) {
+    return DEFAULT_SUBSCRIPTION_PLANS.map((p) => ({ ...p, features: [...p.features] }));
   }
-  return DEFAULT_SUBSCRIPTION_PLANS.map((p) => ({ ...p, features: [...p.features] }));
+  const raw = fs.readFileSync(PLANS_FILE, 'utf-8');
+  let parsed: unknown;
+  try { parsed = JSON.parse(raw); }
+  catch { throw new Error('plans.json is corrupt. Restore a verified backup before changing subscriptions.'); }
+  if (!Array.isArray(parsed)) throw new Error('plans.json must contain an array.');
+  if (parsed.length === 0) return DEFAULT_SUBSCRIPTION_PLANS.map((p) => ({ ...p, features: [...p.features] }));
+  return parsed.map((p) => {
+    const fallback = DEFAULT_SUBSCRIPTION_PLANS.find((d) => d.id === p.id) || DEFAULT_SUBSCRIPTION_PLANS[0];
+    return {
+      id: p.id as 'starter' | 'pro' | 'enterprise',
+      name: typeof p.name === 'string' && p.name.trim() ? p.name.trim() : fallback.name,
+      nameAr: typeof p.nameAr === 'string' && p.nameAr.trim() ? p.nameAr.trim() : fallback.nameAr,
+      priceMAD: typeof p.priceMAD === 'number' && Number.isFinite(p.priceMAD) && p.priceMAD > 0
+        ? Math.round(p.priceMAD * 100) / 100 : fallback.priceMAD,
+      features: Array.isArray(p.features)
+        ? p.features.map((feature: unknown) => String(feature ?? '').trim()).filter(Boolean)
+        : fallback.features,
+    };
+  });
 }
 
 export function savePlans(plansInput: SubscriptionPlanConfig[]): SubscriptionPlanConfig[] {
@@ -2529,30 +2522,25 @@ export function savePlans(plansInput: SubscriptionPlanConfig[]): SubscriptionPla
 }
 
 export function getCoupons(): SaaSCoupon[] {
-  try {
-    if (fs.existsSync(COUPONS_FILE)) {
-      const raw = fs.readFileSync(COUPONS_FILE, 'utf-8');
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) {
-        return parsed
-          .filter((c) => c && typeof c.code === 'string' && c.code.trim())
-          .map((c) => ({
-            code: String(c.code).trim().toUpperCase(),
-            discountType: c.discountType === 'fixed' ? 'fixed' : 'percentage',
-            discountValue: Math.max(0, Number(c.discountValue) || 0),
-            maxUses: Math.max(1, Math.floor(Number(c.maxUses) || 1)),
-            redemptionIds: Array.isArray(c.redemptionIds) ? c.redemptionIds.filter((id: unknown) => typeof id === 'string') : [],
-            currentUses: Math.max(0, Math.floor(Number(c.currentUses) || 0)),
-            expiresAt: String(c.expiresAt || new Date(Date.now() + 30 * 86400000).toISOString()),
-            isActive: c.isActive !== false,
-            createdAt: c.createdAt ? String(c.createdAt) : undefined,
-          }));
-      }
-    }
-  } catch (err) {
-    console.warn('Failed to read coupons.json:', err);
-  }
-  return [];
+  if (!fs.existsSync(COUPONS_FILE)) return [];
+  const raw = fs.readFileSync(COUPONS_FILE, 'utf-8');
+  let parsed: unknown;
+  try { parsed = JSON.parse(raw); }
+  catch { throw new Error('coupons.json is corrupt. Restore a verified backup before processing discounts.'); }
+  if (!Array.isArray(parsed)) throw new Error('coupons.json must contain an array.');
+  return parsed
+    .filter((coupon) => coupon && typeof coupon.code === 'string' && coupon.code.trim())
+    .map((coupon) => ({
+      code: String(coupon.code).trim().toUpperCase(),
+      discountType: coupon.discountType === 'fixed' ? 'fixed' : 'percentage',
+      discountValue: Math.max(0, Number(coupon.discountValue) || 0),
+      maxUses: Math.max(1, Math.floor(Number(coupon.maxUses) || 1)),
+      redemptionIds: Array.isArray(coupon.redemptionIds) ? coupon.redemptionIds.filter((id: unknown) => typeof id === 'string') : [],
+      currentUses: Math.max(0, Math.floor(Number(coupon.currentUses) || 0)),
+      expiresAt: String(coupon.expiresAt || new Date(Date.now() + 30 * 86400000).toISOString()),
+      isActive: coupon.isActive !== false,
+      createdAt: coupon.createdAt ? String(coupon.createdAt) : undefined,
+    }));
 }
 
 export function saveCoupons(coupons: SaaSCoupon[]): SaaSCoupon[] {
