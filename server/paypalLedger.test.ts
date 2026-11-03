@@ -34,6 +34,8 @@ test('PayPal settlement validates provider capture and is idempotent for duplica
   });
 
   try {
+    assert.throws(() => savePayment(orderId, { ...expected, expectedAmount: '-1.00' }), /Invalid expected payment/);
+    assert.throws(() => savePayment(orderId, { ...expected, expectedCurrency: 'usd' }), /Invalid expected payment/);
     savePayment(orderId, expected);
     assert.throws(() => settlePayment(orderId, {
       id: 'capture-not-completed',
