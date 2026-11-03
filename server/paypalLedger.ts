@@ -13,37 +13,59 @@ export interface ExpectedPayment {
   quote?: ProductQuote; captureId?: string; capturedAt?: number;
 }
 const directory = fileURLToPath(new URL('../data/paypal-ledger/', import.meta.url));
-function fileFor(id: string) {
+function validatePaymentId(id: string): void {
   if (typeof id !== 'string' || !/^[A-Za-z0-9-]{1,80}$/.test(id)) {
     throw new Error('Invalid payment ID');
   }
-  // Never place provider-controlled identifiers in a filesystem path. A fixed
-  // 64-character digest prevents traversal and satisfies static taint analysis.
-  const filename = crypto.createHash('sha256').update(id, 'utf8').digest('hex') + '.json';
-  return path.join(directory, filename);
 }
+
+// Provider order IDs are stored as data, never used to construct a filesystem
+// path. Each ledger file receives a random server-generated UUID filename.
+function findPaymentFile(id: string): string | undefined {
+  validatePaymentId(id);
+  if (!fs.existsSync(directory)) return undefined;
+  for (const item of fs.readdirSync(directory, { withFileTypes: true })) {
+    if (!item.isFile() || !/^[0-9a-f-]{36}\\.json$/.test(item.name)) continue;
+    const candidate = path.join(directory, item.name);
+    try {
+      const record = JSON.parse(fs.readFileSync(candidate, 'utf8'));
+      if (record && record.orderId === id) return candidate;
+    } catch {
+      // Ignore unrelated or corrupt entries; selected payments fail closed.
+    }
+  }
+  return undefined;
+}
+
 export function getPayment(id: string): ExpectedPayment | undefined {
-  const file = fileFor(id);
-  return fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : undefined;
+  const file = findPaymentFile(id);
+  if (!file) return undefined;
+  const record = JSON.parse(fs.readFileSync(file, 'utf8'));
+  if (!record || record.orderId !== id) return undefined;
+  const { orderId: _storedOrderId, ...payment } = record;
+  return payment as ExpectedPayment;
 }
+
 export function savePayment(id: string, entry: ExpectedPayment) {
-  const file = fileFor(id);
-  if (!/^\d+(\.\d{1,2})?$/.test(entry.expectedAmount) ||
+  const existing = findPaymentFile(id);
+  if (!/^\\d+(\\.\\d{1,2})?$/.test(entry.expectedAmount) ||
       !Number.isFinite(Number(entry.expectedAmount)) || Number(entry.expectedAmount) <= 0 ||
       !/^[A-Z]{3}$/.test(entry.expectedCurrency)) {
     throw new Error('Invalid expected payment amount or currency.');
   }
   fs.mkdirSync(directory, { recursive: true, mode: 0o700 });
-  try { fs.chmodSync(directory, 0o700); } catch { /* existing host policy may manage directory mode */ }
-  const tmp = file + '.' + crypto.randomUUID() + '.tmp';
+  try { fs.chmodSync(directory, 0o700); } catch { /* host policy may manage directory mode */ }
+  const file = existing || path.join(directory, crypto.randomUUID() + '.json');
+  const tmp = path.join(directory, crypto.randomUUID() + '.tmp');
   try {
-    fs.writeFileSync(tmp, JSON.stringify(entry), { encoding: 'utf8', mode: 0o600, flag: 'wx' });
+    fs.writeFileSync(tmp, JSON.stringify({ ...entry, orderId: id }), { encoding: 'utf8', mode: 0o600, flag: 'wx' });
     fs.renameSync(tmp, file);
   } catch (error) {
     try { fs.rmSync(tmp, { force: true }); } catch { /* best effort cleanup */ }
     throw error;
   }
 }
+
 export function settlePayment(id: string, capture: { id?: string; status?: string; amount?: string; currency?: string; time?: string }) {
   const payment = getPayment(id);
   if (!payment || !capture.id || capture.status !== 'COMPLETED' || !/^\d+(\.\d{1,2})?$/.test(capture.amount || '')
