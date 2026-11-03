@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { isAnalyticsRange, summarizeOrderMetrics } from './analyticsMetrics';
+import { isAnalyticsRange, summarizeOrderMetrics, getOrdersForFunnel } from './analyticsMetrics';
 
 test('analytics respects time range, order status, and separates currencies', () => {
   const now = Date.parse('2026-11-03T12:00:00Z');
