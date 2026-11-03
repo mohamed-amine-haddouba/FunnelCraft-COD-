@@ -21,8 +21,8 @@ function amount(order: MetricOrder): number {
   return Number.isFinite(n) && n >= 0 ? n : 0;
 }
 
-export function summarizeOrderMetrics(
-  orders: MetricOrder[],
+export function summarizeOrderMetrics<T extends MetricOrder>(
+  orders: T[],
   range: AnalyticsRange,
   now: number = Date.now()
 ) {
