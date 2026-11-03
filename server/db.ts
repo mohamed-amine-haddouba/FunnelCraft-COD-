@@ -128,6 +128,7 @@ export const DEFAULT_SUBSCRIPTION_PLANS: SubscriptionPlanConfig[] = [
 export interface StoredUser extends UserProfile {
   password_hash: string;
   password_salt: string;
+  owner_auth_version?: string;
   reset_token?: string;
   reset_token_expires?: string;
   resetPasswordToken?: string;
@@ -190,6 +191,7 @@ function createDefaultOwnerUser(): StoredUser | null {
     subscription_tier: 'enterprise_tier',
     password_hash: superAdminHash,
     password_salt: superAdminSalt,
+    owner_auth_version: crypto.randomUUID(),
     mustChangePassword: false,
     initialPasswordBootstrapped: Boolean(envInitialPassword),
     email_verified: true,
@@ -467,6 +469,7 @@ export function toSafeProfile(user: StoredUser): UserProfile {
     resetPasswordExpires,
     mustChangePassword,
     initialPasswordBootstrapped,
+    owner_auth_version,
     ...profile
   } = user;
   if (profile.role !== 'admin' && (profile.subscription_status === 'cancelled' ||
@@ -542,6 +545,7 @@ export function bootstrapOwnerFromEnv(): {
     subscription_tier: 'enterprise_tier',
     password_hash: hash,
     password_salt: salt,
+    owner_auth_version: crypto.randomUUID(),
     mustChangePassword: false,
     initialPasswordBootstrapped: Boolean(envInitialPassword),
     email_verified: true,
@@ -585,10 +589,15 @@ export function ensureOwnerAccountForEmail(email: string, initialPassword?: stri
       existing.email_verification_required = false;
       changed = true;
     }
+    if (!existing.owner_auth_version) {
+      existing.owner_auth_version = crypto.randomUUID();
+      changed = true;
+    }
     if (initialPassword) {
       const { hash, salt } = hashPasswordWithSalt(initialPassword);
       existing.password_hash = hash;
       existing.password_salt = salt;
+      existing.owner_auth_version = crypto.randomUUID();
       existing.mustChangePassword = false;
       existing.initialPasswordBootstrapped = false;
       // A password reset must revoke all existing owner sessions.
