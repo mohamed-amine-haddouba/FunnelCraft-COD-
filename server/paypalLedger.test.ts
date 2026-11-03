@@ -64,6 +64,8 @@ test('PayPal settlement validates provider capture and is idempotent for duplica
     };
     assert.equal(settlePayment(orderId, capture), undefined);
     assert.equal(getPayment(orderId)?.captureId, capture.id);
+    assert.equal(getPayment(orderId)?.settlementVersion, 2);
+    assert.equal(typeof getPayment(orderId)?.entitlementsAppliedAt, 'number');
     assert.equal(getCoupons().find(coupon => coupon.code === couponCode)?.currentUses, 1);
 
     // PayPal may redeliver a webhook or the browser may retry capture.
@@ -123,5 +125,76 @@ test('Corrupted legacy ledger fails closed instead of being treated as an unpaid
     assert.throws(() => getPayment(id), /corrupt/i);
   } finally {
     fs.rmSync(file, { force: true });
+  }
+});
+
+test('Interrupted v2 settlement is resumed exactly once without duplicate coupon redemption', () => {
+  const orderId = 'RECOVER-' + randomUUID();
+  const couponCode = 'R' + randomUUID().replace(/-/g,'').slice(0, 10).toUpperCase();
+  const dir = fileURLToPath(new URL('../data/paypal-ledger/', import.meta.url));
+  const capturedAt = Date.parse('2026-11-03T12:00:00Z');
+  createCoupon({
+    code: couponCode, discountType: 'fixed', discountValue: 1,
+    maxUses: 5, expiresAt: '2027-12-31T23:59:59.000Z', isActive: true,
+  });
+  const ledger: ExpectedPayment = {
+    expectedAmount: '25.00', expectedCurrency: 'USD', priceMAD: 250,
+    originalPriceMAD: 251, discountAmountMAD: 1, couponCode,
+    identifier: 'recoverable-fixture', sourceType: 'landing_page',
+    userId: 'guest:recoverable-fixture', billingCycle: 'monthly',
+    createdAt: capturedAt - 1000, captureId: 'RECOVERY-CAPTURE',
+    capturedAt, settlementVersion: 2,
+  };
+  try {
+    // Simulate a crash after the verified capture is durably recorded but
+    // before the coupon/entitlement side effects have been applied.
+    savePayment(orderId, ledger);
+    const capture = { id: 'RECOVERY-CAPTURE', status: 'COMPLETED',
+      amount: '25.00', currency: 'USD', time: new Date(capturedAt).toISOString() };
+    settlePayment(orderId, capture);
+    const applied = getPayment(orderId)!;
+    assert.equal(typeof applied.entitlementsAppliedAt, 'number');
+    assert.equal(getCoupons().find(c=>c.code===couponCode)?.currentUses, 1);
+    settlePayment(orderId, capture);
+    assert.equal(getPayment(orderId)?.entitlementsAppliedAt, applied.entitlementsAppliedAt);
+    assert.equal(getCoupons().find(c=>c.code===couponCode)?.currentUses, 1);
+  } finally {
+    saveCoupons(getCoupons().filter(c=>c.code!==couponCode));
+    if (fs.existsSync(dir)) {
+      for (const name of fs.readdirSync(dir)) {
+        const file = fileURLToPath(new URL(`../data/paypal-ledger/${name}`, import.meta.url));
+        try {
+          if (JSON.parse(fs.readFileSync(file,'utf8')).orderId===orderId) fs.rmSync(file,{force:true});
+        } catch { /* unrelated data */ }
+      }
+    }
+  }
+});
+
+test('Legacy captured checkouts never replay subscription or coupon side effects', () => {
+  const orderId = 'LEGACY-CAPTURE-' + randomUUID();
+  const dir = fileURLToPath(new URL('../data/paypal-ledger/', import.meta.url));
+  const captureTime = Date.parse('2026-11-03T12:00:00Z');
+  const ledger: ExpectedPayment = {
+    expectedAmount:'12.00',expectedCurrency:'USD',priceMAD:120,
+    originalPriceMAD:120,discountAmountMAD:0,
+    identifier:'legacy',sourceType:'landing_page',userId:'guest:legacy',
+    billingCycle:'monthly',createdAt:captureTime-1000,
+    captureId:'LEGACY-CAPTURE',capturedAt:captureTime,
+  };
+  try {
+    savePayment(orderId, ledger);
+    settlePayment(orderId, {id:'LEGACY-CAPTURE',status:'COMPLETED',amount:'12.00',currency:'USD',time:new Date(captureTime).toISOString()});
+    assert.equal(getPayment(orderId)?.entitlementsAppliedAt, undefined);
+    assert.equal(getPayment(orderId)?.settlementVersion, undefined);
+  } finally {
+    if (fs.existsSync(dir)) {
+      for (const name of fs.readdirSync(dir)) {
+        const file = fileURLToPath(new URL(`../data/paypal-ledger/${name}`, import.meta.url));
+        try {
+          if (JSON.parse(fs.readFileSync(file,'utf8')).orderId===orderId) fs.rmSync(file,{force:true});
+        } catch { /* unrelated data */ }
+      }
+    }
   }
 });
