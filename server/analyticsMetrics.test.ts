@@ -43,3 +43,16 @@ test('funnel order matching never crosses merchant boundaries, including legacy 
   const matches = getOrdersForFunnel(orders, { id: 'shared-page', userId: 'merchant-a', slug: 'same-slug' });
   assert.deepEqual(matches.map(order => order.id), ['same-id-owner', 'legacy-owner']);
 });
+
+test('analytics excludes malformed statuses and does not misclassify malformed currency as MAD', () => {
+  const now = Date.parse('2026-11-03T12:00:00Z');
+  const malformed = [
+    { id: 'bad-status', createdAt: '2026-11-02T10:00:00Z', price: 500, currency: 'MAD', status: 'toString' as any },
+    { id: 'bad-currency', createdAt: '2026-11-02T10:00:00Z', price: 700, currency: 42 as any, status: 'delivered' as const },
+  ];
+  const result = summarizeOrderMetrics(malformed, '7d', now);
+  assert.equal(result.totalOrders, 1);
+  assert.equal(result.totalRevenue, 0);
+  assert.equal(result.deliveredValueByCurrency.UNKNOWN, 700);
+  assert.equal(result.recordedValueByCurrency.MAD, undefined);
+});
