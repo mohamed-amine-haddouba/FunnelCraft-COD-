@@ -21,6 +21,7 @@ import {
   getGlobalPlatformStats,
 } from './db';
 import { sendOtpEmail, sendSandboxResetEmail } from './mailer';
+import { isAllowedCorsOrigin } from './corsOrigins';
 import { getClientIp, resolveClientGeoLocation } from '../src/utils/ipAndForensics';
 
 const requireModule = createRequire(import.meta.url);
@@ -801,6 +802,26 @@ export function createSandboxCockpitRouter(): Router {
     return router;
   }
   router.use(express.json({ limit: '1mb' }));
+
+  // Cookie-authenticated state changes must come from a trusted browser origin.
+  // CORS alone does not stop a browser from sending a simple CSRF request.
+  router.use((req: Request, res: Response, next: NextFunction) => {
+    if (!['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) return next();
+    const origin = req.get('origin');
+    const hasSessionCookie = Boolean(parseCookiesHeader(req.headers.cookie).sandbox_sid);
+    const allowed = isAllowedCorsOrigin(origin, {
+      appOrigin: process.env.APP_ORIGIN,
+      extraOrigins: process.env.CORS_ALLOWED_ORIGINS,
+      production: process.env.NODE_ENV === 'production',
+    });
+    if (origin && !allowed) {
+      return res.status(403).json({ ok: false, code: 'UNTRUSTED_ORIGIN', error: 'Request origin is not trusted.' });
+    }
+    if (process.env.NODE_ENV === 'production' && hasSessionCookie && !origin) {
+      return res.status(403).json({ ok: false, code: 'ORIGIN_REQUIRED', error: 'Origin header is required for cookie-authenticated requests.' });
+    }
+    return next();
+  });
 
   // Serve xterm and xterm-addon-fit browser assets locally from node_modules
   router.use(
@@ -1981,6 +2002,16 @@ export function attachSandboxWebSocketServer(server: http.Server): WebSocketServ
     }
 
     if (process.env.NODE_ENV === 'production' && (process.env.ENABLE_OWNER_COCKPIT !== 'true' || !process.env.OWNER_EMAIL)) { socket.destroy(); return; }
+    const origin = req.headers.origin;
+    if ((process.env.NODE_ENV === 'production' && !origin) || (origin && !isAllowedCorsOrigin(origin, {
+      appOrigin: process.env.APP_ORIGIN,
+      extraOrigins: process.env.CORS_ALLOWED_ORIGINS,
+      production: process.env.NODE_ENV === 'production',
+    }))) {
+      socket.write('HTTP/1.1 403 Forbidden\\r\\nConnection: close\\r\\n\\r\\nForbidden origin.\\r\\n');
+      socket.destroy();
+      return;
+    }
     const token = extractSandboxTokenFromRequest(req);
     if (!token) {
       socket.write(
