@@ -18,3 +18,14 @@ test('local development origins allowed without changing production policy', () 
   assert.equal(isAllowedCorsOrigin('http://localhost:5173', { production: false }), true);
   assert.equal(isAllowedCorsOrigin('https://untrusted.example.test', { production: false }), false);
 });
+
+test('production CORS rejects HTTP even when an HTTP origin is mistakenly configured', () => {
+  assert.equal(isAllowedCorsOrigin('http://staging.codworth.me', {
+    production: true,
+    appOrigin: 'http://staging.codworth.me',
+  }), false);
+  assert.equal(isAllowedCorsOrigin('https://staging.codworth.me', {
+    production: true,
+    appOrigin: 'https://staging.codworth.me',
+  }), true);
+});
