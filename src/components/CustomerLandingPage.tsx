@@ -317,7 +317,7 @@ export const CustomerLandingPage: React.FC<CustomerLandingPageProps> = ({
     try {
       const recaptchaToken = await executeRecaptcha('cod_checkout');
 
-      const response = await fetch('/api/orders', {
+      const response = await fetch('/api/orders/submit', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1154,7 +1154,7 @@ export const CustomerLandingPage: React.FC<CustomerLandingPageProps> = ({
                             const resolvedCity = city.trim() || 'Casablanca';
                             const resolvedAddress = address.trim() || 'تم الدفع عبر PayPal';
 
-                            const orderResponse = await fetch('/api/orders', {
+                            const orderResponse = await fetch('/api/orders/submit', {
                               method: 'POST',
                               headers: {
                                 'Content-Type': 'application/json',
