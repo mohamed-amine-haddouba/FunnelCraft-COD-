@@ -49,12 +49,12 @@ rollback_on_error() {
 trap rollback_on_error ERR
 
 echo "[CodWorth] Deploy started at $(date -u +%FT%TZ)"
-echo ">>> [1/7] Fast-forward only from origin/$DEPLOY_BRANCH"
+echo ">>> [1/7] Verify one online PM2 fork and disabled watch mode"
+node scripts/check-pm2-config.mjs
+
+echo ">>> [2/7] Fast-forward only from origin/$DEPLOY_BRANCH"
 git pull --ff-only origin "$DEPLOY_BRANCH"
 ROLLBACK_ENABLED=1
-
-echo ">>> [2/7] Verify one online PM2 fork and disabled watch mode"
-node scripts/check-pm2-config.mjs
 
 echo ">>> [3/7] Snapshot persistent data before installing or restarting"
 if [[ ! -f scripts/backup-data.sh ]]; then
