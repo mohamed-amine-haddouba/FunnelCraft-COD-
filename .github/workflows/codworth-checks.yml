@@ -46,6 +46,8 @@ jobs:
           REPORT="$RUNNER_TEMP/postgres-preflight.json" node -e "const r=require(process.env.REPORT);if(r.mode!=='read-only'||r.hasBlockers||r.needsManualReview)process.exit(1)"
       - name: Production build
         run: npm run build
+      - name: Isolated production-mode staging smoke (synthetic data only)
+        run: node scripts/staging-smoke.mjs
       - name: Verify encrypted backup and read-only archive check
         run: |
           export GNUPGHOME="$RUNNER_TEMP/codworth-gnupg"
