@@ -522,7 +522,6 @@ export async function startServer() {
 
   // Decoupled Zero-Trust Owner Sandbox Cockpit (/api/sandbox and standalone /sandbox UI)
   const sandboxUiDir = path.resolve(__dirname, 'server', 'sandbox-ui');
-  app.use('/api/sandbox/2fa/send', loginLimiter);
   app.use('/api/sandbox', createSandboxCockpitRouter());
   app.use('/sandbox', express.static(sandboxUiDir, { index: 'index.html' }));
   app.get(['/sandbox', '/sandbox/*'], (_req: Request, res: Response) => {
