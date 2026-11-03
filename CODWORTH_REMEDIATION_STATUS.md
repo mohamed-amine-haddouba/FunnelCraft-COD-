@@ -1,29 +1,44 @@
-# CodWorth — Remediation status (2026-11-03)
+# CodWorth — تقرير الإصلاحات التقنية والأمنية
 
-This document tracks the findings of `FunnelCraft_COD_Technical_Review_AR(2).md` (baseline commit `906199abe...`) against the **current** repository, not the old baseline. It is not a certification of production security.
+**التاريخ:** 3 نونبر 2026  
+**المصدر:** مراجعة `FunnelCraft_COD_Technical_Review_AR(2).md` السابقة (commit `906199a`) وتدقيق جاهزية Staging.  
+**الحالة:** إصلاحات على فرع مراجعة، **ليست منشورة أو مدمجة في main**. هذا التقرير ليس شهادة أمان نهائية.
 
-## Changes in this PR
-- Restore the tracked disposable-email domain list removed by a later change, so the validator and isolated test runner have a consistent fixture.
-- PayPal live API is used **only** when `PAYPAL_ENVIRONMENT=live` (or the explicitly supported `production`/`prod` aliases). An unset setting resolves to sandbox even with `NODE_ENV=production`; invalid values fail instead of silently selecting the wrong provider.
-- Google OAuth client configuration is read when authentication is invoked (avoids reading `GOOGLE_CLIENT_ID` before dotenv initialization).
-- Password-reset email links use a validated HTTPS `APP_ORIGIN` (falling back to the existing codworth.me origin for backward compatibility).
-- Explicit allowlist for **credentialed CORS**. Configure `APP_ORIGIN` and `CORS_ALLOWED_ORIGINS` before staging. Third-party storefronts/exported HTML hosted on different origins need an intentionally approved origin. This change needs cross-origin browser E2E testing.
-- Invalidate stored user sessions on owner password replacement, and ensure the admin account list counts orders by stable owner ID only.
-- Document environment variables and add Node 24 PR checks (install, typecheck, isolated tests, build). Add focused regression tests for PayPal mode selection and CORS.
+## 1. ما تم إصلاحه والتحقق منه
 
-## Findings from the original review
-- **Previously addressed in PR #1 or follow-up commits, but still subject to staging verification:** F01, F02, F03, F04, F05, F06, F07, F08, F09, F10, F11, F12, F14, F15. See code, tests, and prior PR; do not equate a unit test with production proof.
-- **Partially addressed here:** F01 (admin counts), F13 (safe payment environment selection, not complete subscription/refund lifecycle), F16 (admin counts only).
-- **Still needing dedicated work:** F13 (refunds/reversals/chargebacks, idempotent distributed transactions, reconciliation), F16 (analytics semantics and date/currency ranges), the remaining legacy order/domain migrations, resilient storage and backup/restore, performance/code-splitting, end-to-end payment/OTP flows, hard-coded identity fixtures, deployment rollback and multi-instance database migration.
+- **F01/F06 — عزل طلبات التجار وحفظ الطلبات:** إصلاحات PR #1 السابقة تمنع استخدام اسم المتجر كإذن وصول، ولا تحذف الطلبات تلقائياً بعد 500. في PR #2 صارت إحصاءات الإدارة الخاصة بعدد طلبات كل تاجر تعتمد على `userId` فقط.
+- **F02/F09/F14 — حساب المالك والجلسات:** سحب جلسات التطبيق عند تغيير/حذف الحساب. أضفنا الآن ربط JWT لوحة المالك وتذكرة 2FA ببصمة سرية مشتقة من بيانات كلمة السر الحالية. عند تغييرها تبطل الرموز القديمة تلقائياً، بما فيها بعد إعادة تشغيل العملية. توجد أيضاً حماية دورية لجلسات Terminal وقطع مباشر عند إعادة التعيين عبر لوحة المالك.
+- **PayPal — الأمان أثناء Staging:** `PAYPAL_ENVIRONMENT` الافتراضي `sandbox` حتى لو `NODE_ENV=production`، ولا يتم اختيار Live إلا عند تحديده صراحة. أضفنا اختبارات لرفض القيم غير المعروفة.
+- **Google OAuth:** يقرأ `GOOGLE_CLIENT_ID` عند الاستعمال بدل قراءته قبل تحميل إعدادات البيئة.
+- **Reset Password:** رابط الاسترجاع يأتي من `APP_ORIGIN` ويتطلب أصل HTTPS سليم (مع دعم الأصل الحالي عند غياب المتغير لأجل التوافق).
+- **CORS:** نطاقات الواجهة المسموح لها بطلبات مصحوبة بالكوكيز محددة بواسطة `APP_ORIGIN` و`CORS_ALLOWED_ORIGINS`، لا يُعكس كل Origin آلياً. **يجب فحص الدومينات المخصصة والـHTML المصدّر قبل الدمج.**
+- **F16 — الإحصائيات:** فلتر 7/30/90 يوماً صار يفلتر الطلبات فعلاً، وتنفصل المبالغ بين العملات والحالات؛ الطلب الملغى ليس إيراداً، وقيمة الطلبات المسلّمة ليست بالضرورة مبلغاً محصلاً. بدون زيارات مؤرخة لنفس الفترة، تعرض الواجهة معدل التحويل كبند غير متاح بدل اختلاق نسبة.
+- **حفظ البيانات:** كتابة ذرية لصفحات التجار والجلسات والأداءات اليدوية والخطط، مع جعل أخطاء الحفظ ظاهرة. هذا **لا يحل** تعارضات تعدد العمليات أو المعاملات بين ملفات منفصلة.
+- **النسخ الاحتياطية:** `scripts/backup-data.sh` ينشئ أرشيفاً خاصاً لمجلد `data/` خارج المستودع قبل `git pull` في `deploy.sh`؛ `scripts/verify-backup.mjs` يفحص سلامة JSON دون استخراج فوق الإنتاج.
+- **الخصوصية:** إزالة عنوان المالك ورقم الهاتف الشخصي من القيم الافتراضية في عدة ملفات، وتعويض هويات الاختبارات ببيانات وهمية. هذا **لا يمحو** البيانات من تاريخ Git القديم.
+- **التبعيات:** `package-lock.json` متوافق الآن مع `package.json`، واختبار التثبيت النظيف ينجح.
+- **بريد التسجيل:** استرجاع ملف دومينات البريد المؤقتة الذي حُذف بالخطأ.
 
-## Verification and release gates
-1. Let GitHub Actions run against this PR. Do not merge while any check fails. The branch has not been locally fully built/tested in this editing environment.
-2. In a **separate staging environment**, configure only test-mode Stripe and PayPal credentials, `PAYPAL_ENVIRONMENT=sandbox`, `APP_ORIGIN=https://<staging-host>`, approved `CORS_ALLOWED_ORIGINS`, CAPTCHA and SMTP. Never include live secrets in Git or logs.
-3. Test Google login, owner password reset and session invalidation, COD on mobile, order ownership with two merchants, exported HTML and custom domains, recurring Stripe payment and webhook, PayPal sandbox capture/refund, provider duplicate events, and cross-origin requests.
-4. Keep one application process for the current JSON/in-memory storage. Back up **all** persistent data including PayPal ledger; rehearse restore on an isolated server and compare merchant/order/payment totals.
-5. Require owner approval and a rollout/rollback plan before merging or deploying.
+### آخر نتائج CI المؤكدة
 
-## Known limitations
-- Stateless owner-cockpit JWTs are not automatically revoked by user-session invalidation: this requires a dedicated token version/revocation mechanism.
-- A fail-closed CORS policy can intentionally block unconfigured third-party hosted storefronts until their origin is trusted.
-- This PR does not promise all findings are fixed and does not alter production payment/data settings.
+في GitHub Actions على فرع الإصلاح: **82 اختباراً ناجحاً من 82، وصفر فشل**؛ فحص TypeScript، `npm ci`، بناء Vite، واختبار إنشاء وفحص الأرشيف نجحت. **هذه اختبارات كود لا تعادل تدقيق الإنتاج أو اختبار دفع مباشر.**
+
+## 2. ما يزال مطلوباً قبل النشر (لا تدّعي اكتماله)
+
+1. **P0 — الدفع المالي:** اختبار معاملات حقيقية *تجريبية* في Stripe Test Mode وPayPal Sandbox، والتأكد من Webhooks وCAPTCHA وCOD على الهاتف. معالجة الاستردادات وchargebacks/reversals والمطابقة المالية ما زالت تحتاج تدفقاً كاملاً واختبارات مع المزودين. لا نفعّل الدفع Live قبل ذلك.
+2. **P0 — استرجاع البيانات:** نظام النسخ الحالي يحتاج اختبار استرجاع فعلي على خادم منفصل، مع مقارنة عدد الحسابات والطلبات والحركات المالية حسب العملة والتاجر. يجب حفظ النسخ مشفرة في مكان خارج الخادم.
+3. **P0 — CORS والدومينات:** التأكد من `APP_ORIGIN` وإضافة نطاقات الصفحات الخارجية اللازمة فقط إلى `CORS_ALLOWED_ORIGINS`. اختبار HTML المصدّر وطلبات COD من نطاق منفصل.
+4. **P1 — قاعدة بيانات المعاملات:** التخزين الحالي يعتمد JSON/Maps في ذاكرة عملية واحدة، لذلك يجب إبقاء PM2 `instances: 1` و`fork`. الانتقال إلى PostgreSQL مع migrations وreconciliation مشروع منفصل ويحتاج خطة رجوع ونسخة احتياطية مجرّبة.
+5. **P1 — جودة التحليلات:** جمع زيارات و`form_start` مؤرخة لكل صفحة لتفعيل معدل تحويل بفترة حقيقية، ثم تأكيد معنى cash collected مقابل قيمة التسليم، واختبار التوقيت والعملات عبر الواجهة والتقارير.
+6. **P1 — التشغيل:** إعادة ضبط المتغيرات الأساسية الآمنة، مراجعة إعداد Nginx وTrusted Proxy، تجربة SMTP وOTP وGoogle Login، وفحص rollback وخطة التعامل مع توقف VPS.
+7. **P2 — الخصوصية:** مراجعة تاريخ Git والنسخ المنشورة إذا لزم، وتدوير أي مفاتيح أو معلومات حساسة قد تكون ظهرت علناً؛ لا تستعمل Force Push تلقائياً.
+
+## 3. تعليمات الدمج الآمن
+
+1. احتفظ بـPR #2 كـ**Draft** لحين مراجعة التغييرات الجديدة.
+2. راجع Checks الفعلية، وليس فقط تقرير AI Studio.
+3. جهز Staging مستقل بمفاتيح **اختبار فقط**، بدون بيانات حقيقية أو نفس ملفات `data/` للإنتاج.
+4. نفّذ اختبار طلب COD، اشتراك Stripe، تحصيل PayPal، استرداد/عكس، تعليق حساب، استعادة كلمة سر المالك، الدومين الخارجي، وحالات فشل الشبكة.
+5. خذ نسخة احتياطية منفصلة وجرب استرجاعها، ثم قرر الدمج والنشر بخطة Rollback واضحة.
+
+**الخلاصة:** أصلحنا مجموعة واسعة من المشاكل المؤكدة، لكن CodWorth لم يصبح تلقائياً جاهزاً للإطلاق التجاري؛ الباقي يحتاج بيئة Staging واختبارات مالية حقيقية تجريبية وهندسة بيانات أكثر متانة.
