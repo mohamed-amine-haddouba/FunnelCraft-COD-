@@ -6,6 +6,7 @@ import { ProblemSolutionBlockView } from './blocks/ProblemSolutionBlockView';
 import { FeaturesBlockView } from './blocks/FeaturesBlockView';
 import { SocialProofBlockView } from './blocks/SocialProofBlockView';
 import { CodFormBlockView } from './blocks/CodFormBlockView';
+import { shouldUseScrapedProductTemplate } from '../utils/publicPageRendering';
 import { FaqBlockView } from './blocks/FaqBlockView';
 import { FloatingCtaBlockView } from './blocks/FloatingCtaBlockView';
 import { TrustBadgesBlockView } from './blocks/TrustBadgesBlockView';
@@ -189,7 +190,7 @@ export const CanvasRenderer: React.FC<Props> = ({
           }
         }}
       >
-        {isLivePreview && data.scrapedData ? (
+        {isLivePreview && shouldUseScrapedProductTemplate(data) ? (
           <CustomerLandingPage
             product={data.scrapedData}
             pageSlug={data.slug || data.id}
