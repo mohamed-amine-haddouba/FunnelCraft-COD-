@@ -38,9 +38,20 @@ jobs:
         run: npm test
       - name: Production build
         run: npm run build
-      - name: Verify private backup and read-only archive check
+      - name: Verify encrypted backup and read-only archive check
         run: |
-          CODWORTH_BACKUP_DIR="$RUNNER_TEMP/codworth-backup-fixture" bash scripts/backup-data.sh
-          BACKUP_FILE="$(find "$RUNNER_TEMP/codworth-backup-fixture" -type f -name '*.tar.gz' -print -quit)"
+          export GNUPGHOME="$RUNNER_TEMP/codworth-gnupg"
+          mkdir -m 700 -p "$GNUPGHOME"
+          gpg --batch --pinentry-mode loopback --passphrase '' --quick-generate-key 'CodWorth Backup CI <codworth-backup-ci@example.test>' default default 1d
+          CODWORTH_BACKUP_DIR="$RUNNER_TEMP/codworth-backup-fixture" BACKUP_GPG_RECIPIENT="codworth-backup-ci@example.test" bash scripts/backup-data.sh
+          BACKUP_FILE="$(find "$RUNNER_TEMP/codworth-backup-fixture" -type f -name '*.tar.gz.gpg' -print -quit)"
           test -n "$BACKUP_FILE"
-          node scripts/verify-backup.mjs "$BACKUP_FILE"
+          (cd "$(dirname "$BACKUP_FILE")" && sha256sum -c "$(basename "$BACKUP_FILE").sha256")
+          gpg --batch --yes --decrypt --output "$RUNNER_TEMP/codworth-data.tar.gz" "$BACKUP_FILE"
+          node scripts/verify-backup.mjs "$RUNNER_TEMP/codworth-data.tar.gz"
+      - name: Verify deployment scripts parse
+        run: |
+          bash -n deploy.sh scripts/backup-data.sh
+          node --check scripts/verify-backup.mjs
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
