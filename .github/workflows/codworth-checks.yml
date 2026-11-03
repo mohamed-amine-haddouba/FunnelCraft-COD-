@@ -9,6 +9,18 @@ permissions:
   contents: read
 
 jobs:
+  lockfile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Verify checked-in lockfile is consistent
+        run: npm ci --ignore-scripts --legacy-peer-deps
+
   verify:
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -18,8 +30,8 @@ jobs:
         with:
           node-version: '24'
           cache: npm
-      - name: Install locked dependencies
-        run: npm ci
+      - name: Install dependencies for independent code validation
+        run: npm install --include=dev --legacy-peer-deps
       - name: Type-check
         run: npm run lint
       - name: Run isolated tests
