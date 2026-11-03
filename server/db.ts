@@ -337,6 +337,24 @@ export function ensureDataFiles(): void {
   }
 }
 
+let persistedUsersSnapshot: Map<string, StoredUser> | null = null;
+let usersStoreRef: Map<string, StoredUser> | null = null;
+
+function cloneUsersMap(source: Map<string, StoredUser>): Map<string, StoredUser> {
+  return new Map(Array.from(source.entries(), ([id, user]) => [
+    id,
+    JSON.parse(JSON.stringify(user)) as StoredUser,
+  ]));
+}
+
+function restoreUsersMap(target: Map<string, StoredUser>): void {
+  if (!persistedUsersSnapshot) return;
+  target.clear();
+  for (const [id, user] of persistedUsersSnapshot) {
+    target.set(id, JSON.parse(JSON.stringify(user)) as StoredUser);
+  }
+}
+
 function loadUsersFromDisk(): Map<string, StoredUser> {
   const usersMap = new Map<string, StoredUser>();
   if (fs.existsSync(USERS_FILE)) {
@@ -352,6 +370,7 @@ function loadUsersFromDisk(): Map<string, StoredUser> {
       usersMap.set(user.id, user);
     }
   }
+  persistedUsersSnapshot = cloneUsersMap(usersMap);
 
   let modified = false;
   const superAdminEmail = getConfiguredOwnerEmail();
@@ -398,12 +417,18 @@ function loadUsersFromDisk(): Map<string, StoredUser> {
 
 function saveUsersToDisk(usersMap: Map<string, StoredUser>): boolean {
   const list = Array.from(usersMap.values());
-  if (!writeJsonFileAtomic(USERS_FILE, list)) throw new Error('Unable to persist user records.');
+  if (!writeJsonFileAtomic(USERS_FILE, list)) {
+    restoreUsersMap(usersMap);
+    if (usersStoreRef && usersStoreRef !== usersMap) restoreUsersMap(usersStoreRef);
+    throw new Error('Unable to persist user records; in-memory changes were rolled back.');
+  }
+  persistedUsersSnapshot = cloneUsersMap(usersMap);
   return true;
 }
 
 ensureDataFiles();
 const users = loadUsersFromDisk();
+usersStoreRef = users;
 
 /* ---------------- MANUAL PAYMENTS STORE ---------------- */
 
