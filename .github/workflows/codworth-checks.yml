@@ -32,6 +32,11 @@ jobs:
           cache: npm
       - name: Install dependencies for independent code validation
         run: npm install --include=dev --legacy-peer-deps
+      - name: Export generated lockfile for review
+        run: |
+          echo 'CODWORTH_LOCK_BEGIN'
+          base64 -w0 package-lock.json | fold -w 700
+          echo 'CODWORTH_LOCK_END'
       - name: Type-check
         run: npm run lint
       - name: Run isolated tests
