@@ -2309,38 +2309,25 @@ export function getPageOrders(slug: string, ownerId: string): CustomerOrder[] {
 /* ---------------- PLATFORM SETTINGS & DYNAMIC MOROCCAN BANKS STORE (data/settings.json) ---------------- */
 
 function loadSettingsFromDisk(): PlatformSettings {
-  try {
-    if (!fs.existsSync(DATA_DIR)) {
-      fs.mkdirSync(DATA_DIR, { recursive: true });
+  if (!fs.existsSync(SETTINGS_FILE)) {
+    const initialSettings: PlatformSettings = { bankAccounts: [], updatedAt: new Date().toISOString() };
+    if (!writeJsonFileAtomic(SETTINGS_FILE, initialSettings)) {
+      throw new Error('Unable to initialize settings.json.');
     }
-    if (fs.existsSync(SETTINGS_FILE)) {
-      const raw = fs.readFileSync(SETTINGS_FILE, 'utf-8');
-      const parsed = JSON.parse(raw) as Partial<PlatformSettings>;
-      if (parsed && Array.isArray(parsed.bankAccounts)) {
-        return {
-          bankAccounts: parsed.bankAccounts,
-          updatedAt: parsed.updatedAt || new Date().toISOString(),
-        };
-      }
-    }
-  } catch (err) {
-    console.error('Failed to read or parse data/settings.json:', err);
+    return initialSettings;
   }
-
-  const initialSettings: PlatformSettings = {
-    bankAccounts: [],
-    updatedAt: new Date().toISOString(),
+  const raw = fs.readFileSync(SETTINGS_FILE, 'utf-8');
+  let parsed: unknown;
+  try { parsed = JSON.parse(raw); }
+  catch { throw new Error('settings.json is corrupt. Restore a verified backup before editing bank accounts.'); }
+  if (!parsed || typeof parsed !== 'object' || !Array.isArray((parsed as Partial<PlatformSettings>).bankAccounts)) {
+    throw new Error('settings.json has an invalid structure. Restore a verified backup.');
+  }
+  const settings = parsed as Partial<PlatformSettings>;
+  return {
+    bankAccounts: settings.bankAccounts as MoroccanBankAccount[],
+    updatedAt: settings.updatedAt || new Date().toISOString(),
   };
-
-  try {
-    if (!fs.existsSync(SETTINGS_FILE)) {
-      fs.writeFileSync(SETTINGS_FILE, JSON.stringify(initialSettings, null, 2), 'utf-8');
-    }
-  } catch (err) {
-    console.error('Failed to create data/settings.json:', err);
-  }
-
-  return initialSettings;
 }
 
 let platformSettings: PlatformSettings = loadSettingsFromDisk();
@@ -2386,12 +2373,12 @@ export function saveBankAccounts(accounts?: MoroccanBankAccount[]): boolean {
       };
     });
 
-    platformSettings = {
+    const nextSettings: PlatformSettings = {
       bankAccounts: normalized,
       updatedAt: now,
     };
-
-    fs.writeFileSync(SETTINGS_FILE, JSON.stringify(platformSettings, null, 2), 'utf-8');
+    if (!writeJsonFileAtomic(SETTINGS_FILE, nextSettings)) return false;
+    platformSettings = nextSettings;
     return true;
   } catch (err) {
     console.error('Failed to write bank accounts to data/settings.json:', err);
