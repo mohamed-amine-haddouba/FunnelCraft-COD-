@@ -36,6 +36,10 @@ jobs:
         run: npm run lint
       - name: Run isolated tests
         run: npm test
+      - name: Read-only payment reconciliation smoke check
+        run: |
+          node --import tsx scripts/reconcile-payments.mjs > "$RUNNER_TEMP/reconciliation.json"
+          REPORT="$RUNNER_TEMP/reconciliation.json" node -e "const r=require(process.env.REPORT); if(r.mode!=='read-only'||r.hasBlockingFindings) process.exit(1)"
       - name: Production build
         run: npm run build
       - name: Verify encrypted backup and read-only archive check
