@@ -1554,8 +1554,8 @@ export function createSandboxCockpitRouter(): Router {
     });
   });
 
-  // 4. GET /api/sandbox/deploy/stream — stream the single guarded deployment entrypoint
-  router.get('/deploy/stream', requireOwner, (req: SandboxAuthenticatedRequest, res: Response) => {
+  // 4. POST /api/sandbox/deploy/stream — stream the single guarded deployment entrypoint
+  router.post('/deploy/stream', requireOwner, (req: SandboxAuthenticatedRequest, res: Response) => {
     res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
     res.setHeader('Cache-Control', 'no-cache, no-transform');
     res.setHeader('Connection', 'keep-alive');
@@ -1842,6 +1842,21 @@ export function attachSandboxWebSocketServer(server: http.Server): WebSocketServ
     }
 
     if (process.env.NODE_ENV === 'production' && (process.env.ENABLE_OWNER_COCKPIT !== 'true' || !process.env.OWNER_EMAIL)) { socket.destroy(); return; }
+    const rejectUpgrade = (status: string) => {
+      socket.end(`HTTP/1.1 ${status}\r\nConnection: close\r\nContent-Length: 0\r\n\r\n`);
+    };
+    if (process.env.ENABLE_OWNER_WEB_TERMINAL !== 'true') {
+      rejectUpgrade('404 Not Found');
+      return;
+    }
+    const origin = req.headers.origin;
+    if (!origin || !isAllowedCorsOrigin(origin, {
+      appOrigin: process.env.APP_ORIGIN,
+      production: true,
+    })) {
+      rejectUpgrade('403 Forbidden');
+      return;
+    }
     const token = extractSandboxTokenFromRequest(req);
     if (!token) {
       socket.write(

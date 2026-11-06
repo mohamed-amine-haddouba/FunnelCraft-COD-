@@ -57,11 +57,18 @@ test('Tenant boundaries, payment verification and published offers through the A
   assert.equal((await request('/api/orders',undefined,tokenB)).status,401);
   process.env.STRIPE_SECRET_KEY = 'sk_test_fixture';
   process.env.STRIPE_WEBHOOK_SECRET = 'fixture-signing-secret';
-  const payload = JSON.stringify({ id: 'evt_fixture', type: 'customer.created', data: {object: {object:'customer'}} });
-  const signature = Stripe.webhooks.generateTestHeaderString({payload,secret:process.env.STRIPE_WEBHOOK_SECRET});
-  const webhook = async (body:string) => (await fetch('http://127.0.0.1:' + addr.port + '/api/billing/webhook', { method:'POST', headers:{'content-type':'application/json','stripe-signature':signature},body })).status;
+  const fixture = { id: 'evt_fixture', type: 'customer.created', livemode: false, data: {object: {object:'customer'}} };
+  const payload = JSON.stringify(fixture);
+  const sign = (body: string) => Stripe.webhooks.generateTestHeaderString({payload: body,secret:process.env.STRIPE_WEBHOOK_SECRET!});
+  const webhook = async (body:string, signature = sign(payload)) => (await fetch('http://127.0.0.1:' + addr.port + '/api/billing/webhook', { method:'POST', headers:{'content-type':'application/json','stripe-signature':signature},body })).status;
   assert.equal(await webhook(payload),200);
   assert.equal(await webhook(payload + ' '),400);
+  const livePayload = JSON.stringify({...fixture, livemode: true});
+  assert.equal(await webhook(livePayload, sign(livePayload)),400);
+  process.env.STRIPE_SECRET_KEY = 'sk_live_placeholder_not_a_real_key';
+  assert.equal(await webhook(payload),503);
+  delete process.env.STRIPE_SECRET_KEY;
+  delete process.env.STRIPE_WEBHOOK_SECRET;
 });
 
 test('Persistent PayPal checkout accepts only the quoted capture and grants the purchased plan once', () => {

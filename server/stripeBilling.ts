@@ -9,21 +9,30 @@ function isPlan(value: unknown): value is Plan {
   return typeof value === 'string' && Object.hasOwn(planTiers, value);
 }
 
+function getStripeConfig() {
+  const mode = process.env.STRIPE_ENVIRONMENT?.trim() || 'test';
+  const key = process.env.STRIPE_SECRET_KEY?.trim();
+  const secret = process.env.STRIPE_WEBHOOK_SECRET?.trim();
+  if ((mode !== 'test' && mode !== 'live') || !key || !secret) return;
+  if (!key.startsWith(`sk_${mode}_`) && !key.startsWith(`rk_${mode}_`)) return;
+  return { key, secret, live: mode === 'live' };
+}
+
 export async function createStripeCheckout(req: Request & { user?: UserProfile }, res: Response) {
   const plan = req.body?.planId ?? 'pro';
   if (!isPlan(plan)) return res.status(400).json({ success: false, error: 'Unknown plan.' });
   const cycle = req.body?.billingCycle ?? 'monthly';
   if (cycle !== 'monthly' && cycle !== 'yearly') return res.status(400).json({ success: false, error: 'Unknown billing cycle.' });
   const price = process.env[`STRIPE_PRICE_${plan.toUpperCase()}_${cycle.toUpperCase()}`];
-  const key = process.env.STRIPE_SECRET_KEY;
+  const config = getStripeConfig();
   const origin = process.env.APP_ORIGIN;
-  if (!price || !key || !origin || !process.env.STRIPE_WEBHOOK_SECRET) {
+  if (!price || !config || !origin) {
     return res.status(503).json({ success: false, error: 'Card checkout is not configured.' });
   }
   try {
     const base = new URL(origin);
     if (process.env.NODE_ENV === 'production' && base.protocol !== 'https:') throw new Error('HTTPS required');
-    const stripe = new Stripe(key);
+    const stripe = new Stripe(config.key);
     const user = req.user!;
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription', line_items: [{ price, quantity: 1 }],
@@ -40,14 +49,14 @@ export async function createStripeCheckout(req: Request & { user?: UserProfile }
 export async function stripeWebhook(req: Request, res: Response) {
   const signature = req.get('stripe-signature');
   if (!signature || !Buffer.isBuffer(req.body)) return res.sendStatus(400);
-  const key = process.env.STRIPE_SECRET_KEY;
-  const secret = process.env.STRIPE_WEBHOOK_SECRET;
-  if (!key || !secret) return res.sendStatus(503);
-  const stripe = new Stripe(key);
+  const config = getStripeConfig();
+  if (!config) return res.sendStatus(503);
+  const stripe = new Stripe(config.key);
   let event: Stripe.Event;
   try {
-    event = stripe.webhooks.constructEvent(req.body, signature, secret);
+    event = stripe.webhooks.constructEvent(req.body, signature, config.secret);
   } catch { return res.sendStatus(400); }
+  if (event.livemode !== config.live) return res.sendStatus(400);
   try {
     const object = event.data.object;
     let id: string | undefined;

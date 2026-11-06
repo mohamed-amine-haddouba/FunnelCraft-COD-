@@ -115,6 +115,17 @@ describe('Zero-Trust Sandbox Cockpit (server/sandboxNew.ts)', () => {
     }
   });
 
+  it('does not start the deployment stream from a GET or a cross-origin POST', async () => {
+    const { token } = signSandboxJwt(STRICT_OWNER_EMAIL);
+    const headers = { Cookie: `sandbox_sid=${encodeURIComponent(token)}`, Origin: 'https://attacker.example.test' };
+    const url = `${baseUrl}/api/sandbox/deploy/stream`;
+    const read = await fetch(url, { headers });
+    assert.notEqual(read.headers.get('content-type')?.split(';')[0], 'text/event-stream');
+    await read.arrayBuffer();
+    const rejected = await fetch(url, { method: 'POST', headers });
+    assert.equal(rejected.status, 403);
+  });
+
   it('never accepts owner JWTs from URL query parameters; same-origin HttpOnly cookie remains supported', () => {
     const queryOnly = {
       headers: {},
@@ -459,12 +470,39 @@ describe('Zero-Trust Sandbox Cockpit (server/sandboxNew.ts)', () => {
     assert.ok(typeof data.appMetrics.totalRevenueMad === 'number');
   });
 
-  it('enforces Zero-Trust JWT on WebSocket /api/sandbox/terminal and streams interactive shell output', async () => {
+  it('requires terminal opt-in, a trusted origin and an owner session before opening an interactive shell', async (t) => {
     const wsBase = baseUrl.replace(/^http:/, 'ws:');
+    const appOrigin = 'https://owner.example.test';
+    const savedOrigin = process.env.APP_ORIGIN;
+    const savedTerminal = process.env.ENABLE_OWNER_WEB_TERMINAL;
+    t.after(() => {
+      if (savedOrigin === undefined) delete process.env.APP_ORIGIN;
+      else process.env.APP_ORIGIN = savedOrigin;
+      if (savedTerminal === undefined) delete process.env.ENABLE_OWNER_WEB_TERMINAL;
+      else process.env.ENABLE_OWNER_WEB_TERMINAL = savedTerminal;
+    });
+    process.env.APP_ORIGIN = appOrigin;
+    const { token } = signSandboxJwt(STRICT_OWNER_EMAIL);
+    const sessionCookie = `sandbox_sid=${encodeURIComponent(token)}`;
+    const assertRejected = (status: number, headers: Record<string, string>) => new Promise<void>((resolve, reject) => {
+      const ws = new WebSocket(`${wsBase}/api/sandbox/terminal`, {headers});
+      ws.on('error', reject);
+      ws.on('open', () => { ws.terminate(); reject(new Error('Unexpected shell upgrade')); });
+      ws.on('unexpected-response', (_req, res) => {
+        res.resume();
+        if (res.statusCode === status) resolve();
+        else reject(new Error(`Expected ${status}, received ${res.statusCode}`));
+      });
+    });
+    delete process.env.ENABLE_OWNER_WEB_TERMINAL;
+    await assertRejected(404, {Cookie: sessionCookie, Origin: appOrigin});
+    process.env.ENABLE_OWNER_WEB_TERMINAL = 'true';
+    await assertRejected(403, {Cookie: sessionCookie});
+    await assertRejected(403, {Cookie: sessionCookie, Origin: 'https://untrusted.example.test'});
 
     // 1. Unauthenticated WebSocket connection must fail
     await new Promise<void>((resolve, reject) => {
-      const badWs = new WebSocket(`${wsBase}/api/sandbox/terminal`);
+      const badWs = new WebSocket(`${wsBase}/api/sandbox/terminal`, {headers: {Origin: appOrigin}});
       badWs.on('open', () => {
         badWs.terminate();
         reject(new Error('Unauthenticated WebSocket should not open'));
@@ -482,9 +520,8 @@ describe('Zero-Trust Sandbox Cockpit (server/sandboxNew.ts)', () => {
     });
 
     // 2. URL tokens are rejected; the HttpOnly session cookie authenticates the WebSocket.
-    const { token } = signSandboxJwt(STRICT_OWNER_EMAIL);
     await new Promise<void>((resolve, reject) => {
-      const queryTokenWs = new WebSocket(`${wsBase}/api/sandbox/terminal?token=${encodeURIComponent(token)}`);
+      const queryTokenWs = new WebSocket(`${wsBase}/api/sandbox/terminal?token=${encodeURIComponent(token)}`, {headers: {Origin: appOrigin}});
       queryTokenWs.on('open', () => {
         queryTokenWs.terminate();
         reject(new Error('A URL query token must not authenticate a WebSocket'));
@@ -501,10 +538,9 @@ describe('Zero-Trust Sandbox Cockpit (server/sandboxNew.ts)', () => {
       });
     });
 
-    const sessionCookie = `sandbox_sid=${encodeURIComponent(token)}`;
     const outputReceived = await new Promise<string>((resolve, reject) => {
       const ws = new WebSocket(`${wsBase}/api/sandbox/terminal`, {
-        headers: { Cookie: sessionCookie },
+        headers: { Cookie: sessionCookie, Origin: appOrigin },
       });
       let buffer = '';
       let resolved = false;

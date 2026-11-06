@@ -112,7 +112,7 @@
   const btnDownloadBackup = document.getElementById('btn-download-backup');
   const backupFilesTbody = document.getElementById('backup-files-tbody');
 
-  let activeDeployEventSource = null;
+  let activeDeployRequest = null;
   let pendingLoginTicket = null;
   let otpCooldownInterval = null;
   let xtermInstance = null;
@@ -1052,9 +1052,9 @@
 
   // Logout
   logoutBtn.addEventListener('click', () => {
-    if (activeDeployEventSource) {
-      activeDeployEventSource.close();
-      activeDeployEventSource = null;
+    if (activeDeployRequest) {
+      activeDeployRequest.abort();
+      activeDeployRequest = null;
     }
     if (terminalSocket) {
       try {
@@ -1148,15 +1148,15 @@
   }
 
   // Run the guarded release pipeline (Real-Time 7-Step SSE Stream)
-  btnRunDeploy.addEventListener('click', () => {
+  btnRunDeploy.addEventListener('click', async () => {
     if (!hasSession()) {
       switchView(false);
       return;
     }
 
-    if (activeDeployEventSource) {
-      activeDeployEventSource.close();
-      activeDeployEventSource = null;
+    if (activeDeployRequest) {
+      activeDeployRequest.abort();
+      activeDeployRequest = null;
     }
 
     resetDeployStepsUI();
@@ -1165,45 +1165,53 @@
     deployStreamStatus.textContent =
       'STREAMING GUARDED 7-STEP PIPELINE (PM2 → fast-forward → encrypted backup → npm ci → tests → build → health/rollback)...';
 
-    const streamUrl = '/api/sandbox/deploy/stream';
-    const es = new EventSource(streamUrl);
-    activeDeployEventSource = es;
-
-    es.onmessage = (event) => {
-      try {
-        const payload = JSON.parse(event.data);
-        if (payload.type === 'step' && payload.step) {
-          updateDeployStepUI(payload.step, payload.status || 'running');
-        }
-        if (payload.message) {
-          deployTerminalOutput.textContent += payload.message;
-          deployTerminalOutput.scrollTop = deployTerminalOutput.scrollHeight;
-        }
-        if (payload.type === 'done') {
-          deployStreamStatus.textContent = 'DEPLOYMENT PIPELINE SUCCEEDED ✓';
-          setDeployButtonRunning(false);
-          es.close();
-          activeDeployEventSource = null;
-          loadSystemStatus();
-        } else if (payload.type === 'error') {
-          if (payload.step) {
-            updateDeployStepUI(payload.step, 'error');
+    const request = new AbortController();
+    activeDeployRequest = request;
+    try {
+      const response = await apiFetch('/deploy/stream', { method: 'POST', signal: request.signal });
+      if (!response.ok || !response.body) throw new Error(`HTTP ${response.status}`);
+      const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
+      let buffered = '';
+      let finished = false;
+      for (;;) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffered += value;
+        const events = buffered.split('\n\n');
+        buffered = events.pop() || '';
+        for (const event of events) {
+          if (!event.startsWith('data: ')) continue;
+          const payload = JSON.parse(event.slice(6));
+          if (payload.type === 'step' && payload.step) {
+            updateDeployStepUI(payload.step, payload.status || 'running');
           }
-          deployStreamStatus.textContent = 'DEPLOYMENT PIPELINE FAILED ✕';
-          setDeployButtonRunning(false);
-          es.close();
-          activeDeployEventSource = null;
+          if (payload.message) {
+            deployTerminalOutput.textContent += payload.message;
+            deployTerminalOutput.scrollTop = deployTerminalOutput.scrollHeight;
+          }
+          if (payload.type === 'done') {
+            finished = true;
+            deployStreamStatus.textContent = 'DEPLOYMENT PIPELINE SUCCEEDED ✓';
+            loadSystemStatus();
+          } else if (payload.type === 'error') {
+            finished = true;
+            if (payload.step) updateDeployStepUI(payload.step, 'error');
+            deployStreamStatus.textContent = 'DEPLOYMENT PIPELINE FAILED ✕';
+          }
         }
-      } catch {
-        deployTerminalOutput.textContent += `${event.data}\n`;
       }
-    };
-
-    es.onerror = () => {
-      setDeployButtonRunning(false);
-      es.close();
-      activeDeployEventSource = null;
-    };
+      if (!finished) throw new Error('Stream ended before reporting a result.');
+    } catch (err) {
+      if (!request.signal.aborted) {
+        deployStreamStatus.textContent = 'DEPLOYMENT RESULT UNKNOWN';
+        deployTerminalOutput.textContent += `\n[Error] ${err.message}\n`;
+      }
+    } finally {
+      if (activeDeployRequest === request) {
+        setDeployButtonRunning(false);
+        activeDeployRequest = null;
+      }
+    }
   });
 
   btnClearDeployLog.addEventListener('click', () => {
