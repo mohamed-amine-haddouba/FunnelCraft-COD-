@@ -32,10 +32,11 @@ function findPaymentFile(id: string): string | undefined {
   const cached = paymentFileIndex.get(id);
   if (cached && fs.existsSync(cached)) return cached;
   if (!fs.existsSync(directory)) return undefined;
-  // A missing order ID should not force a full ledger scan for every request.
-  // Rescan only when the directory's contents have changed.
+  // Directory mtime can remain unchanged across rapid writes (filesystem time
+  // resolution), so a negative lookup must never be cached. In particular,
+  // a newly-created corrupt legacy ledger must still fail closed rather than
+  // appearing to be an unknown/unpaid order.
   const directoryMtime = fs.statSync(directory).mtimeMs;
-  if (directoryMtime === indexedDirectoryMtime) return undefined;
   paymentFileIndex.clear();
 
   // Compatibility with earlier releases: old ledgers were written as
