@@ -121,6 +121,9 @@ test('Corrupted legacy ledger fails closed instead of being treated as an unpaid
   const file = fileURLToPath(new URL(`../data/paypal-ledger/${id}.json`, import.meta.url));
   fs.mkdirSync(dir, { recursive: true });
   try {
+    // Populate a negative cache entry before the legacy file arrives.
+    // A rapid write must not make a corrupt checkout look unpaid/unknown.
+    assert.equal(getPayment(id), undefined);
     fs.writeFileSync(file, '{BROKEN JSON', { flag: 'wx', mode: 0o600 });
     assert.throws(() => getPayment(id), /corrupt/i);
   } finally {
