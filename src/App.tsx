@@ -1672,6 +1672,7 @@ function BuilderWorkspace() {
       {/* Framer AI Generator Modal */}
       <AiGeneratorModal
         isOpen={isAiModalOpen}
+        token={token}
         onClose={() => setIsAiModalOpen(false)}
         onApplyGeneratedPage={async (generatedPage) => {
           await recordPageAction();
