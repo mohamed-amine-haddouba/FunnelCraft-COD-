@@ -39,8 +39,8 @@
             type="email"
             id="login-email"
             name="email"
-            value="naadianajah2020@gmail.com"
-            placeholder="naadianajah2020@gmail.com"
+            value=""
+            placeholder="Owner email address"
             required
             autocomplete="username"
           />
@@ -107,7 +107,7 @@
       </form>
 
       <div class="login-footer">
-        <span>Stateless JWT in <code>sessionStorage</code></span>
+        <span>HttpOnly Secure SameSite cookie • no JWT in browser storage</span>
         <span>•</span>
         <span>Zero Cookie / CSRF Conflict</span>
       </div>
@@ -127,7 +127,7 @@
         </div>
         <h1 class="login-title">Reset Owner Password</h1>
         <p class="login-subtitle">
-          Set a new master password for <code>naadianajah2020@gmail.com</code>. Minimum 8 characters required.
+          Set a new master password for <code>configured owner account</code>. Minimum 8 characters required.
         </p>
       </div>
 
@@ -256,7 +256,7 @@
           <span class="status-dot status-online"></span>
           <div class="owner-info">
             <div class="owner-label">AUTHENTICATED OWNER</div>
-            <div id="sidebar-owner-email" class="owner-email">naadianajah2020@gmail.com</div>
+            <div id="sidebar-owner-email" class="owner-email">configured owner account</div>
           </div>
         </div>
         <button type="button" id="logout-btn" class="btn btn-ghost btn-block">
@@ -344,20 +344,20 @@
           <div class="panel-card">
             <div class="panel-header">
               <div>
-                <h2 class="panel-title">Zero-Downtime 5-Step Build &amp; Deployment Pipeline</h2>
+                <h2 class="panel-title">Guarded 7-Step Release Pipeline</h2>
                 <p class="panel-desc">
-                  Executes <code>git pull origin main</code>, <code>npm install --include=dev --legacy-peer-deps</code>, <code>./node_modules/.bin/tsc --noEmit</code>, <code>npm run build</code>, and <code>pm2 restart funnelcraft-api</code> with real-time streaming output.
+                  One guarded entrypoint verifies PM2 mode, fast-forwards code, creates an encrypted backup, installs the locked dependencies, runs type-checks and tests, builds, then restarts and verifies health with rollback on failure.
                 </p>
               </div>
               <div class="action-group">
-                <button type="button" id="btn-git-pull" class="btn btn-secondary">
+                <button type="button" id="btn-git-fetch" class="btn btn-secondary">
                   <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <circle cx="18" cy="18" r="3"/>
                     <circle cx="6" cy="6" r="3"/>
                     <path d="M13 6h3a2 2 0 0 1 2 2v7"/>
                     <line x1="6" y1="9" x2="6" y2="21"/>
                   </svg>
-                  <span>Pull Latest Code</span>
+                  <span>Check for Updates</span>
                 </button>
 
                 <button type="button" id="btn-run-deploy" class="btn btn-primary">
@@ -370,51 +370,42 @@
               </div>
             </div>
 
-            <!-- 5-Step Pipeline Progress Tracker -->
-            <div id="deploy-steps-grid" class="deploy-steps-grid" aria-label="Deployment Pipeline Steps">
+            <!-- Guarded 7-Step Release Progress Tracker -->
+            <div id="deploy-steps-grid" class="deploy-steps-grid" aria-label="Guarded Deployment Pipeline Steps">
               <div class="deploy-step-card" data-step="1">
-                <div class="deploy-step-head">
-                  <span class="deploy-step-num">STEP 1</span>
-                  <span class="deploy-step-badge" id="deploy-step-icon-1">Pending</span>
-                </div>
-                <div class="deploy-step-title">Pull Latest Code</div>
-                <code class="deploy-step-cmd">git pull origin main</code>
+                <div class="deploy-step-head"><span class="deploy-step-num">STEP 1</span><span class="deploy-step-badge" id="deploy-step-icon-1">Pending</span></div>
+                <div class="deploy-step-title">PM2 Safety Preflight</div>
+                <code class="deploy-step-cmd">one online fork • watch disabled</code>
               </div>
-
               <div class="deploy-step-card" data-step="2">
-                <div class="deploy-step-head">
-                  <span class="deploy-step-num">STEP 2</span>
-                  <span class="deploy-step-badge" id="deploy-step-icon-2">Pending</span>
-                </div>
-                <div class="deploy-step-title">Install Dependencies</div>
-                <code class="deploy-step-cmd">npm install --include=dev --legacy-peer-deps</code>
+                <div class="deploy-step-head"><span class="deploy-step-num">STEP 2</span><span class="deploy-step-badge" id="deploy-step-icon-2">Pending</span></div>
+                <div class="deploy-step-title">Fast-Forward Code</div>
+                <code class="deploy-step-cmd">git pull --ff-only origin main</code>
               </div>
-
               <div class="deploy-step-card" data-step="3">
-                <div class="deploy-step-head">
-                  <span class="deploy-step-num">STEP 3</span>
-                  <span class="deploy-step-badge" id="deploy-step-icon-3">Pending</span>
-                </div>
-                <div class="deploy-step-title">TypeScript Check</div>
-                <code class="deploy-step-cmd">./node_modules/.bin/tsc --noEmit</code>
+                <div class="deploy-step-head"><span class="deploy-step-num">STEP 3</span><span class="deploy-step-badge" id="deploy-step-icon-3">Pending</span></div>
+                <div class="deploy-step-title">Encrypted Data Backup</div>
+                <code class="deploy-step-cmd">GPG encrypted • outside repository</code>
               </div>
-
               <div class="deploy-step-card" data-step="4">
-                <div class="deploy-step-head">
-                  <span class="deploy-step-num">STEP 4</span>
-                  <span class="deploy-step-badge" id="deploy-step-icon-4">Pending</span>
-                </div>
+                <div class="deploy-step-head"><span class="deploy-step-num">STEP 4</span><span class="deploy-step-badge" id="deploy-step-icon-4">Pending</span></div>
+                <div class="deploy-step-title">Deterministic Install</div>
+                <code class="deploy-step-cmd">npm ci --include=dev --legacy-peer-deps</code>
+              </div>
+              <div class="deploy-step-card" data-step="5">
+                <div class="deploy-step-head"><span class="deploy-step-num">STEP 5</span><span class="deploy-step-badge" id="deploy-step-icon-5">Pending</span></div>
+                <div class="deploy-step-title">Type Check &amp; Tests</div>
+                <code class="deploy-step-cmd">npm run lint • npm test</code>
+              </div>
+              <div class="deploy-step-card" data-step="6">
+                <div class="deploy-step-head"><span class="deploy-step-num">STEP 6</span><span class="deploy-step-badge" id="deploy-step-icon-6">Pending</span></div>
                 <div class="deploy-step-title">Production Build</div>
                 <code class="deploy-step-cmd">npm run build</code>
               </div>
-
-              <div class="deploy-step-card" data-step="5">
-                <div class="deploy-step-head">
-                  <span class="deploy-step-num">STEP 5</span>
-                  <span class="deploy-step-badge" id="deploy-step-icon-5">Pending</span>
-                </div>
-                <div class="deploy-step-title">Reload PM2 Service</div>
-                <code class="deploy-step-cmd">pm2 restart funnelcraft-api</code>
+              <div class="deploy-step-card" data-step="7">
+                <div class="deploy-step-head"><span class="deploy-step-num">STEP 7</span><span class="deploy-step-badge" id="deploy-step-icon-7">Pending</span></div>
+                <div class="deploy-step-title">Restart &amp; Health Check</div>
+                <code class="deploy-step-cmd">PM2 restart • health • rollback</code>
               </div>
             </div>
 
@@ -429,7 +420,7 @@
                 <button type="button" id="btn-clear-deploy-log" class="btn-terminal-clear">Clear Output</button>
               </div>
               <pre id="deploy-terminal-output" class="terminal-pre">[CodWorth Admin Cockpit] Ready.
-Click "Run Checks &amp; Deploy" to execute the 5-step pipeline (`git pull origin main` → `npm install --include=dev --legacy-peer-deps` → `./node_modules/.bin/tsc --noEmit` → `npm run build` → `pm2 restart funnelcraft-api`) with live stdout/stderr streaming.</pre>
+Click "Run Checks &amp; Deploy" to execute the guarded 7-step release pipeline with live stdout/stderr streaming.</pre>
             </div>
           </div>
         </section>
@@ -730,9 +721,9 @@ Click "Run Checks &amp; Deploy" to execute the 5-step pipeline (`git pull origin
           <div class="panel-card">
             <div class="panel-header">
               <div>
-                <h2 class="panel-title">One-Click Production Data Backup (<code>data/*.json</code>)</h2>
+                <h2 class="panel-title">One-Click Encrypted Data Backup (<code>data/*.json</code>)</h2>
                 <p class="panel-desc">
-                  Generate and download a compressed <code>.tar.gz</code> snapshot of the entire <code>data/</code> directory (users, pages, orders, payments, plans, coupons, and security audit logs).
+                  Generate and download a GPG-encrypted <code>.tar.gz.gpg</code> snapshot of the entire <code>data/</code> directory. Configure <code>BACKUP_GPG_RECIPIENT</code> on the server first; the matching private key is required for recovery.
                 </p>
               </div>
               <button type="button" id="btn-download-backup" class="btn btn-primary">
@@ -741,7 +732,7 @@ Click "Run Checks &amp; Deploy" to execute the 5-step pipeline (`git pull origin
                   <polyline points="7 10 12 15 17 10"/>
                   <line x1="12" y1="15" x2="12" y2="3"/>
                 </svg>
-                <span>Download data/ Backup (.tar.gz)</span>
+                <span>Download Encrypted Backup (.tar.gz.gpg)</span>
               </button>
             </div>
 

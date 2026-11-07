@@ -36,7 +36,7 @@ test('Email Verification & Invalid/Fake/Disposable Email Rejection Suite (11 Tes
     : '{}';
 
   process.env.NODE_ENV = 'test';
-  process.env.OWNER_EMAIL = 'naadianajah2020@gmail.com';
+  process.env.OWNER_EMAIL = 'owner@example.test';
 
   const { app, startServer } = await import('../server');
   await startServer();
@@ -363,7 +363,7 @@ test('Email Verification & Invalid/Fake/Disposable Email Rejection Suite (11 Tes
     await t.test(
       '11. Owner account (process.env.OWNER_EMAIL) bypasses verification and accesses protected routes',
       async () => {
-        const ownerUser = getUserByEmail('naadianajah2020@gmail.com')!;
+        const ownerUser = getUserByEmail('owner@example.test')!;
         assert.ok(ownerUser, 'Owner account must exist');
         const ownerToken = createSession(ownerUser.id);
 

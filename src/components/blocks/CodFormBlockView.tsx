@@ -93,7 +93,7 @@ export const CodFormBlockView: React.FC<Props> = ({
     setFormError('');
     setSubmitting(true);
     try {
-      const res = await fetch('/api/orders', {
+      const res = await fetch('/api/orders/submit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

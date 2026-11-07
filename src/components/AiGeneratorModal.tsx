@@ -266,8 +266,15 @@ export const AiGeneratorModal: React.FC<Props> = ({
     );
 
     try {
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-      if (token) headers['Authorization'] = `Bearer ${token}`;
+      const activeToken = token || localStorage.getItem('funnelcraft_auth_token');
+      if (!activeToken) {
+        setError('يجب تسجيل الدخول من جديد قبل استيراد المنتج.');
+        return;
+      }
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${activeToken}`,
+      };
 
       const stageTimer = setTimeout(() => {
         setLoadingStage('جاري بناء Hero Block بمعرض الصور الكامل والوصف والمواصفات...');
@@ -307,6 +314,11 @@ export const AiGeneratorModal: React.FC<Props> = ({
 
       clearTimeout(stageTimer);
       const json = await res.json();
+
+      if (res.status === 401) {
+        setError('جلسة الدخول منتهية أو غير صالحة. سجّل الدخول مجدداً وحاول مرة أخرى.');
+        return;
+      }
 
       if (res.status === 403 && json.error === 'LIMIT_REACHED') {
         onClose();
@@ -396,8 +408,15 @@ export const AiGeneratorModal: React.FC<Props> = ({
     setLoadingStage('جاري كتابة النصوص التسويقية وتصميم البلوكات...');
 
     try {
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-      if (token) headers['Authorization'] = `Bearer ${token}`;
+      const activeToken = token || localStorage.getItem('funnelcraft_auth_token');
+      if (!activeToken) {
+        setError('يجب تسجيل الدخول من جديد قبل استيراد المنتج.');
+        return;
+      }
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${activeToken}`,
+      };
 
       const res = await fetch('/api/generate-page', {
         method: 'POST',
@@ -412,6 +431,11 @@ export const AiGeneratorModal: React.FC<Props> = ({
       });
 
       const json = await res.json();
+
+      if (res.status === 401) {
+        setError('جلسة الدخول منتهية أو غير صالحة. سجّل الدخول مجدداً وحاول مرة أخرى.');
+        return;
+      }
 
       if (res.status === 403 && json.error === 'LIMIT_REACHED') {
         onClose();

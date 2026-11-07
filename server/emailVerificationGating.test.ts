@@ -34,7 +34,7 @@ test('Email Verification Gating & Anti-Enumeration Integration Suite (5 Tests)',
     : '[]';
 
   process.env.NODE_ENV = 'test';
-  process.env.OWNER_EMAIL = 'naadianajah2020@gmail.com';
+  process.env.OWNER_EMAIL = 'owner@example.test';
 
   const { app, startServer } = await import('../server');
   await startServer();

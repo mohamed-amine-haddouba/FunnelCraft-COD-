@@ -115,7 +115,7 @@ export const UpgradeModal: React.FC<Props> = ({
   const [selectedTier, setSelectedTier] = useState<SubscriptionTierId>('pro');
 
   // Main Payment Method: 'paypal' | 'morocco'
-  const [paymentMethod, setPaymentMethod] = useState<'paypal' | 'morocco'>('paypal');
+  const [paymentMethod, setPaymentMethod] = useState<'paypal' | 'morocco'>('morocco');
 
   // Dynamic Moroccan Bank Accounts (loaded from data/settings.json via /api/settings/banks)
   const [moroccanBanks, setMoroccanBanks] = useState<MoroccanBankAccount[]>([]);
@@ -601,7 +601,7 @@ export const UpgradeModal: React.FC<Props> = ({
               <div className="grid grid-cols-2 p-1 bg-[#131B2A] border border-[#1E293B] rounded-2xl mb-4">
                 <button
                   type="button"
-                  onClick={() => setPaymentMethod('paypal')}
+                  onClick={() => { window.location.assign('/pricing'); }}
                   className={`py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer ${
                     paymentMethod === 'paypal'
                       ? 'bg-[#131B2A] text-white shadow-sm border border-[#334155]'

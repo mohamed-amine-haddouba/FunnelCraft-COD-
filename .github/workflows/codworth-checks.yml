@@ -1,0 +1,103 @@
+name: CodWorth security and build checks
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  lockfile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Verify checked-in lockfile is consistent
+        run: npm ci --ignore-scripts --legacy-peer-deps
+
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Install locked dependencies for code validation
+        run: npm ci --include=dev --legacy-peer-deps
+      - name: Type-check
+        run: npm run lint
+      - name: Run isolated tests
+        run: npm test
+      - name: Read-only payment reconciliation smoke check
+        run: |
+          node --import tsx scripts/reconcile-payments.mjs > "$RUNNER_TEMP/reconciliation.json"
+          REPORT="$RUNNER_TEMP/reconciliation.json" node -e "const r=require(process.env.REPORT); if(r.mode!=='read-only'||r.hasBlockingFindings) process.exit(1)"
+      - name: Read-only PostgreSQL migration preflight smoke check
+        run: |
+          node --import tsx scripts/postgres-preflight.mjs > "$RUNNER_TEMP/postgres-preflight.json"
+          REPORT="$RUNNER_TEMP/postgres-preflight.json" node -e "const r=require(process.env.REPORT);if(r.mode!=='read-only'||r.hasBlockers||r.needsManualReview)process.exit(1)"
+      - name: Production build
+        run: npm run build
+      - name: Isolated production-mode staging smoke (synthetic data only)
+        run: node scripts/staging-smoke.mjs
+      - name: Verify encrypted backup and read-only archive check
+        run: |
+          export GNUPGHOME="$RUNNER_TEMP/codworth-gnupg"
+          mkdir -m 700 -p "$GNUPGHOME"
+          gpg --batch --pinentry-mode loopback --passphrase '' --quick-generate-key 'CodWorth Backup CI <codworth-backup-ci@example.test>' rsa3072 encr 1d
+          CODWORTH_BACKUP_DIR="$RUNNER_TEMP/codworth-backup-fixture" BACKUP_GPG_RECIPIENT="codworth-backup-ci@example.test" bash scripts/backup-data.sh
+          BACKUP_FILE="$(find "$RUNNER_TEMP/codworth-backup-fixture" -type f -name '*.tar.gz.gpg' -print -quit)"
+          test -n "$BACKUP_FILE"
+          (cd "$(dirname "$BACKUP_FILE")" && sha256sum -c "$(basename "$BACKUP_FILE").sha256")
+          gpg --batch --yes --decrypt --output "$RUNNER_TEMP/codworth-data.tar.gz" "$BACKUP_FILE"
+          node scripts/verify-backup.mjs "$RUNNER_TEMP/codworth-data.tar.gz"
+          bash scripts/restore-data.sh "$BACKUP_FILE" "$RUNNER_TEMP/codworth-restore/data"
+          test -f "$RUNNER_TEMP/codworth-restore/data/disposable_email_domains.json"
+          if bash scripts/restore-data.sh "$BACKUP_FILE" "$RUNNER_TEMP/codworth-restore/data"; then
+            echo "Restore unexpectedly overwrote an existing target."
+            exit 1
+          fi
+          mkdir -p "$RUNNER_TEMP/codworth-malicious/data"
+          ln -s /etc/passwd "$RUNNER_TEMP/codworth-malicious/data/escape.json"
+          tar -czf "$RUNNER_TEMP/codworth-malicious.tar.gz" -C "$RUNNER_TEMP/codworth-malicious" data
+          if node scripts/verify-backup.mjs "$RUNNER_TEMP/codworth-malicious.tar.gz"; then
+            echo "Verifier unexpectedly accepted a symlink archive."
+            exit 1
+          fi
+      - name: Verify deployment scripts and PM2 preflight
+        run: |
+          bash -n deploy.sh scripts/backup-data.sh scripts/restore-data.sh scripts/configure-staging-public-routes.sh
+          node --check scripts/verify-backup.mjs
+          node --check scripts/check-pm2-config.mjs
+          node --check scripts/reset-data.cjs
+          NODE_ENV=test CODWORTH_PM2_JLIST_JSON='[{"name":"funnelcraft-api","pm2_env":{"status":"online","exec_mode":"fork_mode","instances":1,"watch":false}}]' node scripts/check-pm2-config.mjs
+          if NODE_ENV=test CODWORTH_PM2_JLIST_JSON='[{"name":"funnelcraft-api","pm2_env":{"status":"online","exec_mode":"cluster_mode","instances":2,"watch":false}}]' node scripts/check-pm2-config.mjs; then
+            echo "PM2 preflight unexpectedly accepted a multi-process configuration."
+            exit 1
+          fi
+      - name: Verify factory reset is preview-only and backup-gated
+        run: |
+          mkdir -p "$RUNNER_TEMP/codworth-reset-fixture"
+          printf '%s\n' '[{"id":"owner","email":"owner@example.test","role":"admin","status":"active"},{"id":"merchant","email":"merchant@example.test","role":"user"}]' > "$RUNNER_TEMP/codworth-reset-fixture/users.json"
+          printf '%s\n' '[{"id":"order-1"}]' > "$RUNNER_TEMP/codworth-reset-fixture/orders.json"
+          printf '%s\n' '[]' > "$RUNNER_TEMP/codworth-reset-fixture/pages.json"
+          printf '%s\n' '[]' > "$RUNNER_TEMP/codworth-reset-fixture/sessions.json"
+          printf '%s\n' '[]' > "$RUNNER_TEMP/codworth-reset-fixture/coupons.json"
+          printf '%s\n' '[]' > "$RUNNER_TEMP/codworth-reset-fixture/payments.json"
+          OWNER_EMAIL=owner@example.test CODWORTH_DATA_DIR="$RUNNER_TEMP/codworth-reset-fixture" node scripts/reset-data.cjs
+          FIXTURE="$RUNNER_TEMP/codworth-reset-fixture" node -e "const fs=require('fs'),d=process.env.FIXTURE;const users=JSON.parse(fs.readFileSync(d+'/users.json'));const orders=JSON.parse(fs.readFileSync(d+'/orders.json'));if(users.length!==2||orders.length!==1)process.exit(1)"
+          if OWNER_EMAIL=owner@example.test RESET_CONFIRM=DELETE_ALL_NON_OWNER_DATA BACKUP_GPG_RECIPIENT='' CODWORTH_DATA_DIR="$RUNNER_TEMP/codworth-reset-fixture" node scripts/reset-data.cjs --confirm-production-reset; then
+            echo "Factory reset unexpectedly proceeded without an encryption key."
+            exit 1
+          fi
+          FIXTURE="$RUNNER_TEMP/codworth-reset-fixture" node -e "const fs=require('fs'),d=process.env.FIXTURE;const users=JSON.parse(fs.readFileSync(d+'/users.json'));const orders=JSON.parse(fs.readFileSync(d+'/orders.json'));if(users.length!==2||orders.length!==1)process.exit(1)"
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high

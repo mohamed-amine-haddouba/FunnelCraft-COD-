@@ -1,6 +1,9 @@
 import { resolveQuote } from './server/checkout';
 import { getPayment, savePayment, settlePayment } from './server/paypalLedger';
 import { createStripeCheckout, stripeWebhook } from './server/stripeBilling';
+import { resolvePayPalEnvironment } from './server/paypalEnvironment';
+import { isAllowedCorsOrigin } from './server/corsOrigins';
+import { isAnalyticsRange, summarizeOrderMetrics, orderCurrency, getOrdersForFunnel } from './server/analyticsMetrics';
 import express, { Request as ExpressRequest, Response, NextFunction } from 'express';
 import { createServer as createViteServer } from 'vite';
 import path from 'path';
@@ -144,12 +147,8 @@ function getPayPalRuntimeConfig() {
   const webhookId = cleanEnvValue(process.env.PAYPAL_WEBHOOK_ID);
   const rawEnv = cleanEnvValue(process.env.PAYPAL_ENVIRONMENT).toLowerCase();
 
-  // Accept 'live', 'production', or 'prod' (or fallback to NODE_ENV === 'production' when PAYPAL_ENVIRONMENT is unset)
-  const isLive =
-    rawEnv === 'live' ||
-    rawEnv === 'production' ||
-    rawEnv === 'prod' ||
-    (!rawEnv && cleanEnvValue(process.env.NODE_ENV).toLowerCase() === 'production');
+  // Never infer live PayPal from NODE_ENV: staging normally runs in production mode.
+  const isLive = resolvePayPalEnvironment(rawEnv) === 'live';
 
   const sdkEnvironment = isLive ? PayPalEnvironment.Production : PayPalEnvironment.Sandbox;
   const environmentLabel: 'live' | 'sandbox' = isLive ? 'live' : 'sandbox';
@@ -489,10 +488,15 @@ export async function startServer() {
     })
   );
 
-  // CORS Configuration (supports codworth.me, localhost, and preview URLs)
+  // Credentialed CORS: do not reflect untrusted Origin headers.
+  // Additional trusted storefront origins must be configured explicitly.
   app.use(
     cors({
-      origin: true,
+      origin: (origin, callback) => callback(null, isAllowedCorsOrigin(origin, {
+        appOrigin: process.env.APP_ORIGIN,
+        extraOrigins: process.env.CORS_ALLOWED_ORIGINS,
+        production: process.env.NODE_ENV === 'production',
+      })),
       credentials: true,
       methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     })
@@ -518,7 +522,6 @@ export async function startServer() {
 
   // Decoupled Zero-Trust Owner Sandbox Cockpit (/api/sandbox and standalone /sandbox UI)
   const sandboxUiDir = path.resolve(__dirname, 'server', 'sandbox-ui');
-  app.use('/api/sandbox/2fa/send', loginLimiter);
   app.use('/api/sandbox', createSandboxCockpitRouter());
   app.use('/sandbox', express.static(sandboxUiDir, { index: 'index.html' }));
   app.get(['/sandbox', '/sandbox/*'], (_req: Request, res: Response) => {
@@ -548,9 +551,9 @@ export async function startServer() {
   const activeOtps = new Map<string, ActiveOtp>();
 
   // Masking helpers
-  const maskPhone = (phone: string = '+212 722-256897') => {
+  const maskPhone = (phone: string = '') => {
     const clean = phone.trim();
-    if (clean.length < 8) return '+212 6•• ••0000';
+    if (clean.length < 8) return 'غير متوفر';
     return clean.slice(0, 7) + '•• ••' + clean.slice(-4);
   };
 
@@ -995,7 +998,7 @@ export async function startServer() {
         codeHash: crypto.createHmac('sha256', challenge).update(otpCode).digest('hex'),
         userId: user.id,
         email: user.email,
-        phone: user.phone || '+212 722-256897',
+        phone: user.phone || '',
         channel: chosenChannel,
         expiresAt: Date.now() + 5 * 60 * 1000,
         attempts: 0,
@@ -1020,7 +1023,7 @@ export async function startServer() {
         challenge,
         userId: user.id,
         email: user.email,
-        phone: user.phone || '+212 722-256897',
+        phone: user.phone || '',
         maskedPhone: maskPhone(user.phone),
         maskedEmail: maskEmail(user.email),
         channel: chosenChannel,
@@ -1076,7 +1079,7 @@ export async function startServer() {
     const otpCode = String(crypto.randomInt(100000, 1000000));
     const deviceInfo = extractDeviceInfo(req);
     const chosenChannel = channel === 'whatsapp' ? 'whatsapp' : 'email';
-    const targetPhone = user.phone || '+212 722-256897';
+    const targetPhone = user.phone || '';
     const targetEmail = user.email || 'merchant@example.com';
 
     activeOtps.set(storeKey, {
@@ -1301,7 +1304,7 @@ export async function startServer() {
           codeHash: crypto.createHmac('sha256', challenge).update(otpCode).digest('hex'),
           userId: user.id,
           email: user.email,
-          phone: user.phone || '+212 722-256897',
+          phone: user.phone || '',
           channel: chosenChannel,
           expiresAt: Date.now() + 5 * 60 * 1000,
           attempts: 0,
@@ -1326,7 +1329,7 @@ export async function startServer() {
         challenge,
           userId: user.id,
           email: user.email,
-          phone: user.phone || '+212 722-256897',
+          phone: user.phone || '',
           maskedPhone: maskPhone(user.phone),
           maskedEmail: maskEmail(user.email),
           channel: chosenChannel,
@@ -1556,7 +1559,21 @@ export async function startServer() {
 
     setResetPasswordToken(user.email, token, expiresAt);
 
-    const resetUrl = `https://codworth.me/reset-password?token=${token}&email=${encodeURIComponent(user.email)}`;
+    const resetOrigin = (process.env.APP_ORIGIN || 'https://codworth.me').trim().replace(/\/$/, '');
+    let resetUrl: string;
+    try {
+      const origin = new URL(resetOrigin);
+      if (origin.protocol !== 'https:' || origin.username || origin.password || origin.search || origin.hash || origin.pathname !== '/') {
+        throw new Error('Unsafe APP_ORIGIN');
+      }
+      const target = new URL('/reset-password', origin);
+      target.searchParams.set('token', token);
+      target.searchParams.set('email', user.email);
+      resetUrl = target.toString();
+    } catch {
+      console.error('[AUTH] Invalid APP_ORIGIN; password reset email was not sent.');
+      return res.status(503).json({ success: false, error: 'Password reset is temporarily unavailable.' });
+    }
     await sendPasswordResetEmail(user.email, user.full_name, resetUrl);
 
     return res.json({
@@ -2775,23 +2792,23 @@ export async function startServer() {
       }
 
       const wantAll = user.role === 'admin' && req.query.all === 'true';
+      const rangeInput = req.query.range ?? 'all';
+      if (!isAnalyticsRange(rangeInput)) {
+        return res.status(400).json({ success: false, error: 'Unsupported analytics range.' });
+      }
       const scopedPages = wantAll ? getAllPagesAdmin() : getUserPages(user.id);
-      const scopedOrders = wantAll ? getAllOrders() : getOrdersForUser(user.id, false);
+      const allScopedOrders = wantAll ? getAllOrders() : getOrdersForUser(user.id, false);
+      const metrics = summarizeOrderMetrics(allScopedOrders, rangeInput);
+      const scopedOrders = metrics.orders;
+      const { totalOrders, totalRevenue, avgOrderValue, deliveryRate } = metrics;
 
+      // Views are currently lifetime counters: they cannot accurately be divided
+      // by a 7/30/90-day order count. Do not invent a period conversion rate.
       const totalVisitors = scopedPages.reduce((sum, p) => sum + (Number(p.viewsCount) || 0), 0);
-      const totalOrders = scopedOrders.length;
-      const totalRevenue = scopedOrders.reduce((sum, o) => sum + (Number(o.price) || 0), 0);
-      const avgOrderValue = totalOrders > 0 ? Math.round(totalRevenue / totalOrders) : 0;
-      const conversionRate =
-        totalVisitors > 0
-          ? Number(((totalOrders / totalVisitors) * 100).toFixed(2))
-          : totalOrders > 0
-          ? 100
-          : 0;
-      const deliveredCount = scopedOrders.filter((o) => o.status === 'delivered').length;
-      const deliveryRate =
-        totalOrders > 0 ? Number(((deliveredCount / totalOrders) * 100).toFixed(1)) : 0;
-      const formStarts = 0; // TODO: real form-start tracking requires a client beacon at POST /api/analytics/form-start (out of scope).
+      const conversionRate = rangeInput === 'all' && totalVisitors > 0
+        ? Number(((totalOrders / totalVisitors) * 100).toFixed(2))
+        : null;
+      const formStarts = null; // No period-scoped form-start events are stored yet.
 
       const cityAggregation: Record<string, { count: number; revenue: number }> = {};
       for (const order of scopedOrders) {
@@ -2801,7 +2818,9 @@ export async function startServer() {
           cityAggregation[cityKey] = { count: 0, revenue: 0 };
         }
         cityAggregation[cityKey].count += 1;
-        cityAggregation[cityKey].revenue += Number(order.price) || 0;
+        if (order.status === 'delivered' && orderCurrency(order) === 'MAD') {
+          cityAggregation[cityKey].revenue += Number(order.price) || 0;
+        }
       }
 
       const cityBreakdown = Object.entries(cityAggregation)
@@ -2816,14 +2835,15 @@ export async function startServer() {
 
       const topFunnels = scopedPages
         .map((p) => {
-          const matchingOrders = scopedOrders.filter(
-            (o) => o.funnelId === p.id || (p.slug && o.pageSlug === p.slug)
-          );
+          const matchingOrders = getOrdersForFunnel(scopedOrders, p);
           const pageVisitors = Number(p.viewsCount) || 0;
-          const pageOrdersCount = Math.max(Number(p.ordersCount) || 0, matchingOrders.length);
-          const pageRevenue = matchingOrders.reduce((sum, o) => sum + (Number(o.price) || 0), 0);
-          const crNum =
-            pageVisitors > 0 ? ((pageOrdersCount / pageVisitors) * 100).toFixed(2) : '0.00';
+          const pageOrdersCount = matchingOrders.length;
+          const pageRevenue = matchingOrders.reduce(
+            (sum, o) => sum + (o.status === 'delivered' && orderCurrency(o) === 'MAD' ? Number(o.price) || 0 : 0), 0
+          );
+          const crNum = rangeInput === 'all' && pageVisitors > 0
+            ? ((pageOrdersCount / pageVisitors) * 100).toFixed(2) + '%'
+            : '—';
 
           return {
             id: p.id,
@@ -2831,7 +2851,7 @@ export async function startServer() {
             slug: p.slug,
             visitors: pageVisitors,
             orders: pageOrdersCount,
-            cr: `${crNum}%`,
+            cr: crNum,
             revenue: `${pageRevenue.toLocaleString()} DH`,
             revenueRaw: pageRevenue,
             status: p.isPublished ? 'active' : 'draft',
@@ -2847,11 +2867,17 @@ export async function startServer() {
         hasData,
         totalVisitors,
         totalOrders,
-        totalRevenue,
-        avgOrderValue,
-        conversionRate,
+        totalRevenue, // Delivered MAD order value, not guaranteed cash collected.
+        avgOrderValue, // Recorded, non-cancelled MAD orders only.
+        conversionRate, // null when period-specific visitor events are unavailable.
         deliveryRate,
         formStarts,
+        range: rangeInput,
+        visitorPeriod: 'lifetime',
+        revenueCurrency: 'MAD',
+        orderStatusCounts: metrics.statusCounts,
+        recordedValueByCurrency: metrics.recordedValueByCurrency,
+        deliveredValueByCurrency: metrics.deliveredValueByCurrency,
         cityBreakdown,
         topFunnels,
       });
@@ -3454,6 +3480,21 @@ export async function startServer() {
         const expected = getPayment(orderId);
         if (!expected || expected.userId !== authUserId) return res.status(404).json({ success: false, error: 'Checkout not found.' });
         if (expected.captureId) {
+          // A verified capture may have been persisted before the server
+          // crashed while applying a subscription/coupon. Finish the v2
+          // settlement idempotently instead of falsely acknowledging it.
+          if (expected.settlementVersion === 2 && !expected.entitlementsAppliedAt) {
+            if (typeof expected.capturedAt !== 'number' || !Number.isFinite(expected.capturedAt)) {
+              throw new Error('Saved PayPal capture requires reconciliation.');
+            }
+            settlePayment(orderId, {
+              id: expected.captureId,
+              status: 'COMPLETED',
+              amount: expected.expectedAmount,
+              currency: expected.expectedCurrency,
+              time: new Date(expected.capturedAt).toISOString(),
+            });
+          }
           const user = expected.sourceType === 'plan' ? findUserById(authUserId) : undefined;
           return res.json({ success: true, id: orderId, status: 'COMPLETED', capturedAmount: Number(expected.expectedAmount), capturedCurrency: expected.expectedCurrency, user: user ? toSafeProfile(user) : undefined });
         }
@@ -3717,11 +3758,12 @@ export async function startServer() {
             blocks: [],
           };
 
+    // Expose public content only, not internal StoredPage metadata such as
+    // compiled HTML, domain proof, or future private fields.
     return res.json({
       success: true,
-      page,
+      page: { id: page.id, title: page.title, slug: page.slug },
       data: pageData,
-      ...pageData,
       userId: page.userId,
     });
   });

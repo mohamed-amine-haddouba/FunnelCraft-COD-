@@ -40,9 +40,7 @@ export const VerifyEmailPage: React.FC = () => {
   const inputsRef = useRef<(HTMLInputElement | null)[]>([]);
   const turnstileRef = useRef<TurnstileInstance | undefined>(undefined);
 
-  const isAdminBypass =
-    email.trim().toLowerCase() === 'naadianajah2020@gmail.com' ||
-    import.meta.env.VITE_BYPASS_CAPTCHA === 'true';
+  const isAdminBypass = import.meta.env.VITE_BYPASS_CAPTCHA === 'true';
   const shouldRequireTurnstileForResend =
     Boolean(TURNSTILE_SITE_KEY) && !isAdminBypass && !turnstileLoadError;
 

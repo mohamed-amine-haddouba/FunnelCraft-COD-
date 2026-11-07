@@ -68,6 +68,8 @@ export interface ManualPaymentRequest {
   proofImageUrl?: string; // Optional image URL or base64
   status: 'pending' | 'approved' | 'rejected';
   createdAt: string;
+  /** Durable start time for a retry-safe manual subscription activation. */
+  approvalStartedAt?: string;
   notes?: string;
 }
 

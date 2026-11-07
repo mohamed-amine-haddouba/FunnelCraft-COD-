@@ -16,6 +16,7 @@ import {
   STRICT_OWNER_EMAIL,
   sandboxResetTokens,
   SANDBOX_RESET_TOKEN_TTL_MS,
+  extractSandboxTokenFromRequest,
 } from './sandboxNew';
 import { ensureOwnerAccountForEmail } from './db';
 
@@ -91,6 +92,54 @@ describe('Zero-Trust Sandbox Cockpit (server/sandboxNew.ts)', () => {
     assert.equal(verifySandboxJwt(loginTicket).valid, false);
   });
 
+  it('rejects cross-origin and origin-less cookie-authenticated state changes', async () => {
+    const crossOrigin = await fetch(`${baseUrl}/api/sandbox/logout`, {
+      method: 'POST',
+      headers: { Origin: 'https://attacker.example.test', Cookie: 'sandbox_sid=fake-session' },
+    });
+    assert.equal(crossOrigin.status, 403);
+    assert.equal((await crossOrigin.json()).code, 'UNTRUSTED_ORIGIN');
+
+    const previousNodeEnv = process.env.NODE_ENV;
+    try {
+      process.env.NODE_ENV = 'production';
+      const missingOrigin = await fetch(`${baseUrl}/api/sandbox/logout`, {
+        method: 'POST',
+        headers: { Cookie: 'sandbox_sid=fake-session' },
+      });
+      assert.equal(missingOrigin.status, 403);
+      assert.equal((await missingOrigin.json()).code, 'ORIGIN_REQUIRED');
+    } finally {
+      if (previousNodeEnv === undefined) delete process.env.NODE_ENV;
+      else process.env.NODE_ENV = previousNodeEnv;
+    }
+  });
+
+  it('does not start the deployment stream from a GET or a cross-origin POST', async () => {
+    const { token } = signSandboxJwt(STRICT_OWNER_EMAIL);
+    const headers = { Cookie: `sandbox_sid=${encodeURIComponent(token)}`, Origin: 'https://attacker.example.test' };
+    const url = `${baseUrl}/api/sandbox/deploy/stream`;
+    const read = await fetch(url, { headers });
+    assert.notEqual(read.headers.get('content-type')?.split(';')[0], 'text/event-stream');
+    await read.arrayBuffer();
+    const rejected = await fetch(url, { method: 'POST', headers });
+    assert.equal(rejected.status, 403);
+  });
+
+  it('never accepts owner JWTs from URL query parameters; same-origin HttpOnly cookie remains supported', () => {
+    const queryOnly = {
+      headers: {},
+      url: '/api/sandbox/terminal?token=secret-from-url',
+    } as unknown as Parameters<typeof extractSandboxTokenFromRequest>[0];
+    assert.equal(extractSandboxTokenFromRequest(queryOnly), '');
+
+    const cookieRequest = {
+      headers: { cookie: 'other=value; sandbox_sid=cookie-session-token' },
+      url: '/api/sandbox/terminal?token=attacker-token',
+    } as unknown as Parameters<typeof extractSandboxTokenFromRequest>[0];
+    assert.equal(extractSandboxTokenFromRequest(cookieRequest), 'cookie-session-token');
+  });
+
   it('enforces Safe Terminal command whitelist and blocks destructive / shell-injection inputs', () => {
     assert.equal(validateAndParseSafeCommand('ls -la').allowed, true);
     assert.equal(validateAndParseSafeCommand('pm2 list').allowed, true);
@@ -134,7 +183,7 @@ describe('Zero-Trust Sandbox Cockpit (server/sandboxNew.ts)', () => {
     assert.equal(body.code, 'FORBIDDEN_OWNER_ONLY');
   });
 
-  it('authenticates naadianajah2020@gmail.com and accesses status, logs, terminal, security logins, and backup', async () => {
+  it('authenticates owner@example.test and accesses status, logs, terminal, security logins, and backup', async () => {
     const loginRes = await fetch(`${baseUrl}/api/sandbox/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -144,12 +193,14 @@ describe('Zero-Trust Sandbox Cockpit (server/sandboxNew.ts)', () => {
       }),
     });
     assert.equal(loginRes.status, 200);
-    const loginData = (await loginRes.json()) as { ok: boolean; token: string };
+    const loginData = (await loginRes.json()) as { ok: boolean };
     assert.equal(loginData.ok, true);
-    assert.ok(loginData.token);
+    assert.equal((loginData as { token?: string }).token, undefined);
+    const loginCookie = loginRes.headers.get('set-cookie');
+    assert.ok(loginCookie && loginCookie.startsWith('sandbox_sid='));
 
     const authHeaders = {
-      Authorization: `Bearer ${loginData.token}`,
+      Cookie: loginCookie.split(';')[0],
       'Content-Type': 'application/json',
     };
 
@@ -193,12 +244,39 @@ describe('Zero-Trust Sandbox Cockpit (server/sandboxNew.ts)', () => {
     assert.ok(Array.isArray(secData.logins));
     assert.ok(secData.logins.length >= 1);
 
-    // Backup tar.gz stream
+    // Backup endpoint must fail closed when encryption is not configured.
+    // It must never fall back to serving an unencrypted customer-data archive.
     const backupRes = await fetch(`${baseUrl}/api/sandbox/backup`, { headers: authHeaders });
-    assert.equal(backupRes.status, 200);
-    assert.equal(backupRes.headers.get('content-type'), 'application/gzip');
-    const buf = await backupRes.arrayBuffer();
-    assert.ok(buf.byteLength > 20);
+    assert.equal(backupRes.status, 503);
+    const backupData = await backupRes.json() as { ok: boolean; error: string };
+    assert.equal(backupData.ok, false);
+    assert.match(backupData.error, /Encrypted backup failed/);
+  });
+
+  it('requires owner password or a valid short-lived ticket before sending a 2FA code', async () => {
+    const emailOnly = await fetch(`${baseUrl}/api/sandbox/2fa/send`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: STRICT_OWNER_EMAIL }),
+    });
+    assert.equal(emailOnly.status, 401);
+
+    const wrongPassword = await fetch(`${baseUrl}/api/sandbox/2fa/send`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: STRICT_OWNER_EMAIL, password: 'not-the-owner-password' }),
+    });
+    assert.equal(wrongPassword.status, 401);
+
+    const { loginTicket } = signSandboxLoginTicket(STRICT_OWNER_EMAIL);
+    const authorized = await fetch(`${baseUrl}/api/sandbox/2fa/send`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ loginTicket }),
+    });
+    assert.equal(authorized.status, 200);
+    const response = await authorized.json() as { ok: boolean };
+    assert.equal(response.ok, true);
   });
 
   it('enforces owner-only forgot-password, 15m token TTL, password length >= 8, single-use token deletion, and updates owner password', async () => {
@@ -325,16 +403,18 @@ describe('Zero-Trust Sandbox Cockpit (server/sandboxNew.ts)', () => {
       assert.equal(step2Res.status, 200);
       const step2Data = (await step2Res.json()) as {
         ok: boolean;
-        token: string;
+        token?: string;
         owner: { email: string; role: string };
       };
       assert.equal(step2Data.ok, true);
-      assert.ok(step2Data.token);
+      assert.equal(step2Data.token, undefined);
       assert.equal(step2Data.owner.email, STRICT_OWNER_EMAIL);
+      const sessionCookie = step2Res.headers.get('set-cookie');
+      assert.ok(sessionCookie && sessionCookie.startsWith('sandbox_sid='));
 
-      // Full JWT works on protected routes
+      // Protected routes use the HttpOnly session cookie; no JWT is returned to JavaScript.
       const statusRes = await fetch(`${baseUrl}/api/sandbox/status`, {
-        headers: { Authorization: `Bearer ${step2Data.token}` },
+        headers: { Cookie: sessionCookie.split(';')[0] },
       });
       assert.equal(statusRes.status, 200);
     } finally {
@@ -365,7 +445,7 @@ describe('Zero-Trust Sandbox Cockpit (server/sandboxNew.ts)', () => {
       assert.equal(res.status, 200, `Expected 200 for ${route}`);
       const html = await res.text();
       assert.ok(html.includes('id="xterm-container"'), `Expected xterm container in ${route}`);
-      assert.ok(html.includes('id="deploy-steps-grid"'), `Expected 5-step deploy grid in ${route}`);
+      assert.ok(html.includes('id="deploy-steps-grid"'), `Expected 7-step deploy grid in ${route}`);
     }
   });
 
@@ -390,12 +470,39 @@ describe('Zero-Trust Sandbox Cockpit (server/sandboxNew.ts)', () => {
     assert.ok(typeof data.appMetrics.totalRevenueMad === 'number');
   });
 
-  it('enforces Zero-Trust JWT on WebSocket /api/sandbox/terminal and streams interactive shell output', async () => {
+  it('requires terminal opt-in, a trusted origin and an owner session before opening an interactive shell', async (t) => {
     const wsBase = baseUrl.replace(/^http:/, 'ws:');
+    const appOrigin = 'https://owner.example.test';
+    const savedOrigin = process.env.APP_ORIGIN;
+    const savedTerminal = process.env.ENABLE_OWNER_WEB_TERMINAL;
+    t.after(() => {
+      if (savedOrigin === undefined) delete process.env.APP_ORIGIN;
+      else process.env.APP_ORIGIN = savedOrigin;
+      if (savedTerminal === undefined) delete process.env.ENABLE_OWNER_WEB_TERMINAL;
+      else process.env.ENABLE_OWNER_WEB_TERMINAL = savedTerminal;
+    });
+    process.env.APP_ORIGIN = appOrigin;
+    const { token } = signSandboxJwt(STRICT_OWNER_EMAIL);
+    const sessionCookie = `sandbox_sid=${encodeURIComponent(token)}`;
+    const assertRejected = (status: number, headers: Record<string, string>) => new Promise<void>((resolve, reject) => {
+      const ws = new WebSocket(`${wsBase}/api/sandbox/terminal`, {headers});
+      ws.on('error', reject);
+      ws.on('open', () => { ws.terminate(); reject(new Error('Unexpected shell upgrade')); });
+      ws.on('unexpected-response', (_req, res) => {
+        res.resume();
+        if (res.statusCode === status) resolve();
+        else reject(new Error(`Expected ${status}, received ${res.statusCode}`));
+      });
+    });
+    delete process.env.ENABLE_OWNER_WEB_TERMINAL;
+    await assertRejected(404, {Cookie: sessionCookie, Origin: appOrigin});
+    process.env.ENABLE_OWNER_WEB_TERMINAL = 'true';
+    await assertRejected(403, {Cookie: sessionCookie});
+    await assertRejected(403, {Cookie: sessionCookie, Origin: 'https://untrusted.example.test'});
 
     // 1. Unauthenticated WebSocket connection must fail
     await new Promise<void>((resolve, reject) => {
-      const badWs = new WebSocket(`${wsBase}/api/sandbox/terminal`);
+      const badWs = new WebSocket(`${wsBase}/api/sandbox/terminal`, {headers: {Origin: appOrigin}});
       badWs.on('open', () => {
         badWs.terminate();
         reject(new Error('Unauthenticated WebSocket should not open'));
@@ -412,10 +519,29 @@ describe('Zero-Trust Sandbox Cockpit (server/sandboxNew.ts)', () => {
       });
     });
 
-    // 2. Authenticated Owner WebSocket connection succeeds and executes commands
-    const { token } = signSandboxJwt(STRICT_OWNER_EMAIL);
+    // 2. URL tokens are rejected; the HttpOnly session cookie authenticates the WebSocket.
+    await new Promise<void>((resolve, reject) => {
+      const queryTokenWs = new WebSocket(`${wsBase}/api/sandbox/terminal?token=${encodeURIComponent(token)}`, {headers: {Origin: appOrigin}});
+      queryTokenWs.on('open', () => {
+        queryTokenWs.terminate();
+        reject(new Error('A URL query token must not authenticate a WebSocket'));
+      });
+      queryTokenWs.on('error', () => {
+        queryTokenWs.terminate();
+        resolve();
+      });
+      queryTokenWs.on('unexpected-response', (_req, res) => {
+        assert.equal(res.statusCode, 401);
+        res.resume();
+        queryTokenWs.terminate();
+        resolve();
+      });
+    });
+
     const outputReceived = await new Promise<string>((resolve, reject) => {
-      const ws = new WebSocket(`${wsBase}/api/sandbox/terminal?token=${encodeURIComponent(token)}`);
+      const ws = new WebSocket(`${wsBase}/api/sandbox/terminal`, {
+        headers: { Cookie: sessionCookie, Origin: appOrigin },
+      });
       let buffer = '';
       let resolved = false;
       const timer = setTimeout(() => {
@@ -453,7 +579,7 @@ describe('Zero-Trust Sandbox Cockpit (server/sandboxNew.ts)', () => {
     assert.ok(outputReceived.includes('CODWORTH_WS_PTY_READY'));
   });
 
-  it('verifies Master Password on POST /api/sandbox/auth/step-up to issue fresh 30m JWT and rejects invalid passwords with 401', async () => {
+  it('verifies Master Password on POST /api/sandbox/auth/step-up and issues a fresh HttpOnly session cookie', async () => {
     // A password alone is not a full owner session.
     const emptyRes = await fetch(`${baseUrl}/api/sandbox/auth/step-up`, {
       method: 'POST',
@@ -480,7 +606,7 @@ describe('Zero-Trust Sandbox Cockpit (server/sandboxNew.ts)', () => {
     assert.equal(wrongData.ok, false);
     assert.equal(wrongData.code, 'INVALID_CREDENTIALS');
 
-    // 3. Valid Master Password -> 200 + fresh 30m JWT + owner payload
+    // 3. Valid Master Password -> 200 + fresh HttpOnly cookie, no token in JSON.
     const validRes = await fetch(`${baseUrl}/api/sandbox/auth/step-up`, {
       method: 'POST',
       headers: {
@@ -493,15 +619,18 @@ describe('Zero-Trust Sandbox Cockpit (server/sandboxNew.ts)', () => {
     assert.equal(validRes.status, 200);
     const validData = (await validRes.json()) as {
       ok: boolean;
-      token: string;
+      token?: string;
       owner: { email: string; role: string };
     };
     assert.equal(validData.ok, true);
-    assert.ok(validData.token);
+    assert.equal(validData.token, undefined);
     assert.equal(validData.owner.email, STRICT_OWNER_EMAIL);
     assert.equal(validData.owner.role, 'owner');
 
-    const verified = verifySandboxJwt(validData.token);
+    const sessionCookie = validRes.headers.get('set-cookie');
+    assert.ok(sessionCookie && sessionCookie.startsWith('sandbox_sid='));
+    const cookieToken = decodeURIComponent(sessionCookie.split(';')[0].slice('sandbox_sid='.length));
+    const verified = verifySandboxJwt(cookieToken);
     assert.equal(verified.valid, true);
     assert.equal(verified.payload?.email, STRICT_OWNER_EMAIL);
 
@@ -516,38 +645,56 @@ describe('Zero-Trust Sandbox Cockpit (server/sandboxNew.ts)', () => {
     assert.ok(html.includes('id="step-up-alert"'));
   });
 
-  it('uses npm install --include=dev --legacy-peer-deps (Step 2) and ./node_modules/.bin/tsc --noEmit (Step 3) in deploy pipeline and deploy.sh', async () => {
+  it('routes every cockpit deployment through the guarded backup, test, build and rollback script', async () => {
     const fs = await import('node:fs');
     const path = await import('node:path');
     const sandboxSource = fs.readFileSync(path.resolve(process.cwd(), 'server/sandboxNew.ts'), 'utf-8');
     const deployShSource = fs.readFileSync(path.resolve(process.cwd(), 'deploy.sh'), 'utf-8');
 
-    // Verify server/sandboxNew.ts Step 2 & Step 3 commands
-    assert.ok(
-      sandboxSource.includes("['install', '--include=dev', '--legacy-peer-deps']"),
-      'Expected Step 2 to run npm install --include=dev --legacy-peer-deps'
-    );
-    assert.ok(
-      sandboxSource.includes("'./node_modules/.bin/tsc', ['--noEmit']"),
-      'Expected Step 3 to invoke ./node_modules/.bin/tsc --noEmit directly'
-    );
-    assert.equal(
-      sandboxSource.includes("'npx', ['tsc', '--noEmit']"),
-      false,
-      'Must not call npx tsc --noEmit in server/sandboxNew.ts'
-    );
+    assert.ok(sandboxSource.includes("spawn('bash', ['deploy.sh']"));
+    assert.ok(sandboxSource.includes("runExecFile('bash', ['deploy.sh']"));
+    assert.equal(sandboxSource.includes('allowNonZeroInContainer'), false);
+    assert.equal(sandboxSource.includes("router.post('/git-pull'"), false);
 
-    // Verify deploy.sh Step 2 & Step 3 commands
-    assert.ok(deployShSource.includes('npm install --include=dev --legacy-peer-deps'));
-    assert.ok(deployShSource.includes('./node_modules/.bin/tsc --noEmit'));
+    assert.ok(deployShSource.includes('node scripts/check-pm2-config.mjs'));
+    assert.ok(deployShSource.includes('bash scripts/backup-data.sh'));
+    assert.ok(deployShSource.includes('npm ci --include=dev --legacy-peer-deps'));
+    assert.ok(deployShSource.includes('npm run lint'));
+    assert.ok(deployShSource.includes('npm test'));
+    assert.ok(deployShSource.includes('npm run build'));
+    assert.ok(deployShSource.includes('rollback_on_error'));
 
-    // Verify UI step cards on /sandbox/deploy
     const uiRes = await fetch(`${baseUrl}/sandbox/deploy`);
     assert.equal(uiRes.status, 200);
     const html = await uiRes.text();
-    assert.ok(html.includes('npm install --include=dev --legacy-peer-deps'));
-    assert.ok(html.includes('./node_modules/.bin/tsc --noEmit'));
+    assert.ok(html.includes('npm ci --include=dev --legacy-peer-deps'));
+    assert.ok(html.includes('Encrypted Data Backup'));
+    assert.ok(html.includes('STEP 7'));
   });
+  it('revokes owner JWT and outstanding 2FA tickets after owner password change', async () => {
+    const oldJwt = signSandboxJwt(STRICT_OWNER_EMAIL).token;
+    const oldTicket = signSandboxLoginTicket(STRICT_OWNER_EMAIL).loginTicket;
+    assert.equal(verifySandboxJwt(oldJwt).valid, true);
+    assert.equal(verifySandboxLoginTicket(oldTicket).valid, true);
+    try {
+      ensureOwnerAccountForEmail(STRICT_OWNER_EMAIL, 'ResetTokenTest#2026');
+      assert.equal(verifySandboxJwt(oldJwt).valid, false);
+      assert.equal(verifySandboxLoginTicket(oldTicket).valid, false);
+      const oldResponse = await fetch(`${baseUrl}/api/sandbox/status`, {
+        headers: { Authorization: `Bearer ${oldJwt}` },
+      });
+      assert.equal(oldResponse.status, 401);
+      const newJwt = signSandboxJwt(STRICT_OWNER_EMAIL).token;
+      assert.equal(verifySandboxJwt(newJwt).valid, true);
+      const newResponse = await fetch(`${baseUrl}/api/sandbox/status`, {
+        headers: { Authorization: `Bearer ${newJwt}` },
+      });
+      assert.equal(newResponse.status, 200);
+    } finally {
+      ensureOwnerAccountForEmail(STRICT_OWNER_EMAIL, TEST_OWNER_PASS);
+    }
+  });
+
 });
 
 

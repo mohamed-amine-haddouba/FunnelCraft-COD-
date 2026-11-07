@@ -19,6 +19,7 @@ import { TEMPLATE_BEAUTY_EN, TEMPLATE_ARABIC_COD } from './data/defaultTemplates
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
+import { shouldUseScrapedProductTemplate } from './utils/publicPageRendering';
 import { HeaderNav, WorkspaceTab } from './components/HeaderNav';
 import { BlocksToolbar } from './components/BlocksToolbar';
 import { CanvasRenderer } from './components/CanvasRenderer';
@@ -362,7 +363,7 @@ function BuilderWorkspace() {
   const [scrapeError, setScrapeError] = useState<string | null>(null);
   const [scrapeSuccessToast, setScrapeSuccessToast] = useState<string | null>(null);
   const [builderRenderMode, setBuilderRenderMode] = useState<'scraped' | 'blocks'>(() =>
-    pageData.scrapedData ? 'scraped' : 'blocks'
+    shouldUseScrapedProductTemplate(pageData) ? 'scraped' : 'blocks'
   );
 
   const navigate = useNavigate();
@@ -428,34 +429,12 @@ function BuilderWorkspace() {
       .catch(() => {});
   }, [isLoggedIn]);
 
-  // Handle Live COD Order Confirmation & capture to server
-  const handleOrderConfirmed = useCallback(async (data: OrderConfirmationData) => {
+  // CodFormBlockView already persisted the verified order before invoking this callback.
+  // Never POST it a second time from the UI celebration handler.
+  const handleOrderConfirmed = useCallback((data: OrderConfirmationData) => {
     setOrderConfirmation(data);
     setPendingOrdersCount((prev) => prev + 1);
-
-    try {
-      await fetch('/api/orders', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          customerName: data.customerName,
-          phone: data.customerPhone,
-          city: data.customerCity,
-          address: data.customerAddress,
-          productName: data.bundle?.name || pageData.title || 'منتج صفحة الهبوط',
-          price: data.totalPrice,
-          quantity: data.bundle?.quantity || 1,
-          funnelId: pageData.id,
-          pageSlug: pageData.slug,
-          notes: data.customerNote,
-          recaptchaToken: data.recaptchaToken,
-          turnstileToken: data.turnstileToken,
-        }),
-      });
-    } catch (err) {
-      console.warn('Failed to post order to server:', err);
-    }
-  }, [pageData.id, pageData.slug, pageData.title]);
+  }, []);
 
   const currentStoredPage = userPages.find((p) => p.id === pageData.id);
 
@@ -501,15 +480,25 @@ function BuilderWorkspace() {
     setScrapeSuccessToast(null);
 
     try {
+      // The authenticated session may have been restored from localStorage before
+      // AuthContext finishes refreshing. Never send a protected scrape without a token.
+      const activeToken = token || localStorage.getItem('funnelcraft_auth_token');
+      if (!activeToken) {
+        throw new Error('انتهت جلسة تسجيل الدخول. سجّل الدخول مجدداً ثم حاول استيراد المنتج.');
+      }
+
       const response = await fetch('/api/scrape-product', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          Authorization: `Bearer ${activeToken}`,
         },
         body: JSON.stringify({ url: trimmedUrl }),
       });
 
+      if (response.status === 401) {
+        throw new Error('انتهت صلاحية جلسة الدخول. سجّل الدخول مجدداً ثم أعد المحاولة.');
+      }
       if (!response.ok) {
         const errPayload = (await response.json().catch(() => ({}))) as {
           error?: string;
@@ -664,7 +653,7 @@ function BuilderWorkspace() {
         id: page.id,
         title: page.title || page.data.title || 'Untitled Landing Page',
       }));
-      setBuilderRenderMode(page.data.scrapedData ? 'scraped' : 'blocks');
+      setBuilderRenderMode(shouldUseScrapedProductTemplate(page.data) ? 'scraped' : 'blocks');
       setSelectedBlockId(null);
       setSaveStatus('saved');
     }
@@ -1035,7 +1024,7 @@ function BuilderWorkspace() {
 
   const handleLoadTemplate = (template: LandingPageData) => {
     updatePageDataWithHistory(() => JSON.parse(JSON.stringify(template)));
-    setBuilderRenderMode(template.scrapedData ? 'scraped' : 'blocks');
+    setBuilderRenderMode(shouldUseScrapedProductTemplate(template) ? 'scraped' : 'blocks');
     setSelectedBlockId(null);
   };
 
@@ -1057,10 +1046,7 @@ function BuilderWorkspace() {
   }
 
   // Mandatory Email Verification Gate (Owner/Admin exempt)
-  const isOwnerAccount =
-    isAdmin ||
-    user.role === 'admin' ||
-    user.email?.trim().toLowerCase() === 'naadianajah2020@gmail.com';
+  const isOwnerAccount = isAdmin || user.role === 'admin';
   if (!isOwnerAccount && user.email_verified === false && user.email_verification_required !== false) {
     return <Navigate to={`/verify-email?email=${encodeURIComponent(user.email)}`} replace />;
   }
@@ -1109,7 +1095,7 @@ function BuilderWorkspace() {
   if (isCustomerLiveView) {
     const effectiveSlug = pageData.slug || currentStoredPage?.slug;
 
-    if (pageData.scrapedData) {
+    if (shouldUseScrapedProductTemplate(pageData)) {
       return (
         <div className="min-h-screen w-full max-w-full bg-slate-50 overflow-y-auto font-sans relative">
           {/* Floating Customer Live View Exit Pill */}
@@ -1349,7 +1335,7 @@ function BuilderWorkspace() {
           onApplyGeneratedPage={async (generatedPage) => {
             await recordPageAction();
             updatePageDataWithHistory(() => generatedPage);
-            setBuilderRenderMode(generatedPage.scrapedData ? 'scraped' : 'blocks');
+            setBuilderRenderMode(shouldUseScrapedProductTemplate(generatedPage) ? 'scraped' : 'blocks');
             setSelectedBlockId(null);
           }}
           onUpgradeClick={(reason) => {
@@ -1686,11 +1672,12 @@ function BuilderWorkspace() {
       {/* Framer AI Generator Modal */}
       <AiGeneratorModal
         isOpen={isAiModalOpen}
+        token={token}
         onClose={() => setIsAiModalOpen(false)}
         onApplyGeneratedPage={async (generatedPage) => {
           await recordPageAction();
           updatePageDataWithHistory(() => generatedPage);
-          setBuilderRenderMode(generatedPage.scrapedData ? 'scraped' : 'blocks');
+          setBuilderRenderMode(shouldUseScrapedProductTemplate(generatedPage) ? 'scraped' : 'blocks');
           setSelectedBlockId(null);
         }}
       />
@@ -1702,7 +1689,7 @@ function BuilderWorkspace() {
         pageData={pageData}
         onImportJson={(importedData) => {
           updatePageDataWithHistory(() => importedData);
-          setBuilderRenderMode(importedData.scrapedData ? 'scraped' : 'blocks');
+          setBuilderRenderMode(shouldUseScrapedProductTemplate(importedData) ? 'scraped' : 'blocks');
           setSelectedBlockId(null);
         }}
       />
@@ -1876,35 +1863,10 @@ export function PublicFunnelPage() {
     };
   }, [slug]);
 
-  const handlePublicOrderConfirmed = useCallback(
-    async (data: OrderConfirmationData) => {
-      setOrderConfirmation(data);
-      try {
-        await fetch('/api/orders', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            customerName: data.customerName,
-            phone: data.customerPhone,
-            city: data.customerCity,
-            address: data.customerAddress,
-            productName: data.bundle?.name || publicPage?.title || 'منتج صفحة الهبوط',
-            price: data.totalPrice,
-            quantity: data.bundle?.quantity || 1,
-            funnelId: publicPage?.id,
-            pageSlug: publicPage?.slug || slug,
-            userId: pageOwnerId,
-            notes: data.customerNote,
-            recaptchaToken: data.recaptchaToken,
-            turnstileToken: data.turnstileToken,
-          }),
-        });
-      } catch (err) {
-        console.warn('Failed to submit public order:', err);
-      }
-    },
-    [publicPage, slug, pageOwnerId]
-  );
+  // The COD form sends and validates the order. This callback updates UI only.
+  const handlePublicOrderConfirmed = useCallback((data: OrderConfirmationData) => {
+    setOrderConfirmation(data);
+  }, []);
 
   if (isLoadingPublic) {
     return (
@@ -1922,7 +1884,7 @@ export function PublicFunnelPage() {
     return <NotFoundPage />;
   }
 
-  if (publicPage.scrapedData) {
+  if (shouldUseScrapedProductTemplate(publicPage)) {
     return (
       <CustomerLandingPage
         product={publicPage.scrapedData}
@@ -1992,8 +1954,7 @@ function LoginRoute() {
   }
 
   if (isLoggedIn && user) {
-    const isSuperAdmin =
-      user.role === 'admin' || user.email?.trim().toLowerCase() === 'naadianajah2020@gmail.com';
+    const isSuperAdmin = user.role === 'admin';
     if (!isSuperAdmin && user.email_verified === false && user.email_verification_required !== false) {
       return <Navigate to={`/verify-email?email=${encodeURIComponent(user.email)}`} replace />;
     }

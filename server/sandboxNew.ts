@@ -21,6 +21,7 @@ import {
   getGlobalPlatformStats,
 } from './db';
 import { sendOtpEmail, sendSandboxResetEmail } from './mailer';
+import { isAllowedCorsOrigin } from './corsOrigins';
 import { getClientIp, resolveClientGeoLocation } from '../src/utils/ipAndForensics';
 
 const requireModule = createRequire(import.meta.url);
@@ -31,7 +32,7 @@ const DATA_DIR = path.resolve(PROJECT_ROOT, 'data');
 const SANDBOX_UI_DIR = path.resolve(__dirname, 'sandbox-ui');
 const SANDBOX_LOGIN_AUDIT_FILE = path.resolve(DATA_DIR, 'sandbox_login_audit.json');
 
-export const STRICT_OWNER_EMAIL = (process.env.OWNER_EMAIL || (process.env.NODE_ENV === 'production' ? '' : 'naadianajah2020@gmail.com')).trim().toLowerCase();
+export const STRICT_OWNER_EMAIL = (process.env.OWNER_EMAIL || '').trim().toLowerCase();
 export const SANDBOX_PORT = Number(process.env.SANDBOX_PORT) || 3002;
 export const JWT_TTL_SECONDS = 30 * 60; // 30 minutes
 
@@ -52,6 +53,7 @@ export interface SandboxJwtPayload {
   iat: number;
   exp: number;
   jti: string;
+  authVersion: string;
 }
 
 export interface SandboxLoginAuditRecord {
@@ -77,6 +79,7 @@ export interface SandboxLoginTicketPayload {
   iat: number;
   exp: number;
   jti: string;
+  authVersion: string;
 }
 
 // In-memory 2FA OTP store for optional Email 2FA step
@@ -114,6 +117,28 @@ function base64UrlDecode(input: string): Buffer {
   return Buffer.from(normalized, 'base64');
 }
 
+// A random, persisted version rotates only when the owner credentials change.
+// It is deliberately separate from password material and never leaves safe profiles.
+function ownerAuthVersion(email: string): string {
+  const user = findUserByEmail(email);
+  const credential = user && user.role === 'admin' && user.status === 'active' &&
+      typeof user.owner_auth_version === 'string'
+    ? `${user.id}:${user.owner_auth_version}`
+    : 'owner-not-active';
+  return crypto.createHmac('sha256', getSandboxJwtSecret()).update(credential).digest('hex');
+}
+
+function isCurrentOwnerAuth(payload: { email: string; authVersion?: string }): boolean {
+  if (!isAllowedOwnerEmail(payload.email) || typeof payload.authVersion !== 'string') return false;
+  const user = findUserByEmail(payload.email);
+  if (!user || user.role !== 'admin' || user.status !== 'active') return false;
+  const current = Buffer.from(ownerAuthVersion(payload.email), 'hex');
+  const provided = Buffer.from(payload.authVersion, 'hex');
+  return provided.length === current.length && crypto.timingSafeEqual(provided, current);
+}
+
+const activeOwnerTerminalSockets = new Set<WebSocket>();
+
 export function signSandboxJwt(email: string, ttlSeconds: number = JWT_TTL_SECONDS): {
   token: string;
   payload: SandboxJwtPayload;
@@ -123,6 +148,7 @@ export function signSandboxJwt(email: string, ttlSeconds: number = JWT_TTL_SECON
     sub: 'owner-cockpit',
     email: email.trim().toLowerCase(),
     role: 'owner',
+    authVersion: ownerAuthVersion(email.trim().toLowerCase()),
     iat: nowSec,
     exp: nowSec + ttlSeconds,
     jti: crypto.randomUUID(),
@@ -197,6 +223,9 @@ export function verifySandboxJwt(rawToken: string): {
   if (!isAllowedOwnerEmail(parsed.email)) {
     return { valid: false, reason: 'NOT_OWNER', payload: parsed };
   }
+  if (!isCurrentOwnerAuth(parsed)) {
+    return { valid: false, reason: 'EXPIRED' };
+  }
 
   return { valid: true, payload: parsed };
 }
@@ -212,6 +241,7 @@ export function signSandboxLoginTicket(
   const payload: SandboxLoginTicketPayload = {
     sub: '2fa_pending',
     email: email.trim().toLowerCase(),
+    authVersion: ownerAuthVersion(email.trim().toLowerCase()),
     iat: nowSec,
     exp: nowSec + ttlSeconds,
     jti: crypto.randomUUID(),
@@ -285,6 +315,9 @@ export function verifySandboxLoginTicket(rawTicket: string): {
 
   if (!isAllowedOwnerEmail(parsed.email)) {
     return { valid: false, reason: 'NOT_OWNER', payload: parsed };
+  }
+  if (!isCurrentOwnerAuth(parsed)) {
+    return { valid: false, reason: 'EXPIRED' };
   }
 
   return { valid: true, payload: parsed };
@@ -432,21 +465,6 @@ export function extractSandboxTokenFromRequest(req: IncomingMessage | Request): 
     if (bearer) return bearer;
   }
 
-  const expressQueryToken = (req as Request).query?.token;
-  if (typeof expressQueryToken === 'string' && expressQueryToken.trim()) {
-    return expressQueryToken.trim();
-  }
-
-  if (typeof req.url === 'string' && req.url.includes('?')) {
-    try {
-      const parsedUrl = new URL(req.url, 'http://127.0.0.1');
-      const urlToken = (parsedUrl.searchParams.get('token') || '').trim();
-      if (urlToken) return urlToken;
-    } catch {
-      // ignore malformed URL
-    }
-  }
-
   const cookies = parseCookiesHeader(req.headers?.cookie);
   if (cookies.sandbox_sid && cookies.sandbox_sid.trim()) {
     return cookies.sandbox_sid.trim();
@@ -457,8 +475,8 @@ export function extractSandboxTokenFromRequest(req: IncomingMessage | Request): 
 
 /**
  * Zero-Trust Owner Authentication Middleware
- * Accepts Bearer JWT in Authorization header (primary), ?token= query param (for SSE / WS / Backup),
- * or sandbox_sid HttpOnly cookie. Strictly enforces email === naadianajah2020@gmail.com.
+ * Accepts a Bearer JWT or the same-origin sandbox_sid HttpOnly cookie.
+ * Authentication tokens are never accepted from URLs, where they can leak into logs.
  */
 export function requireOwner(
   req: SandboxAuthenticatedRequest,
@@ -481,7 +499,7 @@ export function requireOwner(
       return res.status(403).json({
         ok: false,
         code: 'FORBIDDEN_OWNER_ONLY',
-        error: 'Access Denied (403): Only naadianajah2020@gmail.com is authorized to access the Sandbox Cockpit.',
+        error: 'Access Denied (403): Only configured owner is authorized to access the Sandbox Cockpit.',
       });
     }
     return res.status(401).json({
@@ -786,6 +804,26 @@ export function createSandboxCockpitRouter(): Router {
   }
   router.use(express.json({ limit: '1mb' }));
 
+  // Cookie-authenticated state changes must come from a trusted browser origin.
+  // CORS alone does not stop a browser from sending a simple CSRF request.
+  router.use((req: Request, res: Response, next: NextFunction) => {
+    if (!['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) return next();
+    const origin = req.get('origin');
+    const hasSessionCookie = Boolean(parseCookiesHeader(req.headers.cookie).sandbox_sid);
+    const allowed = isAllowedCorsOrigin(origin, {
+      appOrigin: process.env.APP_ORIGIN,
+      extraOrigins: process.env.CORS_ALLOWED_ORIGINS,
+      production: process.env.NODE_ENV === 'production',
+    });
+    if (origin && !allowed) {
+      return res.status(403).json({ ok: false, code: 'UNTRUSTED_ORIGIN', error: 'Request origin is not trusted.' });
+    }
+    if (process.env.NODE_ENV === 'production' && hasSessionCookie && !origin) {
+      return res.status(403).json({ ok: false, code: 'ORIGIN_REQUIRED', error: 'Origin header is required for cookie-authenticated requests.' });
+    }
+    return next();
+  });
+
   // Serve xterm and xterm-addon-fit browser assets locally from node_modules
   router.use(
     '/vendor/xterm',
@@ -803,9 +841,9 @@ export function createSandboxCockpitRouter(): Router {
     );
   };
 
-  const loginLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 5, // Max 5 attempts per 15 minutes per IP
+  const createSandboxLimiter = (max: number, error: string) => rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max,
     standardHeaders: true,
     legacyHeaders: false,
     keyGenerator: (req) => getClientIp(req),
@@ -813,12 +851,17 @@ export function createSandboxCockpitRouter(): Router {
       process.env.NODE_ENV !== 'production' && req.headers['x-test-bypass-rate-limit'] === '1',
     validate: false,
     statusCode: 429,
-    message: {
-      ok: false,
-      code: 'RATE_LIMITED',
-      error: 'Too many authentication attempts (max 5 per 15 minutes). Please try again later.',
-    },
+    message: { ok: false, code: 'RATE_LIMITED', error },
   });
+  const loginLimiter = createSandboxLimiter(5, 'Too many login attempts. Please try again later.');
+  const otpSendLimiter = createSandboxLimiter(3, 'Too many 2FA code requests. Please try again later.');
+  const resetRequestLimiter = createSandboxLimiter(3, 'Too many password reset requests. Please try again later.');
+  const resetCompletionLimiter = createSandboxLimiter(5, 'Too many password reset attempts. Please try again later.');
+  const gitFetchLimiter = createSandboxLimiter(2, 'Git fetch is temporarily rate-limited.');
+  const backupLimiter = createSandboxLimiter(1, 'A backup was just requested. Please wait before creating another.');
+  const logsLimiter = createSandboxLimiter(30, 'Log requests are temporarily rate-limited.');
+  const safeTerminalLimiter = createSandboxLimiter(30, 'Terminal commands are temporarily rate-limited.');
+  const securityAuditLimiter = createSandboxLimiter(30, 'Security audit requests are temporarily rate-limited.');
 
   // 1a. POST /api/sandbox/login (Step 1) — Verify Owner email + password; issue loginTicket if 2FA required or full JWT otherwise
   router.post('/login', loginLimiter, async (req: Request, res: Response) => {
@@ -837,7 +880,7 @@ export function createSandboxCockpitRouter(): Router {
       });
     }
 
-    // Strict Owner-Only Gate: Any email other than naadianajah2020@gmail.com gets 403
+    // Strict Owner-Only Gate: Any email other than configured owner gets 403
     if (!isAllowedOwnerEmail(rawEmail)) {
       recordSandboxLoginAttempt({
         email: rawEmail,
@@ -850,7 +893,7 @@ export function createSandboxCockpitRouter(): Router {
       return res.status(403).json({
         ok: false,
         code: 'FORBIDDEN_OWNER_ONLY',
-        error: 'Access Denied (403): Only naadianajah2020@gmail.com is authorized to access this Cockpit.',
+        error: 'Access Denied (403): Only configured owner is authorized to access this Cockpit.',
       });
     }
 
@@ -904,7 +947,7 @@ export function createSandboxCockpitRouter(): Router {
       });
     }
 
-    const { token, payload } = signSandboxJwt(rawEmail);
+    const { token } = signSandboxJwt(rawEmail);
     setSandboxSidCookie(res, token);
 
     recordSandboxLoginAttempt({
@@ -917,8 +960,6 @@ export function createSandboxCockpitRouter(): Router {
 
     return res.status(200).json({
       ok: true,
-      token,
-      expiresAt: payload.exp * 1000,
       owner: {
         email: rawEmail,
         name: ownerUser?.full_name || 'Platform Owner',
@@ -972,7 +1013,7 @@ export function createSandboxCockpitRouter(): Router {
     }
 
     const ownerUser = findUserByEmail(ownerEmail);
-    const { token, payload } = signSandboxJwt(ownerEmail);
+    const { token } = signSandboxJwt(ownerEmail);
     setSandboxSidCookie(res, token);
 
     recordSandboxLoginAttempt({
@@ -986,8 +1027,6 @@ export function createSandboxCockpitRouter(): Router {
 
     return res.status(200).json({
       ok: true,
-      token,
-      expiresAt: payload.exp * 1000,
       owner: {
         email: ownerEmail,
         name: ownerUser?.full_name || 'Platform Owner',
@@ -998,15 +1037,16 @@ export function createSandboxCockpitRouter(): Router {
 
   // 1b-logout. POST /api/sandbox/logout — Clear sandbox_sid cookie
   router.post('/logout', (_req: Request, res: Response) => {
+    const secure = process.env.NODE_ENV === 'production' ? '; Secure' : '';
     res.setHeader(
       'Set-Cookie',
-      'sandbox_sid=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0'
+      `sandbox_sid=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0${secure}`
     );
     return res.status(200).json({ ok: true });
   });
 
   // 1c. POST /api/sandbox/2fa/send — Send 6-digit Email 2FA code to Owner (accepts Step 2 loginTicket or email)
-  router.post('/2fa/send', async (req: Request, res: Response) => {
+  router.post('/2fa/send', otpSendLimiter, async (req: Request, res: Response) => {
     const rawLoginTicket =
       typeof req.body?.loginTicket === 'string' ? req.body.loginTicket.trim() : '';
     let rawEmail = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : '';
@@ -1031,16 +1071,25 @@ export function createSandboxCockpitRouter(): Router {
       return res.status(403).json({
         ok: false,
         code: 'FORBIDDEN_OWNER_ONLY',
-        error: 'Access Denied (403): Only naadianajah2020@gmail.com is authorized.',
+        error: 'Access Denied (403): Only configured owner is authorized.',
       });
     }
 
     const ownerUser = findUserByEmail(rawEmail);
-    if (!rawLoginTicket && rawPassword && ownerUser && !timingSafeVerifyPassword(ownerUser, rawPassword)) {
+    if (!ownerUser || ownerUser.role !== 'admin' || ownerUser.status !== 'active') {
+      return res.status(403).json({
+        ok: false,
+        code: 'OWNER_ACCOUNT_UNAVAILABLE',
+        error: 'Owner account is unavailable.',
+      });
+    }
+    // A short-lived signed ticket proves Step 1 already checked the password.
+    // Email-only requests must never be able to trigger repeated OTP delivery.
+    if (!rawLoginTicket && (!rawPassword || !timingSafeVerifyPassword(ownerUser, rawPassword))) {
       return res.status(401).json({
         ok: false,
         code: 'INVALID_CREDENTIALS',
-        error: 'Invalid Owner password.',
+        error: 'A valid owner password or login ticket is required.',
       });
     }
 
@@ -1075,7 +1124,7 @@ export function createSandboxCockpitRouter(): Router {
   });
 
   // 1c. POST /api/sandbox/auth/forgot-password — Generate 15-min reset token & email Owner
-  router.post('/auth/forgot-password', async (req: Request, res: Response) => {
+  router.post('/auth/forgot-password', resetRequestLimiter, async (req: Request, res: Response) => {
     const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : '';
     const ip = getClientIp(req);
     const location = resolveClientGeoLocation(req, ip);
@@ -1093,7 +1142,7 @@ export function createSandboxCockpitRouter(): Router {
       return res.status(403).json({
         ok: false,
         code: 'FORBIDDEN_OWNER_ONLY',
-        error: 'Access Denied (403): Only naadianajah2020@gmail.com is authorized.',
+        error: 'Access Denied (403): Only configured owner is authorized.',
       });
     }
 
@@ -1130,12 +1179,12 @@ export function createSandboxCockpitRouter(): Router {
     return res.status(200).json({
       ok: true,
       sent,
-      message: 'Password reset link sent to naadianajah2020@gmail.com (valid for 15 minutes).',
+      message: 'Password reset link requested (valid for 15 minutes).',
     });
   });
 
   // 1d. POST /api/sandbox/auth/reset-password — Verify 15-min token & update Owner password in data/users.json
-  router.post('/auth/reset-password', (req: Request, res: Response) => {
+  router.post('/auth/reset-password', resetCompletionLimiter, (req: Request, res: Response) => {
     const token = typeof req.body?.token === 'string' ? req.body.token.trim() : '';
     const newPassword = typeof req.body?.newPassword === 'string' ? req.body.newPassword : '';
 
@@ -1169,6 +1218,8 @@ export function createSandboxCockpitRouter(): Router {
 
     ensureOwnerAccountForEmail(STRICT_OWNER_EMAIL, newPassword);
     sandboxResetTokens.delete(token);
+    // Stop any active terminal immediately, not merely on the next API call.
+    for (const socket of activeOwnerTerminalSockets) socket.close(4001, 'Owner credentials changed');
 
     return res.status(200).json({
       ok: true,
@@ -1224,7 +1275,7 @@ export function createSandboxCockpitRouter(): Router {
       });
     }
 
-    const { token, payload } = signSandboxJwt(req.sandboxOwner!.email);
+    const { token } = signSandboxJwt(req.sandboxOwner!.email);
     setSandboxSidCookie(res, token);
 
     recordSandboxLoginAttempt({
@@ -1238,8 +1289,6 @@ export function createSandboxCockpitRouter(): Router {
 
     return res.status(200).json({
       ok: true,
-      token,
-      expiresAt: payload.exp * 1000,
       owner: {
         email: STRICT_OWNER_EMAIL,
         name: ownerUser?.full_name || 'Platform Owner',
@@ -1475,13 +1524,138 @@ export function createSandboxCockpitRouter(): Router {
   router.get('/status', requireOwner, handleSystemStatus);
   router.get('/system', requireOwner, handleSystemStatus);
 
-  // 3. POST /api/sandbox/git-pull — Pull Latest Code (git pull origin main)
-  router.post('/git-pull', requireOwner, async (_req: SandboxAuthenticatedRequest, res: Response) => {
+  // 3. POST /api/sandbox/git-fetch — inspect remote updates without changing the working tree
+  router.post('/git-fetch', gitFetchLimiter, requireOwner, async (_req: SandboxAuthenticatedRequest, res: Response) => {
     const startMs = Date.now();
-    const result = await runExecFile('git', ['pull', 'origin', 'main'], { timeoutMs: 45000 });
-    return res.status(200).json({
+    const fetched = await runExecFile('git', ['fetch', '--prune', 'origin', 'main'], { timeoutMs: 60000 });
+    if (!fetched.ok) {
+      return res.status(502).json({
+        ok: false, command: 'git fetch --prune origin main', exitCode: fetched.exitCode,
+        stdout: fetched.stdout, stderr: fetched.stderr, durationMs: Date.now() - startMs,
+      });
+    }
+    const [local, remote] = await Promise.all([
+      runExecFile('git', ['rev-parse', 'HEAD'], { timeoutMs: 10000 }),
+      runExecFile('git', ['rev-parse', 'origin/main'], { timeoutMs: 10000 }),
+    ]);
+    if (!local.ok || !remote.ok) {
+      return res.status(502).json({ ok: false, error: 'Unable to compare local and remote commits.' });
+    }
+    return res.json({
+      ok: true,
+      command: 'git fetch --prune origin main',
+      localCommit: local.stdout.trim(),
+      remoteCommit: remote.stdout.trim(),
+      updateAvailable: local.stdout.trim() !== remote.stdout.trim(),
+      stdout: fetched.stdout,
+      stderr: fetched.stderr,
+      durationMs: Date.now() - startMs,
+      timestamp: new Date().toISOString(),
+    });
+  });
+
+  // 4. POST /api/sandbox/deploy/stream — stream the single guarded deployment entrypoint
+  router.post('/deploy/stream', requireOwner, (req: SandboxAuthenticatedRequest, res: Response) => {
+    res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
+    res.flushHeaders?.();
+
+    let clientClosed = false;
+    res.on('close', () => {
+      if (!res.writableEnded) clientClosed = true;
+    });
+    const sendEvent = (
+      type: 'stdout' | 'stderr' | 'step' | 'done' | 'error',
+      message: string,
+      extra?: Record<string, unknown>
+    ) => {
+      if (clientClosed || res.writableEnded) return;
+      res.write(`data: ${JSON.stringify({ type, message, timestamp: new Date().toISOString(), ...extra })}\n\n`);
+    };
+
+    void new Promise<void>((resolve) => {
+      const startedAt = Date.now();
+      let outputBuffer = '';
+      let currentStep = 0;
+      let currentTitle = '';
+      let settled = false;
+      sendEvent('stdout', `[CodWorth Guarded Deployment] Starting at ${new Date().toISOString()}\n`);
+
+      const child = spawn('bash', ['deploy.sh'], {
+        cwd: PROJECT_ROOT,
+        env: { ...process.env, PAGER: 'cat', FORCE_COLOR: '0' },
+      });
+
+      const processOutput = (stream: 'stdout' | 'stderr', chunk: Buffer) => {
+        const output = chunk.toString('utf-8');
+        if (stream === 'stdout') {
+          outputBuffer += output;
+          const lines = outputBuffer.split(/\r?\n/);
+          outputBuffer = lines.pop() || '';
+          for (const line of lines) {
+            const match = line.match(/^>>> \[(\d+)\/7\] (.+)$/);
+            if (!match) continue;
+            if (currentStep > 0) {
+              sendEvent('step', `✓ Step ${currentStep}/7 completed (${currentTitle}).\n`, {
+                step: currentStep, totalSteps: 7, status: 'success', title: currentTitle,
+              });
+            }
+            currentStep = Number(match[1]);
+            currentTitle = match[2];
+            sendEvent('step', `\n━━━ STEP ${currentStep}/7: ${currentTitle} ━━━\n`, {
+              step: currentStep, totalSteps: 7, status: 'running', title: currentTitle, command: 'bash deploy.sh',
+            });
+          }
+        }
+        sendEvent(stream, output, { step: currentStep || undefined });
+      };
+
+      child.stdout.on('data', (chunk: Buffer) => processOutput('stdout', chunk));
+      child.stderr.on('data', (chunk: Buffer) => processOutput('stderr', chunk));
+
+      const finish = (code: number, processError?: Error) => {
+        if (settled) return;
+        settled = true;
+        if (outputBuffer) sendEvent('stdout', outputBuffer, { step: currentStep || undefined });
+        if (processError) sendEvent('stderr', `[process error] ${processError.message}\n`);
+        if (code === 0 && !processError) {
+          if (currentStep > 0) {
+            sendEvent('step', `✓ Step ${currentStep}/7 completed (${currentTitle}).\n`, {
+              step: currentStep, totalSteps: 7, status: 'success', title: currentTitle,
+            });
+          }
+          sendEvent('done', `\n✓ Guarded deployment completed in ${((Date.now() - startedAt) / 1000).toFixed(1)}s.\n`, {
+            ok: true, success: true, exitCode: 0, durationMs: Date.now() - startedAt,
+          });
+        } else {
+          if (currentStep > 0) {
+            sendEvent('step', `✕ Step ${currentStep}/7 failed.\n`, {
+              step: currentStep, totalSteps: 7, status: 'error', title: currentTitle,
+            });
+          }
+          sendEvent('error', `\n✕ Guarded deployment failed with exit code ${code}. Review the output and rollback health above.\n`, {
+            ok: false, success: false, step: currentStep || undefined, exitCode: code,
+            durationMs: Date.now() - startedAt,
+          });
+        }
+        if (!res.writableEnded) res.end();
+        resolve();
+      };
+
+      child.on('error', (error) => finish(1, error));
+      child.on('close', (code) => finish(typeof code === 'number' ? code : 1));
+    });
+  });
+
+  // 4b. POST /api/sandbox/deploy — JSON fallback using the exact same guarded pipeline
+  router.post('/deploy', requireOwner, async (_req: SandboxAuthenticatedRequest, res: Response) => {
+    const startMs = Date.now();
+    const result = await runExecFile('bash', ['deploy.sh'], { timeoutMs: 15 * 60 * 1000 });
+    return res.status(result.ok ? 200 : 502).json({
       ok: result.ok,
-      command: 'git pull origin main',
+      command: 'bash deploy.sh',
       exitCode: result.exitCode,
       stdout: result.stdout,
       stderr: result.stderr,
@@ -1490,264 +1664,8 @@ export function createSandboxCockpitRouter(): Router {
     });
   });
 
-  // 4. GET /api/sandbox/deploy/stream — Real-time 5-Step SSE Deploy Pipeline
-  router.get('/deploy/stream', requireOwner, (req: SandboxAuthenticatedRequest, res: Response) => {
-    res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
-    res.setHeader('Cache-Control', 'no-cache, no-transform');
-    res.setHeader('Connection', 'keep-alive');
-    res.setHeader('X-Accel-Buffering', 'no');
-    res.flushHeaders?.();
-
-    let clientClosed = false;
-    req.on('close', () => {
-      clientClosed = true;
-    });
-
-    const sendEvent = (
-      type: 'stdout' | 'stderr' | 'step' | 'done' | 'error',
-      message: string,
-      extra?: Record<string, unknown>
-    ) => {
-      if (clientClosed) return;
-      const payload = JSON.stringify({
-        type,
-        message,
-        timestamp: new Date().toISOString(),
-        ...extra,
-      });
-      res.write(`data: ${payload}\n\n`);
-    };
-
-    const runStepStream = (
-      stepNum: number,
-      stepTitle: string,
-      cmd: string,
-      args: string[],
-      allowNonZeroInContainer: boolean = false
-    ): Promise<{ ok: boolean; exitCode: number }> => {
-      return new Promise((resolve) => {
-        if (clientClosed) {
-          resolve({ ok: false, exitCode: 1 });
-          return;
-        }
-        const fullCmd = `${cmd} ${args.join(' ')}`;
-        sendEvent('step', `\n━━━ STEP ${stepNum}/5: ${stepTitle} (${fullCmd}) ━━━\n`, {
-          step: stepNum,
-          totalSteps: 5,
-          status: 'running',
-          command: fullCmd,
-          title: stepTitle,
-        });
-
-        const child = spawn(cmd, args, {
-          cwd: PROJECT_ROOT,
-          env: { ...process.env, PAGER: 'cat', FORCE_COLOR: '0' },
-        });
-
-        let stderrBuf = '';
-
-        child.stdout.on('data', (chunk: Buffer) => {
-          sendEvent('stdout', chunk.toString('utf-8'), { step: stepNum });
-        });
-
-        child.stderr.on('data', (chunk: Buffer) => {
-          const text = chunk.toString('utf-8');
-          stderrBuf += text;
-          sendEvent('stderr', text, { step: stepNum });
-        });
-
-        child.on('error', (err) => {
-          if (allowNonZeroInContainer) {
-            sendEvent('stdout', `[info] ${fullCmd}: ${err.message} (continuing in standalone container mode)\n`, {
-              step: stepNum,
-            });
-            sendEvent('step', `✓ Step ${stepNum}/5 completed (${stepTitle}).\n`, {
-              step: stepNum,
-              totalSteps: 5,
-              status: 'success',
-              command: fullCmd,
-              title: stepTitle,
-            });
-            resolve({ ok: true, exitCode: 0 });
-            return;
-          }
-          sendEvent('stderr', `[process error] ${err.message}\n`, { step: stepNum });
-          sendEvent('step', `❌ Step ${stepNum}/5 failed (${stepTitle}).\n`, {
-            step: stepNum,
-            totalSteps: 5,
-            status: 'error',
-            command: fullCmd,
-            title: stepTitle,
-          });
-          resolve({ ok: false, exitCode: 1 });
-        });
-
-        child.on('close', (code) => {
-          const exitCode = typeof code === 'number' ? code : 1;
-          if (exitCode === 0) {
-            sendEvent('step', `✓ Step ${stepNum}/5 succeeded (${stepTitle}).\n`, {
-              step: stepNum,
-              totalSteps: 5,
-              status: 'success',
-              command: fullCmd,
-              title: stepTitle,
-            });
-            resolve({ ok: true, exitCode: 0 });
-          } else if (allowNonZeroInContainer) {
-            sendEvent(
-              'stdout',
-              `[info] ${fullCmd} exited with ${exitCode} (${stderrBuf.trim().slice(0, 120) || 'standalone mode'}); continuing.\n`,
-              { step: stepNum }
-            );
-            sendEvent('step', `✓ Step ${stepNum}/5 completed (${stepTitle}).\n`, {
-              step: stepNum,
-              totalSteps: 5,
-              status: 'success',
-              command: fullCmd,
-              title: stepTitle,
-            });
-            resolve({ ok: true, exitCode: 0 });
-          } else {
-            sendEvent('step', `❌ Step ${stepNum}/5 failed with exit code ${exitCode} (${stepTitle}).\n`, {
-              step: stepNum,
-              totalSteps: 5,
-              status: 'error',
-              command: fullCmd,
-              title: stepTitle,
-            });
-            resolve({ ok: false, exitCode });
-          }
-        });
-      });
-    };
-
-    void (async () => {
-      const startedAt = Date.now();
-      sendEvent('stdout', `[CodWorth Zero-Trust Deployer] Starting 5-step pipeline at ${new Date().toISOString()}\n`);
-
-      // Step 1: git pull origin main
-      const step1 = await runStepStream(1, 'Pulling Latest Code', 'git', ['pull', 'origin', 'main'], true);
-      if (!step1.ok) {
-        sendEvent('error', `\n❌ Deployment aborted at Step 1 (git pull origin main).\n`, {
-          ok: false,
-          success: false,
-          step: 1,
-          exitCode: step1.exitCode,
-        });
-        res.end();
-        return;
-      }
-
-      // Step 2: npm install --include=dev --legacy-peer-deps
-      const step2 = await runStepStream(
-        2,
-        'Installing Dependencies',
-        'npm',
-        ['install', '--include=dev', '--legacy-peer-deps']
-      );
-      if (!step2.ok) {
-        sendEvent('error', `\n❌ Deployment aborted at Step 2 (npm install --include=dev --legacy-peer-deps).\n`, {
-          ok: false,
-          success: false,
-          step: 2,
-          exitCode: step2.exitCode,
-        });
-        res.end();
-        return;
-      }
-
-      // Step 3: ./node_modules/.bin/tsc --noEmit
-      const step3 = await runStepStream(3, 'TypeScript Validation', './node_modules/.bin/tsc', ['--noEmit']);
-      if (!step3.ok) {
-        sendEvent('error', `\n❌ Deployment aborted at Step 3 (./node_modules/.bin/tsc --noEmit).\n`, {
-          ok: false,
-          success: false,
-          step: 3,
-          exitCode: step3.exitCode,
-        });
-        res.end();
-        return;
-      }
-
-      // Step 4: npm run build
-      const step4 = await runStepStream(4, 'Production Bundle Build', 'npm', ['run', 'build']);
-      if (!step4.ok) {
-        sendEvent('error', `\n❌ Deployment aborted at Step 4 (npm run build).\n`, {
-          ok: false,
-          success: false,
-          step: 4,
-          exitCode: step4.exitCode,
-        });
-        res.end();
-        return;
-      }
-
-      // Step 5: pm2 restart funnelcraft-api
-      const step5 = await runStepStream(5, 'Restarting PM2 Service', 'pm2', ['restart', 'funnelcraft-api'], true);
-      if (step5.ok) {
-        await runExecFile('pm2', ['save'], { timeoutMs: 5000 });
-      }
-
-      const elapsedSec = ((Date.now() - startedAt) / 1000).toFixed(1);
-      sendEvent('done', `\n✅ All 5 deployment steps completed in ${elapsedSec}s.\n`, {
-        ok: true,
-        success: true,
-        exitCode: 0,
-        durationMs: Date.now() - startedAt,
-      });
-      res.end();
-    })();
-  });
-
-  // 4b. POST /api/sandbox/deploy — Synchronous/JSON fallback for programmatic callers
-  router.post('/deploy', requireOwner, async (_req: SandboxAuthenticatedRequest, res: Response) => {
-    const startMs = Date.now();
-    const logs: string[] = [];
-
-    const tscRes = await runExecFile('./node_modules/.bin/tsc', ['--noEmit'], { timeoutMs: 60000 });
-    logs.push(`$ ./node_modules/.bin/tsc --noEmit\n${tscRes.stdout}${tscRes.stderr}`);
-    if (!tscRes.ok) {
-      return res.status(400).json({
-        ok: false,
-        step: 'tsc',
-        exitCode: tscRes.exitCode,
-        output: logs.join('\n'),
-        durationMs: Date.now() - startMs,
-      });
-    }
-
-    const buildRes = await runExecFile('npm', ['run', 'build'], { timeoutMs: 120000 });
-    logs.push(`$ npm run build\n${buildRes.stdout}${buildRes.stderr}`);
-    if (!buildRes.ok) {
-      return res.status(400).json({
-        ok: false,
-        step: 'build',
-        exitCode: buildRes.exitCode,
-        output: logs.join('\n'),
-        durationMs: Date.now() - startMs,
-      });
-    }
-
-    const pm2Res = await runExecFile('pm2', ['restart', 'funnelcraft-api', '--update-env'], {
-      timeoutMs: 15000,
-    });
-    if (pm2Res.ok) {
-      logs.push(`$ pm2 restart funnelcraft-api --update-env\n${pm2Res.stdout}`);
-    } else {
-      logs.push(`[info] Build verified and updated (PM2 not active in local container).`);
-    }
-
-    return res.status(200).json({
-      ok: true,
-      exitCode: 0,
-      output: logs.join('\n\n'),
-      durationMs: Date.now() - startMs,
-      timestamp: new Date().toISOString(),
-    });
-  });
-
   // 5. GET /api/sandbox/logs/:appName — Last 100 lines of PM2 logs for funnelcraft-api or funnelcraft-back
-  router.get('/logs/:appName', requireOwner, async (req: SandboxAuthenticatedRequest, res: Response) => {
+  router.get('/logs/:appName', logsLimiter, requireOwner, async (req: SandboxAuthenticatedRequest, res: Response) => {
     const appName = String(req.params.appName || '').trim();
     if (appName !== 'funnelcraft-api' && appName !== 'funnelcraft-back') {
       return res.status(400).json({
@@ -1850,11 +1768,11 @@ export function createSandboxCockpitRouter(): Router {
     });
   };
 
-  router.post('/terminal', requireOwner, handleSafeTerminal);
-  router.post('/terminal/exec', requireOwner, handleSafeTerminal);
+  router.post('/terminal', safeTerminalLimiter, requireOwner, handleSafeTerminal);
+  router.post('/terminal/exec', safeTerminalLimiter, requireOwner, handleSafeTerminal);
 
   // 7. GET /api/sandbox/security/logins — Last 10 Admin Logins + Data Directory Summary
-  router.get('/security/logins', requireOwner, (_req: SandboxAuthenticatedRequest, res: Response) => {
+  router.get('/security/logins', securityAuditLimiter, requireOwner, (_req: SandboxAuthenticatedRequest, res: Response) => {
     const logins = getRecentSandboxLogins(10);
 
     let dataFiles: Array<{ name: string; sizeBytes: number; updatedAt: string }> = [];
@@ -1885,58 +1803,28 @@ export function createSandboxCockpitRouter(): Router {
     });
   });
 
-  // 8. GET /api/sandbox/backup — Create & Download a .tar.gz backup of data/
-  router.get('/backup', requireOwner, (req: SandboxAuthenticatedRequest, res: Response) => {
-    if (!fs.existsSync(DATA_DIR)) {
-      fs.mkdirSync(DATA_DIR, { recursive: true });
+  // 8. GET /api/sandbox/backup — encrypted backup download only
+  router.get('/backup', backupLimiter, requireOwner, async (_req: SandboxAuthenticatedRequest, res: Response) => {
+    const result = await runExecFile('bash', ['scripts/backup-data.sh'], { timeoutMs: 120000 });
+    if (!result.ok) {
+      return res.status(503).json({ ok: false, error: 'Encrypted backup failed or is not configured.' });
     }
-
-    const dateStamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-    const filename = `codworth-data-backup-${dateStamp}.tar.gz`;
-
-    res.setHeader('Content-Type', 'application/gzip');
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    const backupDir = path.resolve(process.env.CODWORTH_BACKUP_DIR || path.join(path.dirname(PROJECT_ROOT), 'codworth-backups'));
+    const candidates = fs.readdirSync(backupDir, { withFileTypes: true })
+      .filter(item => item.isFile() && /^codworth-data-.*\.tar\.gz\.gpg$/.test(item.name))
+      .map(item => ({ file: path.join(backupDir, item.name), mtime: fs.statSync(path.join(backupDir, item.name)).mtimeMs }))
+      .sort((a, b) => b.mtime - a.mtime);
+    const latest = candidates[0];
+    if (!latest) return res.status(404).json({ ok: false, error: 'Encrypted backup file was not created.' });
     res.setHeader('Cache-Control', 'no-store');
-
-    const tarProc = spawn('tar', ['-czf', '-', '-C', PROJECT_ROOT, 'data'], {
-      cwd: PROJECT_ROOT,
-    });
-
-    tarProc.stdout.pipe(res);
-
-    let stderrMsg = '';
-    tarProc.stderr.on('data', (chunk: Buffer) => {
-      stderrMsg += chunk.toString('utf-8');
-    });
-
-    tarProc.on('error', (err) => {
-      if (!res.headersSent) {
-        res.status(500).json({
-          ok: false,
-          error: `Backup archive creation failed: ${err.message}`,
-        });
-      } else {
-        res.end();
-      }
-    });
-
-    tarProc.on('close', (code) => {
-      if (code !== 0 && !res.headersSent) {
-        res.status(500).json({
-          ok: false,
-          error: `tar exited with code ${code}: ${stderrMsg}`,
-        });
-      }
-    });
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    return res.download(latest.file, path.basename(latest.file));
   });
+
 
   return router;
 }
 
-/**
- * Attaches the Zero-Trust Interactive Web Terminal WebSocket server (`/api/sandbox/terminal`)
- * to an HTTP server instance. Strictly verifies the owner JWT before upgrading.
- */
 export function attachSandboxWebSocketServer(server: http.Server): WebSocketServer {
   const wss = new WebSocketServer({ noServer: true });
 
@@ -1954,6 +1842,21 @@ export function attachSandboxWebSocketServer(server: http.Server): WebSocketServ
     }
 
     if (process.env.NODE_ENV === 'production' && (process.env.ENABLE_OWNER_COCKPIT !== 'true' || !process.env.OWNER_EMAIL)) { socket.destroy(); return; }
+    const rejectUpgrade = (status: string) => {
+      socket.end(`HTTP/1.1 ${status}\r\nConnection: close\r\nContent-Length: 0\r\n\r\n`);
+    };
+    if (process.env.ENABLE_OWNER_WEB_TERMINAL !== 'true') {
+      rejectUpgrade('404 Not Found');
+      return;
+    }
+    const origin = req.headers.origin;
+    if (!origin || !isAllowedCorsOrigin(origin, {
+      appOrigin: process.env.APP_ORIGIN,
+      production: true,
+    })) {
+      rejectUpgrade('403 Forbidden');
+      return;
+    }
     const token = extractSandboxTokenFromRequest(req);
     if (!token) {
       socket.write(
@@ -1980,6 +1883,17 @@ export function attachSandboxWebSocketServer(server: http.Server): WebSocketServ
   });
 
   wss.on('connection', (ws: WebSocket, _req: IncomingMessage, ownerPayload?: SandboxJwtPayload) => {
+    if (!ownerPayload || !isCurrentOwnerAuth(ownerPayload)) {
+      ws.close(4001, 'Invalid owner session');
+      return;
+    }
+    activeOwnerTerminalSockets.add(ws);
+    const sessionGuard = setInterval(() => {
+      if (!isCurrentOwnerAuth(ownerPayload) || ownerPayload.exp <= Math.floor(Date.now() / 1000)) {
+        ws.close(4001, 'Owner session expired');
+      }
+    }, 15000);
+    sessionGuard.unref();
     const shellPath = fs.existsSync('/bin/bash') ? '/bin/bash' : '/bin/sh';
     const shellEnv: Record<string, string> = {
       ...(process.env as Record<string, string>),
@@ -2119,8 +2033,13 @@ export function attachSandboxWebSocketServer(server: http.Server): WebSocketServ
       }
     });
 
-    ws.on('close', cleanupShell);
-    ws.on('error', cleanupShell);
+    const cleanupGuard = () => {
+      clearInterval(sessionGuard);
+      activeOwnerTerminalSockets.delete(ws);
+      cleanupShell();
+    };
+    ws.on('close', cleanupGuard);
+    ws.on('error', cleanupGuard);
   });
 
   server.on('close', () => {

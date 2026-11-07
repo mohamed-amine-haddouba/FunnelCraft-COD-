@@ -128,6 +128,7 @@ export const DEFAULT_SUBSCRIPTION_PLANS: SubscriptionPlanConfig[] = [
 export interface StoredUser extends UserProfile {
   password_hash: string;
   password_salt: string;
+  owner_auth_version?: string;
   reset_token?: string;
   reset_token_expires?: string;
   resetPasswordToken?: string;
@@ -175,7 +176,7 @@ function createDefaultOwnerUser(): StoredUser | null {
     email: superAdminEmail,
     full_name: 'Platform Owner',
     store_name: 'CodWorth HQ (المالك)',
-    phone: '+212 722-256897',
+    phone: (process.env.OWNER_CONTACT_PHONE || '').trim(),
     avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&auto=format&fit=crop&q=80',
     city: 'Casablanca',
     custom_domain: 'codworth.com',
@@ -190,6 +191,7 @@ function createDefaultOwnerUser(): StoredUser | null {
     subscription_tier: 'enterprise_tier',
     password_hash: superAdminHash,
     password_salt: superAdminSalt,
+    owner_auth_version: crypto.randomUUID(),
     mustChangePassword: false,
     initialPasswordBootstrapped: Boolean(envInitialPassword),
     email_verified: true,
@@ -200,16 +202,17 @@ function createDefaultOwnerUser(): StoredUser | null {
 }
 
 function writeJsonFileAtomic(filePath: string, payload: unknown): boolean {
+  const tmpPath = `${filePath}.${process.pid}.${crypto.randomUUID()}.tmp`;
   try {
     if (!fs.existsSync(DATA_DIR)) {
       fs.mkdirSync(DATA_DIR, { recursive: true });
     }
-    const tmpPath = `${filePath}.${process.pid}.${Date.now()}.tmp`;
-    fs.writeFileSync(tmpPath, JSON.stringify(payload, null, 2), 'utf-8');
+    fs.writeFileSync(tmpPath, JSON.stringify(payload, null, 2), { encoding: 'utf-8', mode: 0o600 });
     fs.renameSync(tmpPath, filePath);
     return true;
   } catch (err) {
-    console.error(`[DB ERROR] Atomic write failed for ${filePath}:`, err);
+    try { fs.rmSync(tmpPath, { force: true }); } catch { /* best effort */ }
+    console.error(`[DB ERROR] Atomic write failed for ${path.basename(filePath)}:`, err);
     return false;
   }
 }
@@ -305,74 +308,71 @@ export function migrateUsersEmailVerificationInPlace(
 
 export function ensureDataFiles(): void {
   try {
-    if (!fs.existsSync(DATA_DIR)) {
-      fs.mkdirSync(DATA_DIR, { recursive: true });
-    }
+    if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 
-    if (!fs.existsSync(USERS_FILE)) {
-      const ownerUser = createDefaultOwnerUser();
-      writeJsonFileAtomic(USERS_FILE, ownerUser ? [ownerUser] : []);
-    }
+    const initialSettings: PlatformSettings = {
+      bankAccounts: [],
+      updatedAt: new Date().toISOString(),
+    };
+    const initialFiles: Array<[string, () => unknown]> = [
+      [USERS_FILE, () => { const ownerUser = createDefaultOwnerUser(); return ownerUser ? [ownerUser] : []; }],
+      [PAYMENTS_FILE, () => []],
+      [PAGES_FILE, () => []],
+      [ORDERS_FILE, () => []],
+      [SETTINGS_FILE, () => initialSettings],
+      [PLANS_FILE, () => DEFAULT_SUBSCRIPTION_PLANS],
+      [COUPONS_FILE, () => []],
+      [SECURITY_LOGIN_AUDIT_FILE, () => []],
+      [EMAIL_VERIFICATIONS_FILE, () => []],
+    ];
 
-    if (!fs.existsSync(PAYMENTS_FILE)) {
-      fs.writeFileSync(PAYMENTS_FILE, JSON.stringify([], null, 2), 'utf-8');
-    }
-
-    if (!fs.existsSync(PAGES_FILE)) {
-      fs.writeFileSync(PAGES_FILE, JSON.stringify([], null, 2), 'utf-8');
-    }
-
-    if (!fs.existsSync(ORDERS_FILE)) {
-      fs.writeFileSync(ORDERS_FILE, JSON.stringify([], null, 2), 'utf-8');
-    }
-
-    if (!fs.existsSync(SETTINGS_FILE)) {
-      const initialSettings: PlatformSettings = {
-        bankAccounts: [],
-        updatedAt: new Date().toISOString(),
-      };
-      fs.writeFileSync(SETTINGS_FILE, JSON.stringify(initialSettings, null, 2), 'utf-8');
-    }
-
-    if (!fs.existsSync(PLANS_FILE)) {
-      fs.writeFileSync(PLANS_FILE, JSON.stringify(DEFAULT_SUBSCRIPTION_PLANS, null, 2), 'utf-8');
-    }
-
-    if (!fs.existsSync(COUPONS_FILE)) {
-      fs.writeFileSync(COUPONS_FILE, JSON.stringify([], null, 2), 'utf-8');
-    }
-
-    if (!fs.existsSync(SECURITY_LOGIN_AUDIT_FILE)) {
-      fs.writeFileSync(SECURITY_LOGIN_AUDIT_FILE, JSON.stringify([], null, 2), 'utf-8');
-    }
-
-    if (!fs.existsSync(EMAIL_VERIFICATIONS_FILE)) {
-      writeJsonFileAtomic(EMAIL_VERIFICATIONS_FILE, []);
+    for (const [file, createInitialValue] of initialFiles) {
+      if (!fs.existsSync(file) && !writeJsonFileAtomic(file, createInitialValue())) {
+        throw new Error(`Unable to initialize ${path.basename(file)}.`);
+      }
     }
 
     console.log('[BOOT] Data files verified (existing files preserved).');
   } catch (err) {
     console.error('[BOOT] Failed to verify or initialize data files:', err);
+    throw err; // Never start with partially initialized or silently missing persistence.
+  }
+}
+
+let persistedUsersSnapshot: Map<string, StoredUser> | null = null;
+let usersStoreRef: Map<string, StoredUser> | null = null;
+
+function cloneUsersMap(source: Map<string, StoredUser>): Map<string, StoredUser> {
+  return new Map(Array.from(source.entries(), ([id, user]) => [
+    id,
+    JSON.parse(JSON.stringify(user)) as StoredUser,
+  ]));
+}
+
+function restoreUsersMap(target: Map<string, StoredUser>): void {
+  if (!persistedUsersSnapshot) return;
+  target.clear();
+  for (const [id, user] of persistedUsersSnapshot) {
+    target.set(id, JSON.parse(JSON.stringify(user)) as StoredUser);
   }
 }
 
 function loadUsersFromDisk(): Map<string, StoredUser> {
   const usersMap = new Map<string, StoredUser>();
   if (fs.existsSync(USERS_FILE)) {
-    try {
-      const data = fs.readFileSync(USERS_FILE, 'utf-8');
-      const list: StoredUser[] = JSON.parse(data);
-      if (Array.isArray(list)) {
-        for (const u of list) {
-          if (u && u.id) {
-            usersMap.set(u.id, u);
-          }
-        }
+    const data = fs.readFileSync(USERS_FILE, 'utf-8');
+    let parsed: unknown;
+    try { parsed = JSON.parse(data); }
+    catch { throw new Error('users.json is corrupt. Restore a verified backup before starting CodWorth.'); }
+    if (!Array.isArray(parsed)) throw new Error('users.json must contain an array. Restore a verified backup.');
+    for (const user of parsed as StoredUser[]) {
+      if (!user || typeof user.id !== 'string' || !user.id || typeof user.email !== 'string') {
+        throw new Error('users.json contains an invalid user record. Restore a verified backup.');
       }
-    } catch (e) {
-      console.warn('Failed to parse users.json:', e);
+      usersMap.set(user.id, user);
     }
   }
+  persistedUsersSnapshot = cloneUsersMap(usersMap);
 
   let modified = false;
   const superAdminEmail = getConfiguredOwnerEmail();
@@ -419,36 +419,41 @@ function loadUsersFromDisk(): Map<string, StoredUser> {
 
 function saveUsersToDisk(usersMap: Map<string, StoredUser>): boolean {
   const list = Array.from(usersMap.values());
-  return writeJsonFileAtomic(USERS_FILE, list);
+  if (!writeJsonFileAtomic(USERS_FILE, list)) {
+    restoreUsersMap(usersMap);
+    if (usersStoreRef && usersStoreRef !== usersMap) restoreUsersMap(usersStoreRef);
+    throw new Error('Unable to persist user records; in-memory changes were rolled back.');
+  }
+  persistedUsersSnapshot = cloneUsersMap(usersMap);
+  return true;
 }
 
 ensureDataFiles();
 const users = loadUsersFromDisk();
+usersStoreRef = users;
 
 /* ---------------- MANUAL PAYMENTS STORE ---------------- */
 
 function loadPaymentsFromDisk(): Map<string, ManualPaymentRequest> {
   const map = new Map<string, ManualPaymentRequest>();
-  if (fs.existsSync(PAYMENTS_FILE)) {
-    try {
-      const data = fs.readFileSync(PAYMENTS_FILE, 'utf-8');
-      const list: ManualPaymentRequest[] = JSON.parse(data);
-      for (const p of list) {
-        map.set(p.id, p);
-      }
-    } catch (e) {
-      console.warn('Failed to parse payments.json, re-initializing store:', e);
+  if (!fs.existsSync(PAYMENTS_FILE)) return map;
+  const data = fs.readFileSync(PAYMENTS_FILE, 'utf-8');
+  let parsed: unknown;
+  try { parsed = JSON.parse(data); }
+  catch { throw new Error('payments.json is corrupt. Restore a verified backup before starting CodWorth.'); }
+  if (!Array.isArray(parsed)) throw new Error('payments.json must contain an array. Restore a verified backup.');
+  for (const payment of parsed as ManualPaymentRequest[]) {
+    if (!payment || typeof payment.id !== 'string' || !payment.id) {
+      throw new Error('payments.json contains an invalid payment record. Restore a verified backup.');
     }
+    map.set(payment.id, payment);
   }
   return map;
 }
 
 function savePaymentsToDisk(paymentsMap: Map<string, ManualPaymentRequest>) {
-  try {
-    const list = Array.from(paymentsMap.values());
-    fs.writeFileSync(PAYMENTS_FILE, JSON.stringify(list, null, 2), 'utf-8');
-  } catch (err) {
-    console.error('Failed to write payments to disk:', err);
+  if (!writeJsonFileAtomic(PAYMENTS_FILE, Array.from(paymentsMap.values()))) {
+    throw new Error('Failed to persist manual payments.');
   }
 }
 
@@ -464,6 +469,7 @@ export function toSafeProfile(user: StoredUser): UserProfile {
     resetPasswordExpires,
     mustChangePassword,
     initialPasswordBootstrapped,
+    owner_auth_version,
     ...profile
   } = user;
   if (profile.role !== 'admin' && (profile.subscription_status === 'cancelled' ||
@@ -524,7 +530,7 @@ export function bootstrapOwnerFromEnv(): {
     email: configuredEmail,
     full_name: 'Platform Owner',
     store_name: 'CodWorth HQ (المالك)',
-    phone: '+212 722-256897',
+    phone: (process.env.OWNER_CONTACT_PHONE || '').trim(),
     avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&auto=format&fit=crop&q=80',
     city: 'Casablanca',
     custom_domain: 'codworth.com',
@@ -539,6 +545,7 @@ export function bootstrapOwnerFromEnv(): {
     subscription_tier: 'enterprise_tier',
     password_hash: hash,
     password_salt: salt,
+    owner_auth_version: crypto.randomUUID(),
     mustChangePassword: false,
     initialPasswordBootstrapped: Boolean(envInitialPassword),
     email_verified: true,
@@ -570,10 +577,12 @@ export function ensureOwnerAccountForEmail(email: string, initialPassword?: stri
     let changed = false;
     if (existing.role !== 'admin') {
       existing.role = 'admin';
+      existing.owner_auth_version = crypto.randomUUID();
       changed = true;
     }
     if (existing.status !== 'active') {
       existing.status = 'active';
+      existing.owner_auth_version = crypto.randomUUID();
       changed = true;
     }
     if (existing.email_verified !== true || existing.email_verification_required !== false) {
@@ -582,12 +591,19 @@ export function ensureOwnerAccountForEmail(email: string, initialPassword?: stri
       existing.email_verification_required = false;
       changed = true;
     }
+    if (!existing.owner_auth_version) {
+      existing.owner_auth_version = crypto.randomUUID();
+      changed = true;
+    }
     if (initialPassword) {
       const { hash, salt } = hashPasswordWithSalt(initialPassword);
       existing.password_hash = hash;
       existing.password_salt = salt;
+      existing.owner_auth_version = crypto.randomUUID();
       existing.mustChangePassword = false;
       existing.initialPasswordBootstrapped = false;
+      // A password reset must revoke all existing owner sessions.
+      invalidateAllUserSessions(existing.id);
       changed = true;
     }
     if (changed) {
@@ -608,7 +624,7 @@ export function ensureOwnerAccountForEmail(email: string, initialPassword?: stri
     email: normalized,
     full_name: 'Platform Owner',
     store_name: 'CodWorth HQ (المالك)',
-    phone: '+212 722-256897',
+    phone: (process.env.OWNER_CONTACT_PHONE || '').trim(),
     avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&auto=format&fit=crop&q=80',
     city: 'Casablanca',
     custom_domain: 'codworth.com',
@@ -642,7 +658,7 @@ export function getAllUsers(): UserProfile[] {
   return Array.from(users.values()).map((u) => {
     const userPagesCount = allPages.filter((p) => p.userId === u.id).length;
     const userOrdersCount = allOrders.filter(
-      (o) => o.userId === u.id || o.userEmail === u.email || (o.storeName && o.storeName === u.store_name)
+      (o) => o.userId === u.id
     ).length;
 
     return {
@@ -816,21 +832,20 @@ export function createUser(
 /* ---------------- EMAIL VERIFICATIONS STORE (Part A2) ---------------- */
 
 function loadEmailVerificationsFromDisk(): EmailVerificationRecord[] {
-  if (!fs.existsSync(EMAIL_VERIFICATIONS_FILE)) {
-    return [];
-  }
-  try {
-    const raw = fs.readFileSync(EMAIL_VERIFICATIONS_FILE, 'utf-8');
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch (err) {
-    console.warn('Failed to parse email_verifications.json:', err);
-    return [];
-  }
+  if (!fs.existsSync(EMAIL_VERIFICATIONS_FILE)) return [];
+  const raw = fs.readFileSync(EMAIL_VERIFICATIONS_FILE, 'utf-8');
+  let parsed: unknown;
+  try { parsed = JSON.parse(raw); }
+  catch { throw new Error('email_verifications.json is corrupt. Restore a verified backup before starting CodWorth.'); }
+  if (!Array.isArray(parsed)) throw new Error('email_verifications.json must contain an array.');
+  return parsed as EmailVerificationRecord[];
 }
 
 function saveEmailVerificationsToDisk(records: EmailVerificationRecord[]): boolean {
-  return writeJsonFileAtomic(EMAIL_VERIFICATIONS_FILE, records);
+  if (!writeJsonFileAtomic(EMAIL_VERIFICATIONS_FILE, records)) {
+    throw new Error('Unable to persist email verification records.');
+  }
+  return true;
 }
 
 const emailVerificationRecords: EmailVerificationRecord[] = loadEmailVerificationsFromDisk();
@@ -1215,14 +1230,8 @@ function loadSessionsFromDisk(): void {
 }
 
 function saveSessionsToDisk(): void {
-  try {
-    if (!fs.existsSync(DATA_DIR)) {
-      fs.mkdirSync(DATA_DIR, { recursive: true });
-    }
-    const entries = Array.from(sessions.entries());
-    fs.writeFileSync(SESSIONS_FILE, JSON.stringify(entries, null, 2), 'utf-8');
-  } catch {
-    // ignore write error
+  if (!writeJsonFileAtomic(SESSIONS_FILE, Array.from(sessions.entries()))) {
+    throw new Error('Failed to persist session changes.');
   }
 }
 
@@ -1239,7 +1248,12 @@ export function createSession(userId: string): string {
   const tokenHash = hashSessionToken(rawToken);
   const expiresAt = Date.now() + 30 * 24 * 60 * 60 * 1000;
   sessions.set(tokenHash, { userId, expiresAt });
-  saveSessionsToDisk();
+  try {
+    saveSessionsToDisk();
+  } catch (error) {
+    sessions.delete(tokenHash); // Do not expose an unpersisted login as successful.
+    throw error;
+  }
   return rawToken;
 }
 
@@ -1368,7 +1382,8 @@ export function createManualPaymentRequest(
   proofImageUrl?: string,
   notes?: string
 ): ManualPaymentRequest {
-  const id = `pay-${method.toLowerCase()}-${Date.now().toString().slice(-6)}`;
+  // UUID avoids collisions when two merchants submit in the same millisecond.
+  const id = `pay-${method.toLowerCase()}-${crypto.randomUUID()}`;
   const request: ManualPaymentRequest = {
     id,
     userId,
@@ -1383,8 +1398,9 @@ export function createManualPaymentRequest(
     notes,
   };
 
+  const updated = new Map(manualPayments).set(id, request);
+  savePaymentsToDisk(updated);
   manualPayments.set(id, request);
-  savePaymentsToDisk(manualPayments);
   return request;
 }
 
@@ -1406,12 +1422,33 @@ export function getAllManualPayments(): ManualPaymentRequest[] {
 
 export function approveManualPayment(paymentId: string): { payment: ManualPaymentRequest; user: UserProfile } {
   const payment = manualPayments.get(paymentId);
-  if (!payment) {
-    throw new Error('Payment request not found.');
+  if (!payment) throw new Error('Payment request not found.');
+  const account = findUserById(payment.userId);
+  if (!account || account.status !== 'active') {
+    throw new Error('Payment owner is missing or inactive; review manually.');
+  }
+  if (payment.status === 'approved') {
+    // Duplicate admin clicks must not renew membership or alter the dates.
+    return { payment, user: toSafeProfile(account) };
+  }
+  if (payment.status !== 'pending') {
+    throw new Error('Rejected payments cannot be approved; submit a new request.');
   }
 
-  payment.status = 'approved';
-  savePaymentsToDisk(manualPayments);
+  // Persist a stable approval timestamp before applying the entitlement.
+  // A failure after changing the user's plan can safely be retried with
+  // exactly the same subscription period end.
+  const startedAt = payment.approvalStartedAt || new Date().toISOString();
+  const parsed = Date.parse(startedAt);
+  if (!Number.isFinite(parsed) || parsed > Date.now() + 60000) {
+    throw new Error('Invalid payment approval timestamp; review manually.');
+  }
+  if (!payment.approvalStartedAt) {
+    const startedPayment: ManualPaymentRequest = { ...payment, approvalStartedAt: startedAt };
+    const startedMap = new Map(manualPayments).set(paymentId, startedPayment);
+    savePaymentsToDisk(startedMap);
+    manualPayments.set(paymentId, startedPayment);
+  }
 
   const updatedUser = updateUserSubscription(
     payment.userId,
@@ -1419,21 +1456,28 @@ export function approveManualPayment(paymentId: string): { payment: ManualPaymen
     'pro_monthly',
     `manual_${payment.method.toLowerCase()}`,
     payment.transactionReference,
-    new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+    new Date(parsed + 30 * 24 * 60 * 60 * 1000).toISOString()
   );
-
-  return { payment, user: updatedUser };
+  const approved: ManualPaymentRequest = { ...payment, approvalStartedAt: startedAt, status: 'approved' };
+  const approvedMap = new Map(manualPayments).set(paymentId, approved);
+  savePaymentsToDisk(approvedMap);
+  manualPayments.set(paymentId, approved);
+  return { payment: approved, user: updatedUser };
 }
 
 export function rejectManualPayment(paymentId: string): ManualPaymentRequest {
   const payment = manualPayments.get(paymentId);
-  if (!payment) {
-    throw new Error('Payment request not found.');
+  if (!payment) throw new Error('Payment request not found.');
+  if (payment.status === 'rejected') return payment;
+  if (payment.status === 'approved' || payment.approvalStartedAt) {
+    throw new Error('An approved or processing payment cannot be rejected; reconcile manually.');
   }
 
-  payment.status = 'rejected';
-  savePaymentsToDisk(manualPayments);
-  return payment;
+  const rejected: ManualPaymentRequest = { ...payment, status: 'rejected' };
+  const updatedMap = new Map(manualPayments).set(paymentId, rejected);
+  savePaymentsToDisk(updatedMap);
+  manualPayments.set(paymentId, rejected);
+  return rejected;
 }
 
 /* ---------------- USER PAGES / FUNNELS PERSISTENCE ---------------- */
@@ -1486,42 +1530,29 @@ export function slugify(text: string): string {
 
 function loadPagesFromDisk(): Map<string, StoredPage> {
   const pagesMap = new Map<string, StoredPage>();
-  if (fs.existsSync(PAGES_FILE)) {
-    try {
-      const data = fs.readFileSync(PAGES_FILE, 'utf-8');
-      const list: StoredPage[] = JSON.parse(data);
-      let repaired = false;
-      for (const p of list) {
-        if (!p.slug || p.slug === '404' || p.slug.includes('404-page')) {
-          p.slug = slugify(p.title || 'landing-page');
-          if (p.data && typeof p.data === 'object') {
-            (p.data as Record<string, unknown>).slug = p.slug;
-          }
-          repaired = true;
-        }
-        if (p.customDomain === undefined) {
-          p.customDomain = null;
-          repaired = true;
-        }
-        if (!p.domainStatus) {
-          p.domainStatus = p.customDomain ? 'pending_dns' : 'not_connected';
-          repaired = true;
-        }
-        if (!p.expectedDnsIp) {
-          p.expectedDnsIp = VPS_IP;
-        }
-        if (!p.expectedDnsCname) {
-          p.expectedDnsCname = CNAME_TARGET;
-        }
-        pagesMap.set(p.id, p);
-      }
-      if (repaired) {
-        savePagesToDisk(pagesMap);
-      }
-    } catch (e) {
-      console.warn('Failed to parse pages.json, re-initializing store:', e);
+  if (!fs.existsSync(PAGES_FILE)) return pagesMap;
+  const data = fs.readFileSync(PAGES_FILE, 'utf-8');
+  let parsed: unknown;
+  try { parsed = JSON.parse(data); }
+  catch { throw new Error('pages.json is corrupt. Restore a verified backup before starting CodWorth.'); }
+  if (!Array.isArray(parsed)) throw new Error('pages.json must contain an array. Restore a verified backup.');
+  let repaired = false;
+  for (const p of parsed as StoredPage[]) {
+    if (!p || typeof p.id !== 'string' || !p.id || typeof p.userId !== 'string') {
+      throw new Error('pages.json contains an invalid page record. Restore a verified backup.');
     }
+    if (!p.slug || p.slug === '404' || p.slug.includes('404-page')) {
+      p.slug = slugify(p.title || 'landing-page');
+      if (p.data && typeof p.data === 'object') (p.data as Record<string, unknown>).slug = p.slug;
+      repaired = true;
+    }
+    if (p.customDomain === undefined) { p.customDomain = null; repaired = true; }
+    if (!p.domainStatus) { p.domainStatus = p.customDomain ? 'pending_dns' : 'not_connected'; repaired = true; }
+    if (!p.expectedDnsIp) { p.expectedDnsIp = VPS_IP; repaired = true; }
+    if (!p.expectedDnsCname) { p.expectedDnsCname = CNAME_TARGET; repaired = true; }
+    pagesMap.set(p.id, p);
   }
+  if (repaired) savePagesToDisk(pagesMap);
   return pagesMap;
 }
 
@@ -1546,13 +1577,9 @@ function rebuildActiveDomainCache(pagesMap: Map<string, StoredPage>): void {
 }
 
 function savePagesToDisk(pagesMap: Map<string, StoredPage>): void {
-  try {
-    rebuildActiveDomainCache(pagesMap);
-    const list = Array.from(pagesMap.values());
-    fs.writeFileSync(PAGES_FILE, JSON.stringify(list, null, 2), 'utf-8');
-  } catch (err) {
-    console.error('Failed to write pages to disk:', err);
-  }
+  const list = Array.from(pagesMap.values());
+  if (!writeJsonFileAtomic(PAGES_FILE, list)) throw new Error('Failed to persist pages.');
+  rebuildActiveDomainCache(pagesMap);
 }
 
 const pages = loadPagesFromDisk();
@@ -2348,38 +2375,25 @@ export function getPageOrders(slug: string, ownerId: string): CustomerOrder[] {
 /* ---------------- PLATFORM SETTINGS & DYNAMIC MOROCCAN BANKS STORE (data/settings.json) ---------------- */
 
 function loadSettingsFromDisk(): PlatformSettings {
-  try {
-    if (!fs.existsSync(DATA_DIR)) {
-      fs.mkdirSync(DATA_DIR, { recursive: true });
+  if (!fs.existsSync(SETTINGS_FILE)) {
+    const initialSettings: PlatformSettings = { bankAccounts: [], updatedAt: new Date().toISOString() };
+    if (!writeJsonFileAtomic(SETTINGS_FILE, initialSettings)) {
+      throw new Error('Unable to initialize settings.json.');
     }
-    if (fs.existsSync(SETTINGS_FILE)) {
-      const raw = fs.readFileSync(SETTINGS_FILE, 'utf-8');
-      const parsed = JSON.parse(raw) as Partial<PlatformSettings>;
-      if (parsed && Array.isArray(parsed.bankAccounts)) {
-        return {
-          bankAccounts: parsed.bankAccounts,
-          updatedAt: parsed.updatedAt || new Date().toISOString(),
-        };
-      }
-    }
-  } catch (err) {
-    console.error('Failed to read or parse data/settings.json:', err);
+    return initialSettings;
   }
-
-  const initialSettings: PlatformSettings = {
-    bankAccounts: [],
-    updatedAt: new Date().toISOString(),
+  const raw = fs.readFileSync(SETTINGS_FILE, 'utf-8');
+  let parsed: unknown;
+  try { parsed = JSON.parse(raw); }
+  catch { throw new Error('settings.json is corrupt. Restore a verified backup before editing bank accounts.'); }
+  if (!parsed || typeof parsed !== 'object' || !Array.isArray((parsed as Partial<PlatformSettings>).bankAccounts)) {
+    throw new Error('settings.json has an invalid structure. Restore a verified backup.');
+  }
+  const settings = parsed as Partial<PlatformSettings>;
+  return {
+    bankAccounts: settings.bankAccounts as MoroccanBankAccount[],
+    updatedAt: settings.updatedAt || new Date().toISOString(),
   };
-
-  try {
-    if (!fs.existsSync(SETTINGS_FILE)) {
-      fs.writeFileSync(SETTINGS_FILE, JSON.stringify(initialSettings, null, 2), 'utf-8');
-    }
-  } catch (err) {
-    console.error('Failed to create data/settings.json:', err);
-  }
-
-  return initialSettings;
 }
 
 let platformSettings: PlatformSettings = loadSettingsFromDisk();
@@ -2425,12 +2439,12 @@ export function saveBankAccounts(accounts?: MoroccanBankAccount[]): boolean {
       };
     });
 
-    platformSettings = {
+    const nextSettings: PlatformSettings = {
       bankAccounts: normalized,
       updatedAt: now,
     };
-
-    fs.writeFileSync(SETTINGS_FILE, JSON.stringify(platformSettings, null, 2), 'utf-8');
+    if (!writeJsonFileAtomic(SETTINGS_FILE, nextSettings)) return false;
+    platformSettings = nextSettings;
     return true;
   } catch (err) {
     console.error('Failed to write bank accounts to data/settings.json:', err);
@@ -2490,34 +2504,28 @@ export function deleteBankAccount(id: string): boolean {
 /* ---------------- DYNAMIC SUBSCRIPTION PLANS & COUPONS STORE ---------------- */
 
 export function getPlans(): SubscriptionPlanConfig[] {
-  try {
-    if (fs.existsSync(PLANS_FILE)) {
-      const raw = fs.readFileSync(PLANS_FILE, 'utf-8');
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed.map((p) => {
-          const fallback =
-            DEFAULT_SUBSCRIPTION_PLANS.find((d) => d.id === p.id) || DEFAULT_SUBSCRIPTION_PLANS[0];
-          return {
-            id: p.id as 'starter' | 'pro' | 'enterprise',
-            name: typeof p.name === 'string' && p.name.trim() ? p.name.trim() : fallback.name,
-            nameAr:
-              typeof p.nameAr === 'string' && p.nameAr.trim() ? p.nameAr.trim() : fallback.nameAr,
-            priceMAD:
-              typeof p.priceMAD === 'number' && Number.isFinite(p.priceMAD) && p.priceMAD > 0
-                ? Math.round(p.priceMAD * 100) / 100
-                : fallback.priceMAD,
-            features: Array.isArray(p.features)
-              ? p.features.map((f: unknown) => String(f ?? '').trim()).filter(Boolean)
-              : fallback.features,
-          };
-        });
-      }
-    }
-  } catch (err) {
-    console.warn('Failed to read plans.json, falling back to default plans:', err);
+  if (!fs.existsSync(PLANS_FILE)) {
+    return DEFAULT_SUBSCRIPTION_PLANS.map((p) => ({ ...p, features: [...p.features] }));
   }
-  return DEFAULT_SUBSCRIPTION_PLANS.map((p) => ({ ...p, features: [...p.features] }));
+  const raw = fs.readFileSync(PLANS_FILE, 'utf-8');
+  let parsed: unknown;
+  try { parsed = JSON.parse(raw); }
+  catch { throw new Error('plans.json is corrupt. Restore a verified backup before changing subscriptions.'); }
+  if (!Array.isArray(parsed)) throw new Error('plans.json must contain an array.');
+  if (parsed.length === 0) return DEFAULT_SUBSCRIPTION_PLANS.map((p) => ({ ...p, features: [...p.features] }));
+  return parsed.map((p) => {
+    const fallback = DEFAULT_SUBSCRIPTION_PLANS.find((d) => d.id === p.id) || DEFAULT_SUBSCRIPTION_PLANS[0];
+    return {
+      id: p.id as 'starter' | 'pro' | 'enterprise',
+      name: typeof p.name === 'string' && p.name.trim() ? p.name.trim() : fallback.name,
+      nameAr: typeof p.nameAr === 'string' && p.nameAr.trim() ? p.nameAr.trim() : fallback.nameAr,
+      priceMAD: typeof p.priceMAD === 'number' && Number.isFinite(p.priceMAD) && p.priceMAD > 0
+        ? Math.round(p.priceMAD * 100) / 100 : fallback.priceMAD,
+      features: Array.isArray(p.features)
+        ? p.features.map((feature: unknown) => String(feature ?? '').trim()).filter(Boolean)
+        : fallback.features,
+    };
+  });
 }
 
 export function savePlans(plansInput: SubscriptionPlanConfig[]): SubscriptionPlanConfig[] {
@@ -2562,38 +2570,30 @@ export function savePlans(plansInput: SubscriptionPlanConfig[]): SubscriptionPla
     (id) => byId.get(id) || DEFAULT_SUBSCRIPTION_PLANS.find((d) => d.id === id)!
   );
 
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
-  }
-  fs.writeFileSync(PLANS_FILE, JSON.stringify(ordered, null, 2), 'utf-8');
+  if (!writeJsonFileAtomic(PLANS_FILE, ordered)) throw new Error('Failed to persist plans.');
   return ordered;
 }
 
 export function getCoupons(): SaaSCoupon[] {
-  try {
-    if (fs.existsSync(COUPONS_FILE)) {
-      const raw = fs.readFileSync(COUPONS_FILE, 'utf-8');
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) {
-        return parsed
-          .filter((c) => c && typeof c.code === 'string' && c.code.trim())
-          .map((c) => ({
-            code: String(c.code).trim().toUpperCase(),
-            discountType: c.discountType === 'fixed' ? 'fixed' : 'percentage',
-            discountValue: Math.max(0, Number(c.discountValue) || 0),
-            maxUses: Math.max(1, Math.floor(Number(c.maxUses) || 1)),
-            redemptionIds: Array.isArray(c.redemptionIds) ? c.redemptionIds.filter((id: unknown) => typeof id === 'string') : [],
-            currentUses: Math.max(0, Math.floor(Number(c.currentUses) || 0)),
-            expiresAt: String(c.expiresAt || new Date(Date.now() + 30 * 86400000).toISOString()),
-            isActive: c.isActive !== false,
-            createdAt: c.createdAt ? String(c.createdAt) : undefined,
-          }));
-      }
-    }
-  } catch (err) {
-    console.warn('Failed to read coupons.json:', err);
-  }
-  return [];
+  if (!fs.existsSync(COUPONS_FILE)) return [];
+  const raw = fs.readFileSync(COUPONS_FILE, 'utf-8');
+  let parsed: unknown;
+  try { parsed = JSON.parse(raw); }
+  catch { throw new Error('coupons.json is corrupt. Restore a verified backup before processing discounts.'); }
+  if (!Array.isArray(parsed)) throw new Error('coupons.json must contain an array.');
+  return parsed
+    .filter((coupon) => coupon && typeof coupon.code === 'string' && coupon.code.trim())
+    .map((coupon) => ({
+      code: String(coupon.code).trim().toUpperCase(),
+      discountType: coupon.discountType === 'fixed' ? 'fixed' : 'percentage',
+      discountValue: Math.max(0, Number(coupon.discountValue) || 0),
+      maxUses: Math.max(1, Math.floor(Number(coupon.maxUses) || 1)),
+      redemptionIds: Array.isArray(coupon.redemptionIds) ? coupon.redemptionIds.filter((id: unknown) => typeof id === 'string') : [],
+      currentUses: Math.max(0, Math.floor(Number(coupon.currentUses) || 0)),
+      expiresAt: String(coupon.expiresAt || new Date(Date.now() + 30 * 86400000).toISOString()),
+      isActive: coupon.isActive !== false,
+      createdAt: coupon.createdAt ? String(coupon.createdAt) : undefined,
+    }));
 }
 
 export function saveCoupons(coupons: SaaSCoupon[]): SaaSCoupon[] {

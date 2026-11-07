@@ -1,7 +1,8 @@
 (function () {
   'use strict';
 
-  const STORAGE_TOKEN_KEY = 'codworth_sandbox_jwt';
+  const STORAGE_AUTH_KEY = 'codworth_sandbox_authenticated';
+  const LEGACY_STORAGE_TOKEN_KEY = 'codworth_sandbox_jwt';
   const STORAGE_OWNER_KEY = 'codworth_sandbox_owner';
   const STORAGE_RESET_NOTICE_KEY = 'codworth_sandbox_reset_notice';
 
@@ -53,7 +54,7 @@
   const deployRamSub = document.getElementById('deploy-ram-sub');
   const deployUptimeValue = document.getElementById('deploy-uptime-value');
   const deployHostSub = document.getElementById('deploy-host-sub');
-  const btnGitPull = document.getElementById('btn-git-pull');
+  const btnGitFetch = document.getElementById('btn-git-fetch');
   const btnRunDeploy = document.getElementById('btn-run-deploy');
   const deployBtnSpinner = document.getElementById('deploy-btn-spinner');
   const deployBtnIcon = document.getElementById('deploy-btn-icon');
@@ -111,7 +112,7 @@
   const btnDownloadBackup = document.getElementById('btn-download-backup');
   const backupFilesTbody = document.getElementById('backup-files-tbody');
 
-  let activeDeployEventSource = null;
+  let activeDeployRequest = null;
   let pendingLoginTicket = null;
   let otpCooldownInterval = null;
   let xtermInstance = null;
@@ -121,28 +122,29 @@
   let isSessionLocked = false;
   const IDLE_LOCK_TIMEOUT_MS = 300000; // 5 minutes (300,000 ms)
 
-  function getJwt() {
+  // The server owns the session in an HttpOnly cookie. sessionStorage is UI state only.
+  function hasSession() {
     try {
-      return sessionStorage.getItem(STORAGE_TOKEN_KEY) || '';
+      return sessionStorage.getItem(STORAGE_AUTH_KEY) === 'true';
     } catch {
-      return '';
+      return false;
     }
   }
 
-  function setJwt(token, ownerEmail) {
+  function setSessionAuthenticated(ownerEmail) {
     try {
-      sessionStorage.setItem(STORAGE_TOKEN_KEY, token);
-      if (ownerEmail) {
-        sessionStorage.setItem(STORAGE_OWNER_KEY, ownerEmail);
-      }
+      sessionStorage.removeItem(LEGACY_STORAGE_TOKEN_KEY);
+      sessionStorage.setItem(STORAGE_AUTH_KEY, 'true');
+      if (ownerEmail) sessionStorage.setItem(STORAGE_OWNER_KEY, ownerEmail);
     } catch {
-      // ignore storage errors
+      // The HttpOnly cookie remains authoritative even if UI state cannot be stored.
     }
   }
 
-  function clearJwt() {
+  function clearSession() {
     try {
-      sessionStorage.removeItem(STORAGE_TOKEN_KEY);
+      sessionStorage.removeItem(LEGACY_STORAGE_TOKEN_KEY);
+      sessionStorage.removeItem(STORAGE_AUTH_KEY);
       sessionStorage.removeItem(STORAGE_OWNER_KEY);
     } catch {
       // ignore
@@ -189,16 +191,13 @@
   }
 
   async function apiFetch(endpoint, options) {
-    const token = getJwt();
     const headers = Object.assign(
       { 'Content-Type': 'application/json' },
       (options && options.headers) || {}
     );
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
-
-    const response = await fetch(`/api/sandbox${endpoint}`, Object.assign({}, options, { headers }));
+    const response = await fetch(`/api/sandbox${endpoint}`, Object.assign({
+      credentials: 'same-origin',
+    }, options, { headers }));
     if (response.status === 401 || response.status === 403) {
       const errData = await response.json().catch(() => ({}));
       if (
@@ -208,7 +207,7 @@
         endpoint !== '/auth/step-up' &&
         endpoint !== '/terminal'
       ) {
-        clearJwt();
+        clearSession();
         switchView(false);
         showLoginError(errData.error || 'Session expired or unauthorized. Please sign in again.');
       }
@@ -266,7 +265,7 @@
 
   function isUserAuthenticatedInCockpit() {
     return (
-      Boolean(getJwt()) &&
+      hasSession() &&
       Boolean(cockpitView) &&
       !cockpitView.classList.contains('hidden')
     );
@@ -384,12 +383,12 @@
         });
         const data = await res.json().catch(() => ({}));
 
-        if (!res.ok || !data.ok || !data.token) {
+        if (!res.ok || !data.ok) {
           showStepUpError(data.error || 'Invalid Master Password.');
           return;
         }
 
-        setJwt(data.token, (data.owner && data.owner.email) || undefined);
+        setSessionAuthenticated((data.owner && data.owner.email) || undefined);
         isSessionLocked = false;
         if (stepUpLock) {
           stepUpLock.style.display = 'none';
@@ -416,7 +415,7 @@
     if (authenticated) {
       loginView.classList.add('hidden');
       cockpitView.classList.remove('hidden');
-      const savedOwner = sessionStorage.getItem(STORAGE_OWNER_KEY) || 'naadianajah2020@gmail.com';
+      const savedOwner = sessionStorage.getItem(STORAGE_OWNER_KEY) || 'Platform Owner';
       sidebarOwnerEmail.textContent = savedOwner;
       isSessionLocked = false;
       if (stepUpLock) {
@@ -806,7 +805,7 @@
         const data = await response.json().catch(() => ({}));
 
         if (response.status === 403) {
-          showLoginError(data.error || 'Access Denied (403): Only naadianajah2020@gmail.com is allowed.');
+          showLoginError(data.error || 'Access Denied (403): Only the configured owner account is authorized.');
           return;
         }
 
@@ -846,9 +845,9 @@
           return;
         }
 
-        if (data.ok && data.token) {
+        if (data.ok) {
           pendingLoginTicket = null;
-          setJwt(data.token, data.owner && data.owner.email);
+          setSessionAuthenticated(data.owner && data.owner.email);
           switchView(true);
           const initialTab = resolveTabFromPathname(window.location.pathname);
           activateRouteTab(initialTab, { replace: true });
@@ -895,10 +894,10 @@
           return;
         }
 
-        if (data.ok && data.token) {
+        if (data.ok) {
           pendingLoginTicket = null;
           loginTotpInput.value = '';
-          setJwt(data.token, data.owner && data.owner.email);
+          setSessionAuthenticated(data.owner && data.owner.email);
           switchView(true);
           const initialTab = resolveTabFromPathname(window.location.pathname);
           activateRouteTab(initialTab, { replace: true });
@@ -1053,9 +1052,9 @@
 
   // Logout
   logoutBtn.addEventListener('click', () => {
-    if (activeDeployEventSource) {
-      activeDeployEventSource.close();
-      activeDeployEventSource = null;
+    if (activeDeployRequest) {
+      activeDeployRequest.abort();
+      activeDeployRequest = null;
     }
     if (terminalSocket) {
       try {
@@ -1066,7 +1065,7 @@
       terminalSocket = null;
     }
     fetch('/api/sandbox/logout', { method: 'POST' }).catch(() => {});
-    clearJwt();
+    clearSession();
     switchView(false);
   });
 
@@ -1076,33 +1075,34 @@
     loadSecurityAndBackups();
   });
 
-  // Git Pull Button
-  btnGitPull.addEventListener('click', async () => {
-    btnGitPull.disabled = true;
-    deployStreamStatus.textContent = 'EXECUTING: git pull origin main...';
-    deployTerminalOutput.textContent += `\n$ git pull origin main\n`;
+  // Check for remote updates without changing the live working tree.
+  btnGitFetch.addEventListener('click', async () => {
+    btnGitFetch.disabled = true;
+    deployStreamStatus.textContent = 'CHECKING REMOTE MAIN (read-only fetch)...';
+    deployTerminalOutput.textContent += `\n$ git fetch --prune origin main\n`;
 
     try {
-      const res = await apiFetch('/git-pull', { method: 'POST' });
+      const res = await apiFetch('/git-fetch', { method: 'POST' });
       const data = await res.json();
       if (data.stdout) deployTerminalOutput.textContent += data.stdout;
       if (data.stderr) deployTerminalOutput.textContent += data.stderr;
-      deployTerminalOutput.textContent += `\n[exit code: ${data.exitCode} | ${data.durationMs}ms]\n`;
-      deployStreamStatus.textContent = data.ok
-        ? 'GIT PULL COMPLETED SUCCESSFULLY'
-        : `GIT PULL FINISHED WITH CODE ${data.exitCode}`;
+      if (data.localCommit) deployTerminalOutput.textContent += `Local:  ${data.localCommit}\n`;
+      if (data.remoteCommit) deployTerminalOutput.textContent += `Remote: ${data.remoteCommit}\n`;
+      deployStreamStatus.textContent = !data.ok
+        ? `FETCH FAILED (exit ${data.exitCode ?? 'unknown'})`
+        : data.updateAvailable ? 'UPDATE AVAILABLE — run the guarded deployment'
+        : 'UP TO DATE — no deployment needed';
       deployTerminalOutput.scrollTop = deployTerminalOutput.scrollHeight;
-      loadSystemStatus();
     } catch (err) {
       deployTerminalOutput.textContent += `\n[Error] ${err.message}\n`;
-      deployStreamStatus.textContent = 'GIT PULL FAILED';
+      deployStreamStatus.textContent = 'UPDATE CHECK FAILED';
     } finally {
-      btnGitPull.disabled = false;
+      btnGitFetch.disabled = false;
     }
   });
 
   function resetDeployStepsUI() {
-    for (let i = 1; i <= 5; i += 1) {
+    for (let i = 1; i <= 7; i += 1) {
       const card = document.querySelector(`.deploy-step-card[data-step="${i}"]`);
       const badge = document.getElementById(`deploy-step-icon-${i}`);
       if (card) {
@@ -1147,64 +1147,71 @@
     }
   }
 
-  // Run Checks & Deploy (Real-Time 5-Step SSE Stream)
-  btnRunDeploy.addEventListener('click', () => {
-    const token = getJwt();
-    if (!token) {
+  // Run the guarded release pipeline (Real-Time 7-Step SSE Stream)
+  btnRunDeploy.addEventListener('click', async () => {
+    if (!hasSession()) {
       switchView(false);
       return;
     }
 
-    if (activeDeployEventSource) {
-      activeDeployEventSource.close();
-      activeDeployEventSource = null;
+    if (activeDeployRequest) {
+      activeDeployRequest.abort();
+      activeDeployRequest = null;
     }
 
     resetDeployStepsUI();
     setDeployButtonRunning(true);
     deployTerminalOutput.textContent = '';
     deployStreamStatus.textContent =
-      'STREAMING 5-STEP PIPELINE (git pull → npm install → tsc → build → pm2 restart)...';
+      'STREAMING GUARDED 7-STEP PIPELINE (PM2 → fast-forward → encrypted backup → npm ci → tests → build → health/rollback)...';
 
-    const streamUrl = `/api/sandbox/deploy/stream?token=${encodeURIComponent(token)}`;
-    const es = new EventSource(streamUrl);
-    activeDeployEventSource = es;
-
-    es.onmessage = (event) => {
-      try {
-        const payload = JSON.parse(event.data);
-        if (payload.type === 'step' && payload.step) {
-          updateDeployStepUI(payload.step, payload.status || 'running');
-        }
-        if (payload.message) {
-          deployTerminalOutput.textContent += payload.message;
-          deployTerminalOutput.scrollTop = deployTerminalOutput.scrollHeight;
-        }
-        if (payload.type === 'done') {
-          deployStreamStatus.textContent = 'DEPLOYMENT PIPELINE SUCCEEDED ✓';
-          setDeployButtonRunning(false);
-          es.close();
-          activeDeployEventSource = null;
-          loadSystemStatus();
-        } else if (payload.type === 'error') {
-          if (payload.step) {
-            updateDeployStepUI(payload.step, 'error');
+    const request = new AbortController();
+    activeDeployRequest = request;
+    try {
+      const response = await apiFetch('/deploy/stream', { method: 'POST', signal: request.signal });
+      if (!response.ok || !response.body) throw new Error(`HTTP ${response.status}`);
+      const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
+      let buffered = '';
+      let finished = false;
+      for (;;) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffered += value;
+        const events = buffered.split('\n\n');
+        buffered = events.pop() || '';
+        for (const event of events) {
+          if (!event.startsWith('data: ')) continue;
+          const payload = JSON.parse(event.slice(6));
+          if (payload.type === 'step' && payload.step) {
+            updateDeployStepUI(payload.step, payload.status || 'running');
           }
-          deployStreamStatus.textContent = 'DEPLOYMENT PIPELINE FAILED ✕';
-          setDeployButtonRunning(false);
-          es.close();
-          activeDeployEventSource = null;
+          if (payload.message) {
+            deployTerminalOutput.textContent += payload.message;
+            deployTerminalOutput.scrollTop = deployTerminalOutput.scrollHeight;
+          }
+          if (payload.type === 'done') {
+            finished = true;
+            deployStreamStatus.textContent = 'DEPLOYMENT PIPELINE SUCCEEDED ✓';
+            loadSystemStatus();
+          } else if (payload.type === 'error') {
+            finished = true;
+            if (payload.step) updateDeployStepUI(payload.step, 'error');
+            deployStreamStatus.textContent = 'DEPLOYMENT PIPELINE FAILED ✕';
+          }
         }
-      } catch {
-        deployTerminalOutput.textContent += `${event.data}\n`;
       }
-    };
-
-    es.onerror = () => {
-      setDeployButtonRunning(false);
-      es.close();
-      activeDeployEventSource = null;
-    };
+      if (!finished) throw new Error('Stream ended before reporting a result.');
+    } catch (err) {
+      if (!request.signal.aborted) {
+        deployStreamStatus.textContent = 'DEPLOYMENT RESULT UNKNOWN';
+        deployTerminalOutput.textContent += `\n[Error] ${err.message}\n`;
+      }
+    } finally {
+      if (activeDeployRequest === request) {
+        setDeployButtonRunning(false);
+        activeDeployRequest = null;
+      }
+    }
   });
 
   btnClearDeployLog.addEventListener('click', () => {
@@ -1231,8 +1238,7 @@
   }
 
   function connectTerminalWebSocket() {
-    const token = getJwt();
-    if (!token || !xtermInstance) return;
+    if (!hasSession() || !xtermInstance) return;
 
     if (terminalSocket) {
       try {
@@ -1245,7 +1251,7 @@
 
     setTerminalBadge('connecting', 'CONNECTING...');
     const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${wsProtocol}//${window.location.host}/api/sandbox/terminal?token=${encodeURIComponent(token)}`;
+    const wsUrl = `${wsProtocol}//${window.location.host}/api/sandbox/terminal`;
     const ws = new WebSocket(wsUrl);
     terminalSocket = ws;
 
@@ -1399,8 +1405,7 @@
 
   // One-Click Data Backup (.tar.gz)
   btnDownloadBackup.addEventListener('click', async () => {
-    const token = getJwt();
-    if (!token) {
+    if (!hasSession()) {
       switchView(false);
       return;
     }
@@ -1409,7 +1414,7 @@
     try {
       const res = await fetch('/api/sandbox/backup', {
         method: 'GET',
-        headers: { Authorization: `Bearer ${token}` },
+        credentials: 'same-origin',
       });
 
       if (!res.ok) {
@@ -1419,7 +1424,7 @@
       const blob = await res.blob();
       const disposition = res.headers.get('Content-Disposition') || '';
       const match = disposition.match(/filename="([^"]+)"/);
-      const filename = match ? match[1] : `codworth-data-backup-${new Date().toISOString().slice(0, 10)}.tar.gz`;
+      const filename = match ? match[1] : `codworth-data-backup-${new Date().toISOString().slice(0, 10)}.tar.gz.gpg`;
 
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -1459,27 +1464,23 @@
       // ignore storage errors
     }
 
-    const existingToken = getJwt();
-    if (!existingToken) {
-      switchView(false);
-      return;
-    }
-
     try {
-      const res = await fetch('/api/sandbox/status', {
-        headers: { Authorization: `Bearer ${existingToken}` },
-      });
+      // Validate the HttpOnly cookie with the server; never read or persist the JWT in JavaScript.
+      const res = await fetch('/api/sandbox/status', { credentials: 'same-origin' });
       if (res.ok) {
+        setSessionAuthenticated();
         switchView(true);
         const initialTab = resolveTabFromPathname(window.location.pathname);
         activateRouteTab(initialTab, { replace: true });
         await Promise.all([loadSystemStatus(), loadSecurityAndBackups()]);
       } else {
-        clearJwt();
+        clearSession();
         switchView(false);
       }
     } catch {
+      clearSession();
       switchView(false);
     }
+
   })();
 })();
