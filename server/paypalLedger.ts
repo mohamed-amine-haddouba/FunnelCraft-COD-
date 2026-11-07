@@ -25,7 +25,6 @@ function validatePaymentId(id: string): void {
 // Provider order IDs are stored as data, never used to construct a filesystem
 // path. Each ledger file receives a random server-generated UUID filename.
 const paymentFileIndex = new Map<string, string>();
-let indexedDirectoryMtime = -1;
 
 function findPaymentFile(id: string): string | undefined {
   validatePaymentId(id);
@@ -36,7 +35,6 @@ function findPaymentFile(id: string): string | undefined {
   // resolution), so a negative lookup must never be cached. In particular,
   // a newly-created corrupt legacy ledger must still fail closed rather than
   // appearing to be an unknown/unpaid order.
-  const directoryMtime = fs.statSync(directory).mtimeMs;
   paymentFileIndex.clear();
 
   // Compatibility with earlier releases: old ledgers were written as
@@ -71,7 +69,6 @@ function findPaymentFile(id: string): string | undefined {
       paymentFileIndex.set(storedId, file);
     }
   }
-  indexedDirectoryMtime = directoryMtime;
   return paymentFileIndex.get(id);
 }
 
