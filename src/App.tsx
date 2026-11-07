@@ -480,15 +480,25 @@ function BuilderWorkspace() {
     setScrapeSuccessToast(null);
 
     try {
+      // The authenticated session may have been restored from localStorage before
+      // AuthContext finishes refreshing. Never send a protected scrape without a token.
+      const activeToken = token || localStorage.getItem('funnelcraft_auth_token');
+      if (!activeToken) {
+        throw new Error('انتهت جلسة تسجيل الدخول. سجّل الدخول مجدداً ثم حاول استيراد المنتج.');
+      }
+
       const response = await fetch('/api/scrape-product', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          Authorization: `Bearer ${activeToken}`,
         },
         body: JSON.stringify({ url: trimmedUrl }),
       });
 
+      if (response.status === 401) {
+        throw new Error('انتهت صلاحية جلسة الدخول. سجّل الدخول مجدداً ثم أعد المحاولة.');
+      }
       if (!response.ok) {
         const errPayload = (await response.json().catch(() => ({}))) as {
           error?: string;
